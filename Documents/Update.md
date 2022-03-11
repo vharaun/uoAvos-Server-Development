@@ -7,7 +7,7 @@
 ► So far this only affects our *server saves, log saves, the game store saves, and the book publishing saves*. In the future we plan on routing all of our saves to the 'Export/Saves/Current' directory.
 
 [≡] **The 'Data' Folder Has Been Completely Removed From The Repo**
-► We did this to limit the servers dependency to the *.cfg,  .txt, xml, .bin* files that our scripts were reading off of. In an effort to keep file contents together we have hardcoded all of the contents of the 'Data' directory into the distribution.
+► We did this to limit the servers dependency to the *.cfg,  .txt, xml, .bin* files that our scripts were reading off of. In an effort to keep file contents together we have hardcoded all of the contents of the 'Data' directory into the our distribution.
 
 [≡] **This Distribution Was Patched For Visual Studio Compatibility**
 ► Fixed an issue where our development team was getting the following error while moving, and relocating, files from one location to another within the uoAvos.sln

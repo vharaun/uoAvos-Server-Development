@@ -51,7 +51,7 @@ namespace Server.Accounting
 		{
 			m_Accounts = new Dictionary<string, IAccount>(32, StringComparer.OrdinalIgnoreCase);
 
-			var filePath = Path.Combine("Export/Saves/Curent/Accounts", "accounts.xml");
+			var filePath = Path.Combine("Export", "Saves", "Current", "Accounts", "accounts.xml");
 
 			if (!File.Exists(filePath))
 			{
