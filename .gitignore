@@ -21,6 +21,7 @@
 /.JustCode
 
 # Custom Directories
+/Client
 /Cache
 /Export
 /Leaderboard
@@ -55,10 +56,12 @@
 *.ini
 *.log
 *.pdb
+*.reserved
 *.sh
 *.suo
 
 # Include Data Files
+/Client/*
 !/Data/*
 !/Data/Binary/*
 
