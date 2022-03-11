@@ -1,0 +1,69 @@
+
+.....................................................................................................[EXTERNAL]
+
+
+///----- Reserved For The DataPath.cs Client Files:
+		 
+		 Directions:
+		 ------------------------------------------
+		 STEP01: Copy ALL Of The Files That Originate In The Directory From Which You Intend To Play The Game
+		 STEP02: Paste The Files You Just Copied Into The 'Client' Folder Inside Your Servers Root Directory
+
+///----- This File CAN BE DELETED Once This Directory Is Populated
+
+
+.....................................................................................................[SOLUTION]
+
+
+///----- Reserved For SPECIFIC Files That Originate In The Directory From Which You Intend To Play The Game:
+         *** This Directory Contains The 'client.exe' file ***
+
+		 Please Drag And Drop The Following File(s) Onto The 'Client' Folder Icon In Visual Studios Solution Explorer
+		 ------------------------------------------
+
+		 > Arttable.cfg
+		 > Login.cfg
+		 > Uo.cfg
+		 > Uomax.cfg
+		 > UO-patch.cfg
+		 > Uoreg.cfg
+		 > Uoupg.cfg
+		 > vercfg.cfg
+
+		 > Anim1.def
+		 > Anim2.def
+		 > art.def
+		 > Body.def
+		 > Bodyconv.def
+		 > Corpse.def
+		 > Equipconv.def
+		 > gump.def
+		 > Intrface.def
+		 > Music.def
+		 > Sound.def
+		 > stitchin.def
+		 > TexTerr.def
+
+		 > settings.json
+		
+		 > music/Digital/Config.txt
+		 > doors.txt
+		 > EULA.txt
+		 > floors.txt
+		 > gamegen.txt
+		 > Keynames.txt
+		 > Macros.txt
+		 > metrics.txt
+		 > misc.txt
+		 > mobtypes.txt
+		 > Prof.txt
+		 > roof.txt
+		 > stairs.txt
+		 > suppinfo.txt
+		 > teleprts.txt
+		 > Tile256.txt
+		 > Tile1024.txt
+		 > Version.txt
+		 > walls.txt
+
+///----- This File CAN BE DELETED Once This Directory Is Populated
