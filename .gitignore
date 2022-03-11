@@ -1,0 +1,68 @@
+# Project Assemblies
+/Scripts/bin
+/Scripts/obj
+/Server/bin
+/Server/obj
+/uoAvos/bin
+/uoAvos/obj
+
+# Common Directories
+/Backups
+/Client
+/Docs
+/Honesty
+/Logs
+/ref
+/Reports
+/runtimes
+/Saves
+/Web
+/.vs
+/.JustCode
+
+# Custom Directories
+/Cache
+/Export
+/Leaderboard
+/TheBox
+/UltimaLive
+/VitaNexCore
+
+# Build Files
+/Scripts.dll
+/Scripts*.json
+/Server.dll
+/Server*.json
+/uoAvos.dll
+/uoAvos*.json
+
+# Common Files
+/Microsoft.*.dll
+/System.*.dll
+
+# Custom Files
+/firewall.cfg
+
+# Wildcard Files
+*.bin
+*.csproj.user
+*.DotSettings.user
+*.exe
+*.exe.config
+*.exe.mdb
+*.dll.config
+*.idea
+*.ini
+*.log
+*.pdb
+*.sh
+*.suo
+
+# Include Data Files
+!/Data/*
+!/Data/Binary/*
+
+# Exclude Data Files
+/Data/PVPTournamentSystemData
+/Data/Emails.xml
+/Data/RAF.xml

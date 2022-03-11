@@ -1,0 +1,741 @@
+﻿using Server.Mobiles;
+using Server.Network;
+
+using System;
+using System.Collections.Generic;
+
+namespace Server.Factions
+{
+	public class Sigil : BaseSystemController
+	{
+		public const int OwnershipHue = 0xB;
+
+		// ?? time corrupting faction has to return the sigil before corruption time resets ?
+		public static readonly TimeSpan CorruptionGrace = TimeSpan.FromMinutes((Core.SE) ? 30.0 : 15.0);
+
+		// Sigil must be held at a stronghold for this amount of time in order to become corrupted
+		public static readonly TimeSpan CorruptionPeriod = ((Core.SE) ? TimeSpan.FromHours(10.0) : TimeSpan.FromHours(24.0));
+
+		// After a sigil has been corrupted it must be returned to the town within this period of time
+		public static readonly TimeSpan ReturnPeriod = TimeSpan.FromHours(1.0);
+
+		// Once it's been returned the corrupting faction owns the town for this period of time
+		public static readonly TimeSpan PurificationPeriod = TimeSpan.FromDays(3.0);
+
+		private BaseMonolith m_LastMonolith;
+
+		private Town m_Town;
+		private Faction m_Corrupted;
+		private Faction m_Corrupting;
+
+		private DateTime m_LastStolen;
+		private DateTime m_GraceStart;
+		private DateTime m_CorruptionStart;
+		private DateTime m_PurificationStart;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public DateTime LastStolen
+		{
+			get => m_LastStolen;
+			set => m_LastStolen = value;
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public DateTime GraceStart
+		{
+			get => m_GraceStart;
+			set => m_GraceStart = value;
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public DateTime CorruptionStart
+		{
+			get => m_CorruptionStart;
+			set => m_CorruptionStart = value;
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public DateTime PurificationStart
+		{
+			get => m_PurificationStart;
+			set => m_PurificationStart = value;
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Town Town
+		{
+			get => m_Town;
+			set { m_Town = value; Update(); }
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Faction Corrupted
+		{
+			get => m_Corrupted;
+			set { m_Corrupted = value; Update(); }
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Faction Corrupting
+		{
+			get => m_Corrupting;
+			set { m_Corrupting = value; Update(); }
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public BaseMonolith LastMonolith
+		{
+			get => m_LastMonolith;
+			set => m_LastMonolith = value;
+		}
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool IsBeingCorrupted => (m_LastMonolith is StrongholdMonolith && m_LastMonolith.Faction == m_Corrupting && m_Corrupting != null);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool IsCorrupted => (m_Corrupted != null);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool IsPurifying => (m_PurificationStart != DateTime.MinValue);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool IsCorrupting => (m_Corrupting != null && m_Corrupting != m_Corrupted);
+
+		public void Update()
+		{
+			ItemID = (m_Town == null ? 0x1869 : m_Town.Definition.SigilID);
+
+			if (m_Town == null)
+			{
+				AssignName(null);
+			}
+			else if (IsCorrupted || IsPurifying)
+			{
+				AssignName(m_Town.Definition.CorruptedSigilName);
+			}
+			else
+			{
+				AssignName(m_Town.Definition.SigilName);
+			}
+
+			InvalidateProperties();
+		}
+
+		public override void GetProperties(ObjectPropertyList list)
+		{
+			base.GetProperties(list);
+
+			if (IsCorrupted)
+			{
+				TextDefinition.AddTo(list, m_Corrupted.Definition.SigilControl);
+			}
+			else
+			{
+				list.Add(1042256); // This sigil is not corrupted.
+			}
+
+			if (IsCorrupting)
+			{
+				list.Add(1042257); // This sigil is in the process of being corrupted.
+			}
+			else if (IsPurifying)
+			{
+				list.Add(1042258); // This sigil has recently been corrupted, and is undergoing purification.
+			}
+			else
+			{
+				list.Add(1042259); // This sigil is not in the process of being corrupted.
+			}
+		}
+
+		public override void OnSingleClick(Mobile from)
+		{
+			base.OnSingleClick(from);
+
+			if (IsCorrupted)
+			{
+				if (m_Corrupted.Definition.SigilControl.Number > 0)
+				{
+					LabelTo(from, m_Corrupted.Definition.SigilControl.Number);
+				}
+				else if (m_Corrupted.Definition.SigilControl.String != null)
+				{
+					LabelTo(from, m_Corrupted.Definition.SigilControl.String);
+				}
+			}
+			else
+			{
+				LabelTo(from, 1042256); // This sigil is not corrupted.
+			}
+
+			if (IsCorrupting)
+			{
+				LabelTo(from, 1042257); // This sigil is in the process of being corrupted.
+			}
+			else if (IsPurifying)
+			{
+				LabelTo(from, 1042258); // This sigil has been recently corrupted, and is undergoing purification.
+			}
+			else
+			{
+				LabelTo(from, 1042259); // This sigil is not in the process of being corrupted.
+			}
+		}
+
+		public override bool CheckLift(Mobile from, Item item, ref LRReason reject)
+		{
+			from.SendLocalizedMessage(1005225); // You must use the stealing skill to pick up the sigil
+			return false;
+		}
+
+		private Mobile FindOwner(object parent)
+		{
+			if (parent is Item)
+			{
+				return ((Item)parent).RootParent as Mobile;
+			}
+
+			if (parent is Mobile)
+			{
+				return (Mobile)parent;
+			}
+
+			return null;
+		}
+
+		public override void OnAdded(IEntity parent)
+		{
+			base.OnAdded(parent);
+
+			var mob = FindOwner(parent);
+
+			if (mob != null)
+			{
+				mob.SolidHueOverride = OwnershipHue;
+			}
+		}
+
+		public override void OnRemoved(IEntity parent)
+		{
+			base.OnRemoved(parent);
+
+			var mob = FindOwner(parent);
+
+			if (mob != null)
+			{
+				mob.SolidHueOverride = -1;
+			}
+		}
+
+		public Sigil(Town town) : base(0x1869)
+		{
+			Movable = false;
+			Town = town;
+
+			m_Sigils.Add(this);
+		}
+
+		public override void OnDoubleClick(Mobile from)
+		{
+			if (IsChildOf(from.Backpack))
+			{
+				from.BeginTarget(1, false, Targeting.TargetFlags.None, new TargetCallback(Sigil_OnTarget));
+				from.SendLocalizedMessage(1042251); // Click on a sigil monolith or player
+			}
+		}
+
+		public static bool ExistsOn(Mobile mob)
+		{
+			var pack = mob.Backpack;
+
+			return (pack != null && pack.FindItemByType(typeof(Sigil)) != null);
+		}
+
+		private void BeginCorrupting(Faction faction)
+		{
+			m_Corrupting = faction;
+			m_CorruptionStart = DateTime.UtcNow;
+		}
+
+		private void ClearCorrupting()
+		{
+			m_Corrupting = null;
+			m_CorruptionStart = DateTime.MinValue;
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public TimeSpan TimeUntilCorruption
+		{
+			get
+			{
+				if (!IsBeingCorrupted)
+				{
+					return TimeSpan.Zero;
+				}
+
+				var ts = (m_CorruptionStart + CorruptionPeriod) - DateTime.UtcNow;
+
+				if (ts < TimeSpan.Zero)
+				{
+					ts = TimeSpan.Zero;
+				}
+
+				return ts;
+			}
+		}
+
+		private void Sigil_OnTarget(Mobile from, object obj)
+		{
+			if (Deleted || !IsChildOf(from.Backpack))
+			{
+				return;
+			}
+
+			#region Give To Mobile
+			if (obj is Mobile)
+			{
+				if (obj is PlayerMobile)
+				{
+					var targ = (PlayerMobile)obj;
+
+					var toFaction = Faction.Find(targ);
+					var fromFaction = Faction.Find(from);
+
+					if (toFaction == null)
+					{
+						from.SendLocalizedMessage(1005223); // You cannot give the sigil to someone not in a faction
+					}
+					else if (fromFaction != toFaction)
+					{
+						from.SendLocalizedMessage(1005222); // You cannot give the sigil to someone not in your faction
+					}
+					else if (Sigil.ExistsOn(targ))
+					{
+						from.SendLocalizedMessage(1005220); // You cannot give this sigil to someone who already has a sigil
+					}
+					else if (!targ.Alive)
+					{
+						from.SendLocalizedMessage(1042248); // You cannot give a sigil to a dead person.
+					}
+					else if (from.NetState != null && targ.NetState != null)
+					{
+						var pack = targ.Backpack;
+
+						if (pack != null)
+						{
+							pack.DropItem(this);
+						}
+					}
+				}
+				else
+				{
+					from.SendLocalizedMessage(1005221); //You cannot give the sigil to them
+				}
+			}
+			#endregion
+			else if (obj is BaseMonolith)
+			{
+				#region Put in Stronghold
+				if (obj is StrongholdMonolith)
+				{
+					var m = (StrongholdMonolith)obj;
+
+					if (m.Faction == null || m.Faction != Faction.Find(from))
+					{
+						from.SendLocalizedMessage(1042246); // You can't place that on an enemy monolith
+					}
+					else if (m.Town == null || m.Town != m_Town)
+					{
+						from.SendLocalizedMessage(1042247); // That is not the correct faction monolith
+					}
+					else
+					{
+						m.Sigil = this;
+
+						var newController = m.Faction;
+						var oldController = m_Corrupting;
+
+						if (oldController == null)
+						{
+							if (m_Corrupted != newController)
+							{
+								BeginCorrupting(newController);
+							}
+						}
+						else if (m_GraceStart > DateTime.MinValue && (m_GraceStart + CorruptionGrace) < DateTime.UtcNow)
+						{
+							if (m_Corrupted != newController)
+							{
+								BeginCorrupting(newController); // grace time over, reset period
+							}
+							else
+							{
+								ClearCorrupting();
+							}
+
+							m_GraceStart = DateTime.MinValue;
+						}
+						else if (newController == oldController)
+						{
+							m_GraceStart = DateTime.MinValue; // returned within grace period
+						}
+						else if (m_GraceStart == DateTime.MinValue)
+						{
+							m_GraceStart = DateTime.UtcNow;
+						}
+
+						m_PurificationStart = DateTime.MinValue;
+					}
+				}
+				#endregion
+
+				#region Put in Town
+				else if (obj is TownMonolith)
+				{
+					var m = (TownMonolith)obj;
+
+					if (m.Town == null || m.Town != m_Town)
+					{
+						from.SendLocalizedMessage(1042245); // This is not the correct town sigil monolith
+					}
+					else if (m_Corrupted == null || m_Corrupted != Faction.Find(from))
+					{
+						from.SendLocalizedMessage(1042244); // Your faction did not corrupt this sigil.  Take it to your stronghold.
+					}
+					else
+					{
+						m.Sigil = this;
+
+						m_Corrupting = null;
+						m_PurificationStart = DateTime.UtcNow;
+						m_CorruptionStart = DateTime.MinValue;
+
+						m_Town.Capture(m_Corrupted);
+						m_Corrupted = null;
+					}
+				}
+				#endregion
+			}
+			else
+			{
+				from.SendLocalizedMessage(1005224); //	You can't use the sigil on that 
+			}
+
+			Update();
+		}
+
+		public Sigil(Serial serial) : base(serial)
+		{
+			m_Sigils.Add(this);
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+
+			Town.WriteReference(writer, m_Town);
+			Faction.WriteReference(writer, m_Corrupted);
+			Faction.WriteReference(writer, m_Corrupting);
+
+			writer.Write(m_LastMonolith);
+
+			writer.Write(m_LastStolen);
+			writer.Write(m_GraceStart);
+			writer.Write(m_CorruptionStart);
+			writer.Write(m_PurificationStart);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+
+			switch (version)
+			{
+				case 0:
+					{
+						m_Town = Town.ReadReference(reader);
+						m_Corrupted = Faction.ReadReference(reader);
+						m_Corrupting = Faction.ReadReference(reader);
+
+						m_LastMonolith = reader.ReadItem() as BaseMonolith;
+
+						m_LastStolen = reader.ReadDateTime();
+						m_GraceStart = reader.ReadDateTime();
+						m_CorruptionStart = reader.ReadDateTime();
+						m_PurificationStart = reader.ReadDateTime();
+
+						Update();
+
+						var mob = RootParent as Mobile;
+
+						if (mob != null)
+						{
+							mob.SolidHueOverride = OwnershipHue;
+						}
+
+						break;
+					}
+			}
+		}
+
+		public bool ReturnHome()
+		{
+			var monolith = m_LastMonolith;
+
+			if (monolith == null && m_Town != null)
+			{
+				monolith = m_Town.Monolith;
+			}
+
+			if (monolith != null && !monolith.Deleted)
+			{
+				monolith.Sigil = this;
+			}
+
+			return (monolith != null && !monolith.Deleted);
+		}
+
+		public override void OnParentDeleted(IEntity parent)
+		{
+			base.OnParentDeleted(parent);
+
+			ReturnHome();
+		}
+
+		public override void OnAfterDelete()
+		{
+			base.OnAfterDelete();
+
+			m_Sigils.Remove(this);
+		}
+
+		public override void Delete()
+		{
+			if (ReturnHome())
+			{
+				return;
+			}
+
+			base.Delete();
+		}
+
+		private static readonly List<Sigil> m_Sigils = new List<Sigil>();
+
+		public static List<Sigil> Sigils => m_Sigils;
+	}
+
+	public abstract class BaseMonolith : BaseSystemController
+	{
+		private Town m_Town;
+		private Faction m_Faction;
+		private Sigil m_Sigil;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Sigil Sigil
+		{
+			get => m_Sigil;
+			set
+			{
+				if (m_Sigil == value)
+				{
+					return;
+				}
+
+				m_Sigil = value;
+
+				if (m_Sigil != null && m_Sigil.LastMonolith != null && m_Sigil.LastMonolith != this && m_Sigil.LastMonolith.Sigil == m_Sigil)
+				{
+					m_Sigil.LastMonolith.Sigil = null;
+				}
+
+				if (m_Sigil != null)
+				{
+					m_Sigil.LastMonolith = this;
+				}
+
+				UpdateSigil();
+			}
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Town Town
+		{
+			get => m_Town;
+			set
+			{
+				m_Town = value;
+				OnTownChanged();
+			}
+		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public Faction Faction
+		{
+			get => m_Faction;
+			set
+			{
+				m_Faction = value;
+				Hue = (m_Faction == null ? 0 : m_Faction.Definition.HuePrimary);
+			}
+		}
+
+		public override void OnLocationChange(Point3D oldLocation)
+		{
+			base.OnLocationChange(oldLocation);
+			UpdateSigil();
+		}
+
+		public override void OnMapChange()
+		{
+			base.OnMapChange();
+			UpdateSigil();
+		}
+
+		public virtual void UpdateSigil()
+		{
+			if (m_Sigil == null || m_Sigil.Deleted)
+			{
+				return;
+			}
+
+			m_Sigil.MoveToWorld(new Point3D(X, Y, Z + 18), Map);
+		}
+
+		public virtual void OnTownChanged()
+		{
+		}
+
+		public BaseMonolith(Town town, Faction faction) : base(0x1183)
+		{
+			Movable = false;
+			Town = town;
+			Faction = faction;
+			m_Monoliths.Add(this);
+		}
+
+		public BaseMonolith(Serial serial) : base(serial)
+		{
+			m_Monoliths.Add(this);
+		}
+
+		public override void OnAfterDelete()
+		{
+			base.OnAfterDelete();
+			m_Monoliths.Remove(this);
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+
+			Town.WriteReference(writer, m_Town);
+			Faction.WriteReference(writer, m_Faction);
+
+			writer.Write(m_Sigil);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+
+			switch (version)
+			{
+				case 0:
+					{
+						Town = Town.ReadReference(reader);
+						Faction = Faction.ReadReference(reader);
+						m_Sigil = reader.ReadItem() as Sigil;
+						break;
+					}
+			}
+		}
+
+		private static List<BaseMonolith> m_Monoliths = new List<BaseMonolith>();
+
+		public static List<BaseMonolith> Monoliths
+		{
+			get => m_Monoliths;
+			set => m_Monoliths = value;
+		}
+	}
+
+	public class StrongholdMonolith : BaseMonolith
+	{
+		public override int DefaultLabelNumber => 1041042;  // A Faction Sigil Monolith
+
+		public override void OnTownChanged()
+		{
+			AssignName(Town == null ? null : Town.Definition.StrongholdMonolithName);
+		}
+
+		public StrongholdMonolith() : this(null, null)
+		{
+		}
+
+		public StrongholdMonolith(Town town, Faction faction) : base(town, faction)
+		{
+		}
+
+		public StrongholdMonolith(Serial serial) : base(serial)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+		}
+	}
+
+	public class TownMonolith : BaseMonolith
+	{
+		public override int DefaultLabelNumber => 1041403;  // A Faction Town Sigil Monolith
+
+		public override void OnTownChanged()
+		{
+			AssignName(Town == null ? null : Town.Definition.TownMonolithName);
+		}
+
+		public TownMonolith() : this(null)
+		{
+		}
+
+		public TownMonolith(Town town) : base(town, null)
+		{
+		}
+
+		public TownMonolith(Serial serial) : base(serial)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+		}
+	}
+}

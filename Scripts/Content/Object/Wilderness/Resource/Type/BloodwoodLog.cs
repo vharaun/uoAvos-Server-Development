@@ -1,0 +1,42 @@
+﻿namespace Server.Items
+{
+	public class BloodwoodLog : Log
+	{
+		[Constructable]
+		public BloodwoodLog()
+			: this(1)
+		{
+		}
+		[Constructable]
+		public BloodwoodLog(int amount)
+			: base(CraftResource.Bloodwood, amount)
+		{
+		}
+		public BloodwoodLog(Serial serial)
+			: base(serial)
+		{
+		}
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+		}
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+		}
+
+		public override bool Axe(Mobile from, BaseAxe axe)
+		{
+			if (!TryCreateBoards(from, 100, new BloodwoodBoard()))
+			{
+				return false;
+			}
+
+			return true;
+		}
+	}
+}
