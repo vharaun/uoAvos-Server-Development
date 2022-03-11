@@ -1,7 +1,7 @@
 ﻿[![N|Solid](http://uoavocation.net/portal/site_image/logo_05.png)](http://www.uoavocation.net)
 [![N|Solid](http://uoavocation.net/portal/site_image/text_0002.png)](http://www.uoavocation.net)
 ***
-## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 02/20/2022</div>
+## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 03/11/2022</div>
 
 >**What's With The New RunUO Emulator?!**
 - While we are using RunUO_v2.7 as our foundation for the server, the overall goal is to change the emulator so that we can use the Ultima Online™ (UO™) game engine to create new genres of games while maintaining the same view aspect ratio as UO™; this has all been made possible using a customized game client provided to us by **<a href="http://www.classicuo.eu" target="_blank">ClassicUO</a>** and the support of the Ultima Online™ emulation community.
