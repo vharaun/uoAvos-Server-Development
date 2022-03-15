@@ -1,4 +1,5 @@
 ﻿using Server.ContextMenus;
+using Server.Engine.Facet.Module.LumberHarvest;
 using Server.Engines.Harvest;
 using Server.Mobiles;
 using Server.Network;
@@ -31,7 +32,7 @@ namespace Server.Items
 		bool Axe(Mobile from, BaseAxe axe);
 	}
 
-	public abstract class BaseAxe : BaseMeleeWeapon
+	public abstract class BaseAxe : BaseMeleeWeapon, IUsesRemaining
 	{
 		public override int DefHitSound => 0x232;
 		public override int DefMissSound => 0x23A;
@@ -40,7 +41,7 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Axe;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => FacetModule_Lumberjacking.System; // public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
 
 		private int m_UsesRemaining;
 		private bool m_ShowUsesRemaining;
@@ -466,7 +467,7 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Polearm;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => FacetModule_Lumberjacking.System; // public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
 
 		private int m_UsesRemaining;
 		private bool m_ShowUsesRemaining;

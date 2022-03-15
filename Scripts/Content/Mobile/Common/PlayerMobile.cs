@@ -86,8 +86,16 @@ namespace Server.Mobiles
 
 	#endregion
 
+	public interface FacetEditingQuery
+	{
+		int QueryMobile(Mobile m, int previousBlock);
+	}
+
 	public partial class PlayerMobile : Mobile, IHonorTarget
 	{
+		public static FacetEditingQuery BlockQuery;
+		private int m_PreviousMapBlock = -1;
+
 		#region Stygian Abyss
 		public override void ToggleFlying()
 		{
@@ -1976,6 +1984,11 @@ namespace Server.Mobiles
 				{
 					Hits -= ((zDrop / 20) * 10) - 5; // deal some damage; does not kill, disrupt, etc
 				}
+
+				if (BlockQuery != null)
+				{
+					m_PreviousMapBlock = BlockQuery.QueryMobile(this, m_PreviousMapBlock);
+				}
 			}
 
 			base.SetLocation(loc, isTeleport);
@@ -3052,6 +3065,11 @@ namespace Server.Mobiles
 
 		protected override void OnMapChange(Map oldMap)
 		{
+			if (BlockQuery != null)
+			{
+				m_PreviousMapBlock = BlockQuery.QueryMobile(this, m_PreviousMapBlock);
+			}
+
 			if ((Map != Faction.Facet && oldMap == Faction.Facet) || (Map == Faction.Facet && oldMap != Faction.Facet))
 			{
 				InvalidateProperties();

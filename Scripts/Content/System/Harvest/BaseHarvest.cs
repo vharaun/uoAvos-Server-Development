@@ -1,4 +1,5 @@
-﻿using Server.Engines.Quests.Definitions;
+﻿using Server.Engine.Facet.Module.LumberHarvest;
+using Server.Engines.Quests.Definitions;
 using Server.Items;
 using Server.Mobiles;
 using Server.Targeting;
@@ -912,11 +913,11 @@ namespace Server.Engines.Harvest
 				}
 			}
 
-			if (m_System is Lumberjacking && targeted is IChopable)
+			if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is IChopable)
 			{
 				((IChopable)targeted).OnChop(from);
 			}
-			else if (m_System is Lumberjacking && targeted is IAxe && m_Tool is BaseAxe)
+			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is IAxe && m_Tool is BaseAxe)
 			{
 				var obj = (IAxe)targeted;
 				var item = (Item)targeted;
@@ -930,11 +931,11 @@ namespace Server.Engines.Harvest
 					from.PlaySound(0x13E);
 				}
 			}
-			else if (m_System is Lumberjacking && targeted is ICarvable)
+			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is ICarvable)
 			{
 				((ICarvable)targeted).Carve(from, m_Tool);
 			}
-			else if (m_System is Lumberjacking && FurnitureAttribute.Check(targeted as Item))
+			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && FurnitureAttribute.Check(targeted as Item))
 			{
 				DestroyFurniture(from, (Item)targeted);
 			}

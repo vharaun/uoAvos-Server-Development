@@ -404,12 +404,22 @@ namespace Server
 
 		public static Map[] Maps => m_Maps;
 
+		#region Facet (Map) Definitions Registry 
+
 		public static Map Felucca => m_Maps[0];
+
 		public static Map Trammel => m_Maps[1];
+
 		public static Map Ilshenar => m_Maps[2];
+
 		public static Map Malas => m_Maps[3];
+
 		public static Map Tokuno => m_Maps[4];
+
 		public static Map TerMur => m_Maps[5];
+
+		#endregion
+
 		public static Map Internal => m_Maps[0x7F];
 
 		private static readonly List<Map> m_AllMaps = new List<Map>();

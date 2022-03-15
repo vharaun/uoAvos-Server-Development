@@ -1,7 +1,24 @@
-﻿using System.Collections.Generic;
+﻿using Server;
+using Server.Commands;
+using Server.Commands.Generic;
+using Server.Engines.Facet;
+using Server.Gumps;
+using Server.Items;
+using Server.Misc;
+using Server.Mobiles;
+using Server.Network;
+using Server.Targeting;
 
-/// This file is the command registry for the commands in the 'Scripts/Communication/Game/Command' 
-/// directory. Editing any of the entries contained in this file could result in loss of function.
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+
+/// This file is the command registry for the commands in the 'Scripts/Communication/Game/Command/Type' 
+/// and the 'Scripts/Engine/WorldMap/Editing/Commands' directories. 
+/// 
+/// Editing any of the entries contained in this file could result in loss of function.
 /// 
 /// CommandHandler Format: Register (yourCommand, AccessLevel.AccessLevel, new CommandEventHandler(yourCommand_OnCommand));
 /// Instructions: Look for this namespace below: Server.Commands
@@ -134,6 +151,49 @@ namespace Server.Commands.Generic
 					impl.Register(command);
 				}
 			}
+		}
+	}
+}
+
+#endregion
+
+#region Register FE
+
+namespace Server.Engine.Facet
+{
+	public partial class FacetEditingCommands
+	{
+		public static void Initialize()
+		{
+			CommandSystem.Prefix = "[";
+
+			Register("LiveFreeze", AccessLevel.Administrator, new CommandEventHandler(LiveFreeze_OnCommand));
+			Register("GetBlockNumber", AccessLevel.GameMaster, new CommandEventHandler(getBlockNumber_OnCommand));
+			Register("QueryClientHash", AccessLevel.GameMaster, new CommandEventHandler(queryClientHash_OnCommand));
+			Register("updateblock", AccessLevel.GameMaster, new CommandEventHandler(updateBlock_OnCommand));
+			Register("CircularIndent", AccessLevel.GameMaster, new CommandEventHandler(circularIndent_OnCommand));
+			Register("ExportClientFiles", AccessLevel.GameMaster, new CommandEventHandler(exportClientFiles_OnCommand));
+			Register("PrintLandData", AccessLevel.GameMaster, new CommandEventHandler(printLandData_OnCommand));
+			Register("PrintStaticsData", AccessLevel.GameMaster, new CommandEventHandler(printStaticsData_OnCommand));
+			Register("PrintCrc", AccessLevel.GameMaster, new CommandEventHandler(printCrc_OnCommand));
+
+			TargetCommands.Register(new IncStaticYCommand());
+			TargetCommands.Register(new IncStaticXCommand());
+			TargetCommands.Register(new IncStaticAltCommand());
+			TargetCommands.Register(new SetStaticHueCommand());
+			TargetCommands.Register(new SetStaticAltCommand());
+			TargetCommands.Register(new SetStaticIDCommand());
+			TargetCommands.Register(new DelStaticCommand());
+			TargetCommands.Register(new AddStaticCommand());
+			TargetCommands.Register(new MoveStaticCommand());
+			TargetCommands.Register(new IncLandAltCommand());
+			TargetCommands.Register(new SetLandAltCommand());
+			TargetCommands.Register(new SetLandIDCommand());
+		}
+
+		public static void Register(string command, AccessLevel access, CommandEventHandler handler)
+		{
+			CommandSystem.Register(command, access, handler);
 		}
 	}
 }

@@ -60,7 +60,7 @@ namespace Server.Engines.Help
 		{
 			var pm = (PlayerMobile)e.Mobile;
 
-			if (AutoStaffTeam.Enabled)
+			if (AutoStaffTeamToggle.Enabled)
 			{
 				if (((pm.LastTimePaged + CanHelpAgain) <= DateTime.Now))
 				{
