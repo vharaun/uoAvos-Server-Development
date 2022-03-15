@@ -1,7 +1,7 @@
 ﻿[![N|Solid](http://uoavocation.net/portal/site_image/logo_05.png)](http://www.uoavocation.net)
 [![N|Solid](http://uoavocation.net/portal/site_image/text_0002.png)](http://www.uoavocation.net)
 ***
-## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 03/11/2022</div>
+## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 03/15/2022</div>
 
 [≡] **Added A Staff Toolbar For Those Wishing To Run A Server**
 ► Commands can get hard to remember and so I found an old tool which most servers use to remedy exactly that! Joekus Toolbar has found its way onto our server distribution. You can add any command to it by assigning it to a button and then simple clicking that button to use said command moving forward. Anyway this should make things a little easier.
