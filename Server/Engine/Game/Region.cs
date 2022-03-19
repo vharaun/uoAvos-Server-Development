@@ -162,18 +162,37 @@ namespace Server
 		public static readonly int MinZ = SByte.MinValue;
 		public static readonly int MaxZ = SByte.MaxValue + 1;
 
-		public static Rectangle3D ConvertTo3D(Rectangle2D rect)
+		public static Poly3D[] Convert(Rectangle2D[] rects)
 		{
-			return new Rectangle3D(new Point3D(rect.Start, MinZ), new Point3D(rect.End, MaxZ));
-		}
-
-		public static Rectangle3D[] ConvertTo3D(Rectangle2D[] rects)
-		{
-			var ret = new Rectangle3D[rects.Length];
+			var ret = new Poly3D[rects.Length];
 
 			for (var i = 0; i < ret.Length; i++)
 			{
-				ret[i] = ConvertTo3D(rects[i]);
+				ret[i] = rects[i];
+			}
+
+			return ret;
+		}
+
+		public static Poly3D[] Convert(Rectangle3D[] rects)
+		{
+			var ret = new Poly3D[rects.Length];
+
+			for (var i = 0; i < ret.Length; i++)
+			{
+				ret[i] = rects[i];
+			}
+
+			return ret;
+		}
+
+		public static Poly3D[] Convert(Poly2D[] rects)
+		{
+			var ret = new Poly3D[rects.Length];
+
+			for (var i = 0; i < ret.Length; i++)
+			{
+				ret[i] = rects[i];
 			}
 
 			return ret;
@@ -183,7 +202,7 @@ namespace Server
 		private readonly Map m_Map;
 		private readonly Region m_Parent;
 		private readonly List<Region> m_Children = new List<Region>();
-		private readonly Rectangle3D[] m_Area;
+		private readonly Poly3D[] m_Area;
 		private Sector[] m_Sectors;
 		private readonly bool m_Dynamic;
 		private readonly int m_Priority;
@@ -197,7 +216,7 @@ namespace Server
 		public Map Map => m_Map;
 		public Region Parent => m_Parent;
 		public List<Region> Children => m_Children;
-		public Rectangle3D[] Area => m_Area;
+		public Poly3D[] Area => m_Area;
 		public Sector[] Sectors => m_Sectors;
 		public bool Dynamic => m_Dynamic;
 		public int Priority => m_Priority;
@@ -210,20 +229,36 @@ namespace Server
 		public bool IsDefault => m_Map.DefaultRegion == this;
 		public virtual MusicName DefaultMusic => m_Parent != null ? m_Parent.Music : MusicName.Invalid;
 
-		public Region(string name, Map map, int priority, params Rectangle2D[] area) : this(name, map, priority, ConvertTo3D(area))
+		public Region(string name, Map map, int priority, params Rectangle2D[] area) : this(name, map, priority, Convert(area))
 		{
 		}
 
-		public Region(string name, Map map, int priority, params Rectangle3D[] area) : this(name, map, null, area)
+		public Region(string name, Map map, int priority, params Poly2D[] area) : this(name, map, priority, Convert(area))
+		{
+		}
+
+		public Region(string name, Map map, int priority, params Rectangle3D[] area) : this(name, map, null, Convert(area))
+		{
+		}
+
+		public Region(string name, Map map, int priority, params Poly3D[] area) : this(name, map, null, area)
 		{
 			m_Priority = priority;
 		}
 
-		public Region(string name, Map map, Region parent, params Rectangle2D[] area) : this(name, map, parent, ConvertTo3D(area))
+		public Region(string name, Map map, Region parent, params Rectangle2D[] area) : this(name, map, parent, Convert(area))
 		{
 		}
 
-		public Region(string name, Map map, Region parent, params Rectangle3D[] area)
+		public Region(string name, Map map, Region parent, params Poly2D[] area) : this(name, map, parent, Convert(area))
+		{
+		}
+
+		public Region(string name, Map map, Region parent, params Rectangle3D[] area) : this(name, map, parent, Convert(area))
+		{ 
+		}
+
+		public Region(string name, Map map, Region parent, params Poly3D[] area)
 		{
 			m_Name = name;
 			m_Map = map;
@@ -267,12 +302,15 @@ namespace Server
 
 			var sectors = new List<Sector>();
 
+			var size = Map.SectorSize;
+			var half = size / 2;
+
 			for (var i = 0; i < m_Area.Length; i++)
 			{
 				var rect = m_Area[i];
 
-				var start = m_Map.Bound(new Point2D(rect.Start));
-				var end = m_Map.Bound(new Point2D(rect.End));
+				var start = m_Map.Bound(rect.Bounds.Start);
+				var end = m_Map.Bound(rect.Bounds.End);
 
 				var startSector = m_Map.GetSector(start);
 				var endSector = m_Map.GetSector(end);
@@ -1185,8 +1223,8 @@ namespace Server
 
 			if (m_GoLocation == Point3D.Zero && m_Area.Length > 0)
 			{
-				var start = m_Area[0].Start;
-				var end = m_Area[0].End;
+				var start = m_Area[0].Bounds.Start;
+				var end = m_Area[0].Bounds.End;
 
 				var x = start.X + (end.X - start.X) / 2;
 				var y = start.Y + (end.Y - start.Y) / 2;
@@ -1199,12 +1237,12 @@ namespace Server
 	public class RegionRect : IComparable
 	{
 		private readonly Region m_Region;
-		private Rectangle3D m_Rect;
+		private Poly3D m_Rect;
 
 		public Region Region => m_Region;
-		public Rectangle3D Rect => m_Rect;
+		public Poly3D Rect => m_Rect;
 
-		public RegionRect(Region region, Rectangle3D rect)
+		public RegionRect(Region region, Poly3D rect)
 		{
 			m_Region = region;
 			m_Rect = rect;
@@ -1363,7 +1401,7 @@ namespace Server
 			}
 		}
 
-		public void OnEnter(Region region, Rectangle3D rect)
+		public void OnEnter(Region region, Poly3D rect)
 		{
 			Add(ref m_RegionRects, new RegionRect(region, rect));
 
@@ -1647,7 +1685,9 @@ namespace Server
 
 					foreach (var rect in reg.Area)
 					{
-						write(ref tabs, $"{{ {rect.Start.X}, {rect.Start.Y}, {rect.Start.Z}, {rect.Width}, {rect.Height}, {rect.Depth} }},");
+						var points = String.Join(", ", rect.Points.Select(p => $"new{p}"));
+
+						write(ref tabs, $"{{ {rect.MinZ}, {rect.MaxZ}, {points} }},");
 					}
 				}
 
@@ -1748,7 +1788,7 @@ namespace Server
 
 		public Dictionary<string, object> Props { get; } = new Dictionary<string, object>();
 
-		public HashSet<Rectangle3D> Bounds { get; } = new HashSet<Rectangle3D>();
+		public HashSet<Poly3D> Bounds { get; } = new HashSet<Poly3D>();
 
 		public HashSet<RegionDefinition> Children { get; } = new HashSet<RegionDefinition>();
 
@@ -1769,7 +1809,7 @@ namespace Server
 
 		public void Add(int x, int y, int z, int width, int height, int depth)
 		{
-			Bounds.Add(new Rectangle3D(x, y, z, width, height, depth));
+			//Bounds.Add(new Rectangle3D(x, y, z, width, height, depth));
 		}
 
 		public IEnumerator<object> GetEnumerator()

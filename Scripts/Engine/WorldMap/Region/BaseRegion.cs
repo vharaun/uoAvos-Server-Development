@@ -157,16 +157,16 @@ namespace Server.Regions
 			return false;
 		}
 
-		private Rectangle3D[] m_Rectangles;
+		private Poly3D[] m_Areas;
 		private int[] m_RectangleWeights;
 		private int m_TotalWeight;
 
-		private static readonly List<Rectangle3D> m_RectBuffer1 = new List<Rectangle3D>();
-		private static readonly List<Rectangle3D> m_RectBuffer2 = new List<Rectangle3D>();
+		private static readonly List<Poly3D> m_RectBuffer1 = new List<Poly3D>();
+		private static readonly List<Poly3D> m_RectBuffer2 = new List<Poly3D>();
 
-		private void InitRectangles()
+		private void InitArea()
 		{
-			if (m_Rectangles != null)
+			if (m_Areas != null)
 			{
 				return;
 			}
@@ -184,15 +184,15 @@ namespace Server.Regions
 					{
 						var rect = m_RectBuffer2[k];
 
-						int l1 = rect.Start.X, r1 = rect.End.X, t1 = rect.Start.Y, b1 = rect.End.Y;
-						int l2 = comp.Start.X, r2 = comp.End.X, t2 = comp.Start.Y, b2 = comp.End.Y;
+						int l1 = rect.Bounds.Start.X, r1 = rect.Bounds.End.X, t1 = rect.Bounds.Start.Y, b1 = rect.Bounds.End.Y;
+						int l2 = comp.Bounds.Start.X, r2 = comp.Bounds.End.X, t2 = comp.Bounds.Start.Y, b2 = comp.Bounds.End.Y;
 
 						if (l1 < r2 && r1 > l2 && t1 < b2 && b1 > t2)
 						{
 							m_RectBuffer2.RemoveAt(k);
 
-							var sz = rect.Start.Z;
-							var ez = rect.End.X;
+							var sz = rect.MinZ;
+							var ez = rect.MaxZ;
 
 							if (l1 < l2)
 							{
@@ -221,14 +221,14 @@ namespace Server.Regions
 				m_RectBuffer2.Clear();
 			}
 
-			m_Rectangles = m_RectBuffer1.ToArray();
+			m_Areas = m_RectBuffer1.ToArray();
 			m_RectBuffer1.Clear();
 
-			m_RectangleWeights = new int[m_Rectangles.Length];
-			for (var i = 0; i < m_Rectangles.Length; i++)
+			m_RectangleWeights = new int[m_Areas.Length];
+			for (var i = 0; i < m_Areas.Length; i++)
 			{
-				var rect = m_Rectangles[i];
-				var weight = rect.Width * rect.Height;
+				var rect = m_Areas[i];
+				var weight = rect.Bounds.Width * rect.Bounds.Height;
 
 				m_RectangleWeights[i] = weight;
 				m_TotalWeight += weight;
@@ -247,14 +247,14 @@ namespace Server.Regions
 				return Point3D.Zero;
 			}
 
-			InitRectangles();
+			InitArea();
 
 			if (m_TotalWeight <= 0)
 			{
 				return Point3D.Zero;
 			}
 
-			for (var i = 0; i < 10; i++) // Try 10 times
+			for (var i = 0; i < 100; i++)
 			{
 				int x, y, minZ, maxZ;
 
@@ -264,21 +264,25 @@ namespace Server.Regions
 
 					x = Int32.MinValue; y = Int32.MinValue;
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < m_RectangleWeights.Length; j++)
 					{
 						var curWeight = m_RectangleWeights[j];
 
 						if (rand < curWeight)
 						{
-							var rect = m_Rectangles[j];
+							var poly = m_Areas[j];
+							var rect = poly.Bounds;
 
 							x = rect.Start.X + rand % rect.Width;
 							y = rect.Start.Y + rand / rect.Width;
 
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
-
-							break;
+							if (poly.Contains(x, y))
+							{
+								minZ = poly.MinZ;
+								maxZ = poly.MaxZ;
+								break;
+							}
 						}
 
 						rand -= curWeight;
@@ -290,14 +294,15 @@ namespace Server.Regions
 					y = Utility.RandomMinMax(home.Y - range, home.Y + range);
 
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < Area.Length; j++)
 					{
-						var rect = Area[j];
+						var poly = Area[j];
 
-						if (x >= rect.Start.X && x < rect.End.X && y >= rect.Start.Y && y < rect.End.Y)
+						if (poly.Contains(x, y))
 						{
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
+							minZ = poly.MinZ;
+							maxZ = poly.MaxZ;
 							break;
 						}
 					}
@@ -542,7 +547,15 @@ namespace Server.Regions
 		{
 		}
 
+		public BaseRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
 		public BaseRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
 		{
 		}
 
@@ -550,7 +563,15 @@ namespace Server.Regions
 		{
 		}
 
+		public BaseRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
 		public BaseRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
 		{
 		}
 

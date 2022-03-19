@@ -38,7 +38,7 @@
 					new TextDefinition(1005189, "Members of the Council of Mages will now be beaten with a stick."),
 					// Moonglow
 					new StrongholdDefinition(
-						new Rectangle2D[]
+						new Poly2D[]
 						{
 							new Rectangle2D( 4463, 1487, 15, 35 ), // Stronghold Border
 							new Rectangle2D( 4450, 1522, 35, 48 ), // Stronghold Border

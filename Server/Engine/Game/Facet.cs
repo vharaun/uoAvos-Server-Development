@@ -1739,7 +1739,7 @@ namespace Server
 			{
 				if (m_DefaultRegion == null)
 				{
-					m_DefaultRegion = new Region(null, this, 0, new Rectangle3D[0]);
+					m_DefaultRegion = new Region(null, this, 0, Array.Empty<Poly3D>());
 				}
 
 				return m_DefaultRegion;

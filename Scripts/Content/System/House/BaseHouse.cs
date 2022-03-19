@@ -482,7 +482,7 @@ namespace Server.Multis
 
 			foreach (var rect in Region.Area)
 			{
-				if (from.X >= rect.Start.X - range && from.Y >= rect.Start.Y - range && from.X < rect.End.X + range && from.Y < rect.End.Y + range)
+				if (from.X >= rect.Bounds.Start.X - range && from.Y >= rect.Bounds.Start.Y - range && from.X < rect.Bounds.End.X + range && from.Y < rect.Bounds.End.Y + range)
 				{
 					return true;
 				}

@@ -37,7 +37,7 @@
 					new TextDefinition(1005182, "Followers of Lord British will now be warned of their impending doom."),
 					new TextDefinition(1005183, "Followers of Lord British will now be attacked on sight."),
 					new StrongholdDefinition(
-						new Rectangle2D[]
+						new Poly2D[]
 						{
 							new Rectangle2D( 1292, 1556, 25, 25 ),  // Stronghold Border
 							new Rectangle2D( 1292, 1676, 120, 25 ), // Stronghold Border

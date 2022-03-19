@@ -37,7 +37,7 @@
 					new TextDefinition(1005185, "Minions of the Shadowlords will now be warned of their impending deaths."),
 					new TextDefinition(1005186, "Minions of the Shadowlords will now be attacked at will."),
 					new StrongholdDefinition(
-						new Rectangle2D[]
+						new Poly2D[]
 						{
 							new Rectangle2D( 960, 688, 8, 9 ),  // Stronghold Border
 							new Rectangle2D( 944, 697, 24, 23 ) // Stronghold Border

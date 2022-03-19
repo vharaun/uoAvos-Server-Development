@@ -43,19 +43,19 @@ namespace Server.Regions
 			return false;
 		}
 
-		private static Rectangle3D[] GetArea(BaseHouse house)
+		private static Poly2D[] GetArea(BaseHouse house)
 		{
 			var x = house.X;
 			var y = house.Y;
-			var z = house.Z;
 
 			var houseArea = house.Area;
-			var area = new Rectangle3D[houseArea.Length];
+			var area = new Poly2D[houseArea.Length];
 
 			for (var i = 0; i < area.Length; i++)
 			{
 				var rect = houseArea[i];
-				area[i] = Region.ConvertTo3D(new Rectangle2D(x + rect.Start.X, y + rect.Start.Y, rect.Width, rect.Height));
+
+				area[i] = new Rectangle2D(x + rect.Start.X, y + rect.Start.Y, rect.Width, rect.Height);
 			}
 
 			return area;

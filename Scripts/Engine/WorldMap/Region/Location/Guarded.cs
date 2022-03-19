@@ -146,8 +146,17 @@ namespace Server.Regions
 			m_GuardType = DefaultGuardType;
 		}
 
-		public GuardedRegion(string name, Map map, int priority, params Rectangle2D[] area)
-			: base(name, map, priority, area)
+		public GuardedRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+			m_GuardType = DefaultGuardType;
+		}
+
+		public GuardedRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+			m_GuardType = DefaultGuardType;
+		}
+
+		public GuardedRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
 		{
 			m_GuardType = DefaultGuardType;
 		}

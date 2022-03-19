@@ -212,13 +212,6 @@ namespace Server.Items
 		public HouseRaffleStone()
 			: base(0xEDD)
 		{
-			m_Region = null;
-			m_Bounds = new Rectangle2D();
-			m_Facet = null;
-
-			m_Winner = null;
-			m_Deed = null;
-
 			m_State = HouseRaffleState.Inactive;
 			m_Started = DateTime.MinValue;
 			m_Duration = DefaultDuration;
@@ -239,7 +232,7 @@ namespace Server.Items
 
 		public bool ValidLocation()
 		{
-			return (m_Bounds.Start != Point2D.Zero && m_Bounds.End != Point2D.Zero && m_Facet != null && m_Facet != Map.Internal);
+			return m_Bounds.Start != Point2D.Zero && m_Bounds.End != Point2D.Zero && m_Facet != null && m_Facet != Map.Internal;
 		}
 
 		private void InvalidateRegion()
@@ -593,8 +586,8 @@ namespace Server.Items
 				case 0:
 					{
 						var oldActive = (version < 3) ? reader.ReadBool() : false;
-
-						m_Bounds = reader.ReadRect2D();
+						
+						m_Bounds = reader.ReadRect2D();						
 						m_Facet = reader.ReadMap();
 
 						m_Winner = reader.ReadMobile();

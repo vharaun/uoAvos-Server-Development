@@ -38,7 +38,7 @@
 					new TextDefinition(1005191, "Followers of Minax will now be told to go away."),
 					new TextDefinition(1005192, "Followers of Minax will now be hanged by their toes."),
 					new StrongholdDefinition(
-						new Rectangle2D[]
+						new Poly2D[]
 						{
 							new Rectangle2D( 1097, 2570, 70, 50 ) // Stronghold Border
 						},

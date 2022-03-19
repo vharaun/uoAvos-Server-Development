@@ -187,6 +187,8 @@ namespace Server
 		public abstract Point2D ReadPoint2D();
 		public abstract Rectangle2D ReadRect2D();
 		public abstract Rectangle3D ReadRect3D();
+		public abstract Poly2D ReadPoly2D();
+		public abstract Poly3D ReadPoly3D();
 		public abstract Map ReadMap();
 
 		public abstract Serial ReadSerial();
@@ -421,6 +423,33 @@ namespace Server
 		public override Rectangle3D ReadRect3D()
 		{
 			return new Rectangle3D(ReadPoint3D(), ReadPoint3D());
+		}
+
+		public override Poly2D ReadPoly2D()
+		{
+			var points = new Point2D[ReadInt()];
+
+			for (var i = 0; i < points.Length; i++)
+			{
+				points[i] = ReadPoint2D();
+			}
+
+			return new Poly2D(points);
+		}
+
+		public override Poly3D ReadPoly3D()
+		{
+			var minZ = ReadInt();
+			var maxZ = ReadInt();
+
+			var points = new Point2D[ReadInt()];
+
+			for (var i = 0; i < points.Length; i++)
+			{
+				points[i] = ReadPoint2D();
+			}
+
+			return new Poly3D(minZ, maxZ, points);
 		}
 
 		public override Map ReadMap()
@@ -775,6 +804,8 @@ namespace Server
 		public abstract void Write(Point2D value);
 		public abstract void Write(Rectangle2D value);
 		public abstract void Write(Rectangle3D value);
+		public abstract void Write(Poly2D value);
+		public abstract void Write(Poly3D value);
 		public abstract void Write(Map value);
 
 		public abstract void Write(Serial value);
@@ -1272,6 +1303,29 @@ namespace Server
 		{
 			Write(value.Start);
 			Write(value.End);
+		}
+
+		public override void Write(Poly2D value)
+		{
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public override void Write(Poly3D value)
+		{
+			Write(value.MinZ);
+			Write(value.MaxZ);
+
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
 		}
 
 		public override void Write(Map value)
@@ -2080,6 +2134,29 @@ namespace Server
 		{
 			Write(value.Start);
 			Write(value.End);
+		}
+
+		public override void Write(Poly2D value)
+		{
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public override void Write(Poly3D value)
+		{
+			Write(value.MinZ);
+			Write(value.MaxZ);
+
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
 		}
 
 		public override void Write(Map value)
