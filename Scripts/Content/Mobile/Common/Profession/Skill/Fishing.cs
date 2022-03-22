@@ -171,12 +171,14 @@ namespace Server.Engines.Harvest
 		// Mutate table for fresh water fishing
 		private static readonly MutateEntry[] m_FreshWaterTable = new MutateEntry[]
 			{
+					//double reqSkill, double minSkill, double maxSkill, bool deepWater, params Type[] types
 				new MutateEntry(  0.0,  0.0,  4080.0,  false, typeof( Halberd ) ),
 			};
 
 		// Mutate table for region fishing
 		private static readonly MutateEntry[] m_RegionNameTable = new MutateEntry[]
 			{
+					//double reqSkill, double minSkill, double maxSkill, bool deepWater, params Type[] types	
 				new MutateEntry(  0.0,  0.0,  4080.0,  false, typeof( Gold ) ),
 			};
 
