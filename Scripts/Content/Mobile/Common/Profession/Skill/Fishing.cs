@@ -1,8 +1,20 @@
 ﻿using Server.Engines.Quests.Definitions;
 using Server.Items;
 using Server.Mobiles;
-
+using Server.Regions;
 using System;
+
+/*
+	Any new tiles that you want to be harvestable MUST be added to m_WaterTiles.
+	Also, edit the tiles for fresh water in the array m_FreshWaterTiles.
+	PLEASE BE SURE TO EDIT THESE BEFORE PUBLIC RELEASE.
+
+	// m_MutateTable is the original/default mutate table to regular water fishing/deep sea fishing.
+
+	// m_FreshWaterTable is the mutate table for freshwater fishing
+
+	// m_RegionNameTable is made for testing region based areas
+*/
 
 namespace Server.Engines.Harvest
 {
@@ -75,10 +87,30 @@ namespace Server.Engines.Harvest
 				PackFullMessage = 503176, // You do not have room in your backpack for a fish.
 				ToolBrokeMessage = 503174 // You broke your fishing pole.
 			};
+			
+			private static readonly int[] m_WaterTiles = new int[]
+			{
+				/* FOR TESTING */
 
+				3, 4, 5, 6, /* grass for testing fresh water */
+				1083, /* for testing regions */
+
+				/* END TESTING */
+
+
+				0x00A8, 0x00AB,
+				0x0136, 0x0137,
+				0x5797, 0x579C,
+				0x746E, 0x7485,
+				0x7490, 0x74AB,
+				0x74B5, 0x75D5
+			};
+
+
+			// Base Harvest Resource for all tile types and regions. This is like the Iron Ore default resource if tile/region specific resource gathering "fails". 
 			res = new HarvestResource[]
 				{
-					new HarvestResource( 00.0, 00.0, 100.0, 1043297, typeof( SaltwaterFish ) )
+					new HarvestResource( 00.0, 00.0, 100.0, 1043297, typeof( Fish ) )
 				};
 
 			veins = new HarvestVein[]
@@ -124,6 +156,7 @@ namespace Server.Engines.Harvest
 			}
 		}
 
+		// Base - original - mutate table for fishing
 		private static readonly MutateEntry[] m_MutateTable = new MutateEntry[]
 			{
 				new MutateEntry(  80.0,  80.0,  4080.0,  true, typeof( SpecialFishingNet ) ),
@@ -133,6 +166,18 @@ namespace Server.Engines.Harvest
 				new MutateEntry(   0.0, 125.0, -2375.0, false, typeof( PrizedFish ), typeof( WondrousFish ), typeof( TrulyRareFish ), typeof( PeculiarFish ) ),
 				new MutateEntry(   0.0, 105.0,  -420.0, false, typeof( Boots ), typeof( Shoes ), typeof( Sandals ), typeof( ThighBoots ) ),
 				new MutateEntry(   0.0, 200.0,  -200.0, false, new Type[1]{ null } )
+			};
+			
+		// Mutate table for fresh water fishing
+		private static readonly MutateEntry[] m_FreshWaterTable = new MutateEntry[]
+			{
+				new MutateEntry(  0.0,  0.0,  4080.0,  false, typeof( Halberd ) ),
+			};
+
+		// Mutate table for region fishing
+		private static readonly MutateEntry[] m_RegionNameTable = new MutateEntry[]
+			{
+				new MutateEntry(  0.0,  0.0,  4080.0,  false, typeof( Gold ) ),
 			};
 
 		public override bool SpecialHarvest(Mobile from, Item tool, HarvestDefinition def, Map map, Point3D loc)
@@ -167,34 +212,97 @@ namespace Server.Engines.Harvest
 
 			return false;
 		}
+		
+		private static bool ValidateFreshWater(Map map, int x, int y)
+		{
+			var tileID = map.Tiles.GetLandTile(x, y).ID;
+			var water = false;
 
+			// EDIT THESE FOR THE ACTUAL FRESHWATERTILE IDs
+			int[] m_FreshWaterTiles = new int[] { 3, 4, 5, 6 /* grass - STANDIN */ };
+
+			for (var i = 0; !water && i < m_FreshWaterTiles.Length; i += 2)
+			{
+				water = (tileID >= m_FreshWaterTiles[i] && tileID <= m_FreshWaterTiles[i + 1]);
+			}
+
+			return water;
+		}
+		
 		public override Type MutateType(Type type, Mobile from, Item tool, HarvestDefinition def, Map map, Point3D loc, HarvestResource resource)
 		{
 			var deepWater = SpecialFishingNet.FullValidation(map, loc.X, loc.Y);
-
+			var freshWater = ValidateFreshWater(map, loc.X, loc.Y);
+			
 			var skillBase = from.Skills[SkillName.Fishing].Base;
 			var skillValue = from.Skills[SkillName.Fishing].Value;
 
-			for (var i = 0; i < m_MutateTable.Length; ++i)
+			if(deepWater)
 			{
-				var entry = m_MutateTable[i];
-
-				if (!deepWater && entry.m_DeepWater)
+				for (var i = 0; i < m_MutateTable.Length; ++i)
 				{
-					continue;
-				}
+					var entry = m_MutateTable[i];
 
-				if (skillBase >= entry.m_ReqSkill)
-				{
-					var chance = (skillValue - entry.m_MinSkill) / (entry.m_MaxSkill - entry.m_MinSkill);
-
-					if (chance > Utility.RandomDouble())
+					if (!deepWater && entry.m_DeepWater)
 					{
-						return entry.m_Types[Utility.Random(entry.m_Types.Length)];
+						continue;
+					}
+
+					if (skillBase >= entry.m_ReqSkill)
+					{
+						var chance = (skillValue - entry.m_MinSkill) / (entry.m_MaxSkill - entry.m_MinSkill);
+
+						if (chance > Utility.RandomDouble())
+						{
+							return entry.m_Types[Utility.Random(entry.m_Types.Length)];
+						}
 					}
 				}
 			}
 
+			if(freshWater)
+			{
+				for (var i = 0; i < m_FreshWaterTable.Length; ++i)
+				{
+					var entry = m_FreshWaterTable[i];
+
+					if (skillBase >= entry.m_ReqSkill)
+					{
+						var chance = (skillValue - entry.m_MinSkill) / (entry.m_MaxSkill - entry.m_MinSkill);
+
+						if (chance > Utility.RandomDouble())
+						{
+							return entry.m_Types[Utility.Random(entry.m_Types.Length)];
+						}
+					}
+				}
+			}
+
+			
+			//
+			// In order to properly pick up the region, you will need to verify if the region is define by a name or a region type
+			// in some cases it may be neccessary to check for both but that will likely cause bleeding over into other regions
+			//
+			
+			if (from.Region.IsPartOf("Britain"))
+			//if(from.Region is GuardedRegion )
+			//if(from.Region.IsPartOf("Britain") || from.Region is GuardedRegion )
+			{
+				for (var i = 0; i < m_RegionNameTable.Length; ++i)
+				{
+					var entry = m_RegionNameTable[i];
+
+					if (skillBase >= entry.m_ReqSkill)
+					{
+						var chance = (skillValue - entry.m_MinSkill) / (entry.m_MaxSkill - entry.m_MinSkill);
+
+						if (chance > Utility.RandomDouble())
+						{
+							return entry.m_Types[Utility.Random(entry.m_Types.Length)];
+						}
+					}
+				}
+			}
 			return type;
 		}
 
@@ -615,15 +723,5 @@ namespace Server.Engines.Harvest
 
 			return true;
 		}
-
-		private static readonly int[] m_WaterTiles = new int[]
-			{
-				0x00A8, 0x00AB,
-				0x0136, 0x0137,
-				0x5797, 0x579C,
-				0x746E, 0x7485,
-				0x7490, 0x74AB,
-				0x74B5, 0x75D5
-			};
 	}
 }
