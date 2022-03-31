@@ -30,10 +30,10 @@ namespace Server.Gumps
 
             AddImage(471, 180, 1417);
 
-			AddItem(553, 212, 3718); //   Facing NS
-			AddItem(556, 212, 3717); // Pickaxe Facing EW
-			AddItem(423, 212, 3718); // Pickaxe Facing NS
-			AddItem(427, 212, 3717); // Pickaxe Facing EW
+			AddItem(553, 212, 3907); // axe Facing NS
+			AddItem(556, 212, 3908); // axe Facing EW
+			AddItem(423, 212, 3907); // axe Facing NS
+			AddItem(427, 212, 3908); // axe Facing EW
 
             if( m_LogCrate.Active)
             {
@@ -58,7 +58,7 @@ namespace Server.Gumps
                 AddButton(450, 270, 2113, 2111, (int)Buttons.AutoMine, GumpButtonType.Reply, 0);
             }
             
-            AddButton(481, 190, 5573, 5574, (int)Buttons.MiningContainer, GumpButtonType.Reply, 0);
+            AddButton(481, 190, 5559, 5560, (int)Buttons.MiningContainer, GumpButtonType.Reply, 0);
             AddButton(420, 250, 22150, 22151, (int)Buttons.Close, GumpButtonType.Reply, 0);
         }
 
