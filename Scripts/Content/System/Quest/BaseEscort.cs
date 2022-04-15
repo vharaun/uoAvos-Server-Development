@@ -42,7 +42,7 @@ namespace Server.Mobiles
 
 						foreach (var obj in quest.Objectives)
 						{
-							if (obj is EscortObjective && ((EscortObjective)obj).Destination.Contains(reg))
+							if (obj is EscortObjective eo && eo.Destination.Contains(reg))
 							{
 								okay = false; // We're already there!
 								break;
@@ -101,7 +101,7 @@ namespace Server.Mobiles
 
 		private bool m_DeleteCorpse = false;
 
-		public bool IsBeingDeleted => (m_DeleteTimer != null);
+		public bool IsBeingDeleted => m_DeleteTimer != null;
 
 		public override bool Commandable => false;  // Our master cannot boss us around!
 		public override bool DeleteCorpseOnDeath => m_DeleteCorpse;
@@ -237,7 +237,7 @@ namespace Server.Mobiles
 			return false;
 		}
 
-		private static readonly Hashtable m_EscortTable = new Hashtable();
+		private static readonly Hashtable m_EscortTable = new();
 
 		public static Hashtable EscortTable => m_EscortTable;
 
@@ -275,9 +275,9 @@ namespace Server.Mobiles
 			{
 				m_LastSeenEscorter = DateTime.UtcNow;
 
-				if (m is PlayerMobile)
+				if (m is PlayerMobile pm)
 				{
-					((PlayerMobile)m).LastEscortTime = DateTime.UtcNow;
+					pm.LastEscortTime = DateTime.UtcNow;
 				}
 
 				Say("Lead on! Payment will be made when we arrive in {0}.", (dest.Name == "Ocllo" && m.Map == Map.Trammel) ? "Haven" : dest.Name);
@@ -421,7 +421,7 @@ namespace Server.Mobiles
 					SetControlMaster(null);
 					m_EscortTable.Remove(master);
 
-					Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerCallback(Delete));
+					Timer.DelayCall(TimeSpan.FromSeconds(5.0), Delete);
 					return null;
 				}
 				else
@@ -505,9 +505,7 @@ namespace Server.Mobiles
 
 				var gainedPath = false;
 
-				var pm = escorter as PlayerMobile;
-
-				if (pm != null)
+				if (escorter is PlayerMobile pm)
 				{
 					if (pm.CompassionGains > 0 && DateTime.UtcNow > pm.NextCompassionDay)
 					{
@@ -642,7 +640,7 @@ namespace Server.Mobiles
 
 				if (escorter == from)
 				{
-					list.Add(new AbandonEscortEntry(this, from));
+					list.Add(new AbandonEscortEntry(this));
 				}
 			}
 
@@ -759,7 +757,7 @@ namespace Server.Mobiles
 
 		public static void LoadTable()
 		{
-			ICollection list = Map.Felucca.Regions.Values;
+			var list = Map.Felucca.Regions;
 
 			if (list.Count == 0)
 			{
@@ -768,7 +766,7 @@ namespace Server.Mobiles
 
 			m_Table = new Hashtable();
 
-			foreach (Region r in list)
+			foreach (var r in list)
 			{
 				if (r.Name == null)
 				{
@@ -777,7 +775,7 @@ namespace Server.Mobiles
 
 				if (r is Regions.DungeonRegion || r is Regions.TownRegion)
 				{
-					m_Table[r.Name] = new EscortDestinationInfo(r.Name, r);
+					m_Table[r.Name] = new EDI(r.Name, r);
 				}
 			}
 		}
@@ -794,7 +792,7 @@ namespace Server.Mobiles
 				return null;
 			}
 
-			return (EscortDestinationInfo)m_Table[name];
+			return (EDI)m_Table[name];
 		}
 	}
 
@@ -837,13 +835,11 @@ namespace Server.Mobiles
 	public class AbandonEscortEntry : ContextMenuEntry
 	{
 		private readonly BaseEscortable m_Mobile;
-		private readonly Mobile m_From;
 
-		public AbandonEscortEntry(BaseEscortable m, Mobile from)
+		public AbandonEscortEntry(BaseEscortable m)
 			: base(6102, 3)
 		{
 			m_Mobile = m;
-			m_From = from;
 		}
 
 		public override void OnClick()

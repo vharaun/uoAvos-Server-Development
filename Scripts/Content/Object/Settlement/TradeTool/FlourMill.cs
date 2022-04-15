@@ -50,7 +50,7 @@ namespace Server.Items
 				return;
 			}
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerStateCallback(FinishWorking_Callback), from);
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), FinishWorking_Callback, from);
 			UpdateStage();
 		}
 
@@ -268,7 +268,7 @@ namespace Server.Items
 				return;
 			}
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerStateCallback(FinishWorking_Callback), from);
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), FinishWorking_Callback, from);
 			UpdateStage();
 		}
 

@@ -75,7 +75,7 @@ namespace Server.Mobiles
 
 			if (version < 1)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(0), new TimerCallback(OnAfterDeserialize_Callback));
+				Timer.DelayCall(TimeSpan.FromSeconds(0), OnAfterDeserialize_Callback);
 			}
 		}
 	}

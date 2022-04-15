@@ -10,6 +10,7 @@ using Server.Targeting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 
 using CPA = Server.CommandPropertyAttribute;
@@ -305,7 +306,8 @@ namespace Server.Commands
 	{
 		public static void Initialize()
 		{
-			CommandSystem.Register("Props", AccessLevel.Counselor, new CommandEventHandler(Props_OnCommand));
+			CommandSystem.Register("Props", AccessLevel.Counselor, Props_OnCommand);
+			CommandSystem.Register("PropsRegion", AccessLevel.Counselor, PropsRegion_OnCommand);
 		}
 
 		private class PropsTarget : Target
@@ -316,6 +318,45 @@ namespace Server.Commands
 
 			protected override void OnTarget(Mobile from, object o)
 			{
+				if (!BaseCommand.IsAccessible(from, o))
+				{
+					from.SendMessage("That is not accessible.");
+				}
+				else
+				{
+					from.SendGump(new PropertiesGump(from, o));
+				}
+			}
+		}
+
+		private class PropsRegionTarget : Target
+		{
+			public PropsRegionTarget() : base(-1, true, TargetFlags.None)
+			{
+			}
+
+			protected override void OnTarget(Mobile from, object o)
+			{
+				IPoint2D loc = from.Location;
+				var map = from.Map;
+
+				if (o is Item item)
+				{
+					loc = item.GetWorldLocation();
+					map = item.Map;
+				}
+				else if (o is IEntity e)
+				{
+					loc = e.Location;
+					map = e.Map;
+				}
+				else if (o is IPoint2D p)
+				{
+					loc = p;
+				}
+
+				o = Region.Find(loc, map);
+
 				if (!BaseCommand.IsAccessible(from, o))
 				{
 					from.SendMessage("That is not accessible.");
@@ -351,6 +392,37 @@ namespace Server.Commands
 			else
 			{
 				e.Mobile.Target = new PropsTarget();
+			}
+		}
+
+		[Usage("PropsRegion [name]")]
+		[Description("Opens a menu where you can view and edit all properties of a targeted (or specified) region.")]
+		private static void PropsRegion_OnCommand(CommandEventArgs e)
+		{
+			if (e.Length == 1)
+			{
+				var name = e.GetString(0);
+
+				var count = 0;
+
+				foreach (var reg in e.Mobile.Map.Regions)
+				{
+					if (Insensitive.Equals(reg.Name, name) && BaseCommand.IsAccessible(e.Mobile, reg))
+					{
+						++count;
+
+						e.Mobile.SendGump(new PropertiesGump(e.Mobile, reg));
+					}
+				}
+
+				if (count == 0)
+				{
+					e.Mobile.SendMessage($"No region with that name was found in {e.Mobile.Map.Name}.");
+				}
+			}
+			else
+			{
+				e.Mobile.Target = new PropsRegionTarget();
 			}
 		}
 

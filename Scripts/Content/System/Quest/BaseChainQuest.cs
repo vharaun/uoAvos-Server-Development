@@ -4399,7 +4399,7 @@ namespace Server.Engines.ChainQuests
 		{
 			var found = false;
 
-			foreach (var r in Region.Regions)
+			foreach (var r in World.Regions.Values)
 			{
 				if (r.Name == m_RegionName && (m_ForceMap == null || r.Map == m_ForceMap))
 				{
@@ -5438,7 +5438,7 @@ namespace Server.Engines.ChainQuests
 		{
 			m_Objective = objective;
 			m_HasCompleted = false;
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), new TimerCallback(CheckDestination));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), CheckDestination);
 			m_LastSeenEscorter = DateTime.UtcNow;
 			m_Escort = instance.Quester as BaseCreature;
 
@@ -6253,7 +6253,7 @@ namespace Server.Engines.ChainQuests
 		{
 			// Version info is written in ChainQuestPersistence.Serialize
 
-			writer.WriteMobile<PlayerMobile>(m_Owner);
+			writer.Write(m_Owner);
 			writer.Write(m_QuestInstances.Count);
 
 			foreach (var instance in m_QuestInstances)
@@ -7127,9 +7127,6 @@ namespace Server.Engines.ChainQuests
 
 		private class RaceChangeState
 		{
-			private static readonly TimeSpan m_TimeoutDelay = TimeSpan.FromMinutes(1);
-			private static readonly TimerStateCallback<NetState> m_TimeoutCallback = new TimerStateCallback<NetState>(Timeout);
-
 			public IRaceChanger m_Owner;
 			public Race m_TargetRace;
 			public Timer m_Timeout;
@@ -7138,7 +7135,8 @@ namespace Server.Engines.ChainQuests
 			{
 				m_Owner = owner;
 				m_TargetRace = targetRace;
-				m_Timeout = Timer.DelayCall<NetState>(m_TimeoutDelay, m_TimeoutCallback, ns);
+
+				m_Timeout = Timer.DelayCall(TimeSpan.FromMinutes(1), Timeout, ns);
 			}
 		}
 

@@ -30,35 +30,35 @@ namespace Server.Misc
 			[Flags]
 			public enum Features : ulong
 			{
-				None = 0,
+				None = 0ul,
 
-				FilterWeather = 1 << 0,  // Weather Filter
-				FilterLight = 1 << 1,  // Light Filter
-				SmartTarget = 1 << 2,  // Smart Last Target
-				RangedTarget = 1 << 3,  // Range Check Last Target
-				AutoOpenDoors = 1 << 4,  // Automatically Open Doors
-				DequipOnCast = 1 << 5,  // Unequip Weapon on spell cast
-				AutoPotionEquip = 1 << 6,  // Un/re-equip weapon on potion use
-				PoisonedChecks = 1 << 7,  // Block heal If poisoned/Macro If Poisoned condition/Heal or Cure self
-				LoopedMacros = 1 << 8,  // Disallow looping or recursive macros
-				UseOnceAgent = 1 << 9,  // The use once agent
-				RestockAgent = 1 << 10, // The restock agent
-				SellAgent = 1 << 11, // The sell agent
-				BuyAgent = 1 << 12, // The buy agent
-				PotionHotkeys = 1 << 13, // All potion hotkeys
-				RandomTargets = 1 << 14, // All random target hotkeys (not target next, last target, target self)
-				ClosestTargets = 1 << 15, // All closest target hotkeys
-				OverheadHealth = 1 << 16, // Health and Mana/Stam messages shown over player's heads
-				AutolootAgent = 1 << 17, // The autoloot agent
-				BoneCutterAgent = 1 << 18, // The bone cutter agent
-				AdvancedMacros = 1 << 19, // Advanced macro engine
-				AutoRemount = 1 << 20, // Auto remount after dismount
-				AutoBandage = 1 << 21, // Auto bandage friends, self, last and mount option
-				EnemyTargetShare = 1 << 22, // Enemy target share on guild, party or alliance chat
-				FilterSeason = 1 << 23, // Season Filter
-				SpellTargetShare = 1 << 24, // Spell target share on guild, party or alliance chat
+				FilterWeather = 1ul << 0,  // Weather Filter
+				FilterLight = 1ul << 1,  // Light Filter
+				SmartTarget = 1ul << 2,  // Smart Last Target
+				RangedTarget = 1ul << 3,  // Range Check Last Target
+				AutoOpenDoors = 1ul << 4,  // Automatically Open Doors
+				DequipOnCast = 1ul << 5,  // Unequip Weapon on spell cast
+				AutoPotionEquip = 1ul << 6,  // Un/re-equip weapon on potion use
+				PoisonedChecks = 1ul << 7,  // Block heal If poisoned/Macro If Poisoned condition/Heal or Cure self
+				LoopedMacros = 1ul << 8,  // Disallow looping or recursive macros
+				UseOnceAgent = 1ul << 9,  // The use once agent
+				RestockAgent = 1ul << 10, // The restock agent
+				SellAgent = 1ul << 11, // The sell agent
+				BuyAgent = 1ul << 12, // The buy agent
+				PotionHotkeys = 1ul << 13, // All potion hotkeys
+				RandomTargets = 1ul << 14, // All random target hotkeys (not target next, last target, target self)
+				ClosestTargets = 1ul << 15, // All closest target hotkeys
+				OverheadHealth = 1ul << 16, // Health and Mana/Stam messages shown over player's heads
+				AutolootAgent = 1ul << 17, // The autoloot agent
+				BoneCutterAgent = 1ul << 18, // The bone cutter agent
+				AdvancedMacros = 1ul << 19, // Advanced macro engine
+				AutoRemount = 1ul << 20, // Auto remount after dismount
+				AutoBandage = 1ul << 21, // Auto bandage friends, self, last and mount option
+				EnemyTargetShare = 1ul << 22, // Enemy target share on guild, party or alliance chat
+				FilterSeason = 1ul << 23, // Season Filter
+				SpellTargetShare = 1ul << 24, // Spell target share on guild, party or alliance chat
 
-				All = UInt64.MaxValue
+				All = ~None
 			}
 
 			private static Features m_DisallowedFeatures = Features.None;
@@ -92,15 +92,13 @@ namespace Server.Misc
 		{
 			private static readonly Dictionary<Mobile, Timer> m_Dictionary = new Dictionary<Mobile, Timer>();
 
-			private static readonly TimerStateCallback OnHandshakeTimeout_Callback = new TimerStateCallback(OnHandshakeTimeout);
-			private static readonly TimerStateCallback OnForceDisconnect_Callback = new TimerStateCallback(OnForceDisconnect);
-
 			public static void Initialize()
 			{
 				if (Settings.Enabled)
 				{
-					EventSink.Login += new LoginEventHandler(EventSink_Login);
-					ProtocolExtensions.Register(0xFF, true, new OnPacketReceive(OnHandshakeResponse));
+					EventSink.Login += EventSink_Login;
+
+					ProtocolExtensions.Register(0xFF, true, OnHandshakeResponse);
 				}
 			}
 
@@ -108,60 +106,52 @@ namespace Server.Misc
 			{
 				var m = e.Mobile;
 
-				if (m != null && m.NetState != null && m.NetState.Running)
+				if (m != null)
 				{
-					Timer t;
-					m.Send(new BeginHandshake());
+					if (m_Dictionary.TryGetValue(m, out var t))
+					{
+						t?.Stop();
 
-					if (Settings.KickOnFailure)
+						m_Dictionary.Remove(m);
+					}
+
+					if (m.NetState != null && m.NetState.Running)
 					{
 						m.Send(new BeginHandshake());
-					}
 
-					if (m_Dictionary.TryGetValue(m, out t) && t != null)
-					{
-						t.Stop();
-					}
+						if (Settings.KickOnFailure)
+						{
+							m.Send(new BeginHandshake());
+						}
 
-					m_Dictionary[m] = t = Timer.DelayCall(Settings.HandshakeTimeout, OnHandshakeTimeout_Callback, m);
-					t.Start();
+						m_Dictionary[m] = Timer.DelayCall(Settings.HandshakeTimeout, OnHandshakeTimeout, m);
+					}
 				}
 			}
 
 			private static void OnHandshakeResponse(NetState state, PacketReader pvSrc)
 			{
-				pvSrc.Trace(state);
-
-				if (state == null || state.Mobile == null || !state.Running)
+				if (state == null || !state.Running)
 				{
 					return;
 				}
 
-				Timer t;
 				var m = state.Mobile;
 
-				if (m_Dictionary.TryGetValue(m, out t))
+				if (m != null && m_Dictionary.TryGetValue(m, out var t))
 				{
-					if (t != null)
-					{
-						t.Stop();
-					}
+					t?.Stop();
 
 					m_Dictionary.Remove(m);
 				}
 			}
 
-			private static void OnHandshakeTimeout(object state)
+			private static void OnHandshakeTimeout(Mobile m)
 			{
-				Timer t = null;
-				var m = state as Mobile;
-
-				if (m == null)
+				if (m_Dictionary.TryGetValue(m, out var t))
 				{
-					return;
+					t?.Stop();
 				}
-
-				m_Dictionary.Remove(m);
 
 				if (!Settings.KickOnFailure)
 				{
@@ -173,27 +163,26 @@ namespace Server.Misc
 
 					if (m.AccessLevel <= AccessLevel.Player)
 					{
-						m_Dictionary[m] = t = Timer.DelayCall(Settings.DisconnectDelay, OnForceDisconnect_Callback, m);
-						t.Start();
+						m_Dictionary[m] = Timer.DelayCall(Settings.DisconnectDelay, OnForceDisconnect, m);
 					}
 				}
 			}
 
-			private static void OnForceDisconnect(object state)
+			private static void OnForceDisconnect(Mobile m)
 			{
-				if (state is Mobile)
+				if (m.NetState != null && m.NetState.Running)
 				{
-					var m = (Mobile)state;
+					m.NetState.Dispose();
+				}
 
-					if (m.NetState != null && m.NetState.Running)
-					{
-						m.NetState.Dispose();
-					}
+				if (m_Dictionary.TryGetValue(m, out var t))
+				{
+					t?.Stop();
 
 					m_Dictionary.Remove(m);
-
-					Console.WriteLine("Player {0} kicked (Failed assistant handshake)", m);
 				}
+
+				Console.WriteLine("Player {0} kicked (Failed assistant handshake)", m);
 			}
 
 			private sealed class BeginHandshake : ProtocolExtension

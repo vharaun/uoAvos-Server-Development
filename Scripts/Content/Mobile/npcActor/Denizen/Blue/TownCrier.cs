@@ -404,7 +404,7 @@ namespace Server.Mobiles
 		{
 			if (m_AutoShoutTimer == null)
 			{
-				m_AutoShoutTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), TimeSpan.FromMinutes(1.0), new TimerCallback(AutoShout_Callback));
+				m_AutoShoutTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), TimeSpan.FromMinutes(1.0), AutoShout_Callback);
 			}
 		}
 
@@ -421,7 +421,7 @@ namespace Server.Mobiles
 
 			if (m_AutoShoutTimer == null)
 			{
-				m_AutoShoutTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), TimeSpan.FromMinutes(1.0), new TimerCallback(AutoShout_Callback));
+				m_AutoShoutTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), TimeSpan.FromMinutes(1.0), AutoShout_Callback);
 			}
 
 			return tce;
@@ -467,7 +467,7 @@ namespace Server.Mobiles
 			}
 			else if (m_NewsTimer == null)
 			{
-				m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), new TimerStateCallback(ShoutNews_Callback), new object[] { tce, 0 });
+				m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), ShoutNews_Callback, new object[] { tce, 0 });
 
 				PublicOverheadMessage(MessageType.Regular, 0x3B2, 502976); // Hear ye! Hear ye!
 			}
@@ -526,7 +526,7 @@ namespace Server.Mobiles
 				}
 				else
 				{
-					m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), new TimerStateCallback(ShoutNews_Callback), new object[] { tce, 0 });
+					m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), ShoutNews_Callback, new object[] { tce, 0 });
 
 					PublicOverheadMessage(MessageType.Regular, 0x3B2, 502978); // Some of the latest news!
 				}

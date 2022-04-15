@@ -34,7 +34,7 @@ namespace Server.Engines.Reports
 
 			m_GenerateTime = date + TimeSpan.FromHours(Math.Ceiling(timeOfDay.TotalHours));
 
-			Timer.DelayCall(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5), new TimerCallback(CheckRegenerate));
+			Timer.DelayCall(TimeSpan.FromMinutes(0.5), TimeSpan.FromMinutes(0.5), CheckRegenerate);
 		}
 
 		private static DateTime m_GenerateTime;

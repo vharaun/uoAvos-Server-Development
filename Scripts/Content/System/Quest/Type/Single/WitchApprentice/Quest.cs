@@ -979,7 +979,7 @@ namespace Server.Engines.Quests.Definitions
 				// * You see a strange imp stealing a scrap of paper from the bloodied corpse *
 				m_Corpse.SendLocalizedMessageTo(player, 1055049);
 
-				Timer.DelayCall(TimeSpan.FromSeconds(3.0), new TimerStateCallback(DeleteImp), imp);
+				Timer.DelayCall(TimeSpan.FromSeconds(3.0), DeleteImp, imp);
 			}
 		}
 
@@ -1169,7 +1169,7 @@ namespace Server.Engines.Quests.Definitions
 
 			imp.Direction = imp.GetDirectionTo(from);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(3.0), new TimerStateCallback(DeleteImp), imp);
+			Timer.DelayCall(TimeSpan.FromSeconds(3.0), DeleteImp, imp);
 		}
 
 		private void DeleteImp(object imp)

@@ -1,8 +1,8 @@
 ﻿using Server.Accounting;
+using Server.Guilds;
 using Server.Network;
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Net.Mail;
 
@@ -19,7 +19,7 @@ namespace Server.Misc
 		{
 			if (Enabled) // If enabled, register our crash event handler
 			{
-				EventSink.Crashed += new CrashedEventHandler(CrashGuard_OnCrash);
+				EventSink.Crashed += CrashGuard_OnCrash;
 			}
 		}
 
@@ -37,10 +37,6 @@ namespace Server.Misc
 				Backup();
 			}
 
-
-			/*if ( Core.Service )
-				e.Close = true;
-			else */
 			if (RestartServer)
 			{
 				Restart(e);
@@ -51,9 +47,9 @@ namespace Server.Misc
 		{
 			Console.Write("Crash: Sending email...");
 
-			var message = new MailMessage(Email.FromAddress, Email.CrashAddresses) {
+			var message = new MailMessage(Email.FromAddress, Email.CrashAddresses) 
+			{
 				Subject = "Automated RunUO Crash Report",
-
 				Body = "Automated RunUO Crash Report. See attachment for details."
 			};
 
@@ -81,28 +77,17 @@ namespace Server.Misc
 			}
 		}
 
-		private static string Combine(string path1, string path2)
-		{
-			if (path1.Length == 0)
-			{
-				return path2;
-			}
-
-			return Path.Combine(path1, path2);
-		}
-
 		private static void Restart(CrashedEventArgs e)
 		{
-			var root = GetRoot();
-
 			Console.Write("Crash: Restarting...");
 
 			try
 			{
-				Process.Start(Core.ExePath, Core.Arguments);
-				Console.WriteLine("done");
-
 				e.Close = true;
+
+				Core.Kill(true);
+
+				Console.WriteLine("done");
 			}
 			catch
 			{
@@ -120,13 +105,13 @@ namespace Server.Misc
 
 		private static void CreateDirectory(string path1, string path2)
 		{
-			CreateDirectory(Combine(path1, path2));
+			CreateDirectory(Path.Combine(path1, path2));
 		}
 
 		private static void CopyFile(string rootOrigin, string rootBackup, string path)
 		{
-			var originPath = Combine(rootOrigin, path);
-			var backupPath = Combine(rootBackup, path);
+			var originPath = Path.Combine(rootOrigin, path);
+			var backupPath = Path.Combine(rootBackup, path);
 
 			try
 			{
@@ -146,36 +131,42 @@ namespace Server.Misc
 
 			try
 			{
+				if (World.Loading || World.Saving)
+				{
+					World.WaitForWriteCompletion();
+				}
+
 				var timeStamp = GetTimeStamp();
 
 				var root = GetRoot();
-				var rootBackup = Combine(root, String.Format("Export/Saves/Crashed/{0}/", timeStamp));
-				var rootOrigin = Combine(root, String.Format("Export/Saves/"));
+
+				var rootBackup = Path.Combine(root, "Export", "Saves", "Crashed", timeStamp);
+				var rootOrigin = Path.Combine(root, "Export", "Saves");
 
 				// Create new directories
 				CreateDirectory(rootBackup);
-				CreateDirectory(rootBackup, "Accounts/");
-				CreateDirectory(rootBackup, "Items/");
-				CreateDirectory(rootBackup, "Mobiles/");
-				CreateDirectory(rootBackup, "Guilds/");
-				CreateDirectory(rootBackup, "Regions/");
+				CreateDirectory(rootBackup, "Accounts");
+				CreateDirectory(rootBackup, "Items");
+				CreateDirectory(rootBackup, "Mobiles");
+				CreateDirectory(rootBackup, "Guilds");
+				CreateDirectory(rootBackup, "Regions");
 
 				// Copy files
-				CopyFile(rootOrigin, rootBackup, "Accounts/Accounts.xml");
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Accounts", "Accounts.xml"));
 
-				CopyFile(rootOrigin, rootBackup, "Items/Items.bin");
-				CopyFile(rootOrigin, rootBackup, "Items/Items.idx");
-				CopyFile(rootOrigin, rootBackup, "Items/Items.tdb");
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Items", "Items.bin"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Items", "Items.idx"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Items", "Items.tdb"));
 
-				CopyFile(rootOrigin, rootBackup, "Mobiles/Mobiles.bin");
-				CopyFile(rootOrigin, rootBackup, "Mobiles/Mobiles.idx");
-				CopyFile(rootOrigin, rootBackup, "Mobiles/Mobiles.tdb");
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Mobiles", "Mobiles.bin"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Mobiles", "Mobiles.idx"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Mobiles", "Mobiles.tdb"));
 
-				CopyFile(rootOrigin, rootBackup, "Guilds/Guilds.bin");
-				CopyFile(rootOrigin, rootBackup, "Guilds/Guilds.idx");
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Guilds", "Guilds.bin"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Guilds", "Guilds.idx"));
 
-				CopyFile(rootOrigin, rootBackup, "Regions/Regions.bin");
-				CopyFile(rootOrigin, rootBackup, "Regions/Regions.idx");
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Regions", "Regions.bin"));
+				CopyFile(rootOrigin, rootBackup, Path.Combine("Regions", "Regions.idx"));
 
 				Console.WriteLine("done");
 			}
@@ -192,10 +183,8 @@ namespace Server.Misc
 			try
 			{
 				var timeStamp = GetTimeStamp();
-				var fileName = String.Format("Crash {0}.log", timeStamp);
-
 				var root = GetRoot();
-				var filePath = Combine(root, fileName);
+				var filePath = Path.Combine(root, $"Crash {timeStamp}.log");
 
 				using (var op = new StreamWriter(filePath))
 				{
@@ -204,16 +193,15 @@ namespace Server.Misc
 					op.WriteLine("Server Crash Report");
 					op.WriteLine("===================");
 					op.WriteLine();
-					op.WriteLine("RunUO Version {0}.{1}, Build {2}.{3}", ver.Major, ver.Minor, ver.Build, ver.Revision);
-					op.WriteLine("Operating System: {0}", Environment.OSVersion);
-					op.WriteLine(".NET Framework: {0}", Environment.Version);
-					op.WriteLine("Time: {0}", DateTime.UtcNow);
+					op.WriteLine($"RunUO Version {ver.Major}.{ver.Minor}, Build {ver.Build}.{ver.Revision}");
+					op.WriteLine($"Operating System: {Environment.OSVersion}");
+					op.WriteLine($".NET: {Environment.Version}");
+					op.WriteLine($"Date: {timeStamp}");
 
-					try { op.WriteLine("Mobiles: {0}", World.Mobiles.Count); }
-					catch { }
-
-					try { op.WriteLine("Items: {0}", World.Items.Count); }
-					catch { }
+					op.WriteLine($"Regions: {World.Regions.Count:N0}");
+					op.WriteLine($"Mobiles: {World.Mobiles.Count:N0}");
+					op.WriteLine($"Items: {World.Items.Count:N0}");
+					op.WriteLine($"Guilds: {BaseGuild.List.Count:N0}");
 
 					op.WriteLine("Exception:");
 					op.WriteLine(e.Exception);
@@ -225,26 +213,26 @@ namespace Server.Misc
 					{
 						var states = NetState.Instances;
 
-						op.WriteLine("- Count: {0}", states.Count);
+						op.WriteLine($"- Count: {states.Count:N0}");
 
 						for (var i = 0; i < states.Count; ++i)
 						{
 							var state = states[i];
 
-							op.Write("+ {0}:", state);
+							op.Write($"+ {state}:");
 
 							var a = state.Account as Account;
 
 							if (a != null)
 							{
-								op.Write(" (account = {0})", a.Username);
+								op.Write($" (account = {a.Username})");
 							}
 
 							var m = state.Mobile;
 
 							if (m != null)
 							{
-								op.Write(" (mobile = 0x{0:X} '{1}')", m.Serial.Value, m.Name);
+								op.Write($" (mobile = 0x{m.Serial.Value:X} '{m.Name}')");
 							}
 
 							op.WriteLine();
@@ -271,16 +259,26 @@ namespace Server.Misc
 
 		private static string GetTimeStamp()
 		{
-			var now = DateTime.UtcNow;
+			var now = DateTime.Now;
 
-			return String.Format("{0}-{1}-{2}-{3}-{4}-{5}",
-					now.Day,
-					now.Month,
-					now.Year,
-					now.Hour,
-					now.Minute,
-					now.Second
-				);
+			var month = now.Month switch
+			{
+				1 => "JAN",
+				2 => "FEB",
+				3 => "MAR",
+				4 => "APR",
+				5 => "MAY",
+				6 => "JUN",
+				7 => "JUL",
+				8 => "AUG",
+				9 => "SEP",
+				10 => "OCT",
+				11 => "NOV",
+				12 => "DEC",
+				_ => "UNK",
+			};
+
+			return $"{now.DayOfWeek} {now.Day} {month} ({now.Hour:D2}-{now.Minute:D2}-{now.Second:D2})";
 		}
 	}
 }

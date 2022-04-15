@@ -14,40 +14,22 @@ namespace Server
 	}
 
 	[Parsable]
-	public struct Point2D : IPoint2D, IComparable, IComparable<Point2D>
+	public struct Point2D : IPoint2D, IComparable<Point2D>, IEquatable<Point2D>, IComparable<IPoint2D>, IEquatable<IPoint2D>
 	{
-		internal int m_X;
-		internal int m_Y;
+		public static readonly Point2D Zero = new(0, 0);
 
-		public static readonly Point2D Zero = new Point2D(0, 0);
-
-		public Point2D(int x, int y)
+		public static bool TryParse(string value, out Point2D o)
 		{
-			m_X = x;
-			m_Y = y;
-		}
-
-		public Point2D(IPoint2D p) : this(p.X, p.Y)
-		{
-		}
-
-		[CommandProperty(AccessLevel.Counselor)]
-		public int X
-		{
-			get => m_X;
-			set => m_X = value;
-		}
-
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Y
-		{
-			get => m_Y;
-			set => m_Y = value;
-		}
-
-		public override string ToString()
-		{
-			return String.Format("({0}, {1})", m_X, m_Y);
+			try
+			{
+				o = Parse(value);
+				return true;
+			}
+			catch
+			{
+				o = Zero;
+				return false;
+			}
 		}
 
 		public static Point2D Parse(string value)
@@ -65,77 +47,84 @@ namespace Server
 			return new Point2D(Convert.ToInt32(param1), Convert.ToInt32(param2));
 		}
 
-		public int CompareTo(Point2D other)
+		internal int m_X, m_Y;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int X { get => m_X; set => m_X = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Y { get => m_Y; set => m_Y = value; }
+
+		public Point2D(IPoint2D p)
+			: this(p.X, p.Y)
 		{
-			var v = (m_X.CompareTo(other.m_X));
+		}
+
+		public Point2D(int x, int y)
+		{
+			m_X = x;
+			m_Y = y;
+		}
+
+		public int CompareTo(Point2D p)
+		{
+			var v = m_X.CompareTo(p.m_X);
 
 			if (v == 0)
 			{
-				v = (m_Y.CompareTo(other.m_Y));
+				v = m_Y.CompareTo(p.m_Y);
 			}
 
 			return v;
 		}
 
-		public int CompareTo(object other)
+		public int CompareTo(IPoint2D p)
 		{
-			if (other is Point2D)
+			var v = m_X.CompareTo(p?.X);
+
+			if (v == 0)
 			{
-				return CompareTo((Point2D)other);
-			}
-			else if (other == null)
-			{
-				return -1;
+				v = m_Y.CompareTo(p?.Y);
 			}
 
-			throw new ArgumentException();
+			return v;
+		}
+
+		public bool Equals(Point2D p)
+		{
+			return m_X == p.m_X && m_Y == p.m_Y;
+		}
+
+		public bool Equals(IPoint2D p)
+		{
+			return m_X == p?.X && m_Y == p?.Y;
 		}
 
 		public override bool Equals(object o)
 		{
-			if (o == null || !(o is IPoint2D))
-			{
-				return false;
-			}
-
-			var p = (IPoint2D)o;
-
-			return m_X == p.X && m_Y == p.Y;
+			return o is IPoint2D p && Equals(p);
 		}
 
 		public override int GetHashCode()
 		{
-			return m_X ^ m_Y;
+			return HashCode.Combine(m_X, m_Y);
 		}
+
+		public override string ToString()
+		{
+			return $"({m_X}, {m_Y})";
+		}
+
+		#region Operators
 
 		public static bool operator ==(Point2D l, Point2D r)
 		{
-			return l.m_X == r.m_X && l.m_Y == r.m_Y;
+			return l.Equals(r);
 		}
 
 		public static bool operator !=(Point2D l, Point2D r)
 		{
-			return l.m_X != r.m_X || l.m_Y != r.m_Y;
-		}
-
-		public static bool operator ==(Point2D l, IPoint2D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X == r.X && l.m_Y == r.Y;
-		}
-
-		public static bool operator !=(Point2D l, IPoint2D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X != r.X || l.m_Y != r.Y;
+			return !l.Equals(r);
 		}
 
 		public static bool operator >(Point2D l, Point2D r)
@@ -148,16 +137,6 @@ namespace Server
 			return l.m_X > r.m_X && l.m_Y > r.m_Y;
 		}
 
-		public static bool operator >(Point2D l, IPoint2D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X > r.X && l.m_Y > r.Y;
-		}
-
 		public static bool operator <(Point2D l, Point2D r)
 		{
 			return l.m_X < r.m_X && l.m_Y < r.m_Y;
@@ -166,16 +145,6 @@ namespace Server
 		public static bool operator <(Point2D l, Point3D r)
 		{
 			return l.m_X < r.m_X && l.m_Y < r.m_Y;
-		}
-
-		public static bool operator <(Point2D l, IPoint2D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X < r.X && l.m_Y < r.Y;
 		}
 
 		public static bool operator >=(Point2D l, Point2D r)
@@ -188,16 +157,6 @@ namespace Server
 			return l.m_X >= r.m_X && l.m_Y >= r.m_Y;
 		}
 
-		public static bool operator >=(Point2D l, IPoint2D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X >= r.X && l.m_Y >= r.Y;
-		}
-
 		public static bool operator <=(Point2D l, Point2D r)
 		{
 			return l.m_X <= r.m_X && l.m_Y <= r.m_Y;
@@ -208,41 +167,110 @@ namespace Server
 			return l.m_X <= r.m_X && l.m_Y <= r.m_Y;
 		}
 
+		#endregion
+
+		#region Interface Operators
+
+		public static bool operator >(Point2D l, IPoint2D r)
+		{
+			return l.m_X > r.X && l.m_Y > r.Y;
+		}
+
+		public static bool operator >(IPoint2D l, Point2D r)
+		{
+			return l.X > r.m_X && l.Y > r.m_Y;
+		}
+
+		public static bool operator >(Point2D l, IPoint3D r)
+		{
+			return l.m_X > r.X && l.m_Y > r.Y;
+		}
+
+		public static bool operator >(IPoint3D l, Point2D r)
+		{
+			return l.X > r.m_X && l.Y > r.m_Y;
+		}
+
+		public static bool operator <(Point2D l, IPoint2D r)
+		{
+			return l.m_X < r.X && l.m_Y < r.Y;
+		}
+
+		public static bool operator <(IPoint2D l, Point2D r)
+		{
+			return l.X < r.m_X && l.Y < r.m_Y;
+		}
+
+		public static bool operator <(Point2D l, IPoint3D r)
+		{
+			return l.m_X < r.X && l.m_Y < r.Y;
+		}
+
+		public static bool operator <(IPoint3D l, Point2D r)
+		{
+			return l.X < r.m_X && l.Y < r.m_Y;
+		}
+
+		public static bool operator >=(Point2D l, IPoint2D r)
+		{
+			return l.m_X >= r.X && l.m_Y >= r.Y;
+		}
+
+		public static bool operator >=(IPoint2D l, Point2D r)
+		{
+			return l.X >= r.m_X && l.Y >= r.m_Y;
+		}
+
+		public static bool operator >=(Point2D l, IPoint3D r)
+		{
+			return l.m_X >= r.X && l.m_Y >= r.Y;
+		}
+
+		public static bool operator >=(IPoint3D l, Point2D r)
+		{
+			return l.X >= r.m_X && l.Y >= r.m_Y;
+		}
+
 		public static bool operator <=(Point2D l, IPoint2D r)
 		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
 			return l.m_X <= r.X && l.m_Y <= r.Y;
 		}
+
+		public static bool operator <=(IPoint2D l, Point2D r)
+		{
+			return l.X <= r.m_X && l.Y <= r.m_Y;
+		}
+
+		public static bool operator <=(Point2D l, IPoint3D r)
+		{
+			return l.m_X <= r.X && l.m_Y <= r.Y;
+		}
+
+		public static bool operator <=(IPoint3D l, Point2D r)
+		{
+			return l.X <= r.m_X && l.Y <= r.m_Y;
+		}
+
+		#endregion
 	}
 
-	[NoSort]
-	[Parsable]
-	[PropertyObject]
-	public struct Rectangle2D
+	[NoSort, Parsable, PropertyObject]
+	public struct Rectangle2D : IEquatable<Rectangle2D>
 	{
-		private Point2D m_Start;
-		private Point2D m_End;
+		public static readonly Rectangle2D Empty = new(0, 0, 0, 0);
 
-		public Rectangle2D(IPoint2D start, IPoint2D end)
+		public static bool TryParse(string value, out Rectangle2D o)
 		{
-			m_Start = new Point2D(start);
-			m_End = new Point2D(end);
-		}
-
-		public Rectangle2D(int x, int y, int width, int height)
-		{
-			m_Start = new Point2D(x, y);
-			m_End = new Point2D(x + width, y + height);
-		}
-
-		public void Set(int x, int y, int width, int height)
-		{
-			m_Start = new Point2D(x, y);
-			m_End = new Point2D(x + width, y + height);
+			try
+			{
+				o = Parse(value);
+				return true;
+			}
+			catch
+			{
+				o = Empty;
+				return false;
+			}
 		}
 
 		public static Rectangle2D Parse(string value)
@@ -270,109 +298,144 @@ namespace Server
 			return new Rectangle2D(Convert.ToInt32(param1), Convert.ToInt32(param2), Convert.ToInt32(param3), Convert.ToInt32(param4));
 		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public Point2D Start
-		{
-			get => m_Start;
-			set => m_Start = value;
-		}
+		private Point2D m_Start, m_End;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public Point2D End
-		{
-			get => m_End;
-			set => m_End = value;
-		}
+		public Point2D Start { get => m_Start; set => m_Start = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int X
-		{
-			get => m_Start.m_X;
-			set => m_Start.m_X = value;
-		}
+		public Point2D End { get => m_End; set => m_End = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Y
-		{
-			get => m_Start.m_Y;
-			set => m_Start.m_Y = value;
-		}
+		public int X { get => m_Start.m_X; set => m_Start.m_X = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Width
-		{
-			get => m_End.m_X - m_Start.m_X;
-			set => m_End.m_X = m_Start.m_X + value;
-		}
+		public int Y { get => m_Start.m_Y; set => m_Start.m_Y = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Height
+		public int Width { get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Height { get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
+
+		public Rectangle2D(Point2D start, Point2D end)
 		{
-			get => m_End.m_Y - m_Start.m_Y;
-			set => m_End.m_Y = m_Start.m_Y + value;
+			m_Start = start;
+			m_End = end;
 		}
 
-		public void MakeHold(Rectangle2D r)
+		public Rectangle2D(IPoint2D start, IPoint2D end)
 		{
-			if (r.m_Start.m_X < m_Start.m_X)
-			{
-				m_Start.m_X = r.m_Start.m_X;
-			}
-
-			if (r.m_Start.m_Y < m_Start.m_Y)
-			{
-				m_Start.m_Y = r.m_Start.m_Y;
-			}
-
-			if (r.m_End.m_X > m_End.m_X)
-			{
-				m_End.m_X = r.m_End.m_X;
-			}
-
-			if (r.m_End.m_Y > m_End.m_Y)
-			{
-				m_End.m_Y = r.m_End.m_Y;
-			}
+			m_Start = new Point2D(start);
+			m_End = new Point2D(end);
 		}
 
-		public bool Contains(Point3D p)
+		public Rectangle2D(int x, int y, int width, int height)
 		{
-			return (m_Start.m_X <= p.m_X && m_Start.m_Y <= p.m_Y && m_End.m_X > p.m_X && m_End.m_Y > p.m_Y);
-			//return ( m_Start <= p && m_End > p );
+			m_Start = new Point2D(x, y);
+			m_End = new Point2D(x + width, y + height);
+		}
+
+		public void Set(int x, int y, int width, int height)
+		{
+			m_Start = new Point2D(x, y);
+			m_End = new Point2D(x + width, y + height);
 		}
 
 		public bool Contains(Point2D p)
 		{
-			return (m_Start.m_X <= p.m_X && m_Start.m_Y <= p.m_Y && m_End.m_X > p.m_X && m_End.m_Y > p.m_Y);
-			//return ( m_Start <= p && m_End > p );
+			return Contains(p, false);
+		}
+
+		public bool Contains(Point2D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
 		public bool Contains(IPoint2D p)
 		{
-			return (m_Start <= p && m_End > p);
+			return Contains(p, false);
+		}
+
+		public bool Contains(IPoint2D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
+
+		public bool Contains(Point3D p)
+		{
+			return Contains(p, false);
+		}
+
+		public bool Contains(Point3D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
+
+		public bool Contains(IPoint3D p)
+		{
+			return Contains(p, false);
+		}
+
+		public bool Contains(IPoint3D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
+
+		public bool Equals(Rectangle2D r)
+		{
+			return m_Start == r.m_Start && m_End == r.m_End;
+		}
+
+		public override bool Equals(object o)
+		{
+			return o is Rectangle2D r && Equals(r);
+		}
+
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(m_Start, m_End);
 		}
 
 		public override string ToString()
 		{
-			return String.Format("({0}, {1})+({2}, {3})", X, Y, Width, Height);
+			return $"({X}, {Y})+({Width}, {Height})";
+		}
+
+		public static bool operator ==(Rectangle2D left, Rectangle2D right)
+		{
+			return left.Equals(right);
+		}
+
+		public static bool operator !=(Rectangle2D left, Rectangle2D right)
+		{
+			return !left.Equals(right);
 		}
 	}
 
 	[NoSort, Parsable, PropertyObject]
-	public readonly struct Poly2D
+	public readonly struct Poly2D : IEquatable<Poly2D>
 	{
+		public enum ContainsImpl
+		{
+			Trace, // less accurate, faster
+			Wind, // more accurate, slower
+		}
+
+		public static ContainsImpl ContainmentImpl { get; set; } = ContainsImpl.Trace;
+
 		public static readonly Poly2D Empty = new(null);
 
-		public static bool TryParse(string value, out Poly2D t)
+		public static bool TryParse(string value, out Poly2D o)
 		{
 			try
 			{
-				t = Parse(value);
+				o = Parse(value);
 				return true;
 			}
 			catch
 			{
-				t = Empty;
+				o = Empty;
 				return false;
 			}
 		}
@@ -388,6 +451,8 @@ namespace Server
 				throw new FormatException("The specified polygon must be represented by Point2D coords using the format '(x1,y1)+(xN,yN)'");
 			}
 		}
+
+		private readonly int m_Hash;
 
 		internal readonly Point2D[] m_Points;
 
@@ -411,6 +476,8 @@ namespace Server
 
 		public Poly2D(params Point2D[] points)
 		{
+			m_Hash = 0;
+
 			m_Points = points?.ToArray() ?? Array.Empty<Point2D>();
 
 			if (m_Points.Length == 0)
@@ -419,16 +486,18 @@ namespace Server
 				return;
 			}
 
-			int x1 = Int32.MinValue, y1 = Int32.MinValue;
-			int x2 = Int32.MaxValue, y2 = Int32.MaxValue;
+			int x1 = Int32.MaxValue, y1 = Int32.MaxValue;
+			int x2 = Int32.MinValue, y2 = Int32.MinValue;
 
-			foreach (var p in m_Points)
+			for (var i = 0; i < m_Points.Length; i++)
 			{
-				x1 = Math.Min(x1, p.m_X);
-				y1 = Math.Min(y1, p.m_Y);
-				
-				x2 = Math.Max(x2, p.m_X);
-				y2 = Math.Max(y2, p.m_Y);
+				x1 = Math.Min(x1, m_Points[i].m_X);
+				y1 = Math.Min(y1, m_Points[i].m_Y);
+
+				x2 = Math.Max(x2, m_Points[i].m_X);
+				y2 = Math.Max(y2, m_Points[i].m_Y);
+
+				m_Hash = HashCode.Combine(m_Hash, m_Points[i]);
 			}
 
 			m_Bounds = new Rectangle2D(x1, y1, x2 - x1, y2 - y1);
@@ -439,24 +508,24 @@ namespace Server
 			return m_Points.ToArray();
 		}
 
-		public bool Contains(IPoint2D p)
-		{
-			return Contains(p.X, p.Y);
-		}
-
-		public bool Contains(IPoint3D p)
-		{
-			return Contains(p.X, p.Y);
-		}
-
 		public bool Contains(Point2D p)
 		{
 			return Contains(p.m_X, p.m_Y);
 		}
 
+		public bool Contains(IPoint2D p)
+		{
+			return Contains(p.X, p.Y);
+		}
+
 		public bool Contains(Point3D p)
 		{
 			return Contains(p.m_X, p.m_Y);
+		}
+
+		public bool Contains(IPoint3D p)
+		{
+			return Contains(p.X, p.Y);
 		}
 
 		public bool Contains(int x, int y)
@@ -466,32 +535,92 @@ namespace Server
 				return false;
 			}
 
-			var first = m_Points[0];
-			var last = m_Points[^1];
-
-			if (first.X == last.X && first.Y == last.Y)
+			if (m_Points[0] == m_Points[^1])
 			{
-				return x == first.X && y == first.Y;
+				return x == m_Points[0].m_X && y == m_Points[0].m_Y;
 			}
 
+			return ContainmentImpl switch
+			{
+				ContainsImpl.Trace => TraceContains(x, y),
+				ContainsImpl.Wind => WindContains(x, y),
+				_ => false,
+			};
+		}
+
+		private bool TraceContains(int x, int y)
+		{
+			if (x < m_Bounds.Start.m_X || y < m_Bounds.Start.m_Y)
+			{
+				return false;
+			}
+
+			if (x > m_Bounds.End.m_X || y > m_Bounds.End.m_Y)
+			{
+				return false;
+			}
+
+			var test = false;
+
+			for (int i = 0, n = m_Points.Length - 1; i < m_Points.Length; n = i++)
+			{
+				var p1 = m_Points[i];
+				var p2 = m_Points[n];
+
+				if (y < p1.m_Y != y < p2.m_Y && x < (p2.m_X - p1.m_X) * (y - p1.m_Y) / (p2.m_Y - p1.m_Y) + p1.m_X)
+				{
+					test = !test;
+				}
+			}
+
+			return test;
+		}
+
+		private bool WindContains(int x, int y)
+		{
 			static double product(int x1, int y1, int x2, int y2, int x3, int y3)
 			{
 				return Math.Atan2((x1 - x2) * (y3 - y2) - (y1 - y2) * (x3 - x2), (x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2));
 			};
 
-			var total = product(last.X, last.Y, x, y, first.X, first.Y);
+			var total = 0.0;
 
-			for (int i = 0, n = 1; n < m_Points.Length; i++, n++)
+			for (var i = 0; i < m_Points.Length; i++)
 			{
-				total += product(m_Points[i].X, m_Points[i].Y, x, y, m_Points[n].X, m_Points[n].Y);
+				total += product(m_Points[i].m_X, m_Points[i].m_Y, x, y, m_Points[(i + 1) % m_Points.Length].m_X, m_Points[(i + 1) % m_Points.Length].m_Y);
 			}
 
 			return Math.Abs(total) > 1;
 		}
 
+		public bool Equals(Poly2D p)
+		{
+			return m_Hash == p.m_Hash;
+		}
+
+		public override bool Equals(object o)
+		{
+			return o is Poly2D p && Equals(p);
+		}
+
+		public override int GetHashCode()
+		{
+			return m_Hash;
+		}
+
 		public override string ToString()
 		{
 			return String.Join("+", m_Points);
+		}
+
+		public static bool operator ==(Poly2D l, Poly2D r)
+		{
+			return l.Equals(r);
+		}
+
+		public static bool operator !=(Poly2D l, Poly2D r)
+		{
+			return !l.Equals(r);
 		}
 
 		public static implicit operator Poly2D(Poly3D poly)
@@ -552,72 +681,22 @@ namespace Server
 	}
 
 	[Parsable]
-	public struct Point3D : IPoint3D, IComparable, IComparable<Point3D>
+	public struct Point3D : IPoint3D, IComparable<Point3D>, IEquatable<Point3D>, IComparable<IPoint3D>, IEquatable<IPoint3D>
 	{
-		internal int m_X;
-		internal int m_Y;
-		internal int m_Z;
+		public static readonly Point3D Zero = new(0, 0, 0);
 
-		public static readonly Point3D Zero = new Point3D(0, 0, 0);
-
-		public Point3D(int x, int y, int z)
+		public static bool TryParse(string value, out Point3D o)
 		{
-			m_X = x;
-			m_Y = y;
-			m_Z = z;
-		}
-
-		public Point3D(IPoint3D p)
-			: this(p.X, p.Y, p.Z)
-		{
-		}
-
-		public Point3D(IPoint2D p, int z)
-			: this(p.X, p.Y, z)
-		{
-		}
-
-		[CommandProperty(AccessLevel.Counselor)]
-		public int X
-		{
-			get => m_X;
-			set => m_X = value;
-		}
-
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Y
-		{
-			get => m_Y;
-			set => m_Y = value;
-		}
-
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Z
-		{
-			get => m_Z;
-			set => m_Z = value;
-		}
-
-		public override string ToString()
-		{
-			return String.Format("({0}, {1}, {2})", m_X, m_Y, m_Z);
-		}
-
-		public override bool Equals(object o)
-		{
-			if (o == null || !(o is IPoint3D))
+			try
 			{
+				o = Parse(value);
+				return true;
+			}
+			catch
+			{
+				o = Zero;
 				return false;
 			}
-
-			var p = (IPoint3D)o;
-
-			return m_X == p.X && m_Y == p.Y && m_Z == p.Z;
-		}
-
-		public override int GetHashCode()
-		{
-			return m_X ^ m_Y ^ m_Z;
 		}
 
 		public static Point3D Parse(string value)
@@ -640,79 +719,322 @@ namespace Server
 			return new Point3D(Convert.ToInt32(param1), Convert.ToInt32(param2), Convert.ToInt32(param3));
 		}
 
-		public static bool operator ==(Point3D l, Point3D r)
+		internal int m_X, m_Y, m_Z;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int X { get => m_X; set => m_X = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Y { get => m_Y; set => m_Y = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Z { get => m_Z; set => m_Z = value; }
+
+		public Point3D(IPoint3D p)
+			: this(p.X, p.Y, p.Z)
 		{
-			return l.m_X == r.m_X && l.m_Y == r.m_Y && l.m_Z == r.m_Z;
 		}
 
-		public static bool operator !=(Point3D l, Point3D r)
+		public Point3D(IPoint2D p, int z)
+			: this(p.X, p.Y, z)
 		{
-			return l.m_X != r.m_X || l.m_Y != r.m_Y || l.m_Z != r.m_Z;
 		}
 
-		public static bool operator ==(Point3D l, IPoint3D r)
+		public Point3D(int x, int y, int z)
 		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X == r.X && l.m_Y == r.Y && l.m_Z == r.Z;
-		}
-
-		public static bool operator !=(Point3D l, IPoint3D r)
-		{
-			if (Object.ReferenceEquals(r, null))
-			{
-				return false;
-			}
-
-			return l.m_X != r.X || l.m_Y != r.Y || l.m_Z != r.Z;
+			m_X = x;
+			m_Y = y;
+			m_Z = z;
 		}
 
 		public int CompareTo(Point3D other)
 		{
-			var v = (m_X.CompareTo(other.m_X));
+			var v = m_X.CompareTo(other.m_X);
 
 			if (v == 0)
 			{
-				v = (m_Y.CompareTo(other.m_Y));
+				v = m_Y.CompareTo(other.m_Y);
 
 				if (v == 0)
 				{
-					v = (m_Z.CompareTo(other.m_Z));
+					v = m_Z.CompareTo(other.m_Z);
 				}
 			}
 
 			return v;
 		}
 
-		public int CompareTo(object other)
+		public int CompareTo(IPoint3D other)
 		{
-			if (other is Point3D)
+			var v = m_X.CompareTo(other?.X);
+
+			if (v == 0)
 			{
-				return CompareTo((Point3D)other);
-			}
-			else if (other == null)
-			{
-				return -1;
+				v = m_Y.CompareTo(other?.Y);
+
+				if (v == 0)
+				{
+					v = m_Z.CompareTo(other?.Z);
+				}
 			}
 
-			throw new ArgumentException();
+			return v;
 		}
+
+		public bool Equals(Point3D p)
+		{
+			return m_X == p.m_X && m_Y == p.m_Y && m_Z == p.m_Z;
+		}
+
+		public bool Equals(IPoint3D p)
+		{
+			return m_X == p?.X && m_Y == p?.Y && m_Z == p?.Z;
+		}
+
+		public override bool Equals(object o)
+		{
+			return o is IPoint3D p && Equals(p);
+		}
+
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(m_X, m_Y, m_Z);
+		}
+
+		public override string ToString()
+		{
+			return $"({m_X}, {m_Y}, {m_Z})";
+		}
+
+		#region Operators
+
+		public static bool operator ==(Point3D l, Point3D r)
+		{
+			return l.Equals(r);
+		}
+
+		public static bool operator !=(Point3D l, Point3D r)
+		{
+			return !l.Equals(r);
+		}
+
+		public static bool operator >(Point3D l, Point3D r)
+		{
+			return l.m_X > r.m_X && l.m_Y > r.m_Y && l.m_Z > r.m_Z;
+		}
+
+		public static bool operator >(Point3D l, Point2D r)
+		{
+			return l.m_X > r.m_X && l.m_Y > r.m_Y;
+		}
+
+		public static bool operator <(Point3D l, Point3D r)
+		{
+			return l.m_X < r.m_X && l.m_Y < r.m_Y && l.m_Z < r.m_Z;
+		}
+
+		public static bool operator <(Point3D l, Point2D r)
+		{
+			return l.m_X < r.m_X && l.m_Y < r.m_Y;
+		}
+
+		public static bool operator >=(Point3D l, Point3D r)
+		{
+			return l.m_X >= r.m_X && l.m_Y >= r.m_Y && l.m_Z >= r.m_Z;
+		}
+
+		public static bool operator >=(Point3D l, Point2D r)
+		{
+			return l.m_X >= r.m_X && l.m_Y >= r.m_Y;
+		}
+
+		public static bool operator <=(Point3D l, Point3D r)
+		{
+			return l.m_X <= r.m_X && l.m_Y <= r.m_Y && l.m_Z <= r.m_Z;
+		}
+
+		public static bool operator <=(Point3D l, Point2D r)
+		{
+			return l.m_X <= r.m_X && l.m_Y <= r.m_Y;
+		}
+
+		#endregion
+
+		#region Interface Operators
+
+		public static bool operator >(Point3D l, IPoint2D r)
+		{
+			return l.m_X > r.X && l.m_Y > r.Y;
+		}
+
+		public static bool operator >(IPoint2D l, Point3D r)
+		{
+			return l.X > r.m_X && l.Y > r.m_Y;
+		}
+
+		public static bool operator >(Point3D l, IPoint3D r)
+		{
+			return l.m_X > r.X && l.m_Y > r.Y && l.m_Z > r.Z;
+		}
+
+		public static bool operator >(IPoint3D l, Point3D r)
+		{
+			return l.X > r.m_X && l.Y > r.m_Y && l.Z > r.m_Z;
+		}
+
+		public static bool operator <(Point3D l, IPoint2D r)
+		{
+			return l.m_X < r.X && l.m_Y < r.Y;
+		}
+
+		public static bool operator <(IPoint2D l, Point3D r)
+		{
+			return l.X < r.m_X && l.Y < r.m_Y;
+		}
+
+		public static bool operator <(Point3D l, IPoint3D r)
+		{
+			return l.m_X < r.X && l.m_Y < r.Y && l.m_Z < r.Z;
+		}
+
+		public static bool operator <(IPoint3D l, Point3D r)
+		{
+			return l.X < r.m_X && l.Y < r.m_Y && l.Z < r.m_Z;
+		}
+
+		public static bool operator >=(Point3D l, IPoint2D r)
+		{
+			return l.m_X >= r.X && l.m_Y >= r.Y;
+		}
+
+		public static bool operator >=(IPoint2D l, Point3D r)
+		{
+			return l.X >= r.m_X && l.Y >= r.m_Y;
+		}
+
+		public static bool operator >=(Point3D l, IPoint3D r)
+		{
+			return l.m_X >= r.X && l.m_Y >= r.Y && l.m_Z >= r.Z;
+		}
+
+		public static bool operator >=(IPoint3D l, Point3D r)
+		{
+			return l.X >= r.m_X && l.Y >= r.m_Y && l.Z >= r.m_Z;
+		}
+
+		public static bool operator <=(Point3D l, IPoint2D r)
+		{
+			return l.m_X <= r.X && l.m_Y <= r.Y;
+		}
+
+		public static bool operator <=(IPoint2D l, Point3D r)
+		{
+			return l.X <= r.m_X && l.Y <= r.m_Y;
+		}
+
+		public static bool operator <=(Point3D l, IPoint3D r)
+		{
+			return l.m_X <= r.X && l.m_Y <= r.Y && l.m_Z <= r.Z;
+		}
+
+		public static bool operator <=(IPoint3D l, Point3D r)
+		{
+			return l.X <= r.m_X && l.Y <= r.m_Y && l.Z <= r.m_Z;
+		}
+
+		#endregion
 	}
 
-	[NoSort]
-	[PropertyObject]
-	public struct Rectangle3D
+	[NoSort, Parsable, PropertyObject]
+	public struct Rectangle3D : IEquatable<Rectangle3D>
 	{
-		private Point3D m_Start;
-		private Point3D m_End;
+		public static readonly Rectangle3D Empty = new(0, 0, 0, 0, 0, 0);
+
+		public static bool TryParse(string value, out Rectangle3D o)
+		{
+			try
+			{
+				o = Parse(value);
+				return true;
+			}
+			catch
+			{
+				o = Empty;
+				return false;
+			}
+		}
+
+		public static Rectangle3D Parse(string value)
+		{
+			var start = value.IndexOf('(');
+			var end = value.IndexOf(',', start + 1);
+
+			var param1 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			start = end;
+			end = value.IndexOf(',', start + 1);
+
+			var param2 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			start = end;
+			end = value.IndexOf(',', start + 1);
+
+			var param3 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			start = end;
+			end = value.IndexOf(',', start + 1);
+
+			var param4 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			start = end;
+			end = value.IndexOf(',', start + 1);
+
+			var param5 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			start = end;
+			end = value.IndexOf(')', start + 1);
+
+			var param6 = value.Substring(start + 1, end - (start + 1)).Trim();
+
+			return new Rectangle3D(Convert.ToInt32(param1), Convert.ToInt32(param2), Convert.ToInt32(param3), Convert.ToInt32(param4), Convert.ToInt32(param5), Convert.ToInt32(param6));
+		}
+
+		private Point3D m_Start, m_End;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public Point3D Start { get => m_Start; set => m_Start = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public Point3D End { get => m_End; set => m_End = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int X { get => m_Start.m_X; set => m_Start.m_X = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Y { get => m_Start.m_Y; set => m_Start.m_Y = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Z { get => m_Start.m_Z; set => m_Start.m_Z = value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Width { get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Height { get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Depth { get => m_End.m_Z - m_Start.m_Z; set => m_End.m_Z = m_Start.m_Z + value; }
 
 		public Rectangle3D(Point3D start, Point3D end)
 		{
 			m_Start = start;
 			m_End = end;
+		}
+
+		public Rectangle3D(IPoint3D start, IPoint3D end)
+		{
+			m_Start = new Point3D(start);
+			m_End = new Point3D(end);
 		}
 
 		public Rectangle3D(int x, int y, int z, int width, int height, int depth)
@@ -721,52 +1043,85 @@ namespace Server
 			m_End = new Point3D(x + width, y + height, z + depth);
 		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public Point3D Start
+		public void Set(int x, int y, int z, int width, int height, int depth)
 		{
-			get => m_Start;
-			set => m_Start = value;
+			m_Start = new Point3D(x, y, z);
+			m_End = new Point3D(x + width, y + height, z + depth);
 		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public Point3D End
+		public bool Contains(Point2D p)
 		{
-			get => m_End;
-			set => m_End = value;
+			return Contains(p, false);
 		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Width => m_End.X - m_Start.X;
+		public bool Contains(Point2D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Height => m_End.Y - m_Start.Y;
+		public bool Contains(IPoint2D p)
+		{
+			return Contains(p, false);
+		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public int Depth => m_End.Z - m_Start.Z;
+		public bool Contains(IPoint2D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
 
 		public bool Contains(Point3D p)
 		{
-			return (p.m_X >= m_Start.m_X)
-				&& (p.m_X < m_End.m_X)
-				&& (p.m_Y >= m_Start.m_Y)
-				&& (p.m_Y < m_End.m_Y)
-				&& (p.m_Z >= m_Start.m_Z)
-				&& (p.m_Z < m_End.m_Z);
+			return Contains(p, false);
+		}
+
+		public bool Contains(Point3D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
 		public bool Contains(IPoint3D p)
 		{
-			return (p.X >= m_Start.m_X)
-				&& (p.X < m_End.m_X)
-				&& (p.Y >= m_Start.m_Y)
-				&& (p.Y < m_End.m_Y)
-				&& (p.Z >= m_Start.m_Z)
-				&& (p.Z < m_End.m_Z);
+			return Contains(p, false);
+		}
+
+		public bool Contains(IPoint3D p, bool inclusive)
+		{
+			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
+		}
+
+		public bool Equals(Rectangle3D r)
+		{
+			return m_Start == r.m_Start && m_End == r.m_End;
+		}
+
+		public override bool Equals(object o)
+		{
+			return o is Rectangle3D r && Equals(r);
+		}
+
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(m_Start, m_End);
+		}
+
+		public override string ToString()
+		{
+			return $"({X}, {Y}, {Z})+({Width}, {Height}, {Depth})";
+		}
+
+		public static bool operator ==(Rectangle3D left, Rectangle3D right)
+		{
+			return left.Equals(right);
+		}
+
+		public static bool operator !=(Rectangle3D left, Rectangle3D right)
+		{
+			return !left.Equals(right);
 		}
 	}
 
 	[NoSort, Parsable, PropertyObject]
-	public readonly struct Poly3D
+	public readonly struct Poly3D : IEquatable<Poly3D>
 	{
 		public static readonly Poly3D Empty = new();
 
@@ -803,6 +1158,8 @@ namespace Server
 			}
 		}
 
+		private readonly int m_Hash;
+
 		internal readonly Poly2D m_Poly;
 
 		internal readonly int m_MinZ, m_MaxZ;
@@ -823,10 +1180,10 @@ namespace Server
 		public readonly int MaxZ => m_MaxZ;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public readonly int Depth => m_MinZ - m_MaxZ;
+		public readonly int Depth => m_MaxZ - m_MinZ;
 
 		public Poly3D(Poly3D poly)
-			: this(poly.MinZ, poly.MaxZ, poly.m_Poly.m_Points)
+			: this(poly.m_MinZ, poly.m_MaxZ, poly.m_Poly.m_Points)
 		{ }
 
 		public Poly3D(int minZ, int maxZ, params Point2D[] points)
@@ -834,6 +1191,8 @@ namespace Server
 			m_MinZ = minZ;
 			m_MaxZ = maxZ;
 			m_Poly = new(points);
+
+			m_Hash = HashCode.Combine(m_MinZ, m_MaxZ, m_Poly);
 		}
 
 		public Point2D[] ToArray()
@@ -841,24 +1200,24 @@ namespace Server
 			return m_Poly.ToArray();
 		}
 
-		public bool Contains(IPoint2D p)
-		{
-			return m_Poly.Contains(p.X, p.Y);
-		}
-
-		public bool Contains(IPoint3D p)
-		{
-			return m_Poly.Contains(p.X, p.Y) && p.Z >= m_MinZ && p.Z < m_MaxZ;
-		}
-
 		public bool Contains(Point2D p)
 		{
-			return m_Poly.Contains(p.m_X, p.m_Y);
+			return m_Poly.Contains(p);
+		}
+
+		public bool Contains(IPoint2D p)
+		{
+			return m_Poly.Contains(p);
 		}
 
 		public bool Contains(Point3D p)
 		{
-			return m_Poly.Contains(p.m_X, p.m_Y) && p.m_Z >= m_MinZ && p.m_Z < m_MaxZ;
+			return p.m_Z >= m_MinZ && p.m_Z < m_MaxZ && m_Poly.Contains(p);
+		}
+
+		public bool Contains(IPoint3D p)
+		{
+			return p.Z >= m_MinZ && p.Z < m_MaxZ && m_Poly.Contains(p);
 		}
 
 		public bool Contains(int x, int y)
@@ -868,12 +1227,37 @@ namespace Server
 
 		public bool Contains(int x, int y, int z)
 		{
-			return m_Poly.Contains(x, y) && z >= m_MinZ && z < m_MaxZ;
+			return z >= m_MinZ && z < m_MaxZ && m_Poly.Contains(x, y);
+		}
+
+		public bool Equals(Poly3D p)
+		{
+			return m_Hash == p.m_Hash;
+		}
+
+		public override bool Equals(object o)
+		{
+			return o is Poly3D p && Equals(p);
+		}
+
+		public override int GetHashCode()
+		{
+			return m_Hash;
 		}
 
 		public override string ToString()
 		{
 			return $"{m_Poly}~({m_MinZ},{m_MaxZ})";
+		}
+
+		public static bool operator ==(Poly3D l, Poly3D r)
+		{
+			return l.Equals(r);
+		}
+
+		public static bool operator !=(Poly3D l, Poly3D r)
+		{
+			return !l.Equals(r);
 		}
 
 		public static implicit operator Poly3D(Poly2D poly)

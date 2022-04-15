@@ -114,7 +114,7 @@ namespace Server.Items
 					break;
 			}
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromDays(1), TimeSpan.FromDays(1), new TimerCallback(GiveResources));
+			m_Timer = Timer.DelayCall(TimeSpan.FromDays(1), TimeSpan.FromDays(1), GiveResources);
 		}
 
 		public MiningCart(Serial serial) : base(serial)
@@ -308,7 +308,7 @@ namespace Server.Items
 						next = DateTime.UtcNow;
 					}
 
-					m_Timer = Timer.DelayCall(next - DateTime.UtcNow, TimeSpan.FromDays(1), new TimerCallback(GiveResources));
+					m_Timer = Timer.DelayCall(next - DateTime.UtcNow, TimeSpan.FromDays(1), GiveResources);
 					break;
 			}
 		}

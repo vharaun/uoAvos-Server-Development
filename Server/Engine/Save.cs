@@ -25,6 +25,7 @@ namespace Server
 {
 	public static class World
 	{
+		private static Dictionary<int, Region> m_Regions;
 
 		private static Dictionary<Serial, Mobile> m_Mobiles;
 		private static Dictionary<Serial, Item> m_Items;
@@ -35,22 +36,30 @@ namespace Server
 		private static bool m_Saving;
 		private static readonly ManualResetEvent m_DiskWriteHandle = new ManualResetEvent(true);
 
-		private static Queue<IEntity> _addQueue, _deleteQueue;
+		private static Queue<object> _addQueue, _deleteQueue;
 
 		public static bool Saving => m_Saving;
 		public static bool Loaded => m_Loaded;
 		public static bool Loading => m_Loading;
 
-		public static readonly string MobileIndexPath = Path.Combine("Export/Saves/Current/Mobiles/", "Mobiles.idx");
-		public static readonly string MobileTypesPath = Path.Combine("Export/Saves/Current/Mobiles/", "Mobiles.tdb");
-		public static readonly string MobileDataPath = Path.Combine("Export/Saves/Current/Mobiles/", "Mobiles.bin");
+		public static readonly string RegionRootPath = Path.Combine("Export", "Saves", "Current", "Regions");
+		public static readonly string RegionIndexPath = Path.Combine(RegionRootPath, "Regions.idx");
+		public static readonly string RegionTypesPath = Path.Combine(RegionRootPath, "Regions.tdb");
+		public static readonly string RegionDataPath = Path.Combine(RegionRootPath, "Regions.bin");
 
-		public static readonly string ItemIndexPath = Path.Combine("Export/Saves/Current/Items/", "Items.idx");
-		public static readonly string ItemTypesPath = Path.Combine("Export/Saves/Current/Items/", "Items.tdb");
-		public static readonly string ItemDataPath = Path.Combine("Export/Saves/Current/Items/", "Items.bin");
+		public static readonly string MobileRootPath = Path.Combine("Export", "Saves", "Current", "Mobiles");
+		public static readonly string MobileIndexPath = Path.Combine(MobileRootPath, "Mobiles.idx");
+		public static readonly string MobileTypesPath = Path.Combine(MobileRootPath, "Mobiles.tdb");
+		public static readonly string MobileDataPath = Path.Combine(MobileRootPath, "Mobiles.bin");
 
-		public static readonly string GuildIndexPath = Path.Combine("Export/Saves/Current/Guilds/", "Guilds.idx");
-		public static readonly string GuildDataPath = Path.Combine("Export/Saves/Current/Guilds/", "Guilds.bin");
+		public static readonly string ItemRootPath = Path.Combine("Export", "Saves", "Current", "Items");
+		public static readonly string ItemIndexPath = Path.Combine(ItemRootPath, "Items.idx");
+		public static readonly string ItemTypesPath = Path.Combine(ItemRootPath, "Items.tdb");
+		public static readonly string ItemDataPath = Path.Combine(ItemRootPath, "Items.bin");
+
+		public static readonly string GuildRootPath = Path.Combine("Export", "Saves", "Current", "Guilds");
+		public static readonly string GuildIndexPath = Path.Combine(GuildRootPath, "Guilds.idx");
+		public static readonly string GuildDataPath = Path.Combine(GuildRootPath, "Guilds.bin");
 
 		public static void NotifyDiskWriteComplete()
 		{
@@ -64,6 +73,8 @@ namespace Server
 		{
 			m_DiskWriteHandle.WaitOne();
 		}
+
+		public static Dictionary<int, Region> Regions => m_Regions;
 
 		public static Dictionary<Serial, Mobile> Mobiles => m_Mobiles;
 
@@ -125,8 +136,39 @@ namespace Server
 		{
 			Serial Serial { get; }
 			int TypeID { get; }
+			string TypeName { get; }
 			long Position { get; }
 			int Length { get; }
+		}
+
+		private sealed class RegionEntry : IEntityEntry
+		{
+			private readonly Region m_Region;
+			private readonly int m_TypeID;
+			private readonly string m_TypeName;
+			private readonly long m_Position;
+			private readonly int m_Length;
+
+			public Region Region => m_Region;
+
+			public Serial Serial => m_Region == null ? 0 : m_Region.Id;
+
+			public int TypeID => m_TypeID;
+
+			public string TypeName => m_TypeName;
+
+			public long Position => m_Position;
+
+			public int Length => m_Length;
+
+			public RegionEntry(Region r, int typeID, string typeName, long pos, int length)
+			{
+				m_Region = r;
+				m_TypeID = typeID;
+				m_TypeName = typeName;
+				m_Position = pos;
+				m_Length = length;
+			}
 		}
 
 		private sealed class GuildEntry : IEntityEntry
@@ -140,6 +182,8 @@ namespace Server
 			public Serial Serial => m_Guild == null ? 0 : m_Guild.Id;
 
 			public int TypeID => 0;
+
+			public string TypeName => String.Empty;
 
 			public long Position => m_Position;
 
@@ -217,6 +261,7 @@ namespace Server
 
 		public static string LoadingType => m_LoadingType;
 
+		private static readonly Type[] m_IdTypeArray = new Type[1] { typeof(int) };
 		private static readonly Type[] m_SerialTypeArray = new Type[1] { typeof(Serial) };
 
 		private static List<Tuple<ConstructorInfo, string>> ReadTypes(BinaryReader tdbReader)
@@ -237,7 +282,7 @@ namespace Server
 
 					if (!Core.Service)
 					{
-						Console.WriteLine("Error: Type '{0}' was not found. Delete all of those types? (y/n)", typeName);
+						Console.WriteLine($"Error: Type '{typeName}' was not found. Delete all of those types? (y/n)");
 
 						if (Console.ReadKey(true).Key == ConsoleKey.Y)
 						{
@@ -253,10 +298,19 @@ namespace Server
 						Console.WriteLine("Error: Type '{0}' was not found.", typeName);
 					}
 
-					throw new Exception(String.Format("Bad type '{0}'", typeName));
+					throw new Exception($"Bad type '{typeName}'");
 				}
 
-				var ctor = t.GetConstructor(m_SerialTypeArray);
+				ConstructorInfo ctor;
+
+				if (t.IsAssignableTo(typeof(Region)))
+				{
+					ctor = t.GetConstructor(m_IdTypeArray);
+				}
+				else
+				{
+					ctor = t.GetConstructor(m_SerialTypeArray);
+				}
 
 				if (ctor != null)
 				{
@@ -264,7 +318,7 @@ namespace Server
 				}
 				else
 				{
-					throw new Exception(String.Format("Type '{0}' does not have a serialization constructor", t));
+					throw new Exception($"Type '{t}' does not have a serialization constructor");
 				}
 			}
 
@@ -281,78 +335,139 @@ namespace Server
 			m_Loaded = true;
 			m_LoadingType = null;
 
-			Console.Write("World: Loading...");
+			Console.WriteLine("World: Loading...");
 
 			var watch = Stopwatch.StartNew();
 
 			m_Loading = true;
 
-			_addQueue = new Queue<IEntity>();
-			_deleteQueue = new Queue<IEntity>();
+			_addQueue = new();
+			_deleteQueue = new();
 
-			int mobileCount = 0, itemCount = 0, guildCount = 0;
+			int regionCount, mobileCount, itemCount, guildCount;
 
 			var ctorArgs = new object[1];
 
+			var regions = new List<RegionEntry>();
 			var items = new List<ItemEntry>();
 			var mobiles = new List<MobileEntry>();
 			var guilds = new List<GuildEntry>();
 
-			if (File.Exists(MobileIndexPath) && File.Exists(MobileTypesPath))
+			if (File.Exists(RegionIndexPath) && File.Exists(RegionTypesPath))
 			{
-				using (var idx = new FileStream(MobileIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var idx = new FileStream(RegionIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var idxReader = new BinaryReader(idx);
+
+				using var tdb = new FileStream(RegionTypesPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var tdbReader = new BinaryReader(tdb);
+
+				var types = ReadTypes(tdbReader);
+
+				regionCount = idxReader.ReadInt32();
+
+				m_Regions = new Dictionary<int, Region>(regionCount);
+
+				for (var i = 0; i < regionCount; ++i)
 				{
-					var idxReader = new BinaryReader(idx);
+					var typeID = idxReader.ReadInt32();
+					var uid = idxReader.ReadInt32();
+					var pos = idxReader.ReadInt64();
+					var length = idxReader.ReadInt32();
 
-					using (var tdb = new FileStream(MobileTypesPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+					var objs = types[typeID];
+
+					if (objs == null)
 					{
-						var tdbReader = new BinaryReader(tdb);
-
-						var types = ReadTypes(tdbReader);
-
-						mobileCount = idxReader.ReadInt32();
-
-						m_Mobiles = new Dictionary<Serial, Mobile>(mobileCount);
-
-						for (var i = 0; i < mobileCount; ++i)
-						{
-							var typeID = idxReader.ReadInt32();
-							var serial = idxReader.ReadInt32();
-							var pos = idxReader.ReadInt64();
-							var length = idxReader.ReadInt32();
-
-							var objs = types[typeID];
-
-							if (objs == null)
-							{
-								continue;
-							}
-
-							Mobile m = null;
-							var ctor = objs.Item1;
-							var typeName = objs.Item2;
-
-							try
-							{
-								ctorArgs[0] = (Serial)serial;
-								m = (Mobile)(ctor.Invoke(ctorArgs));
-							}
-							catch
-							{
-							}
-
-							if (m != null)
-							{
-								mobiles.Add(new MobileEntry(m, typeID, typeName, pos, length));
-								AddMobile(m);
-							}
-						}
-
-						tdbReader.Close();
+						continue;
 					}
 
-					idxReader.Close();
+					Region r = null;
+					var ctor = objs.Item1;
+					var typeName = objs.Item2;
+
+					try
+					{
+						ctorArgs[0] = uid;
+
+						r = (Region)ctor.Invoke(ctorArgs);
+					}
+					catch
+					{
+					}
+
+					if (r != null)
+					{
+						regions.Add(new RegionEntry(r, typeID, typeName, pos, length));
+
+						AddRegion(r);
+					}
 				}
+
+				tdbReader.Close();
+				idxReader.Close();
+			}
+			else
+			{
+				m_Regions = new Dictionary<int, Region>();
+			}
+
+			if (m_Regions.Count == 0)
+			{
+				Region.GenerateRegions();
+			}
+
+			if (File.Exists(MobileIndexPath) && File.Exists(MobileTypesPath))
+			{
+				using var idx = new FileStream(MobileIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var idxReader = new BinaryReader(idx);
+
+				using var tdb = new FileStream(MobileTypesPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var tdbReader = new BinaryReader(tdb);
+
+				var types = ReadTypes(tdbReader);
+
+				mobileCount = idxReader.ReadInt32();
+
+				m_Mobiles = new Dictionary<Serial, Mobile>(mobileCount);
+
+				for (var i = 0; i < mobileCount; ++i)
+				{
+					var typeID = idxReader.ReadInt32();
+					var serial = idxReader.ReadInt32();
+					var pos = idxReader.ReadInt64();
+					var length = idxReader.ReadInt32();
+
+					var objs = types[typeID];
+
+					if (objs == null)
+					{
+						continue;
+					}
+
+					Mobile m = null;
+					var ctor = objs.Item1;
+					var typeName = objs.Item2;
+
+					try
+					{
+						ctorArgs[0] = (Serial)serial;
+
+						m = (Mobile)ctor.Invoke(ctorArgs);
+					}
+					catch
+					{
+					}
+
+					if (m != null)
+					{
+						mobiles.Add(new MobileEntry(m, typeID, typeName, pos, length));
+
+						AddMobile(m);
+					}
+				}
+
+				tdbReader.Close();
+				idxReader.Close();
 			}
 			else
 			{
@@ -361,59 +476,57 @@ namespace Server
 
 			if (File.Exists(ItemIndexPath) && File.Exists(ItemTypesPath))
 			{
-				using (var idx = new FileStream(ItemIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var idx = new FileStream(ItemIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var idxReader = new BinaryReader(idx);
+
+				using var tdb = new FileStream(ItemTypesPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var tdbReader = new BinaryReader(tdb);
+
+				var types = ReadTypes(tdbReader);
+
+				itemCount = idxReader.ReadInt32();
+
+				m_Items = new Dictionary<Serial, Item>(itemCount);
+
+				for (var i = 0; i < itemCount; ++i)
 				{
-					var idxReader = new BinaryReader(idx);
+					var typeID = idxReader.ReadInt32();
+					var serial = idxReader.ReadInt32();
+					var pos = idxReader.ReadInt64();
+					var length = idxReader.ReadInt32();
 
-					using (var tdb = new FileStream(ItemTypesPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+					var objs = types[typeID];
+
+					if (objs == null)
 					{
-						var tdbReader = new BinaryReader(tdb);
-
-						var types = ReadTypes(tdbReader);
-
-						itemCount = idxReader.ReadInt32();
-
-						m_Items = new Dictionary<Serial, Item>(itemCount);
-
-						for (var i = 0; i < itemCount; ++i)
-						{
-							var typeID = idxReader.ReadInt32();
-							var serial = idxReader.ReadInt32();
-							var pos = idxReader.ReadInt64();
-							var length = idxReader.ReadInt32();
-
-							var objs = types[typeID];
-
-							if (objs == null)
-							{
-								continue;
-							}
-
-							Item item = null;
-							var ctor = objs.Item1;
-							var typeName = objs.Item2;
-
-							try
-							{
-								ctorArgs[0] = (Serial)serial;
-								item = (Item)(ctor.Invoke(ctorArgs));
-							}
-							catch
-							{
-							}
-
-							if (item != null)
-							{
-								items.Add(new ItemEntry(item, typeID, typeName, pos, length));
-								AddItem(item);
-							}
-						}
-
-						tdbReader.Close();
+						continue;
 					}
 
-					idxReader.Close();
+					Item item = null;
+					var ctor = objs.Item1;
+					var typeName = objs.Item2;
+
+					try
+					{
+						ctorArgs[0] = (Serial)serial;
+
+						item = (Item)ctor.Invoke(ctorArgs);
+					}
+					catch
+					{
+					}
+
+					if (item != null)
+					{
+						items.Add(new ItemEntry(item, typeID, typeName, pos, length));
+
+						AddItem(item);
+					}
 				}
+
+				tdbReader.Close();
+
+				idxReader.Close();
 			}
 			else
 			{
@@ -422,178 +535,233 @@ namespace Server
 
 			if (File.Exists(GuildIndexPath))
 			{
-				using (var idx = new FileStream(GuildIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var idx = new FileStream(GuildIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var idxReader = new BinaryReader(idx);
+
+				guildCount = idxReader.ReadInt32();
+
+				var createEventArgs = new CreateGuildEventArgs(-1);
+
+				for (var i = 0; i < guildCount; ++i)
 				{
-					var idxReader = new BinaryReader(idx);
+					idxReader.ReadInt32(); // typeid
+					var id = idxReader.ReadInt32();
+					var pos = idxReader.ReadInt64();
+					var length = idxReader.ReadInt32();
 
-					guildCount = idxReader.ReadInt32();
+					createEventArgs.Id = id;
 
-					var createEventArgs = new CreateGuildEventArgs(-1);
-					for (var i = 0; i < guildCount; ++i)
+					EventSink.InvokeCreateGuild(createEventArgs);
+
+					var guild = createEventArgs.Guild;
+
+					if (guild != null)
 					{
-						idxReader.ReadInt32();//no typeid for guilds
-						var id = idxReader.ReadInt32();
-						var pos = idxReader.ReadInt64();
-						var length = idxReader.ReadInt32();
-
-						createEventArgs.Id = id;
-						EventSink.InvokeCreateGuild(createEventArgs);
-						var guild = createEventArgs.Guild;
-						if (guild != null)
-						{
-							guilds.Add(new GuildEntry(guild, pos, length));
-						}
+						guilds.Add(new GuildEntry(guild, pos, length));
 					}
-
-					idxReader.Close();
 				}
+
+				idxReader.Close();
 			}
 
-			bool failedMobiles = false, failedItems = false, failedGuilds = false;
+			bool failedRegions = false, failedMobiles = false, failedItems = false, failedGuilds = false;
+
 			Type failedType = null;
-			var failedSerial = Serial.Zero;
+			var failedSerial = 0;
+
 			Exception failed = null;
 			var failedTypeID = 0;
 
-			if (File.Exists(MobileDataPath))
+			if (File.Exists(RegionDataPath))
 			{
-				using (var bin = new FileStream(MobileDataPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var bin = new FileStream(RegionDataPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var reader = new BinaryFileReader(new BinaryReader(bin));
+
+				for (var i = 0; i < regions.Count; ++i)
 				{
-					var reader = new BinaryFileReader(new BinaryReader(bin));
+					var entry = regions[i];
+					var r = entry.Region;
 
-					for (var i = 0; i < mobiles.Count; ++i)
+					if (r != null)
 					{
-						var entry = mobiles[i];
-						var m = entry.Mobile;
+						reader.Seek(entry.Position, SeekOrigin.Begin);
 
-						if (m != null)
+						try
 						{
-							reader.Seek(entry.Position, SeekOrigin.Begin);
+							m_LoadingType = entry.TypeName;
 
-							try
+							r.Deserialize(reader);
+
+							if (reader.Position != (entry.Position + entry.Length))
 							{
-								m_LoadingType = entry.TypeName;
-								m.Deserialize(reader);
-
-								if (reader.Position != (entry.Position + entry.Length))
-								{
-									throw new Exception(String.Format("***** Bad serialize on {0} *****", m.GetType()));
-								}
-							}
-							catch (Exception e)
-							{
-								mobiles.RemoveAt(i);
-
-								failed = e;
-								failedMobiles = true;
-								failedType = m.GetType();
-								failedTypeID = entry.TypeID;
-								failedSerial = m.Serial;
-
-								break;
+								throw new Exception($"***** Bad serialize on {r.GetType()} *****");
 							}
 						}
-					}
+						catch (Exception e)
+						{
+							regions.RemoveAt(i);
 
-					reader.Close();
+							failed = e;
+							failedRegions = true;
+							failedType = r.GetType();
+							failedTypeID = entry.TypeID;
+							failedSerial = r.Id;
+
+							break;
+						}
+					}
+				}
+
+				reader.Close();
+
+				if (!failedRegions)
+				{
+					foreach (var entry in regions)
+					{
+						if (entry.Region != null && entry.Region.Parent == null)
+						{
+							entry.Region.Validate();
+							entry.Region.Register();
+						}
+					}
 				}
 			}
 
-			if (!failedMobiles && File.Exists(ItemDataPath))
+			if (!failedRegions && File.Exists(MobileDataPath))
 			{
-				using (var bin = new FileStream(ItemDataPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var bin = new FileStream(MobileDataPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var reader = new BinaryFileReader(new BinaryReader(bin));
+
+				for (var i = 0; i < mobiles.Count; ++i)
 				{
-					var reader = new BinaryFileReader(new BinaryReader(bin));
+					var entry = mobiles[i];
+					var m = entry.Mobile;
 
-					for (var i = 0; i < items.Count; ++i)
+					if (m != null)
 					{
-						var entry = items[i];
-						var item = entry.Item;
+						reader.Seek(entry.Position, SeekOrigin.Begin);
 
-						if (item != null)
+						try
 						{
-							reader.Seek(entry.Position, SeekOrigin.Begin);
+							m_LoadingType = entry.TypeName;
 
-							try
+							m.Deserialize(reader);
+
+							if (reader.Position != (entry.Position + entry.Length))
 							{
-								m_LoadingType = entry.TypeName;
-								item.Deserialize(reader);
-
-								if (reader.Position != (entry.Position + entry.Length))
-								{
-									throw new Exception(String.Format("***** Bad serialize on {0} *****", item.GetType()));
-								}
-							}
-							catch (Exception e)
-							{
-								items.RemoveAt(i);
-
-								failed = e;
-								failedItems = true;
-								failedType = item.GetType();
-								failedTypeID = entry.TypeID;
-								failedSerial = item.Serial;
-
-								break;
+								throw new Exception($"***** Bad serialize on {m.GetType()} *****");
 							}
 						}
-					}
+						catch (Exception e)
+						{
+							mobiles.RemoveAt(i);
 
-					reader.Close();
+							failed = e;
+							failedMobiles = true;
+							failedType = m.GetType();
+							failedTypeID = entry.TypeID;
+							failedSerial = m.Serial;
+
+							break;
+						}
+					}
 				}
+
+				reader.Close();
+			}
+
+			if (!failedRegions && !failedMobiles && File.Exists(ItemDataPath))
+			{
+				using var bin = new FileStream(ItemDataPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var reader = new BinaryFileReader(new BinaryReader(bin));
+
+				for (var i = 0; i < items.Count; ++i)
+				{
+					var entry = items[i];
+					var item = entry.Item;
+
+					if (item != null)
+					{
+						reader.Seek(entry.Position, SeekOrigin.Begin);
+
+						try
+						{
+							m_LoadingType = entry.TypeName;
+
+							item.Deserialize(reader);
+
+							if (reader.Position != (entry.Position + entry.Length))
+							{
+								throw new Exception($"***** Bad serialize on {item.GetType()} *****");
+							}
+						}
+						catch (Exception e)
+						{
+							items.RemoveAt(i);
+
+							failed = e;
+							failedItems = true;
+							failedType = item.GetType();
+							failedTypeID = entry.TypeID;
+							failedSerial = item.Serial;
+
+							break;
+						}
+					}
+				}
+
+				reader.Close();
 			}
 
 			m_LoadingType = null;
 
-			if (!failedMobiles && !failedItems && File.Exists(GuildDataPath))
+			if (!failedRegions && !failedMobiles && !failedItems && File.Exists(GuildDataPath))
 			{
-				using (var bin = new FileStream(GuildDataPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+				using var bin = new FileStream(GuildDataPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+				using var reader = new BinaryFileReader(new BinaryReader(bin));
+
+				for (var i = 0; i < guilds.Count; ++i)
 				{
-					var reader = new BinaryFileReader(new BinaryReader(bin));
+					var entry = guilds[i];
+					var g = entry.Guild;
 
-					for (var i = 0; i < guilds.Count; ++i)
+					if (g != null)
 					{
-						var entry = guilds[i];
-						var g = entry.Guild;
+						reader.Seek(entry.Position, SeekOrigin.Begin);
 
-						if (g != null)
+						try
 						{
-							reader.Seek(entry.Position, SeekOrigin.Begin);
+							g.Deserialize(reader);
 
-							try
+							if (reader.Position != (entry.Position + entry.Length))
 							{
-								g.Deserialize(reader);
-
-								if (reader.Position != (entry.Position + entry.Length))
-								{
-									throw new Exception(String.Format("***** Bad serialize on Guild {0} *****", g.Id));
-								}
-							}
-							catch (Exception e)
-							{
-								guilds.RemoveAt(i);
-
-								failed = e;
-								failedGuilds = true;
-								failedType = typeof(BaseGuild);
-								failedTypeID = g.Id;
-								failedSerial = g.Id;
-
-								break;
+								throw new Exception($"***** Bad serialize on Guild {g.Id} *****");
 							}
 						}
-					}
+						catch (Exception e)
+						{
+							guilds.RemoveAt(i);
 
-					reader.Close();
+							failed = e;
+							failedGuilds = true;
+							failedType = typeof(BaseGuild);
+							failedTypeID = g.Id;
+							failedSerial = g.Id;
+
+							break;
+						}
+					}
 				}
+
+				reader.Close();
 			}
 
-			if (failedItems || failedMobiles || failedGuilds)
+			if (failedRegions || failedItems || failedMobiles || failedGuilds)
 			{
 				Console.WriteLine("An error was encountered while loading a saved object");
 
-				Console.WriteLine(" - Type: {0}", failedType);
-				Console.WriteLine(" - Serial: {0}", failedSerial);
+				Console.WriteLine($" - Type: {failedType}");
+				Console.WriteLine($" - Serial: {failedSerial}");
 
 				if (!Core.Service)
 				{
@@ -638,9 +806,10 @@ namespace Server
 							}
 						}
 
-						SaveIndex<MobileEntry>(mobiles, MobileIndexPath);
-						SaveIndex<ItemEntry>(items, ItemIndexPath);
-						SaveIndex<GuildEntry>(guilds, GuildIndexPath);
+						SaveIndex(regions, RegionIndexPath);
+						SaveIndex(mobiles, MobileIndexPath);
+						SaveIndex(items, ItemIndexPath);
+						SaveIndex(guilds, GuildIndexPath);
 					}
 
 					Console.WriteLine("After pressing return an exception will be thrown and the server will terminate.");
@@ -651,7 +820,7 @@ namespace Server
 					Console.WriteLine("An exception will be thrown and the server will terminate.");
 				}
 
-				throw new Exception(String.Format("Load failed (items={0}, mobiles={1}, guilds={2}, type={3}, serial={4})", failedItems, failedMobiles, failedGuilds, failedType, failedSerial), failed);
+				throw new Exception($"Load failed (regions={failedRegions}, items={failedItems}, mobiles={failedMobiles}, guilds={failedGuilds}, type={failedType}, serial={failedSerial})", failed);
 			}
 
 			EventSink.InvokeWorldLoad();
@@ -680,7 +849,7 @@ namespace Server
 
 			watch.Stop();
 
-			Console.WriteLine("done ({1} items, {2} mobiles) ({0:F2} seconds)", watch.Elapsed.TotalSeconds, m_Items.Count, m_Mobiles.Count);
+			Console.WriteLine($"World: Loaded ({m_Regions.Count} regions, {m_Items.Count} items, {m_Mobiles.Count} mobiles) ({watch.Elapsed.TotalSeconds:F2} seconds)");
 		}
 
 		private static void ProcessSafetyQueues()
@@ -689,20 +858,17 @@ namespace Server
 			{
 				var entity = _addQueue.Dequeue();
 
-				var item = entity as Item;
-
-				if (item != null)
+				if (entity is Item item)
 				{
 					AddItem(item);
 				}
-				else
+				else if (entity is Mobile mob)
 				{
-					var mob = entity as Mobile;
-
-					if (mob != null)
-					{
-						AddMobile(mob);
-					}
+					AddMobile(mob);
+				}
+				else if (entity is Region reg)
+				{
+					AddRegion(reg);
 				}
 			}
 
@@ -710,84 +876,83 @@ namespace Server
 			{
 				var entity = _deleteQueue.Dequeue();
 
-				var item = entity as Item;
-
-				if (item != null)
+				if (entity is Item item)
 				{
 					item.Delete();
 				}
-				else
+				else if (entity is Mobile mob)
 				{
-					var mob = entity as Mobile;
-
-					if (mob != null)
-					{
-						mob.Delete();
-					}
+					mob.Delete();
+				}
+				else if (entity is Region reg)
+				{
+					reg.Delete();
 				}
 			}
 		}
 
-		private static void AppendSafetyLog(string action, IEntity entity)
+		private static void AppendSafetyLog(string action, object entity)
 		{
-			var message = String.Format("Warning: Attempted to {1} {2} during world save." +
-				"{0}This action could cause inconsistent state." +
-				"{0}It is strongly advised that the offending scripts be corrected.",
-				Environment.NewLine,
-				action, entity
-			);
+			var message = $"Warning: Attempted to {action} {entity} during world save.{Environment.NewLine}This action could cause inconsistent state.{Environment.NewLine}It is strongly advised that the offending scripts be corrected.";
 
 			Console.WriteLine(message);
 
 			try
 			{
-				using (var op = new StreamWriter("world-save-errors.log", true))
-				{
-					op.WriteLine("{0}\t{1}", DateTime.UtcNow, message);
-					op.WriteLine(new StackTrace(2).ToString());
-					op.WriteLine();
-				}
+				using var op = new StreamWriter("world-save-errors.log", true);
+
+				op.WriteLine($"{DateTime.UtcNow}\t{message}");
+				op.WriteLine(new StackTrace(2).ToString());
+				op.WriteLine();
 			}
 			catch
 			{
 			}
 		}
 
+		private static void EnsureDirectories()
+		{
+			if (!Directory.Exists(RegionRootPath))
+			{
+				Directory.CreateDirectory(RegionRootPath);
+			}
+
+			if (!Directory.Exists(MobileRootPath))
+			{
+				Directory.CreateDirectory(MobileRootPath);
+			}
+
+			if (!Directory.Exists(ItemRootPath))
+			{
+				Directory.CreateDirectory(ItemRootPath);
+			}
+
+			if (!Directory.Exists(GuildRootPath))
+			{
+				Directory.CreateDirectory(GuildRootPath);
+			}
+		}
+
 		private static void SaveIndex<T>(List<T> list, string path) where T : IEntityEntry
 		{
-			if (!Directory.Exists("Export/Saves/Current/Mobiles/"))
+			EnsureDirectories();
+
+			using var idx = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+			using var idxWriter = new BinaryWriter(idx);
+
+			idxWriter.Write(list.Count);
+
+			for (var i = 0; i < list.Count; ++i)
 			{
-				Directory.CreateDirectory("Export/Saves/Current/Mobiles/");
+				var e = list[i];
+
+				idxWriter.Write(e.TypeID);
+				idxWriter.Write(e.Serial);
+				idxWriter.Write(e.Position);
+				idxWriter.Write(e.Length);
 			}
 
-			if (!Directory.Exists("Export/Saves/Current/Items/"))
-			{
-				Directory.CreateDirectory("Export/Saves/Current/Items/");
-			}
-
-			if (!Directory.Exists("Export/Saves/Current/Guilds/"))
-			{
-				Directory.CreateDirectory("Export/Saves/Current/Guilds/");
-			}
-
-			using (var idx = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
-			{
-				var idxWriter = new BinaryWriter(idx);
-
-				idxWriter.Write(list.Count);
-
-				for (var i = 0; i < list.Count; ++i)
-				{
-					var e = list[i];
-
-					idxWriter.Write(e.TypeID);
-					idxWriter.Write(e.Serial);
-					idxWriter.Write(e.Position);
-					idxWriter.Write(e.Length);
-				}
-
-				idxWriter.Close();
-			}
+			idxWriter.Close();
 		}
 
 		internal static int m_Saves;
@@ -809,7 +974,8 @@ namespace Server
 			NetState.FlushAll();
 			NetState.Pause();
 
-			World.WaitForWriteCompletion();//Blocks Save until current disk flush is done.
+			// Block Save until current disk flush is done.
+			WaitForWriteCompletion();
 
 			m_Saving = true;
 
@@ -821,30 +987,16 @@ namespace Server
 			}
 
 			var strategy = SaveStrategy.Acquire();
-			Console.WriteLine("Core: Using {0} save strategy", strategy.Name.ToLowerInvariant());
+
+			Console.WriteLine($"Core: Using {strategy.Name.ToLowerInvariant()} save strategy");
 
 			Console.Write("World: Saving...");
 
 			var watch = Stopwatch.StartNew();
 
-			if (!Directory.Exists("Export/Saves/Current/Mobiles/"))
-			{
-				Directory.CreateDirectory("Export/Saves/Current/Mobiles/");
-			}
+			EnsureDirectories();
 
-			if (!Directory.Exists("Export/Saves/Current/Items/"))
-			{
-				Directory.CreateDirectory("Export/Saves/Current/Items/");
-			}
-
-			if (!Directory.Exists("Export/Saves/Current/Guilds/"))
-			{
-				Directory.CreateDirectory("Export/Saves/Current/Guilds/");
-			}
-
-			/*using ( SaveMetrics metrics = new SaveMetrics() ) {*/
 			strategy.Save(null, permitBackgroundWrite);
-			/*}*/
 
 			try
 			{
@@ -861,25 +1013,28 @@ namespace Server
 
 			if (!permitBackgroundWrite)
 			{
-				World.NotifyDiskWriteComplete();    //Sets the DiskWriteHandle.  If we allow background writes, we leave this upto the individual save strategies.
+				// Set the DiskWriteHandle.
+				// If we allow background writes, we leave this up to the individual save strategies.
+				NotifyDiskWriteComplete();
 			}
 
 			ProcessSafetyQueues();
 
 			strategy.ProcessDecay();
 
-			Console.WriteLine("Save done in {0:F2} seconds.", watch.Elapsed.TotalSeconds);
+			Console.WriteLine($"Save done in {watch.Elapsed.TotalSeconds:F2} seconds.");
 
 			if (message)
 			{
-				Broadcast(0x35, true, "World save complete. The entire process took {0:F1} seconds.", watch.Elapsed.TotalSeconds);
+				Broadcast(0x35, true, $"World save complete. The entire process took {watch.Elapsed.TotalSeconds:F1} seconds.");
 			}
 
 			NetState.Resume();
 		}
 
-		internal static List<Type> m_ItemTypes = new List<Type>();
-		internal static List<Type> m_MobileTypes = new List<Type>();
+		internal static List<Type> m_RegionTypes = new();
+		internal static List<Type> m_ItemTypes = new();
+		internal static List<Type> m_MobileTypes = new();
 
 		public static IEntity FindEntity(Serial serial)
 		{
@@ -887,7 +1042,8 @@ namespace Server
 			{
 				return FindItem(serial);
 			}
-			else if (serial.IsMobile)
+
+			if (serial.IsMobile)
 			{
 				return FindMobile(serial);
 			}
@@ -897,11 +1053,23 @@ namespace Server
 
 		public static Mobile FindMobile(Serial serial)
 		{
-			Mobile mob;
-
-			m_Mobiles.TryGetValue(serial, out mob);
+			m_Mobiles.TryGetValue(serial, out var mob);
 
 			return mob;
+		}
+
+		public static Item FindItem(Serial serial)
+		{
+			m_Items.TryGetValue(serial, out var item);
+
+			return item;
+		}
+
+		public static Region FindRegion(int uid)
+		{
+			m_Regions.TryGetValue(uid, out var region);
+
+			return region;
 		}
 
 		public static void AddMobile(Mobile m)
@@ -917,15 +1085,6 @@ namespace Server
 			}
 		}
 
-		public static Item FindItem(Serial serial)
-		{
-			Item item;
-
-			m_Items.TryGetValue(serial, out item);
-
-			return item;
-		}
-
 		public static void AddItem(Item item)
 		{
 			if (m_Saving)
@@ -939,6 +1098,19 @@ namespace Server
 			}
 		}
 
+		public static void AddRegion(Region region)
+		{
+			if (m_Saving)
+			{
+				AppendSafetyLog("add", region);
+				_addQueue.Enqueue(region);
+			}
+			else
+			{
+				m_Regions[region.Id] = region;
+			}
+		}
+
 		public static void RemoveMobile(Mobile m)
 		{
 			m_Mobiles.Remove(m.Serial);
@@ -947,6 +1119,11 @@ namespace Server
 		public static void RemoveItem(Item item)
 		{
 			m_Items.Remove(item.Serial);
+		}
+
+		public static void RemoveRegion(Region region)
+		{
+			m_Regions.Remove(region.Id);
 		}
 	}
 
@@ -975,19 +1152,17 @@ namespace Server
 
 			file.Refresh();
 
-			using (var fs = file.OpenWrite())
-			{
-				var writer = new BinaryFileWriter(fs, true);
+			using var fs = file.OpenWrite();
+			using var writer = new BinaryFileWriter(fs, true);
 
-				try
-				{
-					serializer(writer);
-				}
-				finally
-				{
-					writer.Flush();
-					writer.Close();
-				}
+			try
+			{
+				serializer(writer);
+			}
+			finally
+			{
+				writer.Flush();
+				writer.Close();
 			}
 		}
 
@@ -1035,90 +1210,90 @@ namespace Server
 
 			file.Refresh();
 
-			using (var fs = file.OpenRead())
-			{
-				var reader = new BinaryFileReader(new BinaryReader(fs));
+			using var fs = file.OpenRead();
+			using var reader = new BinaryFileReader(new BinaryReader(fs));
 
-				try
+			try
+			{
+				deserializer(reader);
+			}
+			catch (EndOfStreamException eos)
+			{
+				if (file.Length > 0)
 				{
-					deserializer(reader);
+					Console.WriteLine($"[Persistence]: {eos}");
 				}
-				catch (EndOfStreamException eos)
-				{
-					if (file.Length > 0)
-					{
-						Console.WriteLine("[Persistence]: {0}", eos);
-					}
-				}
-				catch (Exception e)
-				{
-					Console.WriteLine("[Persistence]: {0}", e);
-				}
-				finally
-				{
-					reader.Close();
-				}
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine($"[Persistence]: {e}");
+			}
+			finally
+			{
+				reader.Close();
 			}
 		}
 	}
 
 	public sealed class BinaryMemoryWriter : BinaryFileWriter
 	{
-		private readonly MemoryStream stream;
+		private static readonly byte[] _indexBuffer = new byte[20];
+
+		private MemoryStream _stream;
 
 		protected override int BufferSize => 512;
 
 		public BinaryMemoryWriter()
-		 : base(new MemoryStream(512), true)
+			: base(new MemoryStream(512), true)
 		{
-			stream = UnderlyingStream as MemoryStream;
+			_stream = UnderlyingStream as MemoryStream;
 		}
 
-		private static byte[] indexBuffer;
+		public override void Dispose()
+		{
+			base.Dispose();
+
+			_stream = null;
+		}
 
 		public int CommitTo(SequentialFileWriter dataFile, SequentialFileWriter indexFile, int typeCode, int serial)
 		{
 			Flush();
 
-			var buffer = stream.GetBuffer();
-			var length = (int)stream.Length;
+			var buffer = _stream.GetBuffer();
+			var length = (int)_stream.Length;
 
 			var position = dataFile.Position;
 
 			dataFile.Write(buffer, 0, length);
 
-			if (indexBuffer == null)
-			{
-				indexBuffer = new byte[20];
-			}
+			_indexBuffer[0] = (byte)(typeCode >> 0);
+			_indexBuffer[1] = (byte)(typeCode >> 8);
+			_indexBuffer[2] = (byte)(typeCode >> 16);
+			_indexBuffer[3] = (byte)(typeCode >> 24);
 
-			indexBuffer[0] = (byte)(typeCode);
-			indexBuffer[1] = (byte)(typeCode >> 8);
-			indexBuffer[2] = (byte)(typeCode >> 16);
-			indexBuffer[3] = (byte)(typeCode >> 24);
+			_indexBuffer[4] = (byte)(serial >> 0);
+			_indexBuffer[5] = (byte)(serial >> 8);
+			_indexBuffer[6] = (byte)(serial >> 16);
+			_indexBuffer[7] = (byte)(serial >> 24);
 
-			indexBuffer[4] = (byte)(serial);
-			indexBuffer[5] = (byte)(serial >> 8);
-			indexBuffer[6] = (byte)(serial >> 16);
-			indexBuffer[7] = (byte)(serial >> 24);
+			_indexBuffer[8] = (byte)(position >> 0);
+			_indexBuffer[9] = (byte)(position >> 8);
+			_indexBuffer[10] = (byte)(position >> 16);
+			_indexBuffer[11] = (byte)(position >> 24);
+			_indexBuffer[12] = (byte)(position >> 32);
+			_indexBuffer[13] = (byte)(position >> 40);
+			_indexBuffer[14] = (byte)(position >> 48);
+			_indexBuffer[15] = (byte)(position >> 56);
 
-			indexBuffer[8] = (byte)(position);
-			indexBuffer[9] = (byte)(position >> 8);
-			indexBuffer[10] = (byte)(position >> 16);
-			indexBuffer[11] = (byte)(position >> 24);
-			indexBuffer[12] = (byte)(position >> 32);
-			indexBuffer[13] = (byte)(position >> 40);
-			indexBuffer[14] = (byte)(position >> 48);
-			indexBuffer[15] = (byte)(position >> 56);
+			_indexBuffer[16] = (byte)(length >> 0);
+			_indexBuffer[17] = (byte)(length >> 8);
+			_indexBuffer[18] = (byte)(length >> 16);
+			_indexBuffer[19] = (byte)(length >> 24);
 
-			indexBuffer[16] = (byte)(length);
-			indexBuffer[17] = (byte)(length >> 8);
-			indexBuffer[18] = (byte)(length >> 16);
-			indexBuffer[19] = (byte)(length >> 24);
+			indexFile.Write(_indexBuffer, 0, _indexBuffer.Length);
 
-			indexFile.Write(indexBuffer, 0, indexBuffer.Length);
-
-			stream.SetLength(0);
+			_stream.SetLength(0);
 
 			return length;
 		}
@@ -1133,8 +1308,8 @@ namespace Server
 			public int serial;
 		}
 
-		private readonly MemoryStream _memStream;
-		private readonly List<IndexInfo> _orderedIndexInfo = new List<IndexInfo>();
+		private MemoryStream _memStream;
+		private List<IndexInfo> _orderedIndexInfo = new();
 
 		protected override int BufferSize => 512;
 
@@ -1144,13 +1319,24 @@ namespace Server
 			_memStream = UnderlyingStream as MemoryStream;
 		}
 
+		public override void Dispose()
+		{
+			base.Dispose();
+
+			_memStream = null;
+
+			_orderedIndexInfo.Clear();
+			_orderedIndexInfo.TrimExcess();
+			_orderedIndexInfo = null;
+		}
+
 		public void QueueForIndex(ISerializable serializable, int size)
 		{
 			IndexInfo info;
 
 			info.size = size;
 
-			info.typeCode = serializable.TypeReference; //For guilds, this will automagically be zero.
+			info.typeCode = serializable.TypeReference;
 			info.serial = serializable.SerialIdentity;
 
 			_orderedIndexInfo.Add(info);
@@ -1168,35 +1354,25 @@ namespace Server
 
 				var actualPosition = dataFile.Position;
 
-				dataFile.Write(memBuffer, 0, memLength);    //The buffer contains the data from many items.
-
-				//Console.WriteLine("Writing {0} bytes starting at {1}, with {2} things", memLength, actualPosition, _orderedIndexInfo.Count);
+				dataFile.Write(memBuffer, 0, memLength);
 
 				var indexBuffer = new byte[20];
-
-				//int indexWritten = _orderedIndexInfo.Count * indexBuffer.Length;
-				//int totalWritten = memLength + indexWritten
 
 				for (var i = 0; i < _orderedIndexInfo.Count; i++)
 				{
 					var info = _orderedIndexInfo[i];
 
-					var typeCode = info.typeCode;
-					var serial = info.serial;
-					var length = info.size;
-
-
-					indexBuffer[0] = (byte)(info.typeCode);
+					indexBuffer[0] = (byte)(info.typeCode >> 0);
 					indexBuffer[1] = (byte)(info.typeCode >> 8);
 					indexBuffer[2] = (byte)(info.typeCode >> 16);
 					indexBuffer[3] = (byte)(info.typeCode >> 24);
 
-					indexBuffer[4] = (byte)(info.serial);
+					indexBuffer[4] = (byte)(info.serial >> 0);
 					indexBuffer[5] = (byte)(info.serial >> 8);
 					indexBuffer[6] = (byte)(info.serial >> 16);
 					indexBuffer[7] = (byte)(info.serial >> 24);
 
-					indexBuffer[8] = (byte)(actualPosition);
+					indexBuffer[8] = (byte)(actualPosition >> 0);
 					indexBuffer[9] = (byte)(actualPosition >> 8);
 					indexBuffer[10] = (byte)(actualPosition >> 16);
 					indexBuffer[11] = (byte)(actualPosition >> 24);
@@ -1205,7 +1381,7 @@ namespace Server
 					indexBuffer[14] = (byte)(actualPosition >> 48);
 					indexBuffer[15] = (byte)(actualPosition >> 56);
 
-					indexBuffer[16] = (byte)(info.size);
+					indexBuffer[16] = (byte)(info.size >> 0);
 					indexBuffer[17] = (byte)(info.size >> 8);
 					indexBuffer[18] = (byte)(info.size >> 16);
 					indexBuffer[19] = (byte)(info.size >> 24);
@@ -1216,7 +1392,7 @@ namespace Server
 				}
 			}
 
-			Close();   //We're done with this writer.
+			Close();
 		}
 	}
 
@@ -1226,32 +1402,32 @@ namespace Server
 	{
 		public sealed class Chunk
 		{
-			private readonly FileQueue owner;
-			private readonly int slot;
+			private readonly FileQueue _owner;
+			private readonly int _slot;
 
-			private readonly byte[] buffer;
-			private readonly int offset;
-			private readonly int size;
+			private readonly byte[] _buffer;
 
-			public byte[] Buffer => buffer;
+			private readonly int _offset;
+			private readonly int _size;
 
-			public int Offset => 0;
+			public byte[] Buffer => _buffer;
 
-			public int Size => size;
+			public int Offset => _offset;
+			public int Size => _size;
 
 			public Chunk(FileQueue owner, int slot, byte[] buffer, int offset, int size)
 			{
-				this.owner = owner;
-				this.slot = slot;
+				_owner = owner;
+				_slot = slot;
 
-				this.buffer = buffer;
-				this.offset = offset;
-				this.size = size;
+				_buffer = buffer;
+				_offset = offset;
+				_size = size;
 			}
 
 			public void Commit()
 			{
-				owner.Commit(this, slot);
+				_owner.Commit(this, _slot);
 			}
 		}
 
@@ -1261,157 +1437,131 @@ namespace Server
 			public int length;
 		}
 
-		private static readonly int bufferSize;
-		private static readonly BufferPool bufferPool;
+		private static readonly int _bufferSize;
+		private static readonly BufferPool _bufferPool;
 
 		static FileQueue()
 		{
-			bufferSize = FileOperations.BufferSize;
-			bufferPool = new BufferPool("File Buffers", 64, bufferSize);
+			_bufferSize = FileOperations.BufferSize;
+			_bufferPool = new BufferPool("File Buffers", 64, _bufferSize);
 		}
 
-		private readonly object syncRoot;
+		private readonly object _syncRoot;
 
-		private readonly Chunk[] active;
-		private int activeCount;
+		private readonly Chunk[] _active;
+		private int _activeCount;
 
-		private readonly Queue<Page> pending;
-		private Page buffered;
+		private readonly Queue<Page> _pending;
+		private Page _buffered;
 
-		private readonly FileCommitCallback callback;
+		private readonly FileCommitCallback _callback;
 
-		private ManualResetEvent idle;
+		private ManualResetEvent _idle;
 
-		private long position;
+		private long _position;
 
-		public long Position => position;
+		public long Position => _position;
 
 		public FileQueue(int concurrentWrites, FileCommitCallback callback)
 		{
 			if (concurrentWrites < 1)
 			{
-				throw new ArgumentOutOfRangeException("concurrentWrites");
-			}
-			else if (bufferSize < 1)
-			{
-				throw new ArgumentOutOfRangeException("bufferSize");
-			}
-			else if (callback == null)
-			{
-				throw new ArgumentNullException("callback");
+				throw new ArgumentOutOfRangeException(nameof(concurrentWrites));
 			}
 
-			syncRoot = new object();
+			_callback = callback ?? throw new ArgumentNullException(nameof(callback));
 
-			active = new Chunk[concurrentWrites];
-			pending = new Queue<Page>();
+			_syncRoot = new object();
 
-			this.callback = callback;
+			_active = new Chunk[concurrentWrites];
+			_pending = new Queue<Page>();
 
-			idle = new ManualResetEvent(true);
+			_idle = new ManualResetEvent(true);
 		}
 
 		private void Append(Page page)
 		{
-			lock (syncRoot)
+			lock (_syncRoot)
 			{
-				if (activeCount == 0)
+				if (_activeCount == 0)
 				{
-					idle.Reset();
+					_idle.Reset();
 				}
 
-				++activeCount;
+				++_activeCount;
 
-				for (var slot = 0; slot < active.Length; ++slot)
+				for (var slot = 0; slot < _active.Length; ++slot)
 				{
-					if (active[slot] == null)
+					if (_active[slot] == null)
 					{
-						active[slot] = new Chunk(this, slot, page.buffer, 0, page.length);
+						_active[slot] = new Chunk(this, slot, page.buffer, 0, page.length);
 
-						callback(active[slot]);
+						_callback(_active[slot]);
 
 						return;
 					}
 				}
 
-				pending.Enqueue(page);
+				_pending.Enqueue(page);
 			}
 		}
 
 		public void Dispose()
 		{
-			if (idle != null)
+			if (_idle != null)
 			{
-				idle.Close();
-				idle = null;
+				_idle.Close();
+				_idle = null;
 			}
 		}
 
 		public void Flush()
 		{
-			if (buffered.buffer != null)
+			if (_buffered.buffer != null)
 			{
-				Append(buffered);
+				Append(_buffered);
 
-				buffered.buffer = null;
-				buffered.length = 0;
+				_buffered.buffer = null;
+				_buffered.length = 0;
 			}
 
-			/*lock ( syncRoot ) {
-				if ( pending.Count > 0 ) {
-					idle.Reset();
-				}
-
-				for ( int slot = 0; slot < active.Length && pending.Count > 0; ++slot ) {
-					if ( active[slot] == null ) {
-						Page page = pending.Dequeue();
-
-						active[slot] = new Chunk( this, slot, page.buffer, 0, page.length );
-
-						++activeCount;
-
-						callback( active[slot] );
-					}
-				}
-			}*/
-
-			idle.WaitOne();
+			_idle.WaitOne();
 		}
 
 		private void Commit(Chunk chunk, int slot)
 		{
-			if (slot < 0 || slot >= active.Length)
+			if (slot < 0 || slot >= _active.Length)
 			{
-				throw new ArgumentOutOfRangeException("slot");
+				throw new ArgumentOutOfRangeException(nameof(slot));
 			}
 
-			lock (syncRoot)
+			lock (_syncRoot)
 			{
-				if (active[slot] != chunk)
+				if (_active[slot] != chunk)
 				{
-					throw new ArgumentException();
+					throw new ArgumentException("current chunk is not active", nameof(chunk));
 				}
 
-				bufferPool.ReleaseBuffer(chunk.Buffer);
+				_bufferPool.ReleaseBuffer(chunk.Buffer);
 
-				if (pending.Count > 0)
+				if (_pending.Count > 0)
 				{
-					var page = pending.Dequeue();
+					var page = _pending.Dequeue();
 
-					active[slot] = new Chunk(this, slot, page.buffer, 0, page.length);
+					_active[slot] = new Chunk(this, slot, page.buffer, 0, page.length);
 
-					callback(active[slot]);
+					_callback(_active[slot]);
 				}
 				else
 				{
-					active[slot] = null;
+					_active[slot] = null;
 				}
 
-				--activeCount;
+				--_activeCount;
 
-				if (activeCount == 0)
+				if (_activeCount == 0)
 				{
-					idle.Set();
+					_idle.Set();
 				}
 			}
 		}
@@ -1420,46 +1570,50 @@ namespace Server
 		{
 			if (buffer == null)
 			{
-				throw new ArgumentNullException("buffer");
-			}
-			else if (offset < 0)
-			{
-				throw new ArgumentOutOfRangeException("offset");
-			}
-			else if (size < 0)
-			{
-				throw new ArgumentOutOfRangeException("size");
-			}
-			else if ((buffer.Length - offset) < size)
-			{
-				throw new ArgumentException();
+				throw new ArgumentNullException(nameof(buffer));
 			}
 
-			position += size;
+			if (offset < 0)
+			{
+				throw new ArgumentOutOfRangeException(nameof(offset));
+			}
+
+			if (size < 0)
+			{
+				throw new ArgumentOutOfRangeException(nameof(size));
+			}
+
+			if (buffer.Length - offset < size)
+			{
+				throw new ArgumentOutOfRangeException(nameof(offset));
+			}
+
+			_position += size;
 
 			while (size > 0)
 			{
-				if (buffered.buffer == null)
-				{ // nothing yet buffered
-					buffered.buffer = bufferPool.AcquireBuffer();
+				if (_buffered.buffer == null)
+				{
+					_buffered.buffer = _bufferPool.AcquireBuffer();
 				}
 
-				var page = buffered.buffer; // buffer page
-				var pageSpace = page.Length - buffered.length; // available bytes in page
-				var byteCount = (size > pageSpace ? pageSpace : size); // how many bytes we can copy over
+				var page = _buffered.buffer;
+				var pageSpace = page.Length - _buffered.length;
+				var byteCount = size > pageSpace ? pageSpace : size;
 
-				Buffer.BlockCopy(buffer, offset, page, buffered.length, byteCount);
+				Buffer.BlockCopy(buffer, offset, page, _buffered.length, byteCount);
 
-				buffered.length += byteCount;
+				_buffered.length += byteCount;
+
 				offset += byteCount;
 				size -= byteCount;
 
-				if (buffered.length == page.Length)
-				{ // page full
-					Append(buffered);
+				if (_buffered.length == page.Length)
+				{
+					Append(_buffered);
 
-					buffered.buffer = null;
-					buffered.length = 0;
+					_buffered.buffer = null;
+					_buffered.length = 0;
 				}
 			}
 		}
@@ -1467,9 +1621,6 @@ namespace Server
 
 	public static class FileOperations
 	{
-		public const int KB = 1024;
-		public const int MB = 1024 * KB;
-
 #if !MONO
 		private const FileOptions NoBuffering = (FileOptions)0x20000000;
 
@@ -1480,53 +1631,34 @@ namespace Server
 		}
 #endif
 
-		private static int bufferSize = 1 * MB;
-		private static int concurrency = 1;
+		public const int KB = 1024;
+		public const int MB = 1024 * KB;
 
-		private static bool unbuffered = true;
+		public static int BufferSize { get; set; } = 1 * MB;
+		public static int Concurrency { get; set; } = 1;
+		public static bool Unbuffered { get; set; } = true;
 
-		public static int BufferSize
-		{
-			get => bufferSize;
-			set => bufferSize = value;
-		}
-
-		public static int Concurrency
-		{
-			get => concurrency;
-			set => concurrency = value;
-		}
-
-		public static bool Unbuffered
-		{
-			get => unbuffered;
-			set => unbuffered = value;
-		}
-
-		public static bool AreSynchronous => (concurrency < 1);
-
-		public static bool AreAsynchronous => (concurrency > 0);
+		public static bool AreSynchronous => Concurrency < 1;
+		public static bool AreAsynchronous => Concurrency > 0;
 
 		public static FileStream OpenSequentialStream(string path, FileMode mode, FileAccess access, FileShare share)
 		{
 			var options = FileOptions.SequentialScan;
 
-			if (concurrency > 0)
+			if (Concurrency > 0)
 			{
 				options |= FileOptions.Asynchronous;
 			}
 
 #if MONO
-			return new FileStream( path, mode, access, share, bufferSize, options );
+			return new FileStream(path, mode, access, share, _bufferSize, options);
 #else
-			if (unbuffered)
+			if (!Unbuffered)
 			{
-				options |= NoBuffering;
+				return new FileStream(path, mode, access, share, BufferSize, options);
 			}
-			else
-			{
-				return new FileStream(path, mode, access, share, bufferSize, options);
-			}
+
+			options |= NoBuffering;
 
 			var fileHandle = UnsafeNativeMethods.CreateFile(path, (int)access, share, IntPtr.Zero, mode, (int)options, IntPtr.Zero);
 
@@ -1535,36 +1667,36 @@ namespace Server
 				throw new IOException();
 			}
 
-			return new UnbufferedFileStream(fileHandle, access, bufferSize, (concurrency > 0));
+			return new UnbufferedFileStream(fileHandle, access, BufferSize, AreAsynchronous);
 #endif
 		}
 
 #if !MONO
 		private class UnbufferedFileStream : FileStream
 		{
-			private readonly SafeFileHandle fileHandle;
+			private readonly SafeFileHandle _fileHandle;
 
 			public UnbufferedFileStream(SafeFileHandle fileHandle, FileAccess access, int bufferSize, bool isAsync)
-			 : base(fileHandle, access, bufferSize, isAsync)
+				: base(fileHandle, access, bufferSize, isAsync)
 			{
-				this.fileHandle = fileHandle;
+				_fileHandle = fileHandle;
 			}
 
 			public override void Write(byte[] array, int offset, int count)
 			{
-				base.Write(array, offset, bufferSize);
+				base.Write(array, offset, BufferSize);
 			}
 
 			public override IAsyncResult BeginWrite(byte[] array, int offset, int numBytes, AsyncCallback userCallback, object stateObject)
 			{
-				return base.BeginWrite(array, offset, bufferSize, userCallback, stateObject);
+				return base.BeginWrite(array, offset, BufferSize, userCallback, stateObject);
 			}
 
 			protected override void Dispose(bool disposing)
 			{
-				if (!fileHandle.IsClosed)
+				if (!_fileHandle.IsClosed)
 				{
-					fileHandle.Close();
+					_fileHandle.Close();
 				}
 
 				base.Dispose(disposing);
@@ -1575,57 +1707,56 @@ namespace Server
 
 	public sealed class SequentialFileWriter : Stream
 	{
-		private FileStream fileStream;
-		private FileQueue fileQueue;
+		private FileStream _fileStream;
+		private FileQueue _fileQueue;
 
-		private AsyncCallback writeCallback;
+		private AsyncCallback _writeCallback;
 
-		private readonly SaveMetrics metrics;
+		private readonly SaveMetrics _metrics;
+
+		public override bool CanRead => false;
+		public override bool CanSeek => false;
+		public override bool CanWrite => true;
+
+		public override long Length => Position;
+
+		public override long Position { get => _fileQueue.Position; set => throw new InvalidOperationException(); }
 
 		public SequentialFileWriter(string path, SaveMetrics metrics)
 		{
 			if (path == null)
 			{
-				throw new ArgumentNullException("path");
+				throw new ArgumentNullException(nameof(path));
 			}
 
-			this.metrics = metrics;
+			_metrics = metrics;
 
-			fileStream = FileOperations.OpenSequentialStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+			_fileStream = FileOperations.OpenSequentialStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
 
-			fileQueue = new FileQueue(
-				Math.Max(1, FileOperations.Concurrency),
-				FileCallback
-			);
-		}
-
-		public override long Position
-		{
-			get => fileQueue.Position;
-			set => throw new InvalidOperationException();
+			_fileQueue = new FileQueue(Math.Max(1, FileOperations.Concurrency), FileCallback);
 		}
 
 		private void FileCallback(FileQueue.Chunk chunk)
 		{
 			if (FileOperations.AreSynchronous)
 			{
-				fileStream.Write(chunk.Buffer, chunk.Offset, chunk.Size);
+				_fileStream.Write(chunk.Buffer, chunk.Offset, chunk.Size);
 
-				if (metrics != null)
+				if (_metrics != null)
 				{
-					metrics.OnFileWritten(chunk.Size);
+					_metrics.OnFileWritten(chunk.Size);
 				}
 
 				chunk.Commit();
 			}
 			else
 			{
-				if (writeCallback == null)
+				if (_writeCallback == null)
 				{
-					writeCallback = OnWrite;
+					_writeCallback = OnWrite;
 				}
 
-				fileStream.BeginWrite(chunk.Buffer, chunk.Offset, chunk.Size, writeCallback, chunk);
+				_fileStream.BeginWrite(chunk.Buffer, chunk.Offset, chunk.Size, _writeCallback, chunk);
 			}
 		}
 
@@ -1633,11 +1764,11 @@ namespace Server
 		{
 			var chunk = asyncResult.AsyncState as FileQueue.Chunk;
 
-			fileStream.EndWrite(asyncResult);
+			_fileStream.EndWrite(asyncResult);
 
-			if (metrics != null)
+			if (_metrics != null)
 			{
-				metrics.OnFileWritten(chunk.Size);
+				_metrics.OnFileWritten(chunk.Size);
 			}
 
 			chunk.Commit();
@@ -1645,38 +1776,30 @@ namespace Server
 
 		public override void Write(byte[] buffer, int offset, int size)
 		{
-			fileQueue.Enqueue(buffer, offset, size);
+			_fileQueue.Enqueue(buffer, offset, size);
 		}
 
 		public override void Flush()
 		{
-			fileQueue.Flush();
-			fileStream.Flush();
+			_fileQueue.Flush();
+			_fileStream.Flush();
 		}
 
 		protected override void Dispose(bool disposing)
 		{
-			if (fileStream != null)
+			if (_fileStream != null)
 			{
 				Flush();
 
-				fileQueue.Dispose();
-				fileQueue = null;
+				_fileQueue.Dispose();
+				_fileQueue = null;
 
-				fileStream.Close();
-				fileStream = null;
+				_fileStream.Close();
+				_fileStream = null;
 			}
 
 			base.Dispose(disposing);
 		}
-
-		public override bool CanRead => false;
-
-		public override bool CanSeek => false;
-
-		public override bool CanWrite => true;
-
-		public override long Length => Position;
 
 		public override int Read(byte[] buffer, int offset, int count)
 		{
@@ -1690,33 +1813,40 @@ namespace Server
 
 		public override void SetLength(long value)
 		{
-			fileStream.SetLength(value);
+			_fileStream.SetLength(value);
 		}
 	}
 
 	public sealed class SaveMetrics : IDisposable
 	{
-		private const string PerformanceCategoryName = "uoAvos";
-		private const string PerformanceCategoryDesc = "Performance counters for uoAvos";
+		private const string _PerformanceCategoryName = "uoAvos";
+		private const string _PerformanceCategoryDesc = "Performance counters for uoAvos";
 
 #if !MONO
-		private readonly PerformanceCounter numberOfWorldSaves;
+		private readonly PerformanceCounter _numberOfWorldSaves;
 
-		private readonly PerformanceCounter itemsPerSecond;
-		private readonly PerformanceCounter mobilesPerSecond;
+		private readonly PerformanceCounter _regionsPerSecond;
+		private readonly PerformanceCounter _itemsPerSecond;
+		private readonly PerformanceCounter _mobilesPerSecond;
 
-		private readonly PerformanceCounter serializedBytesPerSecond;
-		private readonly PerformanceCounter writtenBytesPerSecond;
+		private readonly PerformanceCounter _serializedBytesPerSecond;
+		private readonly PerformanceCounter _writtenBytesPerSecond;
 
 		public SaveMetrics()
 		{
-			if (!PerformanceCounterCategory.Exists(PerformanceCategoryName))
+			if (!PerformanceCounterCategory.Exists(_PerformanceCategoryName))
 			{
 				var counters = new CounterCreationDataCollection {
 					new CounterCreationData(
 						"Save - Count",
 						"Number of world saves.",
 						PerformanceCounterType.NumberOfItems32
+					),
+
+					new CounterCreationData(
+						"Save - Regions/sec",
+						"Number of regions saved per second.",
+						PerformanceCounterType.RateOfCountsPerSecond32
 					),
 
 					new CounterCreationData(
@@ -1744,43 +1874,50 @@ namespace Server
 					)
 				};
 
-				PerformanceCounterCategory.Create(PerformanceCategoryName, PerformanceCategoryDesc, PerformanceCounterCategoryType.SingleInstance, counters);
+				PerformanceCounterCategory.Create(_PerformanceCategoryName, _PerformanceCategoryDesc, PerformanceCounterCategoryType.SingleInstance, counters);
 			}
 
-			numberOfWorldSaves = new PerformanceCounter(PerformanceCategoryName, "Save - Count", false);
+			_numberOfWorldSaves = new PerformanceCounter(_PerformanceCategoryName, "Save - Count", false);
 
-			itemsPerSecond = new PerformanceCounter(PerformanceCategoryName, "Save - Items/sec", false);
-			mobilesPerSecond = new PerformanceCounter(PerformanceCategoryName, "Save - Mobiles/sec", false);
+			_regionsPerSecond = new PerformanceCounter(_PerformanceCategoryName, "Save - Regions/sec", false);
+			_itemsPerSecond = new PerformanceCounter(_PerformanceCategoryName, "Save - Items/sec", false);
+			_mobilesPerSecond = new PerformanceCounter(_PerformanceCategoryName, "Save - Mobiles/sec", false);
 
-			serializedBytesPerSecond = new PerformanceCounter(PerformanceCategoryName, "Save - Serialized bytes/sec", false);
-			writtenBytesPerSecond = new PerformanceCounter(PerformanceCategoryName, "Save - Written bytes/sec", false);
+			_serializedBytesPerSecond = new PerformanceCounter(_PerformanceCategoryName, "Save - Serialized bytes/sec", false);
+			_writtenBytesPerSecond = new PerformanceCounter(_PerformanceCategoryName, "Save - Written bytes/sec", false);
 
-			// increment number of world saves
-			numberOfWorldSaves.Increment();
+			_numberOfWorldSaves.Increment();
+		}
+
+		public void OnRegionSaved(int numberOfBytes)
+		{
+			_regionsPerSecond.Increment();
+
+			_serializedBytesPerSecond.IncrementBy(numberOfBytes);
 		}
 
 		public void OnItemSaved(int numberOfBytes)
 		{
-			itemsPerSecond.Increment();
+			_itemsPerSecond.Increment();
 
-			serializedBytesPerSecond.IncrementBy(numberOfBytes);
+			_serializedBytesPerSecond.IncrementBy(numberOfBytes);
 		}
 
 		public void OnMobileSaved(int numberOfBytes)
 		{
-			mobilesPerSecond.Increment();
+			_mobilesPerSecond.Increment();
 
-			serializedBytesPerSecond.IncrementBy(numberOfBytes);
+			_serializedBytesPerSecond.IncrementBy(numberOfBytes);
 		}
 
 		public void OnGuildSaved(int numberOfBytes)
 		{
-			serializedBytesPerSecond.IncrementBy(numberOfBytes);
+			_serializedBytesPerSecond.IncrementBy(numberOfBytes);
 		}
 
 		public void OnFileWritten(int numberOfBytes)
 		{
-			writtenBytesPerSecond.IncrementBy(numberOfBytes);
+			_writtenBytesPerSecond.IncrementBy(numberOfBytes);
 		}
 
 		private bool isDisposed;
@@ -1791,17 +1928,21 @@ namespace Server
 			{
 				isDisposed = true;
 
-				numberOfWorldSaves.Dispose();
+				_numberOfWorldSaves.Dispose();
 
-				itemsPerSecond.Dispose();
-				mobilesPerSecond.Dispose();
+				_regionsPerSecond.Dispose();
+				_itemsPerSecond.Dispose();
+				_mobilesPerSecond.Dispose();
 
-				serializedBytesPerSecond.Dispose();
-				writtenBytesPerSecond.Dispose();
+				_serializedBytesPerSecond.Dispose();
+				_writtenBytesPerSecond.Dispose();
 			}
 		}
 #else
 		public void Dispose()
+		{ }
+
+		public void OnRegionSaved(int numberOfBytes)
 		{ }
 
 		public void OnItemSaved(int numberOfBytes)
@@ -1828,20 +1969,15 @@ namespace Server
 
 				if (processorCount > 2)
 				{
-					return new DualSaveStrategy(); // return new DynamicSaveStrategy(); (4.0 or return new ParallelSaveStrategy(processorCount); (2.0)
-				}
-				else
-				{
-					return new DualSaveStrategy();
+					return new ParallelSaveStrategy(processorCount);
 				}
 			}
-			else
-			{
-				return new StandardSaveStrategy();
-			}
+
+			return new StandardSaveStrategy();
 		}
 
 		public abstract string Name { get; }
+
 		public abstract void Save(SaveMetrics metrics, bool permitBackgroundWrite);
 
 		public abstract void ProcessDecay();
@@ -1855,11 +1991,12 @@ namespace Server
 			Threaded
 		}
 
-		public static SaveOption SaveType = SaveOption.Normal;
+		public static SaveOption SaveType { get; set; } = SaveOption.Normal;
 
 		public override string Name => "Standard";
 
 		private readonly Queue<Item> _decayQueue;
+
 		private bool _permitBackgroundWrite;
 
 		public StandardSaveStrategy()
@@ -1869,12 +2006,13 @@ namespace Server
 
 		protected bool PermitBackgroundWrite { get => _permitBackgroundWrite; set => _permitBackgroundWrite = value; }
 
-		protected bool UseSequentialWriters => (StandardSaveStrategy.SaveType == SaveOption.Normal || !_permitBackgroundWrite);
+		protected bool UseSequentialWriters => SaveType == SaveOption.Normal || !_permitBackgroundWrite;
 
 		public override void Save(SaveMetrics metrics, bool permitBackgroundWrite)
 		{
 			_permitBackgroundWrite = permitBackgroundWrite;
 
+			SaveRegions(metrics);
 			SaveMobiles(metrics);
 			SaveItems(metrics);
 			SaveGuilds(metrics);
@@ -1885,13 +2023,62 @@ namespace Server
 			}
 		}
 
+		protected void SaveRegions(SaveMetrics metrics)
+		{
+			var regions = World.Regions;
+
+			GenericWriter idx, tdb, bin;
+
+			if (UseSequentialWriters)
+			{
+				idx = new BinaryFileWriter(World.RegionIndexPath, false);
+				tdb = new BinaryFileWriter(World.RegionTypesPath, false);
+				bin = new BinaryFileWriter(World.RegionDataPath, true);
+			}
+			else
+			{
+				idx = new AsyncWriter(World.RegionIndexPath, false);
+				tdb = new AsyncWriter(World.RegionTypesPath, false);
+				bin = new AsyncWriter(World.RegionDataPath, true);
+			}
+
+			idx.Write(regions.Count);
+
+			foreach (var r in regions.Values)
+			{
+				var start = bin.Position;
+
+				idx.Write(r.m_TypeRef);
+				idx.Write(r.Id);
+				idx.Write(start);
+
+				r.Serialize(bin);
+
+				if (metrics != null)
+				{
+					metrics.OnRegionSaved((int)(bin.Position - start));
+				}
+
+				idx.Write((int)(bin.Position - start));
+			}
+
+			tdb.Write(World.m_RegionTypes.Count);
+
+			for (var i = 0; i < World.m_RegionTypes.Count; ++i)
+			{
+				tdb.Write(World.m_RegionTypes[i].FullName);
+			}
+
+			idx.Close();
+			tdb.Close();
+			bin.Close();
+		}
+
 		protected void SaveMobiles(SaveMetrics metrics)
 		{
 			var mobiles = World.Mobiles;
 
-			GenericWriter idx;
-			GenericWriter tdb;
-			GenericWriter bin;
+			GenericWriter idx, tdb, bin;
 
 			if (UseSequentialWriters)
 			{
@@ -1907,6 +2094,7 @@ namespace Server
 			}
 
 			idx.Write(mobiles.Count);
+
 			foreach (var m in mobiles.Values)
 			{
 				var start = bin.Position;
@@ -1943,9 +2131,7 @@ namespace Server
 		{
 			var items = World.Items;
 
-			GenericWriter idx;
-			GenericWriter tdb;
-			GenericWriter bin;
+			GenericWriter idx, tdb, bin;
 
 			if (UseSequentialWriters)
 			{
@@ -1990,6 +2176,7 @@ namespace Server
 			}
 
 			tdb.Write(World.m_ItemTypes.Count);
+
 			for (var i = 0; i < World.m_ItemTypes.Count; ++i)
 			{
 				tdb.Write(World.m_ItemTypes[i].FullName);
@@ -2017,6 +2204,7 @@ namespace Server
 			}
 
 			idx.Write(BaseGuild.List.Count);
+
 			foreach (var guild in BaseGuild.List.Values)
 			{
 				var start = bin.Position;
@@ -2053,86 +2241,50 @@ namespace Server
 		}
 	}
 
-	public sealed class DualSaveStrategy : StandardSaveStrategy
-	{
-		public override string Name => "Dual";
-
-		public DualSaveStrategy()
-		{
-		}
-
-		public override void Save(SaveMetrics metrics, bool permitBackgroundWrite)
-		{
-			PermitBackgroundWrite = permitBackgroundWrite;
-
-			var saveThread = new Thread(delegate ()
-			{
-				SaveItems(metrics);
-			})
-			{
-				Name = "Item Save Subset"
-			};
-			saveThread.Start();
-
-			SaveMobiles(metrics);
-			SaveGuilds(metrics);
-
-			saveThread.Join();
-
-			if (permitBackgroundWrite && UseSequentialWriters)  //If we're permitted to write in the background, but we don't anyways, then notify.
-			{
-				World.NotifyDiskWriteComplete();
-			}
-		}
-	}
-
 	public sealed class ParallelSaveStrategy : SaveStrategy
 	{
 		public override string Name => "Parallel";
 
-		private readonly int processorCount;
+		private readonly int _processorCount;
+
+		private SaveMetrics _metrics;
+
+		private SequentialFileWriter _regionData, _regionIndex;
+		private SequentialFileWriter _itemData, _itemIndex;
+		private SequentialFileWriter _mobileData, _mobileIndex;
+		private SequentialFileWriter _guildData, _guildIndex;
+
+		private readonly Queue<Item> _decayQueue = new();
+
+		private Consumer[] _consumers;
+		private int _cycle;
+
+		private bool _finished;
 
 		public ParallelSaveStrategy(int processorCount)
 		{
-			this.processorCount = processorCount;
-
-			_decayQueue = new Queue<Item>();
+			_processorCount = processorCount;
 		}
 
 		private int GetThreadCount()
 		{
-			return processorCount - 1;
+			return _processorCount - 1;
 		}
-
-		private SaveMetrics metrics;
-
-		private SequentialFileWriter itemData, itemIndex;
-		private SequentialFileWriter mobileData, mobileIndex;
-		private SequentialFileWriter guildData, guildIndex;
-
-		private readonly Queue<Item> _decayQueue;
-
-		private Consumer[] consumers;
-		private int cycle;
-
-		private bool finished;
 
 		public override void Save(SaveMetrics metrics, bool permitBackgroundWrite)
 		{
-			this.metrics = metrics;
+			_metrics = metrics;
 
 			OpenFiles();
 
-			consumers = new Consumer[GetThreadCount()];
+			_consumers = new Consumer[GetThreadCount()];
 
-			for (var i = 0; i < consumers.Length; ++i)
+			for (var i = 0; i < _consumers.Length; ++i)
 			{
-				consumers[i] = new Consumer(this, 256);
+				_consumers[i] = new Consumer(this, 256);
 			}
 
-			IEnumerable<ISerializable> collection = new Producer();
-
-			foreach (var value in collection)
+			foreach (var value in Produce())
 			{
 				while (!Enqueue(value))
 				{
@@ -2143,23 +2295,38 @@ namespace Server
 				}
 			}
 
-			finished = true;
+			_finished = true;
 
 			SaveTypeDatabases();
 
-			WaitHandle.WaitAll(
-				Array.ConvertAll<Consumer, WaitHandle>(
-					consumers,
-					delegate (Consumer input)
-					{
-						return input.completionEvent;
-					}
-				)
-			);
+			WaitHandle.WaitAll(Array.ConvertAll<Consumer, WaitHandle>(_consumers, input => input._completionEvent));
 
 			Commit();
 
 			CloseFiles();
+
+			static IEnumerable<ISerializable> Produce()
+			{
+				foreach (var reg in World.Regions.Values)
+				{
+					yield return reg;
+				}
+
+				foreach (var item in World.Items.Values)
+				{
+					yield return item;
+				}
+
+				foreach (var mob in World.Mobiles.Values)
+				{
+					yield return mob;
+				}
+
+				foreach (var guild in BaseGuild.List.Values)
+				{
+					yield return guild;
+				}
+			};
 		}
 
 		public override void ProcessDecay()
@@ -2175,66 +2342,73 @@ namespace Server
 			}
 		}
 
-		private void SaveTypeDatabases()
+		private static void SaveTypeDatabases()
 		{
+			SaveTypeDatabase(World.RegionTypesPath, World.m_RegionTypes);
 			SaveTypeDatabase(World.ItemTypesPath, World.m_ItemTypes);
 			SaveTypeDatabase(World.MobileTypesPath, World.m_MobileTypes);
-		}
 
-		private void SaveTypeDatabase(string path, List<Type> types)
-		{
-			var bfw = new BinaryFileWriter(path, false);
-
-			bfw.Write(types.Count);
-
-			foreach (var type in types)
+			static void SaveTypeDatabase(string path, List<Type> types)
 			{
-				bfw.Write(type.FullName);
-			}
+				using var bfw = new BinaryFileWriter(path, false);
 
-			bfw.Flush();
+				bfw.Write(types.Count);
 
-			bfw.Close();
+				foreach (var type in types)
+				{
+					bfw.Write(type.FullName);
+				}
+
+				bfw.Flush();
+				bfw.Close();
+			};
 		}
 
 		private void OpenFiles()
 		{
-			itemData = new SequentialFileWriter(World.ItemDataPath, metrics);
-			itemIndex = new SequentialFileWriter(World.ItemIndexPath, metrics);
+			_regionData = new SequentialFileWriter(World.RegionDataPath, _metrics);
+			_regionIndex = new SequentialFileWriter(World.RegionIndexPath, _metrics);
 
-			mobileData = new SequentialFileWriter(World.MobileDataPath, metrics);
-			mobileIndex = new SequentialFileWriter(World.MobileIndexPath, metrics);
+			_itemData = new SequentialFileWriter(World.ItemDataPath, _metrics);
+			_itemIndex = new SequentialFileWriter(World.ItemIndexPath, _metrics);
 
-			guildData = new SequentialFileWriter(World.GuildDataPath, metrics);
-			guildIndex = new SequentialFileWriter(World.GuildIndexPath, metrics);
+			_mobileData = new SequentialFileWriter(World.MobileDataPath, _metrics);
+			_mobileIndex = new SequentialFileWriter(World.MobileIndexPath, _metrics);
 
-			WriteCount(itemIndex, World.Items.Count);
-			WriteCount(mobileIndex, World.Mobiles.Count);
-			WriteCount(guildIndex, BaseGuild.List.Count);
-		}
+			_guildData = new SequentialFileWriter(World.GuildDataPath, _metrics);
+			_guildIndex = new SequentialFileWriter(World.GuildIndexPath, _metrics);
 
-		private void WriteCount(SequentialFileWriter indexFile, int count)
-		{
-			var buffer = new byte[4];
+			WriteCount(_regionIndex, World.Regions.Count);
+			WriteCount(_itemIndex, World.Items.Count);
+			WriteCount(_mobileIndex, World.Mobiles.Count);
+			WriteCount(_guildIndex, BaseGuild.List.Count);
 
-			buffer[0] = (byte)(count);
-			buffer[1] = (byte)(count >> 8);
-			buffer[2] = (byte)(count >> 16);
-			buffer[3] = (byte)(count >> 24);
+			static void WriteCount(SequentialFileWriter indexFile, int count)
+			{
+				var buffer = new byte[4];
 
-			indexFile.Write(buffer, 0, buffer.Length);
+				buffer[0] = (byte)(count >> 0);
+				buffer[1] = (byte)(count >> 8);
+				buffer[2] = (byte)(count >> 16);
+				buffer[3] = (byte)(count >> 24);
+
+				indexFile.Write(buffer, 0, buffer.Length);
+			};
 		}
 
 		private void CloseFiles()
 		{
-			itemData.Close();
-			itemIndex.Close();
+			_regionData.Close();
+			_regionIndex.Close();
 
-			mobileData.Close();
-			mobileIndex.Close();
+			_itemData.Close();
+			_itemIndex.Close();
 
-			guildData.Close();
-			guildIndex.Close();
+			_mobileData.Close();
+			_mobileIndex.Close();
+
+			_guildData.Close();
+			_guildIndex.Close();
 
 			World.NotifyDiskWriteComplete();
 		}
@@ -2244,39 +2418,41 @@ namespace Server
 			var value = entry.value;
 			var writer = entry.writer;
 
-			var item = value as Item;
-
-			if (item != null)
+			if (value is Region reg)
+			{
+				Save(reg, writer);
+			}
+			else if (value is Item item)
 			{
 				Save(item, writer);
 			}
-			else
+			else if (value is Mobile mob)
 			{
-				var mob = value as Mobile;
+				Save(mob, writer);
+			}
+			else if (value is BaseGuild guild)
+			{
+				Save(guild, writer);
+			}
+		}
 
-				if (mob != null)
-				{
-					Save(mob, writer);
-				}
-				else
-				{
-					var guild = value as BaseGuild;
+		private void Save(Region reg, BinaryMemoryWriter writer)
+		{
+			var length = writer.CommitTo(_regionData, _regionIndex, reg.m_TypeRef, reg.Id);
 
-					if (guild != null)
-					{
-						Save(guild, writer);
-					}
-				}
+			if (_metrics != null)
+			{
+				_metrics.OnRegionSaved(length);
 			}
 		}
 
 		private void Save(Item item, BinaryMemoryWriter writer)
 		{
-			var length = writer.CommitTo(itemData, itemIndex, item.m_TypeRef, item.Serial);
+			var length = writer.CommitTo(_itemData, _itemIndex, item.m_TypeRef, item.Serial);
 
-			if (metrics != null)
+			if (_metrics != null)
 			{
-				metrics.OnItemSaved(length);
+				_metrics.OnItemSaved(length);
 			}
 
 			if (item.Decays && item.Parent == null && item.Map != Map.Internal && DateTime.UtcNow > (item.LastMoved + item.DecayTime))
@@ -2287,34 +2463,34 @@ namespace Server
 
 		private void Save(Mobile mob, BinaryMemoryWriter writer)
 		{
-			var length = writer.CommitTo(mobileData, mobileIndex, mob.m_TypeRef, mob.Serial);
+			var length = writer.CommitTo(_mobileData, _mobileIndex, mob.m_TypeRef, mob.Serial);
 
-			if (metrics != null)
+			if (_metrics != null)
 			{
-				metrics.OnMobileSaved(length);
+				_metrics.OnMobileSaved(length);
 			}
 		}
 
 		private void Save(BaseGuild guild, BinaryMemoryWriter writer)
 		{
-			var length = writer.CommitTo(guildData, guildIndex, 0, guild.Id);
+			var length = writer.CommitTo(_guildData, _guildIndex, 0, guild.Id);
 
-			if (metrics != null)
+			if (_metrics != null)
 			{
-				metrics.OnGuildSaved(length);
+				_metrics.OnGuildSaved(length);
 			}
 		}
 
 		private bool Enqueue(ISerializable value)
 		{
-			for (var i = 0; i < consumers.Length; ++i)
+			for (var i = 0; i < _consumers.Length; ++i)
 			{
-				var consumer = consumers[cycle++ % consumers.Length];
+				var consumer = _consumers[_cycle++ % _consumers.Length];
 
-				if ((consumer.tail - consumer.head) < consumer.buffer.Length)
+				if ((consumer._tail - consumer._head) < consumer._buffer.Length)
 				{
-					consumer.buffer[consumer.tail % consumer.buffer.Length].value = value;
-					consumer.tail++;
+					consumer._buffer[consumer._tail % consumer._buffer.Length].value = value;
+					consumer._tail++;
 
 					return true;
 				}
@@ -2327,57 +2503,20 @@ namespace Server
 		{
 			var committed = false;
 
-			for (var i = 0; i < consumers.Length; ++i)
+			for (var i = 0; i < _consumers.Length; ++i)
 			{
-				var consumer = consumers[i];
+				var consumer = _consumers[i];
 
-				while (consumer.head < consumer.done)
+				while (consumer._head < consumer._done)
 				{
-					OnSerialized(consumer.buffer[consumer.head % consumer.buffer.Length]);
-					consumer.head++;
+					OnSerialized(consumer._buffer[consumer._head % consumer._buffer.Length]);
+					consumer._head++;
 
 					committed = true;
 				}
 			}
 
 			return committed;
-		}
-
-		private sealed class Producer : IEnumerable<ISerializable>
-		{
-			private readonly IEnumerable<Item> items;
-			private readonly IEnumerable<Mobile> mobiles;
-			private readonly IEnumerable<BaseGuild> guilds;
-
-			public Producer()
-			{
-				items = World.Items.Values;
-				mobiles = World.Mobiles.Values;
-				guilds = BaseGuild.List.Values;
-			}
-
-			public IEnumerator<ISerializable> GetEnumerator()
-			{
-				foreach (var item in items)
-				{
-					yield return item;
-				}
-
-				foreach (var mob in mobiles)
-				{
-					yield return mob;
-				}
-
-				foreach (var guild in guilds)
-				{
-					yield return guild;
-				}
-			}
-
-			IEnumerator IEnumerable.GetEnumerator()
-			{
-				throw new NotImplementedException();
-			}
 		}
 
 		private struct ConsumableEntry
@@ -2388,41 +2527,42 @@ namespace Server
 
 		private sealed class Consumer
 		{
-			private readonly ParallelSaveStrategy owner;
+			private readonly ParallelSaveStrategy _owner;
 
-			public ManualResetEvent completionEvent;
+			public ManualResetEvent _completionEvent;
 
-			public ConsumableEntry[] buffer;
-			public int head, done, tail;
+			public ConsumableEntry[] _buffer;
 
-			private readonly Thread thread;
+			public int _head, _done, _tail;
+
+			private readonly Thread _thread;
 
 			public Consumer(ParallelSaveStrategy owner, int bufferSize)
 			{
-				this.owner = owner;
+				_owner = owner;
 
-				buffer = new ConsumableEntry[bufferSize];
+				_buffer = new ConsumableEntry[bufferSize];
 
-				for (var i = 0; i < buffer.Length; ++i)
+				for (var i = 0; i < _buffer.Length; ++i)
 				{
-					buffer[i].writer = new BinaryMemoryWriter();
+					_buffer[i].writer = new BinaryMemoryWriter();
 				}
 
-				completionEvent = new ManualResetEvent(false);
+				_completionEvent = new ManualResetEvent(false);
 
-				thread = new Thread(Processor)
+				_thread = new Thread(Processor)
 				{
 					Name = "Parallel Serialization Thread"
 				};
 
-				thread.Start();
+				_thread.Start();
 			}
 
 			private void Processor()
 			{
 				try
 				{
-					while (!owner.finished)
+					while (!_owner._finished)
 					{
 						Process();
 						Thread.Sleep(0);
@@ -2430,7 +2570,7 @@ namespace Server
 
 					Process();
 
-					completionEvent.Set();
+					_completionEvent.Set();
 				}
 				catch (Exception ex)
 				{
@@ -2442,13 +2582,13 @@ namespace Server
 			{
 				ConsumableEntry entry;
 
-				while (done < tail)
+				while (_done < _tail)
 				{
-					entry = buffer[done % buffer.Length];
+					entry = _buffer[_done % _buffer.Length];
 
 					entry.value.Serialize(entry.writer);
 
-					++done;
+					++_done;
 				}
 			}
 		}
@@ -2460,22 +2600,20 @@ namespace Server
 
 		private SaveMetrics _metrics;
 
+		private SequentialFileWriter _regionData, _regionIndex;
 		private SequentialFileWriter _itemData, _itemIndex;
 		private SequentialFileWriter _mobileData, _mobileIndex;
 		private SequentialFileWriter _guildData, _guildIndex;
 
-		private readonly ConcurrentBag<Item> _decayBag;
+		private readonly ConcurrentBag<Item> _decayBag = new();
 
-		private readonly BlockingCollection<QueuedMemoryWriter> _itemThreadWriters;
-		private readonly BlockingCollection<QueuedMemoryWriter> _mobileThreadWriters;
-		private readonly BlockingCollection<QueuedMemoryWriter> _guildThreadWriters;
+		private readonly BlockingCollection<QueuedMemoryWriter> _regionThreadWriters = new();
+		private readonly BlockingCollection<QueuedMemoryWriter> _itemThreadWriters = new();
+		private readonly BlockingCollection<QueuedMemoryWriter> _mobileThreadWriters = new();
+		private readonly BlockingCollection<QueuedMemoryWriter> _guildThreadWriters = new();
 
 		public DynamicSaveStrategy()
 		{
-			_decayBag = new ConcurrentBag<Item>();
-			_itemThreadWriters = new BlockingCollection<QueuedMemoryWriter>();
-			_mobileThreadWriters = new BlockingCollection<QueuedMemoryWriter>();
-			_guildThreadWriters = new BlockingCollection<QueuedMemoryWriter>();
 		}
 
 		public override void Save(SaveMetrics metrics, bool permitBackgroundWrite)
@@ -2484,17 +2622,18 @@ namespace Server
 
 			OpenFiles();
 
-			var saveTasks = new Task[3];
-
-			saveTasks[0] = SaveItems();
-			saveTasks[1] = SaveMobiles();
-			saveTasks[2] = SaveGuilds();
+			var saveTasks = new[]
+			{
+				SaveRegions(),
+				SaveItems(),
+				SaveMobiles(),
+				SaveGuilds()
+			};
 
 			SaveTypeDatabases();
 
 			if (permitBackgroundWrite)
 			{
-				//This option makes it finish the writing to disk in the background, continuing even after Save() returns.
 				Task.Factory.ContinueWhenAll(saveTasks, _ =>
 				{
 					CloseFiles();
@@ -2504,16 +2643,17 @@ namespace Server
 			}
 			else
 			{
-				Task.WaitAll(saveTasks);    //Waits for the completion of all of the tasks(committing to disk)
+				Task.WaitAll(saveTasks);
+
 				CloseFiles();
 			}
 		}
 
-		private Task StartCommitTask(BlockingCollection<QueuedMemoryWriter> threadWriter, SequentialFileWriter data, SequentialFileWriter index)
+		private static Task StartCommitTask(BlockingCollection<QueuedMemoryWriter> threadWriter, SequentialFileWriter data, SequentialFileWriter index)
 		{
-			var commitTask = Task.Factory.StartNew(() =>
+			return Task.Factory.StartNew(() =>
 			{
-				while (!(threadWriter.IsCompleted))
+				while (!threadWriter.IsCompleted)
 				{
 					QueuedMemoryWriter writer;
 
@@ -2530,134 +2670,148 @@ namespace Server
 					writer.CommitTo(data, index);
 				}
 			});
+		}
+
+		private Task SaveRegions()
+		{
+			var commitTask = StartCommitTask(_regionThreadWriters, _regionData, _regionIndex);
+
+			Parallel.ForEach(World.Regions.Values, () => new QueuedMemoryWriter(), (reg, state, writer) =>
+			{
+				var startPosition = writer.Position;
+
+				reg.Serialize(writer);
+
+				var size = (int)(writer.Position - startPosition);
+
+				writer.QueueForIndex(reg, size);
+
+				if (_metrics != null)
+				{
+					_metrics.OnRegionSaved(size);
+				}
+
+				return writer;
+			},
+			writer =>
+			{
+				writer.Flush();
+
+				_regionThreadWriters.Add(writer);
+			});
+
+			_regionThreadWriters.CompleteAdding();
 
 			return commitTask;
 		}
 
 		private Task SaveItems()
 		{
-			//Start the blocking consumer; this runs in background.
 			var commitTask = StartCommitTask(_itemThreadWriters, _itemData, _itemIndex);
 
-			IEnumerable<Item> items = World.Items.Values;
+			Parallel.ForEach(World.Items.Values, () => new QueuedMemoryWriter(), (item, state, writer) =>
+			{
+				var startPosition = writer.Position;
 
-			//Start the producer.
-			Parallel.ForEach(items, () => new QueuedMemoryWriter(),
-				(Item item, ParallelLoopState state, QueuedMemoryWriter writer) =>
+				item.Serialize(writer);
+
+				var size = (int)(writer.Position - startPosition);
+
+				writer.QueueForIndex(item, size);
+
+				if (item.Decays && item.Parent == null && item.Map != Map.Internal && DateTime.UtcNow > (item.LastMoved + item.DecayTime))
 				{
-					var startPosition = writer.Position;
+					_decayBag.Add(item);
+				}
 
-					item.Serialize(writer);
-
-					var size = (int)(writer.Position - startPosition);
-
-					writer.QueueForIndex(item, size);
-
-					if (item.Decays && item.Parent == null && item.Map != Map.Internal && DateTime.UtcNow > (item.LastMoved + item.DecayTime))
-					{
-						_decayBag.Add(item);
-					}
-
-					if (_metrics != null)
-					{
-						_metrics.OnItemSaved(size);
-					}
-
-					return writer;
-				},
-				(writer) =>
+				if (_metrics != null)
 				{
-					writer.Flush();
+					_metrics.OnItemSaved(size);
+				}
 
-					_itemThreadWriters.Add(writer);
-				});
+				return writer;
+			},
+			writer =>
+			{
+				writer.Flush();
 
-			_itemThreadWriters.CompleteAdding();    //We only get here after the Parallel.ForEach completes.  Lets our task 
+				_itemThreadWriters.Add(writer);
+			});
+
+			_itemThreadWriters.CompleteAdding();
 
 			return commitTask;
 		}
 
 		private Task SaveMobiles()
 		{
-			//Start the blocking consumer; this runs in background.
 			var commitTask = StartCommitTask(_mobileThreadWriters, _mobileData, _mobileIndex);
 
-			IEnumerable<Mobile> mobiles = World.Mobiles.Values;
+			Parallel.ForEach(World.Mobiles.Values, () => new QueuedMemoryWriter(), (mobile, state, writer) =>
+			{
+				var startPosition = writer.Position;
 
-			//Start the producer.
-			Parallel.ForEach(mobiles, () => new QueuedMemoryWriter(),
-				(Mobile mobile, ParallelLoopState state, QueuedMemoryWriter writer) =>
+				mobile.Serialize(writer);
+
+				var size = (int)(writer.Position - startPosition);
+
+				writer.QueueForIndex(mobile, size);
+
+				if (_metrics != null)
 				{
-					var startPosition = writer.Position;
+					_metrics.OnMobileSaved(size);
+				}
 
-					mobile.Serialize(writer);
+				return writer;
+			},
+			writer =>
+			{
+				writer.Flush();
 
-					var size = (int)(writer.Position - startPosition);
+				_mobileThreadWriters.Add(writer);
+			});
 
-					writer.QueueForIndex(mobile, size);
-
-					if (_metrics != null)
-					{
-						_metrics.OnMobileSaved(size);
-					}
-
-					return writer;
-				},
-				(writer) =>
-				{
-					writer.Flush();
-
-					_mobileThreadWriters.Add(writer);
-				});
-
-			_mobileThreadWriters.CompleteAdding();  //We only get here after the Parallel.ForEach completes.  Lets our task tell the consumer that we're done
+			_mobileThreadWriters.CompleteAdding();
 
 			return commitTask;
 		}
 
 		private Task SaveGuilds()
 		{
-			//Start the blocking consumer; this runs in background.
 			var commitTask = StartCommitTask(_guildThreadWriters, _guildData, _guildIndex);
 
-			IEnumerable<BaseGuild> guilds = BaseGuild.List.Values;
+			Parallel.ForEach(BaseGuild.List.Values, () => new QueuedMemoryWriter(), (guild, state, writer) =>
+			{
+				var startPosition = writer.Position;
 
-			//Start the producer.
-			Parallel.ForEach(guilds, () => new QueuedMemoryWriter(),
-				(BaseGuild guild, ParallelLoopState state, QueuedMemoryWriter writer) =>
+				guild.Serialize(writer);
+
+				var size = (int)(writer.Position - startPosition);
+
+				writer.QueueForIndex(guild, size);
+
+				if (_metrics != null)
 				{
-					var startPosition = writer.Position;
+					_metrics.OnGuildSaved(size);
+				}
 
-					guild.Serialize(writer);
+				return writer;
+			},
+			writer =>
+			{
+				writer.Flush();
 
-					var size = (int)(writer.Position - startPosition);
+				_guildThreadWriters.Add(writer);
+			});
 
-					writer.QueueForIndex(guild, size);
-
-					if (_metrics != null)
-					{
-						_metrics.OnGuildSaved(size);
-					}
-
-					return writer;
-				},
-				(writer) =>
-				{
-					writer.Flush();
-
-					_guildThreadWriters.Add(writer);
-				});
-
-			_guildThreadWriters.CompleteAdding();   //We only get here after the Parallel.ForEach completes.  Lets our task 
+			_guildThreadWriters.CompleteAdding();
 
 			return commitTask;
 		}
 
 		public override void ProcessDecay()
 		{
-			Item item;
-
-			while (_decayBag.TryTake(out item))
+			while (_decayBag.TryTake(out var item))
 			{
 				if (item.OnDecay())
 				{
@@ -2668,6 +2822,9 @@ namespace Server
 
 		private void OpenFiles()
 		{
+			_regionData = new SequentialFileWriter(World.RegionDataPath, _metrics);
+			_regionIndex = new SequentialFileWriter(World.RegionIndexPath, _metrics);
+
 			_itemData = new SequentialFileWriter(World.ItemDataPath, _metrics);
 			_itemIndex = new SequentialFileWriter(World.ItemIndexPath, _metrics);
 
@@ -2677,13 +2834,29 @@ namespace Server
 			_guildData = new SequentialFileWriter(World.GuildDataPath, _metrics);
 			_guildIndex = new SequentialFileWriter(World.GuildIndexPath, _metrics);
 
+			WriteCount(_regionIndex, World.Regions.Count);
 			WriteCount(_itemIndex, World.Items.Count);
 			WriteCount(_mobileIndex, World.Mobiles.Count);
 			WriteCount(_guildIndex, BaseGuild.List.Count);
+
+			static void WriteCount(SequentialFileWriter indexFile, int count)
+			{
+				var buffer = new byte[4];
+
+				buffer[0] = (byte)(count >> 0);
+				buffer[1] = (byte)(count >> 8);
+				buffer[2] = (byte)(count >> 16);
+				buffer[3] = (byte)(count >> 24);
+
+				indexFile.Write(buffer, 0, buffer.Length);
+			};
 		}
 
 		private void CloseFiles()
 		{
+			_regionData.Close();
+			_regionIndex.Close();
+
 			_itemData.Close();
 			_itemIndex.Close();
 
@@ -2694,39 +2867,26 @@ namespace Server
 			_guildIndex.Close();
 		}
 
-		private void WriteCount(SequentialFileWriter indexFile, int count)
+		private static void SaveTypeDatabases()
 		{
-			//Equiv to GenericWriter.Write( (int)count );
-			var buffer = new byte[4];
-
-			buffer[0] = (byte)(count);
-			buffer[1] = (byte)(count >> 8);
-			buffer[2] = (byte)(count >> 16);
-			buffer[3] = (byte)(count >> 24);
-
-			indexFile.Write(buffer, 0, buffer.Length);
-		}
-
-		private void SaveTypeDatabases()
-		{
+			SaveTypeDatabase(World.RegionTypesPath, World.m_RegionTypes);
 			SaveTypeDatabase(World.ItemTypesPath, World.m_ItemTypes);
 			SaveTypeDatabase(World.MobileTypesPath, World.m_MobileTypes);
-		}
 
-		private void SaveTypeDatabase(string path, List<Type> types)
-		{
-			var bfw = new BinaryFileWriter(path, false);
-
-			bfw.Write(types.Count);
-
-			foreach (var type in types)
+			static void SaveTypeDatabase(string path, List<Type> types)
 			{
-				bfw.Write(type.FullName);
-			}
+				using var bfw = new BinaryFileWriter(path, false);
 
-			bfw.Flush();
+				bfw.Write(types.Count);
 
-			bfw.Close();
+				foreach (var type in types)
+				{
+					bfw.Write(type.FullName);
+				}
+
+				bfw.Flush();
+				bfw.Close();
+			};
 		}
 	}
 

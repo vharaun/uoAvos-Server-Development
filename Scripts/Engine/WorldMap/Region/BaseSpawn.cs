@@ -6,8 +6,7 @@ using Server.Mobiles;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Xml;
+using System.Linq;
 
 namespace Server.Regions
 {
@@ -16,22 +15,20 @@ namespace Server.Regions
 		public static readonly TimeSpan DefaultMinSpawnTime = TimeSpan.FromMinutes(2.0);
 		public static readonly TimeSpan DefaultMaxSpawnTime = TimeSpan.FromMinutes(5.0);
 
+		public static readonly Direction InvalidDirection = Direction.Running;
+
 		private static readonly Hashtable m_Table = new Hashtable();
 
 		public static Hashtable Table => m_Table;
 
-
 		// When a creature's AI is deactivated (PlayerRangeSensitive optimization) does it return home?
-		public bool ReturnOnDeactivate => true;
+		public virtual bool ReturnOnDeactivate => true;
 
 		// Are creatures unlinked on taming (true) or should they also go out of the region (false)?
-		public bool UnlinkOnTaming => false;
+		public virtual bool UnlinkOnTaming => false;
 
 		// Are unlinked and untamed creatures removed after 20 hours?
-		public bool RemoveIfUntamed => true;
-
-
-		public static readonly Direction InvalidDirection = Direction.Running;
+		public virtual bool RemoveIfUntamed => true;
 
 		private readonly int m_ID;
 		private readonly BaseRegion m_Region;
@@ -89,6 +86,11 @@ namespace Server.Regions
 
 		public Point3D RandomSpawnLocation(int spawnHeight, bool land, bool water)
 		{
+			if (m_Region?.Registered != true)
+			{
+				return Point3D.Zero;
+			}
+			
 			return m_Region.RandomSpawnLocation(spawnHeight, land, water, m_Home, m_Range);
 		}
 
@@ -130,9 +132,9 @@ namespace Server.Regions
 
 			spawn.Spawner = this;
 
-			if (spawn is BaseCreature)
+			if (spawn is BaseCreature c)
 			{
-				((BaseCreature)spawn).RemoveIfUntamed = RemoveIfUntamed;
+				c.RemoveIfUntamed = RemoveIfUntamed;
 			}
 		}
 
@@ -159,7 +161,7 @@ namespace Server.Regions
 				if (m_SpawnTimer == null)
 				{
 					var time = RandomTime();
-					m_SpawnTimer = Timer.DelayCall(time, new TimerCallback(TimerCallback));
+					m_SpawnTimer = Timer.DelayCall(time, TimerCallback);
 					m_NextSpawn = DateTime.UtcNow + time;
 				}
 			}
@@ -172,6 +174,12 @@ namespace Server.Regions
 
 		private void TimerCallback()
 		{
+			if (m_Region?.Deleted != false)
+			{
+				Delete();
+				return;
+			}
+
 			var amount = Math.Max((m_Max - m_SpawnedObjects.Count) / 3, 1);
 
 			for (var i = 0; i < amount; i++)
@@ -197,7 +205,7 @@ namespace Server.Regions
 			{
 				spawnable.Spawner = null;
 
-				var uncontrolled = !(spawnable is BaseCreature) || !((BaseCreature)spawnable).Controlled;
+				var uncontrolled = spawnable is not BaseCreature c || !c.Controlled;
 
 				if (uncontrolled)
 				{
@@ -210,6 +218,12 @@ namespace Server.Regions
 
 		public void Respawn()
 		{
+			if (m_Region?.Deleted != false)
+			{
+				Delete();
+				return;
+			}
+
 			InternalDeleteSpawnedObjects();
 
 			for (var i = 0; !Complete && i < m_Max; i++)
@@ -223,7 +237,10 @@ namespace Server.Regions
 
 		public void Delete()
 		{
+			Stop();
+
 			m_Max = 0;
+
 			InternalDeleteSpawnedObjects();
 
 			if (m_SpawnTimer != null)
@@ -244,11 +261,7 @@ namespace Server.Regions
 
 			for (var i = 0; i < m_SpawnedObjects.Count; i++)
 			{
-				var spawn = m_SpawnedObjects[i];
-
-				int serial = spawn.Serial;
-
-				writer.Write(serial);
+				writer.Write(m_SpawnedObjects[i].Serial);
 			}
 
 			writer.Write(m_Running);
@@ -270,10 +283,7 @@ namespace Server.Regions
 
 			for (var i = 0; i < count; i++)
 			{
-				var serial = reader.ReadInt();
-				var spawnableEntity = World.FindEntity(serial) as ISpawnable;
-
-				if (spawnableEntity != null)
+				if (World.FindEntity(reader.ReadSerial()) is ISpawnable spawnableEntity)
 				{
 					Add(spawnableEntity);
 				}
@@ -293,7 +303,8 @@ namespace Server.Regions
 					}
 
 					var delay = m_NextSpawn - DateTime.UtcNow;
-					m_SpawnTimer = Timer.DelayCall(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, new TimerCallback(TimerCallback));
+
+					m_SpawnTimer = Timer.DelayCall(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, TimerCallback);
 				}
 			}
 
@@ -308,16 +319,11 @@ namespace Server.Regions
 
 			for (var i = 0; i < count; i++)
 			{
-				var serial = reader.ReadInt();
-				var entity = World.FindEntity(serial);
+				var entity = World.FindEntity(reader.ReadSerial());
 
 				if (entity != null)
 				{
-					if (m_RemoveList == null)
-					{
-						m_RemoveList = new List<IEntity>();
-					}
-
+					m_RemoveList ??= new List<IEntity>();
 					m_RemoveList.Add(entity);
 				}
 			}
@@ -354,36 +360,50 @@ namespace Server.Regions
 			CommandSystem.Register("StopRegionSpawns", AccessLevel.GameMaster, new CommandEventHandler(StopRegionSpawns_OnCommand));
 		}
 
-		private static BaseRegion GetCommandData(CommandEventArgs args)
+		private static IEnumerable<SpawnEntry> GetCommandData(CommandEventArgs args)
 		{
 			var from = args.Mobile;
 
-			Region reg;
+			var count = 0;
+
 			if (args.Length == 0)
 			{
-				reg = from.Region;
+				var br = from.Region.GetRegion<BaseRegion>();
+
+				foreach (var s in br?.Spawns)
+				{
+					++count;
+
+					yield return s;
+				}
+
+				if (count == 0)
+				{
+					from.SendMessage("There are no spawners in your region.");
+				}
 			}
 			else
 			{
 				var name = args.GetString(0);
-				//reg = (Region) from.Map.Regions[name];
 
-				if (!from.Map.Regions.TryGetValue(name, out reg))
+				foreach (var r in from.Map.Regions)
 				{
-					from.SendMessage("Could not find region '{0}'.", name);
-					return null;
+					if (r is BaseRegion br && br.Spawns?.Length > 0)
+					{
+						foreach (var s in br?.Spawns)
+						{
+							++count;
+
+							yield return s;
+						}
+					}
+				}
+
+				if (count == 0)
+				{
+					from.SendMessage("There are no spawners in regions named '{0}'.", name);
 				}
 			}
-
-			var br = reg as BaseRegion;
-
-			if (br == null || br.Spawns == null)
-			{
-				from.SendMessage("There are no spawners in region '{0}'.", reg);
-				return null;
-			}
-
-			return br;
 		}
 
 		[Usage("RespawnAllRegions")]
@@ -402,19 +422,15 @@ namespace Server.Regions
 		[Description("Respawns the region in which you are (or that you provided) and sets the spawners as running.")]
 		private static void RespawnRegion_OnCommand(CommandEventArgs args)
 		{
-			var region = GetCommandData(args);
-
-			if (region == null)
+			foreach (var g in GetCommandData(args).GroupBy(s => s.Region))
 			{
-				return;
-			}
+				foreach (var s in g)
+				{
+					s.Respawn();
+				}
 
-			for (var i = 0; i < region.Spawns.Length; i++)
-			{
-				region.Spawns[i].Respawn();
+				args.Mobile.SendMessage("Region '{0}' has respawned.", g.Key);
 			}
-
-			args.Mobile.SendMessage("Region '{0}' has respawned.", region);
 		}
 
 		[Usage("DelAllRegionSpawns")]
@@ -433,19 +449,15 @@ namespace Server.Regions
 		[Description("Deletes all spawned objects of the region in which you are (or that you provided) and sets the spawners as not running.")]
 		private static void DelRegionSpawns_OnCommand(CommandEventArgs args)
 		{
-			var region = GetCommandData(args);
-
-			if (region == null)
+			foreach (var g in GetCommandData(args).GroupBy(s => s.Region))
 			{
-				return;
-			}
+				foreach (var s in g)
+				{
+					s.DeleteSpawnedObjects();
+				}
 
-			for (var i = 0; i < region.Spawns.Length; i++)
-			{
-				region.Spawns[i].DeleteSpawnedObjects();
+				args.Mobile.SendMessage("Spawned objects of region '{0}' have been deleted.", g.Key);
 			}
-
-			args.Mobile.SendMessage("Spawned objects of region '{0}' have been deleted.", region);
 		}
 
 		[Usage("StartAllRegionSpawns")]
@@ -464,19 +476,15 @@ namespace Server.Regions
 		[Description("Sets the region spawners of the region in which you are (or that you provided) as running.")]
 		private static void StartRegionSpawns_OnCommand(CommandEventArgs args)
 		{
-			var region = GetCommandData(args);
-
-			if (region == null)
+			foreach (var g in GetCommandData(args).GroupBy(s => s.Region))
 			{
-				return;
-			}
+				foreach (var s in g)
+				{
+					s.Start();
+				}
 
-			for (var i = 0; i < region.Spawns.Length; i++)
-			{
-				region.Spawns[i].Start();
+				args.Mobile.SendMessage("Spawners of region '{0}' have started.", g.Key);
 			}
-
-			args.Mobile.SendMessage("Spawners of region '{0}' have started.", region);
 		}
 
 		[Usage("StopAllRegionSpawns")]
@@ -495,19 +503,15 @@ namespace Server.Regions
 		[Description("Sets the region spawners of the region in which you are (or that you provided) as not running.")]
 		private static void StopRegionSpawns_OnCommand(CommandEventArgs args)
 		{
-			var region = GetCommandData(args);
-
-			if (region == null)
+			foreach (var g in GetCommandData(args).GroupBy(s => s.Region))
 			{
-				return;
-			}
+				foreach (var s in g)
+				{
+					s.Stop();
+				}
 
-			for (var i = 0; i < region.Spawns.Length; i++)
-			{
-				region.Spawns[i].Stop();
+				args.Mobile.SendMessage("Spawners of region '{0}' have stopped.", g.Key);
 			}
-
-			args.Mobile.SendMessage("Spawners of region '{0}' have stopped.", region);
 		}
 	}
 

@@ -47,7 +47,7 @@ namespace Server.Engines.ChainQuests.Items
 		private void StartRechargeTimer()
 		{
 			// TODO: Needs work
-			//Timer.DelayCall( RechargeDelay, RechargeDelay, new TimerCallback( Recharge ) );
+			//Timer.DelayCall( RechargeDelay, RechargeDelay,  Recharge  );
 		}
 
 		public void Recharge()

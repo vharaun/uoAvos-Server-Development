@@ -743,7 +743,7 @@ namespace Server.Items
 						{
 							if (m_RecoveryTimer == null)
 							{
-								m_RecoveryTimer = Timer.DelayCall(TimeSpan.FromSeconds(10), new TimerCallback(p.RecoverAmmo));
+								m_RecoveryTimer = Timer.DelayCall(TimeSpan.FromSeconds(10), p.RecoverAmmo);
 							}
 
 							if (!m_RecoveryTimer.Running)
@@ -1220,10 +1220,10 @@ namespace Server.Items
 
 					if (CombatCheck(from, target))
 					{
-						Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback<object[]>(OnHit), new object[] { from, target, weapon });
+						Timer.DelayCall(TimeSpan.FromSeconds(1.0), OnHit, new object[] { from, target, weapon });
 					}
 
-					Timer.DelayCall(TimeSpan.FromSeconds(2.5), new TimerStateCallback<PlayerMobile>(ResetUsing), from);
+					Timer.DelayCall(TimeSpan.FromSeconds(2.5), ResetUsing, from);
 				}
 				else
 				{

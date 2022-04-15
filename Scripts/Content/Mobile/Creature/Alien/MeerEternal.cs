@@ -83,7 +83,7 @@ namespace Server.Mobiles
 			Say(true, "Beware, mortals!  You have provoked my wrath!");
 			FixedParticles(0x376A, 10, 10, 9537, 33, 0, EffectLayer.Waist);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerCallback(DoAreaLeech_Finish));
+			Timer.DelayCall(TimeSpan.FromSeconds(5.0), DoAreaLeech_Finish);
 		}
 
 		private void DoAreaLeech_Finish()
@@ -147,7 +147,7 @@ namespace Server.Mobiles
 		{
 			Say(true, message);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(0.5), new TimerStateCallback(DoFocusedLeech_Stage1), combatant);
+			Timer.DelayCall(TimeSpan.FromSeconds(0.5), DoFocusedLeech_Stage1, combatant);
 		}
 
 		private void DoFocusedLeech_Stage1(object state)
@@ -160,7 +160,7 @@ namespace Server.Mobiles
 				MovingParticles(combatant, 0x0001, 1, 0, false, true, 1108, 0, 9533, 9534, 0, (EffectLayer)255, 0);
 				PlaySound(0x1FB);
 
-				Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(DoFocusedLeech_Stage2), combatant);
+				Timer.DelayCall(TimeSpan.FromSeconds(1.0), DoFocusedLeech_Stage2, combatant);
 			}
 		}
 

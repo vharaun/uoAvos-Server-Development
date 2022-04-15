@@ -47,7 +47,7 @@ namespace Server.Engines.ConPVP
 		[Constructable]
 		public TournamentRegistrar()
 		{
-			Timer.DelayCall(TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0), new TimerCallback(Announce_Callback));
+			Timer.DelayCall(TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0), Announce_Callback);
 		}
 
 		private void Announce_Callback()
@@ -102,7 +102,7 @@ namespace Server.Engines.ConPVP
 
 				PrivateOverheadMessage(MessageType.Regular, 0x35, false, String.Format("Hello m'{0}. Dost thou wish to enter this tournament? You need only to write your name in this book.", m.Female ? "Lady" : "Lord"), m.NetState);
 				m.BeginAction(this);
-				Timer.DelayCall(TimeSpan.FromSeconds(10.0), new TimerStateCallback(ReleaseLock_Callback), m);
+				Timer.DelayCall(TimeSpan.FromSeconds(10.0), ReleaseLock_Callback, m);
 			}
 		}
 
@@ -139,7 +139,7 @@ namespace Server.Engines.ConPVP
 					}
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0), new TimerCallback(Announce_Callback));
+			Timer.DelayCall(TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0), Announce_Callback);
 		}
 	}
 
@@ -1207,7 +1207,7 @@ namespace Server.Engines.ConPVP
 			y -= 3;
 			AddButton(314, y, 247, 248, 1, GumpButtonType.Reply, 0);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(15.0), new TimerCallback(AutoReject));
+			Timer.DelayCall(TimeSpan.FromSeconds(15.0), AutoReject);
 		}
 
 		public void AutoReject()
@@ -1759,7 +1759,7 @@ namespace Server.Engines.ConPVP
 					}
 			}
 
-			Timer.DelayCall(SliceInterval, SliceInterval, new TimerCallback(Slice));
+			Timer.DelayCall(SliceInterval, SliceInterval, Slice);
 		}
 
 		public Tournament()
@@ -1774,7 +1774,7 @@ namespace Server.Engines.ConPVP
 			m_Arenas = new ArrayList();
 			m_SignupPeriod = TimeSpan.FromMinutes(10.0);
 
-			Timer.DelayCall(SliceInterval, SliceInterval, new TimerCallback(Slice));
+			Timer.DelayCall(SliceInterval, SliceInterval, Slice);
 		}
 
 		public void HandleTie(Arena arena, TournyMatch match, ArrayList remaining)
@@ -2535,7 +2535,7 @@ namespace Server.Engines.ConPVP
 			{
 				for (var j = 0; j < alerts.Length; ++j)
 				{
-					Timer.DelayCall(TimeSpan.FromSeconds(Math.Max(j - 0.5, 0.0)), new TimerStateCallback(Alert_Callback), new object[] { arena.Announcer, alerts[j] });
+					Timer.DelayCall(TimeSpan.FromSeconds(Math.Max(j - 0.5, 0.0)), Alert_Callback, new object[] { arena.Announcer, alerts[j] });
 				}
 			}
 		}

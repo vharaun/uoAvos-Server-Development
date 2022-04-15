@@ -960,7 +960,7 @@ namespace Server.Mobiles
 
 			if (Core.SE)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(CheckPets));
+				Timer.DelayCall(TimeSpan.Zero, CheckPets);
 			}
 		}
 
@@ -999,7 +999,7 @@ namespace Server.Mobiles
 			{
 				m_Type = type;
 
-				m_Timer = Timer.DelayCall(duration, new TimerStateCallback<Mobile>(RemoveBlock), mobile);
+				m_Timer = Timer.DelayCall(duration, RemoveBlock, mobile);
 			}
 
 			private void RemoveBlock(Mobile mobile)
@@ -1184,7 +1184,7 @@ namespace Server.Mobiles
 						notice = "The server is currently under lockdown. You do not have sufficient access level to connect.";
 					}
 
-					Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(Disconnect), from);
+					Timer.DelayCall(TimeSpan.FromSeconds(1.0), Disconnect, from);
 				}
 				else if (from.AccessLevel >= AccessLevel.Administrator)
 				{
@@ -1220,7 +1220,7 @@ namespace Server.Mobiles
 			}
 
 			m_NoDeltaRecursion = true;
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(ValidateEquipment_Sandbox));
+			Timer.DelayCall(TimeSpan.Zero, ValidateEquipment_Sandbox);
 		}
 
 		private void ValidateEquipment_Sandbox()
@@ -1527,7 +1527,7 @@ namespace Server.Mobiles
 
 			DisguiseTimers.StartTimer(e.Mobile);
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerStateCallback(ClearSpecialMovesCallback), e.Mobile);
+			Timer.DelayCall(TimeSpan.Zero, ClearSpecialMovesCallback, e.Mobile);
 		}
 
 		private static void ClearSpecialMovesCallback(object state)
@@ -3155,9 +3155,9 @@ namespace Server.Mobiles
 				m_SentHonorContext.OnSourceDamaged(from, amount);
 			}
 
-			if (willKill && from is PlayerMobile)
+			if (willKill && from is PlayerMobile pm)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(10), new TimerCallback(((PlayerMobile)from).RecoverAmmo));
+				Timer.DelayCall(TimeSpan.FromSeconds(10), pm.RecoverAmmo);
 			}
 
 			base.OnDamage(amount, from, willKill);
@@ -3199,7 +3199,7 @@ namespace Server.Mobiles
 
 			if (!Warmode)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(10), new TimerCallback(RecoverAmmo));
+				Timer.DelayCall(TimeSpan.FromSeconds(10), RecoverAmmo);
 			}
 		}
 
@@ -3504,7 +3504,7 @@ namespace Server.Mobiles
 			{
 				if (YoungDeathTeleport())
 				{
-					Timer.DelayCall(TimeSpan.FromSeconds(2.5), new TimerCallback(SendYoungDeathNotice));
+					Timer.DelayCall(TimeSpan.FromSeconds(2.5), SendYoungDeathNotice);
 				}
 			}
 
@@ -5984,7 +5984,7 @@ namespace Server.Mobiles
 						if (pet.Map != Map)
 						{
 							pet.PlaySound(pet.GetAngerSound());
-							Timer.DelayCall(TimeSpan.Zero, new TimerCallback(pet.Delete));
+							Timer.DelayCall(TimeSpan.Zero, pet.Delete);
 						}
 						continue;
 					}

@@ -428,7 +428,7 @@ namespace Server.Items
 
 			if (m_UsesRemaining != oldUses)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(InvalidateProperties));
+				Timer.DelayCall(TimeSpan.Zero, InvalidateProperties);
 			}
 		}
 

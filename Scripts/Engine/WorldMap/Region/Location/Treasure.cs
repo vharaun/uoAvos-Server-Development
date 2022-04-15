@@ -9,11 +9,39 @@ namespace Server
 	{
 		private const int Range = 5; // No house may be placed within 5 tiles of the treasure
 
-		public TreasureRegion(int x, int y, Map map) : base(null, map, Region.DefaultPriority, new Rectangle2D(x - Range, y - Range, 1 + (Range * 2), 1 + (Range * 2)))
+		public TreasureRegion(int x, int y, Map map) : base(null, map, DefaultPriority, new Rectangle2D(x - Range, y - Range, 1 + (Range * 2), 1 + (Range * 2)))
 		{
 			GoLocation = new Point3D(x, y, map.GetAverageZ(x, y));
 
 			Register();
+		}
+
+		public TreasureRegion(int id) : base(id)
+		{ 
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = false;
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			// tmap regions are not persisted
+			Delete();
 		}
 
 		public static void Initialize()
@@ -35,13 +63,10 @@ namespace Server
 			}
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
-		{
-			return false;
-		}
-
 		public override void OnEnter(Mobile m)
 		{
+			base.OnEnter(m);
+
 			if (m.AccessLevel > AccessLevel.Player)
 			{
 				m.SendMessage("You have entered a protected treasure map area.");
@@ -50,6 +75,8 @@ namespace Server
 
 		public override void OnExit(Mobile m)
 		{
+			base.OnExit(m);
+
 			if (m.AccessLevel > AccessLevel.Player)
 			{
 				m.SendMessage("You have left a protected treasure map area.");

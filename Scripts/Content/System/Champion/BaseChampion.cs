@@ -83,7 +83,7 @@ namespace Server.Engines.CannedEvil
 
 			m_DamageEntries = new Dictionary<Mobile, int>();
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(SetInitialSpawnArea));
+			Timer.DelayCall(TimeSpan.Zero, SetInitialSpawnArea);
 		}
 
 		public void SetInitialSpawnArea()
@@ -96,7 +96,8 @@ namespace Server.Engines.CannedEvil
 		{
 			if (m_Region != null)
 			{
-				m_Region.Unregister();
+				m_Region.Delete();
+				m_Region = null;
 			}
 
 			if (!Deleted && Map != Map.Internal)
@@ -104,19 +105,18 @@ namespace Server.Engines.CannedEvil
 				m_Region = new ChampionSpawnRegion(this);
 				m_Region.Register();
 			}
+		}
 
-			/*
-			if( m_Region == null )
+		public void UpdateRegionArea()
+		{
+			if (m_Region != null)
 			{
-				m_Region = new ChampionSpawnRegion( this );
+				m_Region.Area = new Poly3D[] { SpawnArea };
 			}
 			else
 			{
-				m_Region.Unregister();
-				//Why doesn't Region allow me to set it's map/Area meself? ><
-				m_Region = new ChampionSpawnRegion( this );
+				UpdateRegion();
 			}
-			*/
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
@@ -133,6 +133,7 @@ namespace Server.Engines.CannedEvil
 			set
 			{
 				m_Kills = value;
+
 				InvalidateProperties();
 			}
 		}
@@ -144,8 +145,9 @@ namespace Server.Engines.CannedEvil
 			set
 			{
 				m_SpawnArea = value;
+
+				UpdateRegionArea();
 				InvalidateProperties();
-				UpdateRegion();
 			}
 		}
 
@@ -180,6 +182,7 @@ namespace Server.Engines.CannedEvil
 			set
 			{
 				m_Type = value;
+
 				InvalidateProperties();
 			}
 		}
@@ -988,7 +991,7 @@ namespace Server.Engines.CannedEvil
 			m_SpawnArea.X += Location.X - oldLoc.X;
 			m_SpawnArea.Y += Location.Y - oldLoc.Y;
 
-			UpdateRegion();
+			UpdateRegionArea();
 		}
 
 		public override void OnMapChange()
@@ -1210,8 +1213,9 @@ namespace Server.Engines.CannedEvil
 		{
 			base.Serialize(writer);
 
-			writer.Write(6); // version
+			writer.Write(7); // version
 
+			writer.Write(m_Region);
 			writer.Write(m_SPawnSzMod);
 			writer.Write(m_DamageEntries.Count);
 			foreach (var kvp in m_DamageEntries)
@@ -1221,13 +1225,12 @@ namespace Server.Engines.CannedEvil
 			}
 
 			writer.Write(m_ConfinedRoaming);
-			writer.WriteItem<IdolOfTheChampion>(m_Idol);
+			writer.Write(m_Idol);
 			writer.Write(m_HasBeenAdvanced);
 			writer.Write(m_SpawnArea);
 
 			writer.Write(m_RandomizeType);
 
-			//			writer.Write( m_SpawnRange );
 			writer.Write(m_Kills);
 
 			writer.Write(m_Active);
@@ -1235,8 +1238,8 @@ namespace Server.Engines.CannedEvil
 			writer.Write(m_Creatures, true);
 			writer.Write(m_RedSkulls, true);
 			writer.Write(m_WhiteSkulls, true);
-			writer.WriteItem<ChampionPlatform>(m_Platform);
-			writer.WriteItem<ChampionAltar>(m_Altar);
+			writer.Write(m_Platform);
+			writer.Write(m_Altar);
 			writer.Write(m_ExpireDelay);
 			writer.WriteDeltaTime(m_ExpireTime);
 			writer.Write(m_Champion);
@@ -1260,6 +1263,11 @@ namespace Server.Engines.CannedEvil
 
 			switch (version)
 			{
+				case 7:
+					{
+						m_Region = reader.ReadRegion<ChampionSpawnRegion>();
+						goto case 6;
+					}
 				case 6:
 					{
 						m_SPawnSzMod = reader.ReadInt();
@@ -1362,32 +1370,59 @@ namespace Server.Engines.CannedEvil
 					}
 			}
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(UpdateRegion));
+			if (m_Region == null)
+			{
+				Timer.DelayCall(UpdateRegion);
+			}
 		}
 	}
 
 	public class ChampionSpawnRegion : BaseRegion
 	{
-		public override bool YoungProtected => false;
+		public ChampionSpawn ChampionSpawn { get; private set; }
 
-		private readonly ChampionSpawn m_Spawn;
-
-		public ChampionSpawn ChampionSpawn => m_Spawn;
-
-		public ChampionSpawnRegion(ChampionSpawn spawn) : base(null, spawn.Map, Region.Find(spawn.Location, spawn.Map), spawn.SpawnArea)
+		public ChampionSpawnRegion(ChampionSpawn spawn) : base(null, spawn.Map, Find(spawn.Location, spawn.Map), spawn.SpawnArea)
 		{
-			m_Spawn = spawn;
+			ChampionSpawn = spawn;
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
+		public ChampionSpawnRegion(int id) : base(id)
 		{
-			return false;
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = false;
+			YoungProtected = false;
 		}
 
 		public override void AlterLightLevel(Mobile m, ref int global, ref int personal)
 		{
 			base.AlterLightLevel(m, ref global, ref personal);
-			global = Math.Max(global, 1 + m_Spawn.Level);   //This is a guesstimate.  TODO: Verify & get exact values // OSI testing: at 2 red skulls, light = 0x3 ; 1 red = 0x3.; 3 = 8; 9 = 0xD 8 = 0xD 12 = 0x12 10 = 0xD
+			
+			// This is a guesstimate.  TODO: Verify & get exact values 
+			// OSI testing: at 2 red skulls, light = 0x3 ; 1 red = 0x3.; 3 = 8; 9 = 0xD 8 = 0xD 12 = 0x12 10 = 0xD
+			global = Math.Max(global, 1 + (ChampionSpawn?.Level ?? 0));  
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.Write(ChampionSpawn);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			ChampionSpawn = reader.ReadItem<ChampionSpawn>();
 		}
 	}
 

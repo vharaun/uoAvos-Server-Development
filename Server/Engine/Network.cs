@@ -5163,7 +5163,7 @@ namespace Server.Network
 
 		public static void Initialize()
 		{
-			Timer.DelayCall(TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(1.5), new TimerCallback(CheckAllAlive));
+			Timer.DelayCall(TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(1.5), CheckAllAlive);
 		}
 
 		public static void CheckAllAlive()

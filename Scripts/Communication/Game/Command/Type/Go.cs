@@ -134,15 +134,11 @@ namespace Server.Commands
 							}
 						}
 
-						var list = from.Map.Regions;
-
-						foreach (var kvp in list)
+						foreach (var r in from.Map.Regions)
 						{
-							var r = kvp.Value;
-
 							if (Insensitive.Equals(r.Name, name))
 							{
-								from.Location = new Point3D(r.GoLocation);
+								from.MoveToWorld(r.GoLocation, r.Map);
 								return;
 							}
 						}
@@ -156,12 +152,15 @@ namespace Server.Commands
 								continue;
 							}
 
-							foreach (var r in map.Regions.Values)
+							foreach (var r in map.Regions)
 							{
 								if (Insensitive.Equals(r.Name, name))
 								{
-									from.MoveToWorld(r.GoLocation, map);
-									return;
+									if (r.Map != from.Map || !r.Contains(from))
+									{
+										from.MoveToWorld(r.GoLocation, r.Map);
+										return;
+									}
 								}
 							}
 						}

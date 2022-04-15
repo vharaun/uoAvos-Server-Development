@@ -37,6 +37,48 @@ namespace Server.Items
 		public static readonly TimeSpan DefaultDuration = TimeSpan.FromDays(7.0);
 		public static readonly TimeSpan ExpirationTime = TimeSpan.FromDays(30.0);
 
+		private static readonly List<HouseRaffleStone> m_AllStones = new List<HouseRaffleStone>();
+
+		public static void CheckEnd_OnTick()
+		{
+			for (var i = 0; i < m_AllStones.Count; i++)
+			{
+				m_AllStones[i].CheckEnd();
+			}
+		}
+
+		public static void Initialize()
+		{
+			for (var i = m_AllStones.Count - 1; i >= 0; i--)
+			{
+				var stone = m_AllStones[i];
+
+				if (stone.IsExpired)
+				{
+					switch (stone.ExpireAction)
+					{
+						case HouseRaffleExpireAction.HideStone:
+							{
+								if (stone.Visible)
+								{
+									stone.Visible = false;
+									stone.ItemID = 0x1B7B; // Non-blocking ItemID
+								}
+
+								break;
+							}
+						case HouseRaffleExpireAction.DeleteStone:
+							{
+								stone.Delete();
+								break;
+							}
+					}
+				}
+			}
+
+			Timer.DelayCall(TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(1.0), CheckEnd_OnTick);
+		}
+
 		private HouseRaffleRegion m_Region;
 		private Rectangle2D m_Bounds;
 		private Map m_Facet;
@@ -82,7 +124,7 @@ namespace Server.Items
 			{
 				m_Bounds = value;
 
-				InvalidateRegion();
+				InvalidateRegionArea();
 				InvalidateProperties();
 			}
 		}
@@ -104,7 +146,11 @@ namespace Server.Items
 		public Mobile Winner
 		{
 			get => m_Winner;
-			set { m_Winner = value; InvalidateProperties(); }
+			set
+			{
+				m_Winner = value;
+				InvalidateProperties();
+			}
 		}
 
 		[CommandProperty(AccessLevel.GameMaster, AccessLevel.Seer)]
@@ -118,14 +164,22 @@ namespace Server.Items
 		public DateTime Started
 		{
 			get => m_Started;
-			set { m_Started = value; InvalidateProperties(); }
+			set
+			{
+				m_Started = value;
+				InvalidateProperties();
+			}
 		}
 
 		[CommandProperty(AccessLevel.GameMaster, AccessLevel.Seer)]
 		public TimeSpan Duration
 		{
 			get => m_Duration;
-			set { m_Duration = value; InvalidateProperties(); }
+			set
+			{
+				m_Duration = value;
+				InvalidateProperties();
+			}
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
@@ -166,47 +220,7 @@ namespace Server.Items
 
 		public override bool DisplayWeight => false;
 
-		private static readonly List<HouseRaffleStone> m_AllStones = new List<HouseRaffleStone>();
-
-		public static void CheckEnd_OnTick()
-		{
-			for (var i = 0; i < m_AllStones.Count; i++)
-			{
-				m_AllStones[i].CheckEnd();
-			}
-		}
-
-		public static void Initialize()
-		{
-			for (var i = m_AllStones.Count - 1; i >= 0; i--)
-			{
-				var stone = m_AllStones[i];
-
-				if (stone.IsExpired)
-				{
-					switch (stone.ExpireAction)
-					{
-						case HouseRaffleExpireAction.HideStone:
-							{
-								if (stone.Visible)
-								{
-									stone.Visible = false;
-									stone.ItemID = 0x1B7B; // Non-blocking ItemID
-								}
-
-								break;
-							}
-						case HouseRaffleExpireAction.DeleteStone:
-							{
-								stone.Delete();
-								break;
-							}
-					}
-				}
-			}
-
-			Timer.DelayCall(TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(1.0), new TimerCallback(CheckEnd_OnTick));
-		}
+		public bool ValidLocation => m_Bounds.Start != Point2D.Zero && m_Bounds.End != Point2D.Zero && m_Facet != null && m_Facet != Map.Internal;
 
 		[Constructable]
 		public HouseRaffleStone()
@@ -230,20 +244,27 @@ namespace Server.Items
 		{
 		}
 
-		public bool ValidLocation()
+		private void InvalidateRegionArea()
 		{
-			return m_Bounds.Start != Point2D.Zero && m_Bounds.End != Point2D.Zero && m_Facet != null && m_Facet != Map.Internal;
+			if (m_Region != null && ValidLocation)
+			{
+				m_Region.Area = new Poly3D[] { m_Bounds };
+			}
+			else
+			{
+				InvalidateRegion();
+			}
 		}
 
 		private void InvalidateRegion()
 		{
 			if (m_Region != null)
 			{
-				m_Region.Unregister();
+				m_Region.Delete();
 				m_Region = null;
 			}
 
-			if (ValidLocation())
+			if (ValidLocation)
 			{
 				m_Region = new HouseRaffleRegion(this);
 				m_Region.Register();
@@ -335,7 +356,7 @@ namespace Server.Items
 
 		public string FormatLocation()
 		{
-			if (!ValidLocation())
+			if (!ValidLocation)
 			{
 				return "no location set";
 			}
@@ -359,7 +380,7 @@ namespace Server.Items
 		{
 			base.GetProperties(list);
 
-			if (ValidLocation())
+			if (ValidLocation)
 			{
 				list.Add(FormatLocation());
 			}
@@ -520,7 +541,7 @@ namespace Server.Items
 		{
 			if (m_Region != null)
 			{
-				m_Region.Unregister();
+				m_Region.Delete();
 				m_Region = null;
 			}
 
@@ -533,7 +554,9 @@ namespace Server.Items
 		{
 			base.Serialize(writer);
 
-			writer.Write(3); // version
+			writer.Write(4); // version
+
+			writer.Write(m_Region);
 
 			writer.WriteEncodedInt((int)m_State);
 			writer.WriteEncodedInt((int)m_ExpireAction);
@@ -565,6 +588,12 @@ namespace Server.Items
 
 			switch (version)
 			{
+				case 4:
+					{
+						m_Region = reader.ReadRegion<HouseRaffleRegion>();
+
+						goto case 3;
+					}
 				case 3:
 					{
 						m_State = (HouseRaffleState)reader.ReadEncodedInt();
@@ -585,9 +614,9 @@ namespace Server.Items
 					}
 				case 0:
 					{
-						var oldActive = (version < 3) ? reader.ReadBool() : false;
-						
-						m_Bounds = reader.ReadRect2D();						
+						var oldActive = version < 3 && reader.ReadBool();
+
+						m_Bounds = reader.ReadRect2D();
 						m_Facet = reader.ReadMap();
 
 						m_Winner = reader.ReadMobile();
@@ -611,10 +640,6 @@ namespace Server.Items
 							m_Entries.Add(entry);
 						}
 
-						InvalidateRegion();
-
-						m_AllStones.Add(this);
-
 						if (version < 3)
 						{
 							if (oldActive)
@@ -634,6 +659,13 @@ namespace Server.Items
 						break;
 					}
 			}
+
+			if (m_Region == null)
+			{
+				Timer.DelayCall(InvalidateRegion);
+			}
+
+			m_AllStones.Add(this);
 		}
 
 		private class RaffleContextMenuEntry : ContextMenuEntry
@@ -672,7 +704,7 @@ namespace Server.Items
 			public ActivateEntry(Mobile from, HouseRaffleStone stone)
 				: base(from, stone, 5113) // Start
 			{
-				if (!stone.ValidLocation())
+				if (!stone.ValidLocation)
 				{
 					Flags |= Network.CMEFlags.Disabled;
 				}
@@ -680,7 +712,7 @@ namespace Server.Items
 
 			public override void OnClick()
 			{
-				if (m_Stone.Deleted || m_From.AccessLevel < AccessLevel.Seer || !m_Stone.ValidLocation())
+				if (m_Stone.Deleted || m_From.AccessLevel < AccessLevel.Seer || !m_Stone.ValidLocation)
 				{
 					return;
 				}
@@ -1148,19 +1180,30 @@ namespace Server.Items
 
 	public class HouseRaffleRegion : BaseRegion
 	{
-		private readonly HouseRaffleStone m_Stone;
+		private HouseRaffleStone m_Stone;
 
 		public HouseRaffleRegion(HouseRaffleStone stone)
-			: base(null, stone.PlotFacet, Region.DefaultPriority, stone.PlotBounds)
+			: base(null, stone.PlotFacet, DefaultPriority, stone.PlotBounds)
 		{
 			m_Stone = stone;
 		}
 
+		public HouseRaffleRegion(int id) : base(id)
+		{
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = false;
+		}
+
 		public override bool AllowHousing(Mobile from, Point3D p)
 		{
-			if (m_Stone == null)
+			if (m_Stone?.Deleted != false)
 			{
-				return false;
+				return base.AllowHousing(from, p);
 			}
 
 			if (m_Stone.IsExpired)
@@ -1214,6 +1257,24 @@ namespace Server.Items
 			}
 
 			return base.OnTarget(m, t, o);
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.Write(m_Stone);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			m_Stone = reader.ReadItem<HouseRaffleStone>();
 		}
 	}
 }

@@ -26,7 +26,7 @@ namespace Server.RemoteAdmin
 #if !MONO
 			Core.MultiConsoleOut.Add(new EventTextWriter(new EventTextWriter.OnConsoleChar(OnConsoleChar), new EventTextWriter.OnConsoleLine(OnConsoleLine), new EventTextWriter.OnConsoleStr(OnConsoleString)));
 #endif
-			Timer.DelayCall(TimeSpan.FromMinutes(2.5), TimeSpan.FromMinutes(2.5), new TimerCallback(CleanUp));
+			Timer.DelayCall(TimeSpan.FromMinutes(2.5), TimeSpan.FromMinutes(2.5), CleanUp);
 		}
 
 		public static void OnConsoleString(string str)
@@ -160,7 +160,7 @@ namespace Server.RemoteAdmin
 
 		private static void DelayedDisconnect(NetState state)
 		{
-			Timer.DelayCall(TimeSpan.FromSeconds(15.0), new TimerStateCallback(Disconnect), state);
+			Timer.DelayCall(TimeSpan.FromSeconds(15.0), Disconnect, state);
 		}
 
 		private static void Disconnect(object state)

@@ -2971,12 +2971,12 @@ namespace Server.Mobiles
 					{
 						if (!m_Mobile.Region.AcceptsSpawnsFrom(se.Region))
 						{
-							Timer.DelayCall(TimeSpan.Zero, new TimerCallback(ReturnToHome));
+							Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
 						}
 					}
 					else if (!m_Mobile.InRange(se.HomeLocation, se.HomeRange))
 					{
-						Timer.DelayCall(TimeSpan.Zero, new TimerCallback(ReturnToHome));
+						Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
 					}
 				}
 			}

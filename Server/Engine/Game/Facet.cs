@@ -431,7 +431,7 @@ namespace Server
 		private readonly int m_Width, m_Height;
 		private readonly int m_SectorsWidth, m_SectorsHeight;
 		private int m_Season;
-		private readonly Dictionary<string, Region> m_Regions;
+		private readonly HashSet<Region> m_Regions;
 		private Region m_DefaultRegion;
 
 		public int Season { get => m_Season; set => m_Season = value; }
@@ -1401,7 +1401,7 @@ namespace Server
 			m_Season = season;
 			m_Name = name;
 			m_Rules = rules;
-			m_Regions = new Dictionary<string, Region>(StringComparer.OrdinalIgnoreCase);
+			m_Regions = new();
 			m_InvalidSector = new Sector(0, 0, this);
 			m_SectorsWidth = width >> SectorShift;
 			m_SectorsHeight = height >> SectorShift;
@@ -1704,32 +1704,20 @@ namespace Server
 
 		public int Height => m_Height;
 
-		public Dictionary<string, Region> Regions => m_Regions;
+		public HashSet<Region> Regions => m_Regions;
 
 		public void RegisterRegion(Region reg)
 		{
-			var regName = reg.Name;
-
-			if (!String.IsNullOrWhiteSpace(regName))
-			{
-				if (m_Regions.ContainsKey(regName))
-				{
-					Console.WriteLine("Warning: Duplicate region name '{0}' for map '{1}'", regName, Name);
-				}
-				else
-				{
-					m_Regions[regName] = reg;
-				}
-			}
+			m_Regions.Add(reg);
 		}
 
 		public void UnregisterRegion(Region reg)
 		{
-			var regName = reg.Name;
+			m_Regions.Remove(reg);
 
-			if (regName != null)
+			if (m_DefaultRegion == reg)
 			{
-				m_Regions.Remove(regName);
+				m_DefaultRegion = null;
 			}
 		}
 
@@ -1737,9 +1725,15 @@ namespace Server
 		{
 			get
 			{
-				if (m_DefaultRegion == null)
+				if (m_DefaultRegion?.Deleted != false)
+				{
+					m_DefaultRegion = null;
+				}
+
+				if (World.Loaded && !World.Loading && !World.Saving && m_DefaultRegion?.Deleted != false)
 				{
 					m_DefaultRegion = new Region(null, this, 0, Array.Empty<Poly3D>());
+					m_DefaultRegion.Register();
 				}
 
 				return m_DefaultRegion;

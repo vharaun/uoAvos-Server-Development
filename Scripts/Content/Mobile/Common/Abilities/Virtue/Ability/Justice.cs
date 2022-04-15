@@ -187,7 +187,7 @@ namespace Server
 
 			if (protector.BeginAction(typeof(JusticeVirtue)))
 			{
-				Timer.DelayCall(TimeSpan.FromMinutes(15.0), new TimerStateCallback(RejectDelay_Callback), protector);
+				Timer.DelayCall(TimeSpan.FromMinutes(15.0), RejectDelay_Callback, protector);
 			}
 		}
 

@@ -452,7 +452,7 @@ namespace Server.Spells.Fourth
 				if (Caster.Player && m.Player /*&& Caster != m */ && t == null) //On OSI you CAN curse yourself and get this effect.
 				{
 					var duration = SpellHelper.GetDuration(Caster, m);
-					m_UnderEffect[m] = t = Timer.DelayCall(duration, new TimerStateCallback(RemoveEffect), m);
+					m_UnderEffect[m] = t = Timer.DelayCall(duration, RemoveEffect, m);
 					m.UpdateResistances();
 				}
 
@@ -1110,7 +1110,7 @@ namespace Server.Spells.Fourth
 					{
 						m.Mana -= toDrain;
 
-						m_Table[m] = Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerStateCallback(AosDelay_Callback), new object[] { m, toDrain });
+						m_Table[m] = Timer.DelayCall(TimeSpan.FromSeconds(5.0), AosDelay_Callback, new object[] { m, toDrain });
 					}
 				}
 				else

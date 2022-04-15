@@ -10,13 +10,11 @@ namespace Server.Regions
 {
 	public class HouseRegion : BaseRegion
 	{
-		public static readonly int HousePriority = Region.DefaultPriority + 1;
-
-		private readonly BaseHouse m_House;
+		public static readonly int HousePriority = DefaultPriority + 1;
 
 		public static void Initialize()
 		{
-			EventSink.Login += new LoginEventHandler(OnLogin);
+			EventSink.Login += OnLogin;
 		}
 
 		public static void OnLogin(LoginEventArgs e)
@@ -29,27 +27,13 @@ namespace Server.Regions
 			}
 		}
 
-		public HouseRegion(BaseHouse house) : base(null, house.Map, HousePriority, GetArea(house))
-		{
-			m_House = house;
-
-			var ban = house.RelativeBanLocation;
-
-			GoLocation = new Point3D(house.X + ban.X, house.Y + ban.Y, house.Z + ban.Z);
-		}
-
-		public override bool AllowHousing(Mobile from, Point3D p)
-		{
-			return false;
-		}
-
-		private static Poly2D[] GetArea(BaseHouse house)
+		public static Poly3D[] GetArea(BaseHouse house)
 		{
 			var x = house.X;
 			var y = house.Y;
 
 			var houseArea = house.Area;
-			var area = new Poly2D[houseArea.Length];
+			var area = new Poly3D[houseArea.Length];
 
 			for (var i = 0; i < area.Length; i++)
 			{
@@ -59,6 +43,53 @@ namespace Server.Regions
 			}
 
 			return area;
+		}
+
+		private BaseHouse m_House;
+
+		public HouseRegion(BaseHouse house) : base(null, house.Map, HousePriority, GetArea(house))
+		{
+			m_House = house;
+
+			var ban = house.RelativeBanLocation;
+
+			GoLocation = new Point3D(house.X + ban.X, house.Y + ban.Y, house.Z + ban.Z); 
+			
+			Register();
+		}
+
+		public HouseRegion(int id) : base(id)
+		{
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = false;
+		}
+
+		public override bool AllowHousing(Mobile from, Point3D p)
+		{
+			return false;
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.Write(m_House);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			m_House = reader.ReadItem<BaseHouse>();
 		}
 
 		public override bool SendInaccessibleMessage(Item item, Mobile from)
@@ -94,57 +125,75 @@ namespace Server.Regions
 
 			m_Recursion = true;
 
-			if (m is BaseCreature && ((BaseCreature)m).NoHouseRestrictions)
+			try
 			{
-			}
-			else if (m is BaseCreature && ((BaseCreature)m).IsHouseSummonable && !(BaseCreature.Summoning || m_House.IsInside(oldLocation, 16)))
-			{
-			}
-			else if ((m_House.Public || !m_House.IsAosRules) && m_House.IsBanned(m) && m_House.IsInside(m))
-			{
-				m.Location = m_House.BanLocation;
-
-				if (!Core.SE)
+				if (m is BaseCreature bc)
 				{
-					m.SendLocalizedMessage(501284); // You may not enter.
+					if (!bc.NoHouseRestrictions && !bc.Controlled)
+					{
+						return;
+					}
+
+					if (bc.IsHouseSummonable && !(BaseCreature.Summoning || m_House.IsInside(oldLocation, 16)))
+					{
+						return;
+					}
+
+					if (!bc.Controlled && m_House.IsAosRules && !m_House.Public)
+					{
+						return;
+					}
+				}
+
+				if (m_House.IsInside(m))
+				{
+					if ((m_House.Public || !m_House.IsAosRules) && m_House.IsBanned(m))
+					{
+						m.Location = m_House.BanLocation;
+
+						if (!Core.SE)
+						{
+							m.SendLocalizedMessage(501284); // You may not enter.
+						}
+					}
+					else if (m_House.IsAosRules && !m_House.Public && !m_House.HasAccess(m))
+					{
+						m.Location = m_House.BanLocation;
+
+						if (!Core.SE)
+						{
+							m.SendLocalizedMessage(501284); // You may not enter.
+						}
+					}
+					else if (m_House.IsCombatRestricted(m) && !m_House.IsInside(oldLocation, 16))
+					{
+						m.Location = m_House.BanLocation;
+						m.SendLocalizedMessage(1061637); // You are not allowed to access this.
+					}
+					else if (m_House is HouseFoundation foundation)
+					{
+						if (foundation.Customizer != null && foundation.Customizer != m)
+						{
+							m.Location = m_House.BanLocation;
+						}
+					}
+
+					if (m_House.InternalizedVendors.Count > 0 && !m_House.IsInside(oldLocation, 16) && m_House.IsOwner(m) && m.Alive && !m.HasGump(typeof(NoticeGump)))
+					{
+						/* This house has been customized recently, and vendors that work out of this
+						 * house have been temporarily relocated.  You must now put your vendors back to work.
+						 * To do this, walk to a location inside the house where you wish to station
+						 * your vendor, then activate the context-sensitive menu on your avatar and
+						 * select "Get Vendor".
+						 */
+						m.SendGump(new NoticeGump(1060635, 30720, 1061826, 32512, 320, 180, null, null));
+					}
 				}
 			}
-			else if (m_House.IsAosRules && !m_House.Public && !m_House.HasAccess(m) && m_House.IsInside(m))
+			finally
 			{
-				m.Location = m_House.BanLocation;
-
-				if (!Core.SE)
-				{
-					m.SendLocalizedMessage(501284); // You may not enter.
-				}
+				m_Recursion = false;
 			}
-			else if (m_House.IsCombatRestricted(m) && m_House.IsInside(m) && !m_House.IsInside(oldLocation, 16))
-			{
-				m.Location = m_House.BanLocation;
-				m.SendLocalizedMessage(1061637); // You are not allowed to access this.
-			}
-			else if (m_House is HouseFoundation)
-			{
-				var foundation = (HouseFoundation)m_House;
-
-				if (foundation.Customizer != null && foundation.Customizer != m && m_House.IsInside(m))
-				{
-					m.Location = m_House.BanLocation;
-				}
-			}
-
-			if (m_House.InternalizedVendors.Count > 0 && m_House.IsInside(m) && !m_House.IsInside(oldLocation, 16) && m_House.IsOwner(m) && m.Alive && !m.HasGump(typeof(NoticeGump)))
-			{
-				/* This house has been customized recently, and vendors that work out of this
-				 * house have been temporarily relocated.  You must now put your vendors back to work.
-				 * To do this, walk to a location inside the house where you wish to station
-				 * your vendor, then activate the context-sensitive menu on your avatar and
-				 * select "Get Vendor".
-				 */
-				m.SendGump(new NoticeGump(1060635, 30720, 1061826, 32512, 320, 180, null, null));
-			}
-
-			m_Recursion = false;
 		}
 
 		public override bool OnMoveInto(Mobile from, Direction d, Point3D newLocation, Point3D oldLocation)
@@ -154,22 +203,25 @@ namespace Server.Regions
 				return false;
 			}
 
-			if (from is BaseCreature && ((BaseCreature)from).NoHouseRestrictions)
+			if (from is BaseCreature bc)
 			{
+				if (!bc.NoHouseRestrictions && !bc.Controlled)
+				{
+					return false;
+				}
+
+				if (bc.IsHouseSummonable && !(BaseCreature.Summoning || m_House.IsInside(oldLocation, 16)))
+				{
+					return false;
+				}
+
+				if (!bc.Controlled && m_House.IsAosRules && !m_House.Public)
+				{
+					return false;
+				}
 			}
-			else if (from is BaseCreature && !((BaseCreature)from).Controlled) // Untamed creatures cannot enter public houses
-			{
-				return false;
-			}
-			else if (from is BaseCreature && ((BaseCreature)from).IsHouseSummonable && !(BaseCreature.Summoning || m_House.IsInside(oldLocation, 16)))
-			{
-				return false;
-			}
-			else if (from is BaseCreature && !((BaseCreature)from).Controlled && m_House.IsAosRules && !m_House.Public)
-			{
-				return false;
-			}
-			else if ((m_House.Public || !m_House.IsAosRules) && m_House.IsBanned(from) && m_House.IsInside(newLocation, 16))
+			
+			if ((m_House.Public || !m_House.IsAosRules) && m_House.IsBanned(from) && m_House.IsInside(newLocation, 16))
 			{
 				from.Location = m_House.BanLocation;
 
@@ -180,7 +232,8 @@ namespace Server.Regions
 
 				return false;
 			}
-			else if (m_House.IsAosRules && !m_House.Public && !m_House.HasAccess(from) && m_House.IsInside(newLocation, 16))
+			
+			if (m_House.IsAosRules && !m_House.Public && !m_House.HasAccess(from) && m_House.IsInside(newLocation, 16))
 			{
 				if (!Core.SE)
 				{
@@ -189,15 +242,15 @@ namespace Server.Regions
 
 				return false;
 			}
-			else if (m_House.IsCombatRestricted(from) && !m_House.IsInside(oldLocation, 16) && m_House.IsInside(newLocation, 16))
+			
+			if (m_House.IsCombatRestricted(from) && !m_House.IsInside(oldLocation, 16) && m_House.IsInside(newLocation, 16))
 			{
 				from.SendLocalizedMessage(1061637); // You are not allowed to access this.
 				return false;
 			}
-			else if (m_House is HouseFoundation)
+			
+			if (m_House is HouseFoundation foundation)
 			{
-				var foundation = (HouseFoundation)m_House;
-
 				if (foundation.Customizer != null && foundation.Customizer != from && m_House.IsInside(newLocation, 16))
 				{
 					return false;
@@ -230,7 +283,7 @@ namespace Server.Regions
 			}
 		}
 
-		public static TimeSpan CombatHeatDelay = TimeSpan.FromSeconds(30.0);
+		public static TimeSpan CombatHeatDelay { get; set; } = TimeSpan.FromSeconds(30.0);
 
 		public override TimeSpan GetLogoutDelay(Mobile m)
 		{
@@ -240,7 +293,7 @@ namespace Server.Regions
 				{
 					var info = m.Aggressed[i];
 
-					if (info.Defender.Player && (DateTime.UtcNow - info.LastCombatTime) < CombatHeatDelay)
+					if (info.Defender.Player && DateTime.UtcNow - info.LastCombatTime < CombatHeatDelay)
 					{
 						return base.GetLogoutDelay(m);
 					}
@@ -421,13 +474,9 @@ namespace Server.Regions
 
 		public override bool OnDoubleClick(Mobile from, object o)
 		{
-			if (o is Container)
+			if (o is Container c)
 			{
-				var c = (Container)o;
-
-				var res = m_House.CheckSecureAccess(from, c);
-
-				switch (res)
+				switch (m_House.CheckSecureAccess(from, c))
 				{
 					case SecureAccessResult.Insecure: break;
 					case SecureAccessResult.Accessible: return true;
@@ -440,10 +489,8 @@ namespace Server.Regions
 
 		public override bool OnSingleClick(Mobile from, object o)
 		{
-			if (o is Item)
+			if (o is Item item)
 			{
-				var item = (Item)o;
-
 				if (m_House.IsLockedDown(item))
 				{
 					item.LabelTo(from, 501643); // [locked down]
@@ -462,18 +509,65 @@ namespace Server.Regions
 
 	public class NoHousingRegion : BaseRegion
 	{
-		/*  - False: this uses 'stupid OSI' house placement checking: part of the house may be placed here provided that the center is not in the region
-		 *  -  True: this uses 'smart RunUO' house placement checking: no part of the house may be in the region
-		 */
-		public bool SmartChecking { get; set; }
+		public NoHousingRegion(int id) : base(id)
+		{
+		}
 
 		public NoHousingRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
 		{
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
+		public NoHousingRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
-			return SmartChecking;
+		}
+
+		public NoHousingRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public NoHousingRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = false;
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
 		}
 	}
 }

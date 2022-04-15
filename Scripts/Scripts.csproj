@@ -3218,4 +3218,8 @@
 	  <ProjectReference Include="..\Server\Server.csproj" />
 	</ItemGroup>
 	
+	<ItemGroup>
+	  <Folder Include="Engine\WorldMap\Region\Editing\" />
+	</ItemGroup>
+	
 </Project>

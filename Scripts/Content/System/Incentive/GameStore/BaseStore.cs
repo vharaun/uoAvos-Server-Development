@@ -1480,7 +1480,7 @@ namespace Server.Engines.UOStore
 						}
 						else
 						{
-							AddHtml(175, 84 + (35 * i), 256, 25, Color(C16232(0x6B55), entry.Name[0].String), false, false);
+							AddHtml(175, 84 + (35 * i), 256, 25, SetColor(C16232(0x6B55), entry.Name[0].String), false, false);
 						}
 
 						AddButton(431, 81 + (35 * i), 0x9C52, 0x9C5C, index + 2000, GumpButtonType.Reply, 0);
@@ -1599,8 +1599,8 @@ namespace Server.Engines.UOStore
 
 			if (Configuration.CurrencyDisplay)
 			{
-				AddHtml(43, 496, 120, 16, Color("#FFFFFF", "Currency:"), false, false);
-				AddHtml(43, 518, 120, 16, Color("#FFFFFF", Configuration.CurrencyName), false, false);
+				AddHtml(43, 496, 120, 16, SetColor("#FFFFFF", "Currency:"), false, false);
+				AddHtml(43, 518, 120, 16, SetColor("#FFFFFF", Configuration.CurrencyName), false, false);
 			}
 		}
 
@@ -2007,7 +2007,7 @@ namespace Server.Engines.UOStore
 			AddBackground(0, 0, 410, 200, 0x9C40);
 			AddHtmlLocalized(10, 10, 400, 20, 1114513, "#1156747", 0x7FFF, false, false); // Insufficient Funds
 
-			AddHtml(30, 60, 350, 60, Color("#da0000", String.Format("This transaction cannot be completed due to insufficient funds available. Visit your shards website for more information on how to obtain {0}.", Configuration.CurrencyName)), false, false);
+			AddHtml(30, 60, 350, 60, SetColor("#DA0000", String.Format("This transaction cannot be completed due to insufficient funds available. Visit your shards website for more information on how to obtain {0}.", Configuration.CurrencyName)), false, false);
 
 			AddECHandleInput();
 

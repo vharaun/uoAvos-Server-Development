@@ -1,22 +1,39 @@
-﻿
+﻿using Server.Network;
+
 using System;
 
 namespace Server.Gumps
 {
 	public delegate void WarningGumpCallback(Mobile from, bool okay, object state);
 
-	public class WarningGump : Gump
+	public delegate void WarningGumpCallback<T>(Mobile from, bool okay, T state);
+
+	public class WarningGump : WarningGump<object>
 	{
-		private readonly WarningGumpCallback m_Callback;
-		private readonly object m_State;
+		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback callback, object state)
+			: base(header, headerColor, content, contentColor, width, height, (m, o, s) => callback?.Invoke(m, o, s), state)
+		{
+		}
+
+		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback callback, object state, bool cancelButton) 
+			: base(header, headerColor, content, contentColor, width, height, (m, o, s) => callback?.Invoke(m, o, s), state, cancelButton)
+		{
+		}
+	}
+
+	public class WarningGump<T> : Gump
+	{
+		private readonly WarningGumpCallback<T> m_Callback;
+		private readonly T m_State;
 		private readonly bool m_CancelButton;
 
-		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback callback, object state)
+		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback<T> callback, T state)
 			: this(header, headerColor, content, contentColor, width, height, callback, state, true)
 		{
 		}
 
-		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback callback, object state, bool cancelButton) : base((640 - width) / 2, (480 - height) / 2)
+		public WarningGump(int header, int headerColor, object content, int contentColor, int width, int height, WarningGumpCallback<T> callback, T state, bool cancelButton) 
+			: base((640 - width) / 2, (480 - height) / 2)
 		{
 			m_Callback = callback;
 			m_State = state;
@@ -57,7 +74,7 @@ namespace Server.Gumps
 			}
 		}
 
-		public override void OnResponse(Server.Network.NetState sender, RelayInfo info)
+		public override void OnResponse(NetState sender, RelayInfo info)
 		{
 			if (info.ButtonID == 1 && m_Callback != null)
 			{

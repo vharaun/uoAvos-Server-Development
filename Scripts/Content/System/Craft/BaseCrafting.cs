@@ -4296,7 +4296,7 @@ namespace Server.Engines.Craft
 									toDelete = true;
 
 									from.BeginAction(typeof(Golem));
-									Timer.DelayCall(TimeSpan.FromSeconds(12.0), new TimerStateCallback(EndGolemRepair), from);
+									Timer.DelayCall(TimeSpan.FromSeconds(12.0), EndGolemRepair, from);
 								}
 								else
 								{
