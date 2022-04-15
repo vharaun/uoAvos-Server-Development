@@ -13,7 +13,7 @@
 
 		#endregion
 
-		private static readonly string CustomPath = @"X:\ULTIMA\Ultima Online Classic"; //This default value will try to find your game data in your '<shard root>/Client' directory
+		private static readonly string CustomPath = @"Client"; //This default value will try to find your game data in your '<shard root>/Client' directory
 
 		#region Files Required To Run Emulation
 
