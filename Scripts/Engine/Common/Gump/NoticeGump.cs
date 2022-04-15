@@ -1,16 +1,28 @@
-﻿
+﻿using Server.Network;
+
 using System;
 
 namespace Server.Gumps
 {
 	public delegate void NoticeGumpCallback(Mobile from, object state);
 
-	public class NoticeGump : Gump
-	{
-		private readonly NoticeGumpCallback m_Callback;
-		private readonly object m_State;
+	public delegate void NoticeGumpCallback<T>(Mobile from, T state);
 
-		public NoticeGump(int header, int headerColor, object content, int contentColor, int width, int height, NoticeGumpCallback callback, object state) : base((640 - width) / 2, (480 - height) / 2)
+	public class NoticeGump : NoticeGump<object>
+	{
+		public NoticeGump(int header, int headerColor, object content, int contentColor, int width, int height, NoticeGumpCallback callback, object state)
+			: base(header, headerColor, content, contentColor, width, height, (m, s) => callback?.Invoke(m, s), state)
+		{
+		}
+	}
+
+	public class NoticeGump<T> : Gump
+	{
+		private readonly NoticeGumpCallback<T> m_Callback;
+		private readonly T m_State;
+
+		public NoticeGump(int header, int headerColor, object content, int contentColor, int width, int height, NoticeGumpCallback<T> callback, T state) 
+			: base((640 - width) / 2, (480 - height) / 2)
 		{
 			m_Callback = callback;
 			m_State = state;
@@ -43,7 +55,7 @@ namespace Server.Gumps
 			AddHtmlLocalized(40, height - 30, 120, 20, 1011036, 32767, false, false); // OKAY
 		}
 
-		public override void OnResponse(Server.Network.NetState sender, RelayInfo info)
+		public override void OnResponse(NetState sender, RelayInfo info)
 		{
 			if (info.ButtonID == 1 && m_Callback != null)
 			{

@@ -11,7 +11,7 @@ namespace Server.Engines.MyRunUO
 		{
 			if (Config.Enabled)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(20.0), Config.StatusUpdateInterval, new TimerCallback(Begin));
+				Timer.DelayCall(TimeSpan.FromSeconds(20.0), Config.StatusUpdateInterval, Begin);
 
 				CommandSystem.Register("UpdateWebStatus", AccessLevel.Administrator, new CommandEventHandler(UpdateWebStatus_OnCommand));
 			}

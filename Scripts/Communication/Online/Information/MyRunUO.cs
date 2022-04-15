@@ -21,7 +21,7 @@ namespace Server.Engines.MyRunUO
 		{
 			if (Config.Enabled)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(10.0), Config.CharacterUpdateInterval, new TimerCallback(Begin));
+				Timer.DelayCall(TimeSpan.FromSeconds(10.0), Config.CharacterUpdateInterval, Begin);
 
 				CommandSystem.Register("InitMyRunUO", AccessLevel.Administrator, new CommandEventHandler(InitMyRunUO_OnCommand));
 				CommandSystem.Register("UpdateMyRunUO", AccessLevel.Administrator, new CommandEventHandler(UpdateMyRunUO_OnCommand));

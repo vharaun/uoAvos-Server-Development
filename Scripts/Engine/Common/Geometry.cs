@@ -217,7 +217,7 @@ namespace Server.Misc
 			return opposite ? !withinBounds : withinBounds;
 		}
 
-		public static void Line2D(Point3D start, Point3D end, Map map, DoEffect_Callback effect)
+		public static void Line2D(IPoint3D start, IPoint3D end, Map map, DoEffect_Callback effect)
 		{
 			var steep = Math.Abs(end.Y - start.Y) > Math.Abs(end.X - start.X);
 

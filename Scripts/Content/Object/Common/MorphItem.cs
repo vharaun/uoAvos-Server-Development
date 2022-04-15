@@ -155,7 +155,7 @@ namespace Server.Items
 					}
 			}
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(Refresh));
+			Timer.DelayCall(TimeSpan.Zero, Refresh);
 		}
 	}
 }

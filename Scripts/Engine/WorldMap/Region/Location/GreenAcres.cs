@@ -7,33 +7,82 @@ namespace Server.Regions
 {
 	public class GreenAcres : BaseRegion
 	{
+		public GreenAcres(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public GreenAcres(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
 		public GreenAcres(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
 		{
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
+		public GreenAcres(int id) : base(id)
 		{
-			if (from.AccessLevel == AccessLevel.Player)
+		}
+
+		public override bool AllowHousing(Mobile m, Point3D p)
+		{
+			if (m.AccessLevel < AccessLevel.Counselor)
 			{
 				return false;
 			}
-			else
-			{
-				return base.AllowHousing(from, p);
-			}
+
+			return base.AllowHousing(m, p);
 		}
 
 		public override bool OnBeginSpellCast(Mobile m, ISpell s)
 		{
-			if ((s is GateTravelSpell || s is RecallSpell || s is MarkSpell || s is SacredJourneySpell) && m.AccessLevel == AccessLevel.Player)
+			if (m.AccessLevel < AccessLevel.Counselor)
 			{
-				m.SendMessage("You cannot cast that spell here.");
-				return false;
+				if (s is GateTravelSpell || s is RecallSpell || s is MarkSpell || s is SacredJourneySpell)
+				{
+					m.SendMessage("You cannot cast that spell here.");
+					return false;
+				}
 			}
-			else
-			{
-				return base.OnBeginSpellCast(m, s);
-			}
+
+			return base.OnBeginSpellCast(m, s);
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
 		}
 	}
 }

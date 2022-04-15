@@ -90,7 +90,7 @@ namespace Server.Spells.Ninjitsu
 			attacker.PlaySound(attacker.Female ? 0x50D : 0x50E);
 
 			info = new DeathStrikeInfo(defender, attacker, damageBonus, isRanged) {
-				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerStateCallback(ProcessDeathStrike), defender)
+				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), ProcessDeathStrike, defender)
 			};
 
 			m_Table[defender] = info;

@@ -162,12 +162,8 @@ namespace Server.Items
 				}
 			}
 
-			var doors = house.Doors;
-
-			for (var i = 0; i < doors.Count; ++i)
+			foreach (var door in house.Doors)
 			{
-				var door = doors[i] as BaseDoor;
-
 				var doorLoc = door.GetWorldLocation();
 				var doorHeight = door.ItemData.CalcHeight;
 
@@ -983,12 +979,8 @@ namespace Server.Items
 
 			if (house != null)
 			{
-				var doors = house.Doors;
-
-				for (var i = 0; i < doors.Count; ++i)
+				foreach (var door in house.Doors)
 				{
-					var door = doors[i] as BaseDoor;
-
 					if (door != null && door.Open)
 					{
 						return AddonFitResult.DoorsNotClosed;

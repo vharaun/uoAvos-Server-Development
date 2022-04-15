@@ -141,7 +141,7 @@ namespace Server.Items
 				{
 					if (m_Timer == null || !m_Timer.Running)
 					{
-						m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2), new TimerCallback(HeedWarning));
+						m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2), HeedWarning);
 					}
 				}
 			}

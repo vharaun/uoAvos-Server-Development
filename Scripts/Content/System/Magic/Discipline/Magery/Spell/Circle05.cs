@@ -618,7 +618,7 @@ namespace Server.Spells.Fifth
 					}
 
 					Timer.DelayCall(TimeSpan.FromSeconds(1.0),
-						new TimerStateCallback(AosDelay_Callback),
+						AosDelay_Callback,
 						new object[] { Caster, target, m, damage });
 				}
 			}

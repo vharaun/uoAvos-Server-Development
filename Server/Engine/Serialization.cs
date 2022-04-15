@@ -133,11 +133,6 @@ namespace Server
 			return l.m_Serial <= r.m_Serial;
 		}
 
-		/*public static Serial operator ++ ( Serial l )
-		{
-			return new Serial( l + 1 );
-		}*/
-
 		public override string ToString()
 		{
 			return String.Format("0x{0:X8}", m_Serial);
@@ -160,13 +155,21 @@ namespace Server
 
 		public abstract int PeekInt();
 
-		public abstract Type ReadObjectType();
+		public abstract int ReadEncodedInt();
 
 		public abstract string ReadString();
+
+		public abstract Type ReadObjectType();
+
 		public abstract DateTime ReadDateTime();
 		public abstract DateTimeOffset ReadDateTimeOffset();
 		public abstract TimeSpan ReadTimeSpan();
 		public abstract DateTime ReadDeltaTime();
+		public abstract IPAddress ReadIPAddress();
+
+		public abstract Enum ReadEnum();
+		public abstract T ReadEnum<T>() where T : struct, Enum;
+
 		public abstract decimal ReadDecimal();
 		public abstract long ReadLong();
 		public abstract ulong ReadULong();
@@ -180,13 +183,13 @@ namespace Server
 		public abstract byte ReadByte();
 		public abstract sbyte ReadSByte();
 		public abstract bool ReadBool();
-		public abstract int ReadEncodedInt();
-		public abstract IPAddress ReadIPAddress();
 
 		public abstract Point3D ReadPoint3D();
 		public abstract Point2D ReadPoint2D();
 		public abstract Rectangle2D ReadRect2D();
 		public abstract Rectangle3D ReadRect3D();
+		public abstract Poly2D ReadPoly2D();
+		public abstract Poly3D ReadPoly3D();
 		public abstract Map ReadMap();
 
 		public abstract Serial ReadSerial();
@@ -194,14 +197,12 @@ namespace Server
 		public abstract Item ReadItem();
 		public abstract Mobile ReadMobile();
 		public abstract BaseGuild ReadGuild();
+		public abstract Region ReadRegion();
 
 		public abstract T ReadItem<T>() where T : Item;
 		public abstract T ReadMobile<T>() where T : Mobile;
 		public abstract T ReadGuild<T>() where T : BaseGuild;
-
-		public abstract ArrayList ReadItemList();
-		public abstract ArrayList ReadMobileList();
-		public abstract ArrayList ReadGuildList();
+		public abstract T ReadRegion<T>() where T : Region;
 
 		public abstract List<Item> ReadStrongItemList();
 		public abstract List<T> ReadStrongItemList<T>() where T : Item;
@@ -212,6 +213,9 @@ namespace Server
 		public abstract List<BaseGuild> ReadStrongGuildList();
 		public abstract List<T> ReadStrongGuildList<T>() where T : BaseGuild;
 
+		public abstract List<Region> ReadStrongRegionList();
+		public abstract List<T> ReadStrongRegionList<T>() where T : Region;
+
 		public abstract HashSet<Item> ReadItemSet();
 		public abstract HashSet<T> ReadItemSet<T>() where T : Item;
 
@@ -221,16 +225,31 @@ namespace Server
 		public abstract HashSet<BaseGuild> ReadGuildSet();
 		public abstract HashSet<T> ReadGuildSet<T>() where T : BaseGuild;
 
+		public abstract HashSet<Region> ReadRegionSet();
+		public abstract HashSet<T> ReadRegionSet<T>() where T : Region;
+
 		public abstract Race ReadRace();
 
 		public abstract bool End();
 	}
 
-	public sealed class BinaryFileReader : GenericReader
+	public sealed class BinaryFileReader : GenericReader, IDisposable
 	{
-		private readonly BinaryReader m_File;
+		private BinaryReader m_File;
 
-		public BinaryFileReader(BinaryReader br) { m_File = br; }
+		public BinaryFileReader(BinaryReader br)
+		{
+			m_File = br;
+		}
+
+		public void Dispose()
+		{
+			GC.SuppressFinalize(this);
+
+			Close();
+
+			m_File = null;
+		}
 
 		public void Close()
 		{
@@ -253,11 +272,19 @@ namespace Server
 			return peek;
 		}
 
-		public override Type ReadObjectType()
+		public override int ReadEncodedInt()
 		{
-			var hash = ReadEncodedInt();
+			int v = 0, shift = 0;
+			byte b;
 
-			return ScriptCompiler.FindTypeByFullNameHash(hash);
+			do
+			{
+				b = m_File.ReadByte();
+				v |= (b & 0x7F) << shift;
+				shift += 7;
+			} while (b >= 0x80);
+
+			return v;
 		}
 
 		public override string ReadString()
@@ -270,6 +297,13 @@ namespace Server
 			{
 				return null;
 			}
+		}
+
+		public override Type ReadObjectType()
+		{
+			var hash = ReadEncodedInt();
+
+			return ScriptCompiler.FindTypeByFullNameHash(hash);
 		}
 
 		public override DateTime ReadDeltaTime()
@@ -300,26 +334,6 @@ namespace Server
 			}
 		}
 
-		public override IPAddress ReadIPAddress()
-		{
-			return new IPAddress(m_File.ReadInt64());
-		}
-
-		public override int ReadEncodedInt()
-		{
-			int v = 0, shift = 0;
-			byte b;
-
-			do
-			{
-				b = m_File.ReadByte();
-				v |= (b & 0x7F) << shift;
-				shift += 7;
-			} while (b >= 0x80);
-
-			return v;
-		}
-
 		public override DateTime ReadDateTime()
 		{
 			return new DateTime(m_File.ReadInt64());
@@ -336,6 +350,24 @@ namespace Server
 		public override TimeSpan ReadTimeSpan()
 		{
 			return new TimeSpan(m_File.ReadInt64());
+		}
+
+		public override IPAddress ReadIPAddress()
+		{
+			return new IPAddress(m_File.ReadInt64());
+		}
+
+		public override Enum ReadEnum()
+		{
+			var type = ReadObjectType();
+			var value = ReadLong();
+
+			return (Enum)Enum.ToObject(type, Convert.ChangeType(value, type.GetEnumUnderlyingType()));
+		}
+
+		public override T ReadEnum<T>()
+		{
+			return (T)ReadEnum();
 		}
 
 		public override decimal ReadDecimal()
@@ -423,6 +455,33 @@ namespace Server
 			return new Rectangle3D(ReadPoint3D(), ReadPoint3D());
 		}
 
+		public override Poly2D ReadPoly2D()
+		{
+			var points = new Point2D[ReadInt()];
+
+			for (var i = 0; i < points.Length; i++)
+			{
+				points[i] = ReadPoint2D();
+			}
+
+			return new Poly2D(points);
+		}
+
+		public override Poly3D ReadPoly3D()
+		{
+			var minZ = ReadInt();
+			var maxZ = ReadInt();
+
+			var points = new Point2D[ReadInt()];
+
+			for (var i = 0; i < points.Length; i++)
+			{
+				points[i] = ReadPoint2D();
+			}
+
+			return new Poly3D(minZ, maxZ, points);
+		}
+
 		public override Map ReadMap()
 		{
 			return Map.Maps[ReadByte()];
@@ -448,6 +507,11 @@ namespace Server
 			return BaseGuild.Find(ReadInt());
 		}
 
+		public override Region ReadRegion()
+		{
+			return Region.Find(ReadInt());
+		}
+
 		public override T ReadItem<T>()
 		{
 			return ReadItem() as T;
@@ -463,82 +527,9 @@ namespace Server
 			return ReadGuild() as T;
 		}
 
-		public override ArrayList ReadItemList()
+		public override T ReadRegion<T>()
 		{
-			var count = ReadInt();
-
-			if (count > 0)
-			{
-				var list = new ArrayList(count);
-
-				for (var i = 0; i < count; ++i)
-				{
-					var item = ReadItem();
-
-					if (item != null)
-					{
-						list.Add(item);
-					}
-				}
-
-				return list;
-			}
-			else
-			{
-				return new ArrayList();
-			}
-		}
-
-		public override ArrayList ReadMobileList()
-		{
-			var count = ReadInt();
-
-			if (count > 0)
-			{
-				var list = new ArrayList(count);
-
-				for (var i = 0; i < count; ++i)
-				{
-					var m = ReadMobile();
-
-					if (m != null)
-					{
-						list.Add(m);
-					}
-				}
-
-				return list;
-			}
-			else
-			{
-				return new ArrayList();
-			}
-		}
-
-		public override ArrayList ReadGuildList()
-		{
-			var count = ReadInt();
-
-			if (count > 0)
-			{
-				var list = new ArrayList(count);
-
-				for (var i = 0; i < count; ++i)
-				{
-					var g = ReadGuild();
-
-					if (g != null)
-					{
-						list.Add(g);
-					}
-				}
-
-				return list;
-			}
-			else
-			{
-				return new ArrayList();
-			}
+			return ReadRegion() as T;
 		}
 
 		public override List<Item> ReadStrongItemList()
@@ -727,6 +718,68 @@ namespace Server
 			}
 		}
 
+		public override List<Region> ReadStrongRegionList()
+		{
+			return ReadStrongRegionList<Region>();
+		}
+
+		public override List<T> ReadStrongRegionList<T>()
+		{
+			var count = ReadInt();
+
+			if (count > 0)
+			{
+				var list = new List<T>(count);
+
+				for (var i = 0; i < count; ++i)
+				{
+					var r = ReadRegion() as T;
+
+					if (r != null)
+					{
+						list.Add(r);
+					}
+				}
+
+				return list;
+			}
+			else
+			{
+				return new List<T>();
+			}
+		}
+
+		public override HashSet<Region> ReadRegionSet()
+		{
+			return ReadRegionSet<Region>();
+		}
+
+		public override HashSet<T> ReadRegionSet<T>()
+		{
+			var count = ReadInt();
+
+			if (count > 0)
+			{
+				var set = new HashSet<T>();
+
+				for (var i = 0; i < count; ++i)
+				{
+					var r = ReadRegion() as T;
+
+					if (r != null)
+					{
+						set.Add(r);
+					}
+				}
+
+				return set;
+			}
+			else
+			{
+				return new HashSet<T>();
+			}
+		}
+
 		public override Race ReadRace()
 		{
 			return Race.Races[ReadByte()];
@@ -746,13 +799,20 @@ namespace Server
 
 		public abstract long Position { get; }
 
+		public abstract void Write(string value);
+
+		public abstract void WriteEncodedInt(int value);
+
 		public abstract void WriteObjectType(object value);
 		public abstract void WriteObjectType(Type value);
 
-		public abstract void Write(string value);
+		public abstract void WriteDeltaTime(DateTime value);
 		public abstract void Write(DateTime value);
 		public abstract void Write(DateTimeOffset value);
 		public abstract void Write(TimeSpan value);
+		public abstract void Write(IPAddress value);
+		public abstract void Write(Enum value);
+
 		public abstract void Write(decimal value);
 		public abstract void Write(long value);
 		public abstract void Write(ulong value);
@@ -766,15 +826,13 @@ namespace Server
 		public abstract void Write(byte value);
 		public abstract void Write(sbyte value);
 		public abstract void Write(bool value);
-		public abstract void WriteEncodedInt(int value);
-		public abstract void Write(IPAddress value);
-
-		public abstract void WriteDeltaTime(DateTime value);
 
 		public abstract void Write(Point3D value);
 		public abstract void Write(Point2D value);
 		public abstract void Write(Rectangle2D value);
 		public abstract void Write(Rectangle3D value);
+		public abstract void Write(Poly2D value);
+		public abstract void Write(Poly3D value);
 		public abstract void Write(Map value);
 
 		public abstract void Write(Serial value);
@@ -782,21 +840,9 @@ namespace Server
 		public abstract void Write(Item value);
 		public abstract void Write(Mobile value);
 		public abstract void Write(BaseGuild value);
-
-		public abstract void WriteItem<T>(T value) where T : Item;
-		public abstract void WriteMobile<T>(T value) where T : Mobile;
-		public abstract void WriteGuild<T>(T value) where T : BaseGuild;
+		public abstract void Write(Region value);
 
 		public abstract void Write(Race value);
-
-		public abstract void WriteItemList(ArrayList list);
-		public abstract void WriteItemList(ArrayList list, bool tidy);
-
-		public abstract void WriteMobileList(ArrayList list);
-		public abstract void WriteMobileList(ArrayList list, bool tidy);
-
-		public abstract void WriteGuildList(ArrayList list);
-		public abstract void WriteGuildList(ArrayList list, bool tidy);
 
 		public abstract void Write(List<Item> list);
 		public abstract void Write(List<Item> list, bool tidy);
@@ -833,35 +879,65 @@ namespace Server
 
 		public abstract void WriteGuildSet<T>(HashSet<T> set) where T : BaseGuild;
 		public abstract void WriteGuildSet<T>(HashSet<T> set, bool tidy) where T : BaseGuild;
+
+		public abstract void Write(List<Region> list);
+		public abstract void Write(List<Region> list, bool tidy);
+
+		public abstract void WriteRegionList<T>(List<T> list) where T : Region;
+		public abstract void WriteRegionList<T>(List<T> list, bool tidy) where T : Region;
+
+		public abstract void Write(HashSet<Region> list);
+		public abstract void Write(HashSet<Region> list, bool tidy);
+
+		public abstract void WriteRegionSet<T>(HashSet<T> set) where T : Region;
+		public abstract void WriteRegionSet<T>(HashSet<T> set, bool tidy) where T : Region;
 	}
 
-	public class BinaryFileWriter : GenericWriter
+	public class BinaryFileWriter : GenericWriter, IDisposable
 	{
-		private readonly bool PrefixStrings;
-		private readonly Stream m_File;
+		private readonly bool m_PrefixStrings;
+
+		private Stream m_File;
 
 		protected virtual int BufferSize => 64 * 1024;
 
-		private readonly byte[] m_Buffer;
+		private byte[] m_Buffer;
 
 		private int m_Index;
 
-		private readonly Encoding m_Encoding;
+		private Encoding m_Encoding;
 
 		public BinaryFileWriter(Stream strm, bool prefixStr)
 		{
-			PrefixStrings = prefixStr;
 			m_Encoding = Utility.UTF8;
+
 			m_Buffer = new byte[BufferSize];
+
 			m_File = strm;
+
+			m_PrefixStrings = prefixStr;
 		}
 
 		public BinaryFileWriter(string filename, bool prefixStr)
 		{
-			PrefixStrings = prefixStr;
 			m_Buffer = new byte[BufferSize];
+
 			m_File = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None);
+
 			m_Encoding = Utility.UTF8WithEncoding;
+
+			m_PrefixStrings = prefixStr;
+		}
+
+		public virtual void Dispose()
+		{
+			GC.SuppressFinalize(this);
+
+			Close();
+
+			m_File = null;
+			m_Buffer = null;
+			m_Encoding = null;
 		}
 
 		public void Flush()
@@ -979,7 +1055,7 @@ namespace Server
 
 		public override void Write(string value)
 		{
-			if (PrefixStrings)
+			if (m_PrefixStrings)
 			{
 				if (value == null)
 				{
@@ -1020,6 +1096,25 @@ namespace Server
 			WriteEncodedInt(hash);
 		}
 
+		public override void WriteDeltaTime(DateTime value)
+		{
+			var ticks = value.Ticks;
+			var now = (value.Kind == DateTimeKind.Local ? DateTime.Now : DateTime.UtcNow).Ticks;
+
+			TimeSpan d;
+
+			try
+			{
+				d = new TimeSpan(ticks - now);
+			}
+			catch
+			{
+				d = TimeSpan.MinValue;
+			}
+
+			Write(d);
+		}
+
 		public override void Write(DateTime value)
 		{
 			Write(value.Ticks);
@@ -1031,27 +1126,9 @@ namespace Server
 			Write(value.Offset.Ticks);
 		}
 
-		public override void WriteDeltaTime(DateTime value)
+		public override void Write(TimeSpan value)
 		{
-			var ticks = value.Ticks;
-			var now = DateTime.UtcNow.Ticks;
-
-			TimeSpan d;
-
-			try { d = new TimeSpan(ticks - now); }
-			catch
-			{
-				if (ticks < now)
-				{
-					d = TimeSpan.MaxValue;
-				}
-				else
-				{
-					d = TimeSpan.MaxValue;
-				}
-			}
-
-			Write(d);
+			Write(value.Ticks);
 		}
 
 		public override void Write(IPAddress value)
@@ -1059,9 +1136,10 @@ namespace Server
 			Write(Utility.GetLongAddressValue(value));
 		}
 
-		public override void Write(TimeSpan value)
+		public override void Write(Enum value)
 		{
-			Write(value.Ticks);
+			WriteObjectType(value);
+			Write((long)Convert.ChangeType(value, typeof(long)));
 		}
 
 		public override void Write(decimal value)
@@ -1274,6 +1352,29 @@ namespace Server
 			Write(value.End);
 		}
 
+		public override void Write(Poly2D value)
+		{
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public override void Write(Poly3D value)
+		{
+			Write(value.MinZ);
+			Write(value.MaxZ);
+
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
 		public override void Write(Map value)
 		{
 			if (value != null)
@@ -1339,108 +1440,15 @@ namespace Server
 			}
 		}
 
-		public override void WriteItem<T>(T value)
+		public override void Write(Region value)
 		{
-			Write(value);
-		}
-
-		public override void WriteMobile<T>(T value)
-		{
-			Write(value);
-		}
-
-		public override void WriteGuild<T>(T value)
-		{
-			Write(value);
-		}
-
-		public override void WriteMobileList(ArrayList list)
-		{
-			WriteMobileList(list, false);
-		}
-
-		public override void WriteMobileList(ArrayList list, bool tidy)
-		{
-			if (tidy)
+			if (value == null)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((Mobile)list[i]).Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				Write(0);
 			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
+			else
 			{
-				Write((Mobile)list[i]);
-			}
-		}
-
-		public override void WriteItemList(ArrayList list)
-		{
-			WriteItemList(list, false);
-		}
-
-		public override void WriteItemList(ArrayList list, bool tidy)
-		{
-			if (tidy)
-			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((Item)list[i]).Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
-			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write((Item)list[i]);
-			}
-		}
-
-		public override void WriteGuildList(ArrayList list)
-		{
-			WriteGuildList(list, false);
-		}
-
-		public override void WriteGuildList(ArrayList list, bool tidy)
-		{
-			if (tidy)
-			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((BaseGuild)list[i]).Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
-			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write((BaseGuild)list[i]);
+				Write(value.Id);
 			}
 		}
 
@@ -1453,25 +1461,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(item => item.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteItemList<T>(List<T> list)
@@ -1483,25 +1476,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(item => item.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<Item> set)
@@ -1516,12 +1494,7 @@ namespace Server
 				set.RemoveWhere(item => item.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (var item in set)
-			{
-				Write(item);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteItemSet<T>(HashSet<T> set)
@@ -1536,12 +1509,7 @@ namespace Server
 				set.RemoveWhere(item => item.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (Item item in set)
-			{
-				Write(item);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void Write(List<Mobile> list)
@@ -1553,25 +1521,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(mob => mob.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteMobileList<T>(List<T> list)
@@ -1583,25 +1536,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(mob => mob.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<Mobile> set)
@@ -1616,12 +1554,7 @@ namespace Server
 				set.RemoveWhere(mobile => mobile.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (var mob in set)
-			{
-				Write(mob);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteMobileSet<T>(HashSet<T> set)
@@ -1636,12 +1569,7 @@ namespace Server
 				set.RemoveWhere(mob => mob.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (Mobile mob in set)
-			{
-				Write(mob);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void Write(List<BaseGuild> list)
@@ -1653,25 +1581,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(guild => guild.Disbanded);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteGuildList<T>(List<T> list)
@@ -1683,25 +1596,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(guild => guild.Disbanded);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<BaseGuild> set)
@@ -1716,12 +1614,7 @@ namespace Server
 				set.RemoveWhere(guild => guild.Disbanded);
 			}
 
-			Write(set.Count);
-
-			foreach (var guild in set)
-			{
-				Write(guild);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteGuildSet<T>(HashSet<T> set)
@@ -1736,11 +1629,86 @@ namespace Server
 				set.RemoveWhere(guild => guild.Disbanded);
 			}
 
-			Write(set.Count);
+			WriteCollection(set, Write);
+		}
 
-			foreach (BaseGuild guild in set)
+		public override void Write(List<Region> list)
+		{
+			Write(list, false);
+		}
+
+		public override void Write(List<Region> list, bool tidy)
+		{
+			if (tidy)
 			{
-				Write(guild);
+				list.RemoveAll(reg => !reg.Registered);
+			}
+
+			WriteCollection(list, Write);
+		}
+
+		public override void WriteRegionList<T>(List<T> list)
+		{
+			WriteRegionList(list, false);
+		}
+
+		public override void WriteRegionList<T>(List<T> list, bool tidy)
+		{
+			if (tidy)
+			{
+				list.RemoveAll(reg => !reg.Registered);
+			}
+
+			WriteCollection(list, Write);
+		}
+
+		public override void Write(HashSet<Region> set)
+		{
+			Write(set, false);
+		}
+
+		public override void Write(HashSet<Region> set, bool tidy)
+		{
+			if (tidy)
+			{
+				set.RemoveWhere(reg => !reg.Registered);
+			}
+
+			WriteCollection(set, Write);
+		}
+
+		public override void WriteRegionSet<T>(HashSet<T> set)
+		{
+			WriteRegionSet(set, false);
+		}
+
+		public override void WriteRegionSet<T>(HashSet<T> set, bool tidy)
+		{
+			if (tidy)
+			{
+				set.RemoveWhere(reg => !reg.Registered);
+			}
+
+			WriteCollection(set, Write);
+		}
+
+		private void WriteCollection<T>(ICollection col, Action<T> write)
+		{
+			Write(col.Count);
+
+			foreach (T o in col)
+			{
+				write(o);
+			}
+		}
+
+		private void WriteCollection<T>(ICollection<T> col, Action<T> write)
+		{
+			Write(col.Count);
+
+			foreach (var o in col)
+			{
+				write(o);
 			}
 		}
 	}
@@ -1763,6 +1731,26 @@ namespace Server
 		private readonly Queue<MemoryStream> m_WriteQueue;
 		private Thread m_WorkerThread;
 
+		public MemoryStream MemStream
+		{
+			get => m_Mem;
+			set
+			{
+				if (m_Mem.Length > 0)
+				{
+					Enqueue(m_Mem);
+				}
+
+				m_Mem = value;
+				m_Bin = new BinaryWriter(m_Mem, Utility.UTF8WithEncoding);
+				m_LastPos = 0;
+				m_CurPos = m_Mem.Length;
+				m_Mem.Seek(0, SeekOrigin.End);
+			}
+		}
+
+		public override long Position => m_CurPos;
+
 		public AsyncWriter(string filename, bool prefix)
 			: this(filename, 1048576, prefix)//1 mb buffer
 		{
@@ -1772,7 +1760,7 @@ namespace Server
 		{
 			PrefixStrings = prefix;
 			m_Closed = false;
-			m_WriteQueue = new Queue<MemoryStream>();
+			m_WriteQueue = new();
 			BufferSize = buffSize;
 
 			m_File = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -1793,62 +1781,18 @@ namespace Server
 				{
 					Priority = ThreadPriority.BelowNormal
 				};
+
 				m_WorkerThread.Start();
-			}
-		}
-
-		private class WorkerThread
-		{
-			private readonly AsyncWriter m_Owner;
-
-			public WorkerThread(AsyncWriter owner)
-			{
-				m_Owner = owner;
-			}
-
-			public void Worker()
-			{
-				AsyncWriter.m_ThreadCount++;
-
-				var lastCount = 0;
-
-				do
-				{
-					MemoryStream mem = null;
-
-					lock (m_Owner.m_WriteQueue)
-					{
-						if ((lastCount = m_Owner.m_WriteQueue.Count) > 0)
-						{
-							mem = m_Owner.m_WriteQueue.Dequeue();
-						}
-					}
-
-					if (mem != null && mem.Length > 0)
-					{
-						mem.WriteTo(m_Owner.m_File);
-					}
-				} while (lastCount > 1);
-
-				if (m_Owner.m_Closed)
-				{
-					m_Owner.m_File.Close();
-				}
-
-				AsyncWriter.m_ThreadCount--;
-
-				if (AsyncWriter.m_ThreadCount <= 0)
-				{
-					World.NotifyDiskWriteComplete();
-				}
 			}
 		}
 
 		private void OnWrite()
 		{
 			var curlen = m_Mem.Length;
+
 			m_CurPos += curlen - m_LastPos;
 			m_LastPos = curlen;
+
 			if (curlen >= BufferSize)
 			{
 				Enqueue(m_Mem);
@@ -1858,35 +1802,24 @@ namespace Server
 			}
 		}
 
-		public MemoryStream MemStream
-		{
-			get => m_Mem;
-			set
-			{
-				if (m_Mem.Length > 0)
-				{
-					Enqueue(m_Mem);
-				}
-
-				m_Mem = value;
-				m_Bin = new BinaryWriter(m_Mem, Utility.UTF8WithEncoding);
-				m_LastPos = 0;
-				m_CurPos = m_Mem.Length;
-				m_Mem.Seek(0, SeekOrigin.End);
-			}
-		}
-
 		public override void Close()
 		{
 			Enqueue(m_Mem);
+
 			m_Closed = true;
 		}
 
-		public override long Position => m_CurPos;
-
-		public override void Write(IPAddress value)
+		public override void WriteEncodedInt(int value)
 		{
-			m_Bin.Write(Utility.GetLongAddressValue(value));
+			var v = (uint)value;
+
+			while (v >= 0x80)
+			{
+				m_Bin.Write((byte)(v | 0x80));
+				v >>= 7;
+			}
+
+			m_Bin.Write((byte)v);
 			OnWrite();
 		}
 
@@ -1908,6 +1841,7 @@ namespace Server
 			{
 				m_Bin.Write(value);
 			}
+
 			OnWrite();
 		}
 
@@ -1925,22 +1859,18 @@ namespace Server
 
 		public override void WriteDeltaTime(DateTime value)
 		{
-			var ticks = value.Ticks;
-			var now = DateTime.UtcNow.Ticks;
+			var ticks =  value.Ticks;
+			var now = (value.Kind == DateTimeKind.Local ? DateTime.Now : DateTime.UtcNow).Ticks;
 
 			TimeSpan d;
 
-			try { d = new TimeSpan(ticks - now); }
+			try
+			{
+				d = new TimeSpan(ticks - now);
+			}
 			catch
 			{
-				if (ticks < now)
-				{
-					d = TimeSpan.MaxValue;
-				}
-				else
-				{
-					d = TimeSpan.MaxValue;
-				}
+				d = TimeSpan.MinValue;
 			}
 
 			Write(d);
@@ -1965,6 +1895,18 @@ namespace Server
 			OnWrite();
 		}
 
+		public override void Write(IPAddress value)
+		{
+			m_Bin.Write(Utility.GetLongAddressValue(value));
+			OnWrite();
+		}
+
+		public override void Write(Enum value)
+		{
+			WriteObjectType(value);
+			Write((long)Convert.ChangeType(value, typeof(long)));
+		}
+
 		public override void Write(decimal value)
 		{
 			m_Bin.Write(value);
@@ -1980,20 +1922,6 @@ namespace Server
 		public override void Write(ulong value)
 		{
 			m_Bin.Write(value);
-			OnWrite();
-		}
-
-		public override void WriteEncodedInt(int value)
-		{
-			var v = (uint)value;
-
-			while (v >= 0x80)
-			{
-				m_Bin.Write((byte)(v | 0x80));
-				v >>= 7;
-			}
-
-			m_Bin.Write((byte)v);
 			OnWrite();
 		}
 
@@ -2082,6 +2010,29 @@ namespace Server
 			Write(value.End);
 		}
 
+		public override void Write(Poly2D value)
+		{
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public override void Write(Poly3D value)
+		{
+			Write(value.MinZ);
+			Write(value.MaxZ);
+
+			Write(value.Count);
+
+			for (var i = 0; i < value.Count; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
 		public override void Write(Map value)
 		{
 			if (value != null)
@@ -2147,108 +2098,15 @@ namespace Server
 			}
 		}
 
-		public override void WriteItem<T>(T value)
+		public override void Write(Region value)
 		{
-			Write(value);
-		}
-
-		public override void WriteMobile<T>(T value)
-		{
-			Write(value);
-		}
-
-		public override void WriteGuild<T>(T value)
-		{
-			Write(value);
-		}
-
-		public override void WriteMobileList(ArrayList list)
-		{
-			WriteMobileList(list, false);
-		}
-
-		public override void WriteMobileList(ArrayList list, bool tidy)
-		{
-			if (tidy)
+			if (value == null)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((Mobile)list[i]).Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				Write(0);
 			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
+			else
 			{
-				Write((Mobile)list[i]);
-			}
-		}
-
-		public override void WriteItemList(ArrayList list)
-		{
-			WriteItemList(list, false);
-		}
-
-		public override void WriteItemList(ArrayList list, bool tidy)
-		{
-			if (tidy)
-			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((Item)list[i]).Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
-			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write((Item)list[i]);
-			}
-		}
-
-		public override void WriteGuildList(ArrayList list)
-		{
-			WriteGuildList(list, false);
-		}
-
-		public override void WriteGuildList(ArrayList list, bool tidy)
-		{
-			if (tidy)
-			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (((BaseGuild)list[i]).Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
-			}
-
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write((BaseGuild)list[i]);
+				Write(value.Id);
 			}
 		}
 
@@ -2261,54 +2119,25 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(item => item.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteItemList<T>(List<T> list)
 		{
 			WriteItemList<T>(list, false);
 		}
+
 		public override void WriteItemList<T>(List<T> list, bool tidy)
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(item => item.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<Item> set)
@@ -2323,12 +2152,7 @@ namespace Server
 				set.RemoveWhere(item => item.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (var item in set)
-			{
-				Write(item);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteItemSet<T>(HashSet<T> set)
@@ -2343,12 +2167,7 @@ namespace Server
 				set.RemoveWhere(item => item.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (Item item in set)
-			{
-				Write(item);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void Write(List<Mobile> list)
@@ -2360,25 +2179,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(mob => mob.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteMobileList<T>(List<T> list)
@@ -2390,25 +2194,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Deleted)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(mob => mob.Deleted);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<Mobile> set)
@@ -2423,12 +2212,7 @@ namespace Server
 				set.RemoveWhere(mobile => mobile.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (var mob in set)
-			{
-				Write(mob);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteMobileSet<T>(HashSet<T> set)
@@ -2443,12 +2227,7 @@ namespace Server
 				set.RemoveWhere(mob => mob.Deleted);
 			}
 
-			Write(set.Count);
-
-			foreach (Mobile mob in set)
-			{
-				Write(mob);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void Write(List<BaseGuild> list)
@@ -2460,25 +2239,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(guild => guild.Disbanded);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void WriteGuildList<T>(List<T> list)
@@ -2490,25 +2254,10 @@ namespace Server
 		{
 			if (tidy)
 			{
-				for (var i = 0; i < list.Count;)
-				{
-					if (list[i].Disbanded)
-					{
-						list.RemoveAt(i);
-					}
-					else
-					{
-						++i;
-					}
-				}
+				list.RemoveAll(guild => guild.Disbanded);
 			}
 
-			Write(list.Count);
-
-			for (var i = 0; i < list.Count; ++i)
-			{
-				Write(list[i]);
-			}
+			WriteCollection(list, Write);
 		}
 
 		public override void Write(HashSet<BaseGuild> set)
@@ -2523,12 +2272,7 @@ namespace Server
 				set.RemoveWhere(guild => guild.Disbanded);
 			}
 
-			Write(set.Count);
-
-			foreach (var guild in set)
-			{
-				Write(guild);
-			}
+			WriteCollection(set, Write);
 		}
 
 		public override void WriteGuildSet<T>(HashSet<T> set)
@@ -2543,11 +2287,133 @@ namespace Server
 				set.RemoveWhere(guild => guild.Disbanded);
 			}
 
-			Write(set.Count);
+			WriteCollection(set, Write);
+		}
 
-			foreach (BaseGuild guild in set)
+		public override void Write(List<Region> list)
+		{
+			Write(list, false);
+		}
+
+		public override void Write(List<Region> list, bool tidy)
+		{
+			if (tidy)
 			{
-				Write(guild);
+				list.RemoveAll(reg => !reg.Registered);
+			}
+
+			WriteCollection(list, Write);
+		}
+
+		public override void WriteRegionList<T>(List<T> list)
+		{
+			WriteRegionList(list, false);
+		}
+
+		public override void WriteRegionList<T>(List<T> list, bool tidy)
+		{
+			if (tidy)
+			{
+				list.RemoveAll(reg => !reg.Registered);
+			}
+
+			WriteCollection(list, Write);
+		}
+
+		public override void Write(HashSet<Region> set)
+		{
+			Write(set, false);
+		}
+
+		public override void Write(HashSet<Region> set, bool tidy)
+		{
+			if (tidy)
+			{
+				set.RemoveWhere(reg => !reg.Registered);
+			}
+
+			WriteCollection(set, Write);
+		}
+
+		public override void WriteRegionSet<T>(HashSet<T> set)
+		{
+			WriteRegionSet(set, false);
+		}
+
+		public override void WriteRegionSet<T>(HashSet<T> set, bool tidy)
+		{
+			if (tidy)
+			{
+				set.RemoveWhere(reg => !reg.Registered);
+			}
+
+			WriteCollection(set, Write);
+		}
+
+		private void WriteCollection<T>(ICollection col, Action<T> write)
+		{
+			Write(col.Count);
+
+			foreach (T o in col)
+			{
+				write(o);
+			}
+		}
+
+		private void WriteCollection<T>(ICollection<T> col, Action<T> write)
+		{
+			Write(col.Count);
+
+			foreach (var o in col)
+			{
+				write(o);
+			}
+		}
+
+		private class WorkerThread
+		{
+			private readonly AsyncWriter m_Owner;
+
+			public WorkerThread(AsyncWriter owner)
+			{
+				m_Owner = owner;
+			}
+
+			public void Worker()
+			{
+				m_ThreadCount++;
+
+				var lastCount = 0;
+
+				do
+				{
+					MemoryStream mem = null;
+
+					lock (m_Owner.m_WriteQueue)
+					{
+						if ((lastCount = m_Owner.m_WriteQueue.Count) > 0)
+						{
+							mem = m_Owner.m_WriteQueue.Dequeue();
+						}
+					}
+
+					if (mem != null && mem.Length > 0)
+					{
+						mem.WriteTo(m_Owner.m_File);
+					}
+				} while (lastCount > 1);
+
+				if (m_Owner.m_Closed)
+				{
+					m_Owner.m_File.Close();
+				}
+
+				m_ThreadCount--;
+
+				if (m_ThreadCount <= 0)
+				{
+					World.NotifyDiskWriteComplete();
+				}
 			}
 		}
 	}

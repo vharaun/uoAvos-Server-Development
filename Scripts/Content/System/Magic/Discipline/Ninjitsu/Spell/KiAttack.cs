@@ -24,7 +24,7 @@ namespace Server.Spells.Ninjitsu
 			}
 
 			var info = new KiAttackInfo(from);
-			info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerStateCallback(EndKiAttack), info);
+			info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2.0), EndKiAttack, info);
 
 			m_Table[from] = info;
 		}

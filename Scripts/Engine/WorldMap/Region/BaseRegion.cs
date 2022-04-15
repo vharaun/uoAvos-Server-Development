@@ -1,13 +1,488 @@
-﻿using Server.Gumps;
+﻿using Server.Commands;
+using Server.Gumps;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
+using System.Drawing;
+using System.Linq;
 
 namespace Server.Regions
 {
+	public class RegionEditorGump : BaseGump
+	{
+		private static Timer m_PreviewTimer;
+
+		public static void Initialize()
+		{
+			CommandSystem.Register("RegionEditor", AccessLevel.GameMaster, e =>
+			{
+				if (e.Mobile is PlayerMobile pm && !pm.HasGump(typeof(RegionEditorGump)))
+				{
+					BaseGump.SendGump(new RegionEditorGump(pm));
+				}
+			});
+
+			CommandSystem.Register("RegionPreview", AccessLevel.GameMaster, e=>
+			{
+				if (m_PreviewTimer?.Running == true)
+				{
+					m_PreviewTimer.Stop();
+					m_PreviewTimer = null;
+					return;
+				}
+
+				m_PreviewTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromSeconds(1), reg =>
+				{
+					foreach (var p in reg.Area)
+					{
+						for (var i = 0; i < p.Count; i++) 
+						{
+							Geometry.Line2D(new Point3D(p[i], 0), new Point3D(p[(i + 1) % p.Count], 0), reg.Map, (loc, map) =>
+							{
+								loc.Z = map.GetAverageZ(loc.X, loc.Y);
+
+								Effects.SendLocationEffect(loc, map, 0x50D, 10, 1, 0x22, 0);
+							});
+						}
+					}
+				}, e.Mobile.Region);
+			});
+		}
+
+		private static void Resize(ref int x, ref int y, ref int w, ref int h, int delta)
+		{
+			x += delta * -1;
+			y += delta * -1;
+			w += delta * +2;
+			h += delta * +2;
+		}
+
+		private Poly3D[] m_LastArea;
+
+		public Map Facet { get; private set; }
+		public Region Region { get; private set; }
+
+		private int m_Width = 800, m_Height = 600;
+
+		private int m_NavPage, m_FacetPage, m_RegionPage;
+
+		public RegionEditorGump(PlayerMobile user) : base(user)
+		{
+			Region = user.Region;
+			Facet = user.Map;
+		}
+
+		private void Slice()
+		{
+			if (Region?.IsDefault == true)
+			{
+				Region = null;
+			}
+
+			if (Region?.Map != null && Region.Map != Facet)
+			{
+				Facet = Region.Map;
+
+				m_FacetPage = 0;
+			}
+		}
+
+		public override void AddGumpLayout()
+		{
+			Slice();
+
+			var x = 0;
+			var y = 0;
+			var w = m_Width;
+			var h = m_Height;
+
+			var mx = x;
+			var my = y;
+			var mw = w / 4;
+			var mh = h;
+
+			AddMenuPanel(mx, my, mw, mh);
+
+			var tx = mx + mw;
+			var ty = y;
+			var tw = w - mw;
+			var th = 40;
+
+			AddTitlePanel(tx, ty, tw, th);
+
+			var cx = tx;
+			var cy = ty + th;
+			var cw = tw;
+			var ch = h - th;
+
+			AddContentPanel(cx, cy, cw, ch);
+		}
+
+		private void AddMenuPanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			var per = (h - 30) / 22;
+			var pages = (int)Math.Ceiling(Map.AllMaps.Count / (double)per);
+
+			m_NavPage = Math.Clamp(m_NavPage, 0, Math.Max(0, pages - 1));
+
+			foreach (var map in Map.AllMaps.Skip(m_NavPage * per).Take(per))
+			{
+				var color = Color.White;
+
+				if (map != Map.Internal)
+				{
+					color = map != Facet ? Color.White : Color.Yellow;
+					
+					AddButton(x, y, map != Facet ? 4005 : 4006, 4007, () => SelectFacet(map));
+				}
+				else
+				{
+					color = Color.Red;
+
+					AddImage(x, y, 4005, 900);
+				}
+
+				AddHtml(x + 35, y, w - 35, 40, map.Name ?? $"Facet {map.MapIndex}", false, false, color);
+
+				y += 22;
+				h -= 22;
+			}
+
+			y += h - 30;
+			h = 30;
+
+			y += 8;
+			h -= 8;
+
+			if (pages > 1)
+			{
+				AddButton(x, y, 4015, 4016, () =>
+				{
+					if (--m_NavPage < 0)
+					{
+						m_NavPage = pages - 1;
+					}
+
+					Refresh();
+				});
+				AddTooltip(1011067);
+
+				AddButton(x + (w - 30), y, 4006, 4007, () =>
+				{
+					if (++m_NavPage >= pages)
+					{
+						m_NavPage = 0;
+					}
+
+					Refresh();
+				});
+				AddTooltip(1011066);
+			}
+			else
+			{
+				AddImage(x, y, 4014, 900);
+				AddImage(x + (w - 30), y, 4005, 900);
+			}
+
+			AddHtml(x + 30, y, w - 60, 20, Center($"{m_NavPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+		}
+
+		private void AddTitlePanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			if (Facet != null)
+			{
+				if (Region != null)
+				{
+					AddHtml(x, y, w, h, $"{Facet?.Name ?? "Unnamed Facet"} : {Region}", false, false, Color.White);
+				}
+				else
+				{
+					AddHtml(x, y, w, h, $"{Facet?.Name ?? "Unnamed Facet"}", false, false, Color.White);
+				}
+			}
+		}
+
+		private void AddContentPanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			if (Region == null)
+			{
+				var per = (h - 30) / 22;
+				var pages = (int)Math.Ceiling(Facet.Regions.Count / (double)per);
+
+				m_FacetPage = Math.Clamp(m_FacetPage, 0, Math.Max(0, pages - 1));
+
+				foreach (var reg in Facet.Regions.Skip(m_FacetPage * per).Take(per))
+				{
+					AddButton(x, y, 208, 209, () => SelectRegion(reg));
+
+					var name = reg.ToString();
+
+					if (reg.ChildLevel > 0)
+					{
+						name = $"{new string('\u25B6', reg.ChildLevel)}{name}";
+					}
+
+					AddHtml(x + 25, y, w - 25, 40, name, false, false, Color.White);
+
+					y += 22;
+					h -= 22;
+				}
+
+				y += h - 30;
+				h = 30;
+
+				y += 8;
+				h -= 8;
+
+				if (pages > 1)
+				{
+					AddButton(x, y, 4015, 4016, () =>
+					{
+						if (--m_FacetPage < 0)
+						{
+							m_FacetPage = pages - 1;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011067);
+
+					AddButton(x + (w - 30), y, 4006, 4007, () =>
+					{
+						if (++m_FacetPage >= pages)
+						{
+							m_FacetPage = 0;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011066);
+				}
+				else
+				{
+					AddImage(x, y, 4014, 900);
+					AddImage(x + (w - 30), y, 4005, 900);
+				}
+
+				AddHtml(x + 30, y, w - 60, 20, Center($"{m_FacetPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+			}
+			else
+			{
+				var xo = x;
+				var yo = y;
+				var wo = w;
+
+				var per = (h - 30) / 22;
+				var pages = (int)Math.Ceiling(Region.Area.Length / (double)per);
+
+				m_RegionPage = Math.Clamp(m_RegionPage, 0, Math.Max(0, pages - 1));
+
+				foreach (var poly in Region.Area.Skip(m_RegionPage * per).Take(per))
+				{
+					AddButton(xo, yo, 4018, 4019, () => RemovePoly(poly));
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4012, 4013, () => EditPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4011, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4009, 4010, () => VisualPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4008, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4006, 4007, () => VisitPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4005, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddHtml(xo, yo + 2, wo, 20, $"{poly[0]}..[{poly.Count - 1}], {poly.MinZ}..{poly.MaxZ}", false, false, Color.White);
+					}
+					else
+					{
+						AddHtml(xo, yo + 2, wo, 20, $"Empty, {poly.MinZ}\u261E{poly.MaxZ}...[{poly.Depth}]", false, false, Color.Red);
+					}
+
+					xo = x;
+					yo += 22;
+					wo = w;
+				}
+
+				y += h - 30;
+				h = 30;
+
+				y += 8;
+				h -= 8;
+
+				if (pages > 1)
+				{
+					AddButton(x, y, 4015, 4016, () =>
+					{
+						if (--m_RegionPage < 0)
+						{
+							m_RegionPage = pages - 1;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011067);
+
+					AddButton(x + (w - 30), y, 4006, 4007, () =>
+					{
+						if (++m_RegionPage >= pages)
+						{
+							m_RegionPage = 0;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011066);
+				}
+				else
+				{
+					AddImage(x, y, 4014, 900);
+					AddImage(x + (w - 30), y, 4005, 900);
+				}
+
+				AddHtml(x + 30, y, w - 60, 20, Center($"{m_RegionPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+			}
+		}
+
+		private void SelectFacet(Map map)
+		{
+			if (Facet != map)
+			{
+				m_LastArea = null;
+
+				m_FacetPage = 0;
+				m_RegionPage = 0;
+			}
+
+			Facet = map;
+			Region = null;
+
+			Refresh();
+		}
+
+		private void SelectRegion(Region reg)
+		{
+			if (Region != reg)
+			{
+				m_LastArea = null;
+
+				m_RegionPage = 0;
+			}
+			
+			Region = reg;
+
+			Refresh();
+		}
+
+		private void RemovePoly(Poly3D poly)
+		{
+			var oldArea = m_LastArea = Region.Area;
+			var newArea = new Poly3D[oldArea.Length - 1];
+
+			for (int i = 0, n = 0; i < oldArea.Length; i++)
+			{
+				if (oldArea[i] != poly)
+				{
+					newArea[n++] = oldArea[i];
+				}
+			}
+
+			Region.Area = newArea;
+
+			Refresh();
+		}
+
+		private void EditPoly(Poly3D poly)
+		{
+			/*var oldArea = Region.Area;
+			var newArea = new Poly3D[oldArea.Length - 1];
+
+			for (int i = 0, n = 0; i < oldArea.Length; i++)
+			{
+				if (oldArea[i] != poly)
+				{
+					newArea[n++] = oldArea[i];
+				}
+			}
+
+			Region.Area = newArea;*/
+
+			Refresh();
+		}
+
+		private void VisualPoly(Poly3D poly)
+		{
+			Refresh();
+		}
+
+		private void VisitPoly(Poly3D poly)
+		{
+			if (poly.Count > 0)
+			{
+				var p = poly[0];
+				var z = Facet.GetAverageZ(p.X, p.Y);
+
+				User.MoveToWorld(new Point3D(p, z), Facet);
+			}
+
+			Refresh();
+		}
+
+		private void UndoAreaEdit()
+		{
+			Region.Area = m_LastArea;
+
+			m_LastArea = null;
+
+			Refresh();
+		}
+	}
+
 	public enum SpawnZLevel
 	{
 		Lowest,
@@ -17,85 +492,30 @@ namespace Server.Regions
 
 	public class BaseRegion : Region
 	{
-		public virtual bool YoungProtected => true;
-		public virtual bool YoungMayEnter => true;
-		public virtual bool MountsAllowed => true;
-		public virtual bool DeadMayEnter => true;
-		public virtual bool ResurrectionAllowed => true;
-		public virtual bool LogoutAllowed => true;
+		private static readonly List<Poly3D> m_RectBuffer1 = new();
+		private static readonly List<Poly3D> m_RectBuffer2 = new();
+
+		private static readonly List<int> m_SpawnBuffer1 = new();
+		private static readonly List<Item> m_SpawnBuffer2 = new();
 
 		public static void Configure()
 		{
-			Region.DefaultRegionType = typeof(BaseRegion);
-		}
-
-		private string m_RuneName;
-		private bool m_NoLogoutDelay;
-
-		private SpawnEntry[] m_Spawns;
-		private SpawnZLevel m_SpawnZLevel;
-		private bool m_ExcludeFromParentSpawns;
-
-		public string RuneName { get => m_RuneName; set => m_RuneName = value; }
-
-		public bool NoLogoutDelay { get => m_NoLogoutDelay; set => m_NoLogoutDelay = value; }
-
-		public SpawnEntry[] Spawns
-		{
-			get => m_Spawns;
-			set
-			{
-				if (m_Spawns != null)
-				{
-					for (var i = 0; i < m_Spawns.Length; i++)
-					{
-						m_Spawns[i].Delete();
-					}
-				}
-
-				m_Spawns = value;
-			}
-		}
-
-		public SpawnZLevel SpawnZLevel { get => m_SpawnZLevel; set => m_SpawnZLevel = value; }
-
-		public bool ExcludeFromParentSpawns { get => m_ExcludeFromParentSpawns; set => m_ExcludeFromParentSpawns = value; }
-
-		public override void OnUnregister()
-		{
-			base.OnUnregister();
-
-			Spawns = null;
+			DefaultRegionType = typeof(BaseRegion);
 		}
 
 		public static string GetRuneNameFor(Region region)
 		{
 			while (region != null)
 			{
-				var br = region as BaseRegion;
-
-				if (br != null && br.m_RuneName != null)
+				if (region is BaseRegion br && br.RuneName != null)
 				{
-					return br.m_RuneName;
+					return br.RuneName;
 				}
 
 				region = region.Parent;
 			}
 
 			return null;
-		}
-
-		public override TimeSpan GetLogoutDelay(Mobile m)
-		{
-			if (m_NoLogoutDelay)
-			{
-				if (m.Aggressors.Count == 0 && m.Aggressed.Count == 0 && !m.Criminal)
-				{
-					return TimeSpan.Zero;
-				}
-			}
-
-			return base.GetLogoutDelay(m);
 		}
 
 		public static bool CanSpawn(Region region, params Type[] types)
@@ -107,9 +527,7 @@ namespace Server.Regions
 					return false;
 				}
 
-				var br = region as BaseRegion;
-
-				if (br != null)
+				if (region is BaseRegion br)
 				{
 					if (br.Spawns != null)
 					{
@@ -136,20 +554,142 @@ namespace Server.Regions
 			return false;
 		}
 
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public string RuneName { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool HousingAllowed { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool YoungProtected { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool YoungMayEnter { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool MountsAllowed { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool DeadMayEnter { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool ResurrectionAllowed { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool LogoutAllowed { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool NoLogoutDelay { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool ExcludeFromParentSpawns { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public SpawnZLevel SpawnZLevel { get; set; }
+
+		private SpawnEntry[] m_Spawns;
+
+		public SpawnEntry[] Spawns
+		{
+			get => m_Spawns;
+			set
+			{
+				if (m_Spawns != null)
+				{
+					for (var i = 0; i < m_Spawns.Length; i++)
+					{
+						m_Spawns[i]?.Delete();
+					}
+				}
+
+				m_Spawns = value;
+			}
+		}
+
+		private Poly3D[] m_Areas;
+		private int[] m_RectangleWeights;
+		private int m_TotalWeight;
+
+		public BaseRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public BaseRegion(int id) : base(id)
+		{ 
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			HousingAllowed = true;
+			YoungProtected = true;
+			YoungMayEnter = true;
+			MountsAllowed = true;
+			DeadMayEnter = true;
+			ResurrectionAllowed = true;
+			LogoutAllowed = true;
+			NoLogoutDelay = false;
+			ExcludeFromParentSpawns = true;
+
+			SpawnZLevel = SpawnZLevel.Lowest;
+		}
+
+		public override TimeSpan GetLogoutDelay(Mobile m)
+		{
+			if (NoLogoutDelay && m.Aggressors.Count == 0 && m.Aggressed.Count == 0 && !m.Criminal)
+			{
+				return TimeSpan.Zero;
+			}
+
+			return base.GetLogoutDelay(m);
+		}
+
 		public override void OnEnter(Mobile m)
 		{
-			if (m is PlayerMobile && ((PlayerMobile)m).Young)
+			base.OnEnter(m);
+
+			if (m is PlayerMobile pm && pm.Young && !YoungProtected)
 			{
-				if (!YoungProtected)
-				{
-					m.SendGump(new YoungDungeonWarning());
-				}
+				pm.SendGump(new YoungDungeonWarning());
 			}
 		}
 
 		public override bool AcceptsSpawnsFrom(Region region)
 		{
-			if (region == this || !m_ExcludeFromParentSpawns)
+			if (region == this || !ExcludeFromParentSpawns)
 			{
 				return base.AcceptsSpawnsFrom(region);
 			}
@@ -157,16 +697,14 @@ namespace Server.Regions
 			return false;
 		}
 
-		private Rectangle3D[] m_Rectangles;
-		private int[] m_RectangleWeights;
-		private int m_TotalWeight;
-
-		private static readonly List<Rectangle3D> m_RectBuffer1 = new List<Rectangle3D>();
-		private static readonly List<Rectangle3D> m_RectBuffer2 = new List<Rectangle3D>();
-
-		private void InitRectangles()
+		public override bool AllowHousing(Mobile from, Point3D p)
 		{
-			if (m_Rectangles != null)
+			return HousingAllowed && base.AllowHousing(from, p);
+		}
+
+		private void InitArea()
+		{
+			if (m_Areas != null)
 			{
 				return;
 			}
@@ -184,15 +722,15 @@ namespace Server.Regions
 					{
 						var rect = m_RectBuffer2[k];
 
-						int l1 = rect.Start.X, r1 = rect.End.X, t1 = rect.Start.Y, b1 = rect.End.Y;
-						int l2 = comp.Start.X, r2 = comp.End.X, t2 = comp.Start.Y, b2 = comp.End.Y;
+						int l1 = rect.Bounds.Start.X, r1 = rect.Bounds.End.X, t1 = rect.Bounds.Start.Y, b1 = rect.Bounds.End.Y;
+						int l2 = comp.Bounds.Start.X, r2 = comp.Bounds.End.X, t2 = comp.Bounds.Start.Y, b2 = comp.Bounds.End.Y;
 
 						if (l1 < r2 && r1 > l2 && t1 < b2 && b1 > t2)
 						{
 							m_RectBuffer2.RemoveAt(k);
 
-							var sz = rect.Start.Z;
-							var ez = rect.End.X;
+							var sz = rect.MinZ;
+							var ez = rect.MaxZ;
 
 							if (l1 < l2)
 							{
@@ -221,22 +759,20 @@ namespace Server.Regions
 				m_RectBuffer2.Clear();
 			}
 
-			m_Rectangles = m_RectBuffer1.ToArray();
+			m_Areas = m_RectBuffer1.ToArray();
 			m_RectBuffer1.Clear();
 
-			m_RectangleWeights = new int[m_Rectangles.Length];
-			for (var i = 0; i < m_Rectangles.Length; i++)
+			m_RectangleWeights = new int[m_Areas.Length];
+
+			for (var i = 0; i < m_Areas.Length; i++)
 			{
-				var rect = m_Rectangles[i];
-				var weight = rect.Width * rect.Height;
+				var rect = m_Areas[i];
+				var weight = rect.Bounds.Width * rect.Bounds.Height;
 
 				m_RectangleWeights[i] = weight;
 				m_TotalWeight += weight;
 			}
 		}
-
-		private static readonly List<int> m_SpawnBuffer1 = new List<int>();
-		private static readonly List<Item> m_SpawnBuffer2 = new List<Item>();
 
 		public Point3D RandomSpawnLocation(int spawnHeight, bool land, bool water, Point3D home, int range)
 		{
@@ -247,14 +783,14 @@ namespace Server.Regions
 				return Point3D.Zero;
 			}
 
-			InitRectangles();
+			InitArea();
 
 			if (m_TotalWeight <= 0)
 			{
 				return Point3D.Zero;
 			}
 
-			for (var i = 0; i < 10; i++) // Try 10 times
+			for (var i = 0; i < 100; i++)
 			{
 				int x, y, minZ, maxZ;
 
@@ -264,21 +800,25 @@ namespace Server.Regions
 
 					x = Int32.MinValue; y = Int32.MinValue;
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < m_RectangleWeights.Length; j++)
 					{
 						var curWeight = m_RectangleWeights[j];
 
 						if (rand < curWeight)
 						{
-							var rect = m_Rectangles[j];
+							var poly = m_Areas[j];
+							var rect = poly.Bounds;
 
 							x = rect.Start.X + rand % rect.Width;
 							y = rect.Start.Y + rand / rect.Width;
 
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
-
-							break;
+							if (poly.Contains(x, y))
+							{
+								minZ = poly.MinZ;
+								maxZ = poly.MaxZ;
+								break;
+							}
 						}
 
 						rand -= curWeight;
@@ -290,14 +830,15 @@ namespace Server.Regions
 					y = Utility.RandomMinMax(home.Y - range, home.Y + range);
 
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < Area.Length; j++)
 					{
-						var rect = Area[j];
+						var poly = Area[j];
 
-						if (x >= rect.Start.X && x < rect.End.X && y >= rect.Start.Y && y < rect.End.Y)
+						if (poly.Contains(x, y))
 						{
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
+							minZ = poly.MinZ;
+							maxZ = poly.MaxZ;
 							break;
 						}
 					}
@@ -403,7 +944,7 @@ namespace Server.Regions
 				}
 
 				int z;
-				switch (m_SpawnZLevel)
+				switch (SpawnZLevel)
 				{
 					case SpawnZLevel.Lowest:
 						{
@@ -538,24 +1079,86 @@ namespace Server.Regions
 			}
 		}
 
-		public BaseRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		public override void Serialize(GenericWriter writer)
 		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.Write(RuneName);
+
+			writer.Write(HousingAllowed);
+			writer.Write(YoungProtected);
+			writer.Write(YoungMayEnter);
+			writer.Write(MountsAllowed);
+			writer.Write(DeadMayEnter);
+			writer.Write(ResurrectionAllowed);
+			writer.Write(LogoutAllowed);
+			writer.Write(NoLogoutDelay);
+			writer.Write(ExcludeFromParentSpawns);
+
+			writer.Write(SpawnZLevel);
+
+			if (m_Spawns != null)
+			{
+				writer.Write(m_Spawns.Length);
+
+				foreach (var se in m_Spawns)
+				{
+					writer.Write(se.ID);
+				}
+			}
+			else
+			{
+				writer.Write(0);
+			}
 		}
 
-		public BaseRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		public override void Deserialize(GenericReader reader)
 		{
-		}
+			base.Deserialize(reader);
 
-		public BaseRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
-		{
-		}
+			reader.ReadInt();
+			
+			RuneName = reader.ReadString();
 
-		public BaseRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
-		{
-		}
+			HousingAllowed = reader.ReadBool();
+			YoungProtected = reader.ReadBool();
+			YoungMayEnter = reader.ReadBool();
+			MountsAllowed = reader.ReadBool();
+			DeadMayEnter = reader.ReadBool();
+			ResurrectionAllowed = reader.ReadBool();
+			LogoutAllowed = reader.ReadBool();
+			NoLogoutDelay = reader.ReadBool();
+			ExcludeFromParentSpawns = reader.ReadBool();
 
-		public BaseRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
-		{
+			SpawnZLevel = reader.ReadEnum<SpawnZLevel>();
+
+			var count = reader.ReadInt();
+
+			if (count > 0)
+			{
+				var spawns = new List<SpawnEntry>(count);
+
+				while (--count >= 0)
+				{
+					var index = reader.ReadInt();
+
+					if (SpawnEntry.Table[index] is SpawnEntry e)
+					{
+						spawns.Add(e);
+					}
+				}
+
+				if (spawns.Count > 0)
+				{
+					m_Spawns = spawns.ToArray();
+
+					spawns.Clear();
+				}
+				
+				spawns.TrimExcess();
+			}
 		}
 	}
 }

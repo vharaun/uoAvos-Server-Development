@@ -89,7 +89,7 @@ namespace Server.Engines.Quests.Mobiles
 
 					m_ToDelete = true;
 
-					Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerCallback(Delete));
+					Timer.DelayCall(TimeSpan.FromSeconds(5.0), Delete);
 				}
 				else if (m_Necromancer.Map != Map || GetDistanceToSqrt(m_Necromancer) > RangePerception + 1)
 				{
@@ -231,7 +231,7 @@ namespace Server.Engines.Quests.Mobiles
 			Hue = 0x482;
 			Light = LightType.Circle300;
 
-			Timer.DelayCall(TimeSpan.FromSeconds(10.0), new TimerCallback(Delete));
+			Timer.DelayCall(TimeSpan.FromSeconds(10.0), Delete);
 		}
 
 		public SummonedPaladinMoongate(Serial serial) : base(serial)

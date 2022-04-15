@@ -117,7 +117,7 @@ namespace Server.Items
 
 			var t = (Timer)m_Table[from];
 
-			m_Table[from] = Timer.DelayCall(TimeSpan.FromMinutes(15), new TimerStateCallback(Expire_Callback), from);
+			m_Table[from] = Timer.DelayCall(TimeSpan.FromMinutes(15), Expire_Callback, from);
 
 			pm.AcceleratedSkill = Skill;
 

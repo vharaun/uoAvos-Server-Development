@@ -55,7 +55,7 @@ namespace Server.Spells.Bushido
 				var swingBonus = Math.Max(1, (int)((bushido * bushido) / 720.0));
 
 				info = new HonorableExecutionInfo(attacker, swingBonus);
-				info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(20.0), new TimerStateCallback(EndEffect), info);
+				info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(20.0), EndEffect, info);
 
 				m_Table[attacker] = info;
 			}
@@ -77,7 +77,7 @@ namespace Server.Spells.Bushido
 				}
 
 				info = new HonorableExecutionInfo(attacker, mods);
-				info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(7.0), new TimerStateCallback(EndEffect), info);
+				info.m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(7.0), EndEffect, info);
 
 				m_Table[attacker] = info;
 			}

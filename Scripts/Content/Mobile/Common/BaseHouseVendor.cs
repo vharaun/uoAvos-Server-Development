@@ -1787,12 +1787,12 @@ namespace Server.Gumps
 	public class ReclaimVendorGump : Gump
 	{
 		private readonly BaseHouse m_House;
-		private readonly ArrayList m_Vendors;
+		private readonly List<Mobile> m_Vendors;
 
 		public ReclaimVendorGump(BaseHouse house) : base(50, 50)
 		{
 			m_House = house;
-			m_Vendors = new ArrayList(house.InternalizedVendors);
+			m_Vendors = new(house.InternalizedVendors);
 
 			AddBackground(0, 0, 170, 50 + m_Vendors.Count * 20, 0x13BE);
 
@@ -1803,12 +1803,10 @@ namespace Server.Gumps
 
 			for (var i = 0; i < m_Vendors.Count; i++)
 			{
-				var m = (Mobile)m_Vendors[i];
-
 				var y = 40 + i * 20;
 
 				AddButton(10, y, 0xFA5, 0xFA7, i + 1, GumpButtonType.Reply, 0);
-				AddLabel(45, y, 0x481, m.Name);
+				AddLabel(45, y, 0x481, m_Vendors[i].Name);
 			}
 		}
 
@@ -1828,7 +1826,7 @@ namespace Server.Gumps
 				return;
 			}
 
-			var mob = (Mobile)m_Vendors[index];
+			var mob = m_Vendors[index];
 
 			if (!m_House.InternalizedVendors.Contains(mob))
 			{
@@ -1865,12 +1863,12 @@ namespace Server.Gumps
 	public class VendorInventoryGump : Gump
 	{
 		private readonly BaseHouse m_House;
-		private readonly ArrayList m_Inventories;
+		private readonly List<VendorInventory> m_Inventories;
 
 		public VendorInventoryGump(BaseHouse house, Mobile from) : base(50, 50)
 		{
 			m_House = house;
-			m_Inventories = new ArrayList(house.VendorInventories);
+			m_Inventories = new(house.VendorInventories);
 
 			AddBackground(0, 0, 420, 50 + 20 * m_Inventories.Count, 0x13BE);
 
@@ -1882,7 +1880,7 @@ namespace Server.Gumps
 
 			for (var i = 0; i < m_Inventories.Count; i++)
 			{
-				var inventory = (VendorInventory)m_Inventories[i];
+				var inventory = m_Inventories[i];
 
 				var y = 40 + 20 * i;
 
@@ -2445,11 +2443,11 @@ namespace Server.Mobiles
 				if (version < 1)
 				{
 					m_ShopName = "Shop Not Yet Named";
-					Timer.DelayCall(TimeSpan.Zero, new TimerStateCallback(UpgradeFromVersion0), newVendorSystemActivated);
+					Timer.DelayCall(UpgradeFromVersion0, newVendorSystemActivated);
 				}
 				else
 				{
-					Timer.DelayCall(TimeSpan.Zero, new TimerCallback(FixDresswear));
+					Timer.DelayCall(FixDresswear);
 				}
 
 				m_NextPayTime = DateTime.UtcNow + PayTimer.GetInterval();
@@ -2479,7 +2477,7 @@ namespace Server.Mobiles
 			}
 		}
 
-		private void UpgradeFromVersion0(object newVendorSystem)
+		private void UpgradeFromVersion0(bool newVendorSystem)
 		{
 			var toRemove = new List<Item>();
 
@@ -2502,7 +2500,7 @@ namespace Server.Mobiles
 
 			House = BaseHouse.FindHouseAt(this);
 
-			if ((bool)newVendorSystem)
+			if (newVendorSystem)
 			{
 				ActivateNewVendorSystem();
 			}
@@ -3051,7 +3049,7 @@ namespace Server.Mobiles
 				if (GetVendorItem(item) == null)
 				{
 					// We must wait until the item is added
-					Timer.DelayCall(TimeSpan.Zero, new TimerStateCallback(NonLocalDropCallback), new object[] { from, item });
+					Timer.DelayCall(TimeSpan.Zero, NonLocalDropCallback, new object[] { from, item });
 				}
 
 				return true;
@@ -3905,7 +3903,7 @@ namespace Server.Mobiles
 
 			m_Vendor = (PlayerVendor)reader.ReadMobile();
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(Delete));
+			Timer.DelayCall(TimeSpan.Zero, Delete);
 		}
 	}
 
@@ -4654,7 +4652,7 @@ namespace Server.Mobiles
 					}
 					else
 					{
-						m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), new TimerStateCallback(ShoutNews_Callback), new object[] { tce, 0 });
+						m_NewsTimer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(3.0), ShoutNews_Callback, new object[] { tce, 0 });
 
 						PublicOverheadMessage(MessageType.Regular, 0x3B2, 502978); // Some of the latest news!
 					}
@@ -4956,7 +4954,7 @@ namespace Server.Mobiles
 
 			if (version < 1)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(UpgradeFromVersion0));
+				Timer.DelayCall(TimeSpan.Zero, UpgradeFromVersion0);
 			}
 		}
 

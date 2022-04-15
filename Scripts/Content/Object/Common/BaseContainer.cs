@@ -962,7 +962,7 @@ namespace Server.Items
 					var delay = TimeSpan.FromSeconds(mins);
 
 					m_NextRespawnTime = DateTime.UtcNow + delay;
-					m_RespawnTimer = Timer.DelayCall(delay, new TimerCallback(Respawn));
+					m_RespawnTimer = Timer.DelayCall(delay, Respawn);
 				}
 			}
 			else if (m_RespawnTimer != null)
@@ -1115,7 +1115,7 @@ namespace Server.Items
 							m_NextRespawnTime = reader.ReadDeltaTime();
 
 							var delay = m_NextRespawnTime - DateTime.UtcNow;
-							m_RespawnTimer = Timer.DelayCall(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, new TimerCallback(Respawn));
+							m_RespawnTimer = Timer.DelayCall(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, Respawn);
 						}
 						else
 						{

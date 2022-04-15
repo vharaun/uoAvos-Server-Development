@@ -104,7 +104,7 @@ namespace Server.Engines.Quests.Mobiles
 		{
 			PublicOverheadMessage(Network.MessageType.Regular, 0x3B2, 500849); // *hic*
 
-			Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(60, 180)), new TimerCallback(Heave));
+			Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(60, 180)), Heave);
 		}
 
 		public override void Serialize(GenericWriter writer)

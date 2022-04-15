@@ -394,17 +394,17 @@ namespace Server.Items
 
 			if (m_SoundID > 0)
 			{
-				Timer.DelayCall<IEntity>(m_SoundDelay, new TimerStateCallback<IEntity>(PlaySound), trigger);
+				Timer.DelayCall<IEntity>(m_SoundDelay, PlaySound, trigger);
 			}
 
 			if (m_Trigger != null)
 			{
-				Timer.DelayCall<IEntity>(m_TriggerDelay, new TimerStateCallback<IEntity>(m_Trigger.DoEffect), trigger);
+				Timer.DelayCall<IEntity>(m_TriggerDelay, m_Trigger.DoEffect, trigger);
 			}
 
 			if (m_EffectType != ECEffectType.None)
 			{
-				Timer.DelayCall<IEntity>(m_EffectDelay, new TimerStateCallback<IEntity>(InternalDoEffect), trigger);
+				Timer.DelayCall<IEntity>(m_EffectDelay, InternalDoEffect, trigger);
 			}
 		}
 

@@ -88,7 +88,7 @@ namespace Server.Items
 			m_CreationTime = DateTime.UtcNow;
 			m_LifeSpan = lifeSpan;
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), new TimerCallback(CheckExpiry));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), CheckExpiry);
 		}
 
 		public TransientItem(Serial serial)
@@ -122,7 +122,7 @@ namespace Server.Items
 			m_LifeSpan = reader.ReadTimeSpan();
 			m_CreationTime = reader.ReadDateTime();
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), new TimerCallback(CheckExpiry));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), CheckExpiry);
 		}
 	}
 }

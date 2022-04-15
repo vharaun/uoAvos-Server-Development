@@ -94,7 +94,7 @@ namespace Server.Engines.Quests
 				return;
 			}
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.5), new TimerCallback(Slice));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.5), Slice);
 		}
 
 		public virtual void StopTimer()
@@ -433,6 +433,7 @@ namespace Server.Engines.Quests
 		public virtual void AddObjective(QuestObjective obj)
 		{
 			obj.System = this;
+
 			m_Objectives.Add(obj);
 
 			ShowQuestLogUpdated();
@@ -458,9 +459,7 @@ namespace Server.Engines.Quests
 
 		public static bool CanOfferQuest(Mobile check, Type questType)
 		{
-			bool inRestartPeriod;
-
-			return CanOfferQuest(check, questType, out inRestartPeriod);
+			return CanOfferQuest(check, questType, out _);
 		}
 
 		public static bool CanOfferQuest(Mobile check, Type questType, out bool inRestartPeriod)
@@ -556,13 +555,49 @@ namespace Server.Engines.Quests
 		}
 	}
 
-
 	/// Quest Region
 	public class QuestOfferRegion : BaseRegion
 	{
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type Quest { get; set; }
 
+		public QuestOfferRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestOfferRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
 		public QuestOfferRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public QuestOfferRegion(int id) : base(id)
 		{
 		}
 
@@ -575,13 +610,12 @@ namespace Server.Engines.Quests
 				return;
 			}
 
-			var player = m as PlayerMobile;
-
-			if (player != null && player.Quest == null && QuestSystem.CanOfferQuest(m, Quest))
+			if (m is PlayerMobile player && player.Quest == null && QuestSystem.CanOfferQuest(m, Quest))
 			{
 				try
 				{
-					var qs = (QuestSystem)Activator.CreateInstance(Quest, new object[] { player });
+					var qs = (QuestSystem)Activator.CreateInstance(Quest, player);
+
 					qs.SendOffer();
 				}
 				catch (Exception ex)
@@ -590,14 +624,71 @@ namespace Server.Engines.Quests
 				}
 			}
 		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.WriteObjectType(Quest);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			Quest = reader.ReadObjectType();
+		}
 	}
 
 	public class QuestCompleteObjectiveRegion : BaseRegion
 	{
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type Quest { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type Objective { get; set; }
 
+		public QuestCompleteObjectiveRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
 		public QuestCompleteObjectiveRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public QuestCompleteObjectiveRegion(int id) : base(id)
 		{
 		}
 
@@ -607,9 +698,7 @@ namespace Server.Engines.Quests
 
 			if (Quest != null && Objective != null)
 			{
-				var player = m as PlayerMobile;
-
-				if (player != null && player.Quest != null && player.Quest.GetType() == Quest)
+				if (m is PlayerMobile player && player.Quest != null && player.Quest.GetType() == Quest)
 				{
 					var obj = player.Quest.FindObjective(Objective);
 
@@ -620,19 +709,82 @@ namespace Server.Engines.Quests
 				}
 			}
 		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.WriteObjectType(Quest);
+			writer.WriteObjectType(Objective);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			Quest = reader.ReadObjectType();
+			Objective = reader.ReadObjectType();
+		}
 	}
 
 	public class QuestNoEntryRegion : BaseRegion
 	{
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type Quest { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type MinObjective { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type MaxObjective { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public int Message { get; set; }
+
+		public QuestNoEntryRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public QuestNoEntryRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
 
 		public QuestNoEntryRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
 		{
 		}
 
+		public QuestNoEntryRegion(int id) : base(id)
+		{
+		}
+
 		public override bool OnMoveInto(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation)
 		{
 			if (!base.OnMoveInto(m, d, newLocation, oldLocation))
@@ -645,46 +797,101 @@ namespace Server.Engines.Quests
 				return true;
 			}
 
-			if (m is BaseCreature)
+			if (m is BaseCreature bc && !bc.Controlled && !bc.Summoned)
 			{
-				var bc = m as BaseCreature;
+				return true;
+			}
 
-				if (!bc.Controlled && !bc.Summoned)
+			if (Quest == null)
+			{
+				return true;
+			}
+
+			if (m is PlayerMobile player && player.Quest != null && player.Quest.GetType() == Quest)
+			{
+				if ((MinObjective == null || player.Quest.FindObjective(MinObjective) != null) && (MaxObjective == null || player.Quest.FindObjective(MaxObjective) == null))
 				{
 					return true;
 				}
 			}
 
-			if (Quest == null)
+			if (Message != 0)
 			{
-				return true;
+				m.SendLocalizedMessage(Message);
 			}
 
-			var player = m as PlayerMobile;
+			return false;
+		}
 
-			if (player != null && player.Quest != null && player.Quest.GetType() == Quest
-				&& (MinObjective == null || player.Quest.FindObjective(MinObjective) != null)
-				&& (MaxObjective == null || player.Quest.FindObjective(MaxObjective) == null))
-			{
-				return true;
-			}
-			else
-			{
-				if (Message != 0)
-				{
-					m.SendLocalizedMessage(Message);
-				}
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
 
-				return false;
-			}
+			writer.Write(0);
+
+			writer.WriteObjectType(Quest);
+			writer.WriteObjectType(MinObjective);
+			writer.WriteObjectType(MaxObjective);
+
+			writer.Write(Message);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			Quest = reader.ReadObjectType();
+			MinObjective = reader.ReadObjectType();
+			MaxObjective = reader.ReadObjectType();
+
+			Message = reader.ReadInt();
 		}
 	}
 
 	public class CancelQuestRegion : BaseRegion
 	{
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Type Quest { get; set; }
 
+		public CancelQuestRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public CancelQuestRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
 		public CancelQuestRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public CancelQuestRegion(int id) : base(id)
 		{
 		}
 
@@ -705,9 +912,7 @@ namespace Server.Engines.Quests
 				return true;
 			}
 
-			var player = m as PlayerMobile;
-
-			if (player != null && player.Quest != null && player.Quest.GetType() == Quest)
+			if (m is PlayerMobile player && player.Quest != null && player.Quest.GetType() == Quest)
 			{
 				if (!player.HasGump(typeof(QuestCancelGump)))
 				{
@@ -719,8 +924,25 @@ namespace Server.Engines.Quests
 
 			return true;
 		}
-	}
 
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+
+			writer.WriteObjectType(Quest);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+
+			Quest = reader.ReadObjectType();
+		}
+	}
 
 	/// Quest Quester
 	public class TalkEntry : ContextMenuEntry

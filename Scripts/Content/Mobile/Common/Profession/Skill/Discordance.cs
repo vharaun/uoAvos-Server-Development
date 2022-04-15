@@ -270,7 +270,7 @@ namespace Server.SkillHandlers
 							}
 
 							var info = new DiscordanceInfo(from, targ, Math.Abs(effect), mods);
-							info.m_Timer = Timer.DelayCall<DiscordanceInfo>(TimeSpan.Zero, TimeSpan.FromSeconds(1.25), new TimerStateCallback<DiscordanceInfo>(ProcessDiscordance), info);
+							info.m_Timer = Timer.DelayCall<DiscordanceInfo>(TimeSpan.Zero, TimeSpan.FromSeconds(1.25), ProcessDiscordance, info);
 
 							m_Table[targ] = info;
 						}

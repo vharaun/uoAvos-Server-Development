@@ -115,7 +115,7 @@ namespace Server.Items
 
 			if (Guild.NewGuildSystem && m_BeforeChangeover)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(AddToHouse));
+				Timer.DelayCall(TimeSpan.Zero, AddToHouse);
 			}
 
 			if (!Guild.NewGuildSystem && m_Guild == null)

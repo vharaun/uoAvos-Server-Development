@@ -206,7 +206,7 @@ namespace Server
 			else
 			{
 				//for ( int i = 0; i < path.Directions.Length; ++i )
-				//	Timer.DelayCall( TimeSpan.FromSeconds( 0.1 + (i * 0.3) ), new TimerStateCallback( Pathfind ), new object[]{ from, path.Directions[i] } );
+				//	Timer.DelayCall( TimeSpan.FromSeconds( 0.1 + (i * 0.3) ),  Pathfind , new object[]{ from, path.Directions[i] } );
 				int x = from.X;
 				int y = from.Y;
 				int z = from.Z;

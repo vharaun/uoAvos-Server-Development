@@ -82,12 +82,12 @@ namespace Server.Mobiles
 
 				if (to != null && Utility.RandomBool())
 				{
-					Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(5, 8)), new TimerCallback(delegate () { to.Talk(); }));
+					Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(5, 8)), to.Talk);
 				}
 
 				m_CanTalk = false;
 
-				Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(20, 30)), new TimerCallback(delegate () { m_CanTalk = true; }));
+				Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(20, 30)), () => m_CanTalk = true);
 			}
 		}
 
