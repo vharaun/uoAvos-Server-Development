@@ -25,13 +25,14 @@ namespace Server.Engines.Weather
 
 			ClearPins();
 
-			for (var i = 0; i < list.Count; ++i)
+			foreach (var w in list)
 			{
-				var w = list[i];
-
-				for (var j = 0; j < w.Area.Length; ++j)
+				foreach (var a in w.Area)
 				{
-					AddWorldPin(w.Area[j].X + (w.Area[j].Width / 2), w.Area[j].Y + (w.Area[j].Height / 2));
+					foreach (var p in a.Points)
+					{
+						AddWorldPin(p.X, p.Y);
+					}
 				}
 			}
 

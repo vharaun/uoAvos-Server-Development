@@ -1381,6 +1381,8 @@ namespace Server.Engines.CannedEvil
 	{
 		public ChampionSpawn ChampionSpawn { get; private set; }
 
+		public override bool WeatherSupported => true;
+
 		public ChampionSpawnRegion(ChampionSpawn spawn) : base(null, spawn.Map, Find(spawn.Location, spawn.Map), spawn.SpawnArea)
 		{
 			ChampionSpawn = spawn;

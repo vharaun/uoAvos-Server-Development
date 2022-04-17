@@ -8,6 +8,8 @@
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Map EntranceMap { get; set; }
 
+		public override bool WeatherSupported => true;
+
 		public DungeonRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
 		}

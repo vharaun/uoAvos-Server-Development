@@ -362,12 +362,16 @@ namespace Server
 					m_Parent.OnChildRemoved(this);
 				}
 
+				var old = m_Parent;
+
 				m_Parent = value;
 
 				if (m_Parent?.Children.Add(this) == true)
 				{
 					m_Parent.OnChildAdded(this);
 				}
+
+				OnParentChanged(old);
 			}
 		}
 
@@ -682,6 +686,10 @@ namespace Server
 		}
 
 		protected virtual void OnAfterDelete()
+		{
+		}
+
+		protected virtual void OnParentChanged(Region oldParent)
 		{
 		}
 

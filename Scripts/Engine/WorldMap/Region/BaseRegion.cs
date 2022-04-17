@@ -1,4 +1,5 @@
 ﻿using Server.Commands;
+using Server.Engines.Weather;
 using Server.Gumps;
 using Server.Items;
 using Server.Misc;
@@ -610,6 +611,15 @@ namespace Server.Regions
 		private int[] m_RectangleWeights;
 		private int m_TotalWeight;
 
+		public virtual bool WeatherSupported => Weather != null;
+
+		public virtual int DefaultTemperature => 15;
+		public virtual int DefaultPercipitationChance => 50;
+		public virtual int DefaultExtremeTemperatureChance => 5;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public RegionalWeather Weather { get; set; }
+
 		public BaseRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
 		}
@@ -665,6 +675,39 @@ namespace Server.Regions
 			ExcludeFromParentSpawns = true;
 
 			SpawnZLevel = SpawnZLevel.Lowest;
+
+			if (Weather != null)
+			{
+				Weather.Temperature = DefaultTemperature;
+				Weather.ChanceOfPercipitation = DefaultPercipitationChance;
+				Weather.ChanceOfExtremeTemperature = DefaultExtremeTemperatureChance;
+			}
+			else 
+			{
+				WeatherInit();
+			}
+		}
+
+		protected virtual void WeatherInit()
+		{
+			if (WeatherSupported)
+			{
+				Weather ??= new RegionalWeather(this);
+			}
+		}
+
+		protected virtual void WeatherUpdate()
+		{
+			WeatherInit();
+
+			Weather?.Update();
+		}
+
+		public override void OnRegister()
+		{
+			base.OnRegister();
+
+			WeatherUpdate();
 		}
 
 		public override TimeSpan GetLogoutDelay(Mobile m)
@@ -1065,25 +1108,14 @@ namespace Server.Regions
 
 		public override string ToString()
 		{
-			if (Name != null)
-			{
-				return Name;
-			}
-			else if (RuneName != null)
-			{
-				return RuneName;
-			}
-			else
-			{
-				return GetType().Name;
-			}
+			return Name ?? RuneName ?? $"{GetType().Name} 0x{Id:X}";
 		}
 
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);
 
-			writer.Write(0);
+			writer.Write(1);
 
 			writer.Write(RuneName);
 
@@ -1112,13 +1144,24 @@ namespace Server.Regions
 			{
 				writer.Write(0);
 			}
+
+			if (Weather != null)
+			{
+				writer.Write(true);
+
+				Weather.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
+			}
 		}
 
 		public override void Deserialize(GenericReader reader)
 		{
 			base.Deserialize(reader);
 
-			reader.ReadInt();
+			var v = reader.ReadInt();
 			
 			RuneName = reader.ReadString();
 
@@ -1158,6 +1201,22 @@ namespace Server.Regions
 				}
 				
 				spawns.TrimExcess();
+			}
+
+			if (v > 0 && reader.ReadBool())
+			{
+				if (Weather != null)
+				{
+					Weather.Deserialize(reader);
+				}
+				else
+				{
+					Weather = new RegionalWeather(reader);
+				}
+			}
+			else
+			{
+				Timer.DelayCall(WeatherInit);
 			}
 		}
 	}

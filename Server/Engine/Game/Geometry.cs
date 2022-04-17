@@ -419,7 +419,7 @@ namespace Server
 		public enum ContainsImpl
 		{
 			Trace, // less accurate, faster
-			Wind, // more accurate, slower
+			Product, // more accurate, slower
 		}
 
 		public static ContainsImpl ContainmentImpl { get; set; } = ContainsImpl.Trace;
@@ -472,6 +472,10 @@ namespace Server
 
 		public Poly2D(Poly2D poly)
 			: this(poly.m_Points)
+		{ }
+
+		public Poly2D(IEnumerable<Point2D> points)
+			: this(points?.ToArray())
 		{ }
 
 		public Poly2D(params Point2D[] points)
@@ -543,12 +547,12 @@ namespace Server
 			return ContainmentImpl switch
 			{
 				ContainsImpl.Trace => TraceContains(x, y),
-				ContainsImpl.Wind => WindContains(x, y),
+				ContainsImpl.Product => ProductContains(x, y),
 				_ => false,
 			};
 		}
 
-		private bool TraceContains(int x, int y)
+		public bool TraceContains(int x, int y)
 		{
 			if (x < m_Bounds.Start.m_X || y < m_Bounds.Start.m_Y)
 			{
@@ -576,7 +580,7 @@ namespace Server
 			return test;
 		}
 
-		private bool WindContains(int x, int y)
+		public bool ProductContains(int x, int y)
 		{
 			static double product(int x1, int y1, int x2, int y2, int x3, int y3)
 			{
@@ -591,6 +595,62 @@ namespace Server
 			}
 
 			return Math.Abs(total) > 1;
+		}
+
+		public bool Intersects(Poly2D p)
+		{
+			return Intersects(p, out _);
+		}
+
+		public bool Intersects(Poly2D p, out Point2D loc)
+		{
+			static bool test(Point2D a1, Point2D b1, Point2D a2, Point2D b2, out Point2D result)
+			{
+				if ((a1.X == a2.X && a1.Y == a2.Y) || (a1.X == b2.X && a1.Y == b2.Y))
+				{
+					result = new Point2D(a1.X, a1.Y);
+					return true;
+				}
+
+				if ((b1.X == b2.X && b1.Y == b2.Y) || (b1.X == a2.X && b1.Y == a2.Y))
+				{
+					result = new Point2D(b1.X, b1.Y);
+					return true;
+				}
+
+				var da1 = b1.Y - a1.Y;
+				var da2 = a1.X - b1.X;
+				var da3 = da1 * a1.X + da2 * a1.Y;
+
+				var db1 = b2.Y - a2.Y;
+				var db2 = a2.X - b2.X;
+				var db3 = db1 * a2.X + db2 * a2.Y;
+
+				var delta = da1 * db2 - db1 * da2;
+
+				if (delta != 0)
+				{
+					result = new Point2D((db2 * da3 - da2 * db3) / delta, (da1 * db3 - db1 * da3) / delta);
+					return true;
+				}
+
+				result = Point2D.Zero;
+				return false;
+			};
+
+			for (int i = 0, j = m_Points.Length - 1; i < m_Points.Length; j = i++)
+			{
+				for (int k = 0, l = p.m_Points.Length - 1; k < p.m_Points.Length; l = k++)
+				{
+					if (test(m_Points[i], m_Points[j], p.m_Points[k], p.m_Points[l], out loc))
+					{
+						return true;
+					}
+				}
+			}
+
+			loc = Point2D.Zero;
+			return false;
 		}
 
 		public bool Equals(Poly2D p)
@@ -1186,6 +1246,10 @@ namespace Server
 			: this(poly.m_MinZ, poly.m_MaxZ, poly.m_Poly.m_Points)
 		{ }
 
+		public Poly3D(int minZ, int maxZ, IEnumerable<Point2D> points)
+			: this(minZ, maxZ, points?.ToArray())
+		{ }
+
 		public Poly3D(int minZ, int maxZ, params Point2D[] points)
 		{
 			m_MinZ = minZ;
@@ -1228,6 +1292,26 @@ namespace Server
 		public bool Contains(int x, int y, int z)
 		{
 			return z >= m_MinZ && z < m_MaxZ && m_Poly.Contains(x, y);
+		}
+		
+		public bool TraceContains(int x, int y)
+		{
+			return m_Poly.TraceContains(x, y);
+		}
+
+		public bool TraceContains(int x, int y, int z)
+		{
+			return z >= m_MinZ && z < m_MaxZ && m_Poly.TraceContains(x, y);
+		}
+
+		public bool ProductContains(int x, int y)
+		{
+			return m_Poly.ProductContains(x, y);
+		}
+
+		public bool ProductContains(int x, int y, int z)
+		{
+			return z >= m_MinZ && z < m_MaxZ && m_Poly.ProductContains(x, y);
 		}
 
 		public bool Equals(Poly3D p)
