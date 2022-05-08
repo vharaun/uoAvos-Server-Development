@@ -152,7 +152,7 @@ namespace Server.Commands
 		}
 	}
 
-	public class Skills
+	public static class Skills
 	{
 		public static void Initialize()
 		{

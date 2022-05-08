@@ -1325,9 +1325,9 @@ namespace Server.Network
 		}
 	}
 
-	public sealed class Weather : Packet
+	public sealed class WeatherUpdate : Packet
 	{
-		public Weather(int v1, int v2, int v3) : base(0x65, 4)
+		public WeatherUpdate(int v1, int v2, int v3) : base(0x65, 4)
 		{
 			m_Stream.Write((byte)v1);
 			m_Stream.Write((byte)v2);
@@ -4740,74 +4740,29 @@ namespace Server.Network
 		private const int BufferSize = 4096;
 		private static readonly BufferPool m_Buffers = new BufferPool("Compressed", 16, BufferSize);
 
-		public static Packet SetStatic(Packet p)
+		public static T SetStatic<T>(T p) where T : Packet
 		{
-			p.SetStatic();
+			p?.SetStatic();
+
 			return p;
 		}
 
-		public static Packet Acquire(Packet p)
+		public static T Acquire<T>(T p) where T : Packet
 		{
-			p.Acquire();
+			p?.Acquire();
+
 			return p;
 		}
 
-		public static void Release(ref ObjectPropertyList p)
+		public static void Release<T>(ref T p) where T : Packet
 		{
-			if (p != null)
-			{
-				p.Release();
-			}
-
+			p?.Release();
 			p = null;
 		}
 
-		public static void Release(ref RemoveItem p)
+		public static void Release<T>(T p) where T : Packet
 		{
-			if (p != null)
-			{
-				p.Release();
-			}
-
-			p = null;
-		}
-
-		public static void Release(ref RemoveMobile p)
-		{
-			if (p != null)
-			{
-				p.Release();
-			}
-
-			p = null;
-		}
-
-		public static void Release(ref OPLInfo p)
-		{
-			if (p != null)
-			{
-				p.Release();
-			}
-
-			p = null;
-		}
-
-		public static void Release(ref Packet p)
-		{
-			if (p != null)
-			{
-				p.Release();
-			}
-
-			p = null;
-		}
-
-		public static void Release(Packet p)
-		{
-			if (p != null)
-			{
-				p.Release();
-			}
+			p?.Release();
 		}
 
 		public void SetStatic()

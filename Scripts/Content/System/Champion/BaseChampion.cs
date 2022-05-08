@@ -1381,6 +1381,8 @@ namespace Server.Engines.CannedEvil
 	{
 		public ChampionSpawn ChampionSpawn { get; private set; }
 
+		public override bool WeatherSupported => true;
+
 		public ChampionSpawnRegion(ChampionSpawn spawn) : base(null, spawn.Map, Find(spawn.Location, spawn.Map), spawn.SpawnArea)
 		{
 			ChampionSpawn = spawn;
@@ -1394,8 +1396,8 @@ namespace Server.Engines.CannedEvil
 		{
 			base.DefaultInit();
 
-			HousingAllowed = false;
-			YoungProtected = false;
+			Rules.AllowHouses = false;
+			Rules.AllowYoungAggro = true;
 		}
 
 		public override void AlterLightLevel(Mobile m, ref int global, ref int personal)

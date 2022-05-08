@@ -120,7 +120,7 @@ namespace Server
 	}
 
 	[PropertyObject]
-	public partial class Region : IComparable<Region>, ISerializable
+	public partial class Region : IComparable, IComparable<Region>, ISerializable
 	{
 		private static int m_NextID = 1;
 
@@ -362,12 +362,16 @@ namespace Server
 					m_Parent.OnChildRemoved(this);
 				}
 
+				var old = m_Parent;
+
 				m_Parent = value;
 
 				if (m_Parent?.Children.Add(this) == true)
 				{
 					m_Parent.OnChildAdded(this);
 				}
+
+				OnParentChanged(old);
 			}
 		}
 
@@ -685,6 +689,10 @@ namespace Server
 		{
 		}
 
+		protected virtual void OnParentChanged(Region oldParent)
+		{
+		}
+
 		public void Register()
 		{
 			if (Deleted || (Registered && !m_RequiresRegistration))
@@ -985,11 +993,16 @@ namespace Server
 			return GetRegion(regionName) != null;
 		}
 
-		public virtual bool AcceptsSpawnsFrom(Region region)
+		public virtual bool AcceptsSpawnsFrom(Mobile spawn, Region region)
 		{
 			if (Deleted || region?.Deleted != false)
 			{
 				return false;
+			}
+
+			if (spawn?.Player == true)
+			{
+				return true;
 			}
 
 			if (!AllowSpawn())
@@ -1004,7 +1017,7 @@ namespace Server
 
 			if (m_Parent != null)
 			{
-				return m_Parent.AcceptsSpawnsFrom(region);
+				return m_Parent.AcceptsSpawnsFrom(spawn, region);
 			}
 
 			return false;
@@ -1102,8 +1115,13 @@ namespace Server
 			return count;
 		}
 
-		public int CompareTo(Region reg)
+		public virtual int CompareTo(Region reg)
 		{
+			if (reg == null)
+			{
+				return -1;
+			}
+
 			var res = Deleted.CompareTo(reg.Deleted);
 
 			if (res == 0)
@@ -1122,6 +1140,11 @@ namespace Server
 			}
 			
 			return res;
+		}
+
+		public int CompareTo(object obj)
+		{
+			return CompareTo(obj as Region);
 		}
 
 		public override string ToString()
@@ -1147,7 +1170,27 @@ namespace Server
 
 		public virtual bool OnMoveInto(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation)
 		{
-			return m.WalkRegion == null || AcceptsSpawnsFrom(m.WalkRegion);
+			return m.WalkRegion == null || AcceptsSpawnsFrom(m, m.WalkRegion);
+		}
+
+		public virtual bool CanEnter(Mobile m)
+		{
+			if (Parent != null)
+			{
+				return Parent.CanEnter(m);
+			}
+
+			return true;
+		}
+
+		public virtual bool CanExit(Mobile m)
+		{
+			if (Parent != null)
+			{
+				return Parent.CanExit(m);
+			}
+
+			return true;
 		}
 
 		public virtual void OnEnter(Mobile m)
@@ -1511,6 +1554,16 @@ namespace Server
 
 			while (oldRegion != newRegion)
 			{
+				if (!oldRegion.CanExit(m))
+				{
+					return false;
+				}
+
+				if (!newRegion.CanEnter(m))
+				{
+					return false;
+				}
+
 				if (!newRegion.OnMoveInto(m, d, newLocation, oldLocation))
 				{
 					return false;

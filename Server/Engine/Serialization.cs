@@ -14,7 +14,9 @@ namespace Server
 	{
 		int TypeReference { get; }
 		int SerialIdentity { get; }
+
 		void Serialize(GenericWriter writer);
+		void Deserialize(GenericReader reader);
 	}
 
 	public struct Serial : IComparable, IComparable<Serial>

@@ -2422,7 +2422,7 @@ namespace Server.Mobiles
 				{
 					Region region = ((SpawnEntry)m_Mobile.Spawner).Region;
 
-					if (m_Mobile.Region.AcceptsSpawnsFrom(region))
+					if (m_Mobile.Region.AcceptsSpawnsFrom(m_Mobile, region))
 					{
 						m_Mobile.WalkRegion = region;
 						WalkRandom(iChanceToNotMove, iChanceToDir, iSteps);
@@ -2969,7 +2969,7 @@ namespace Server.Mobiles
 				{
 					if (se.HomeLocation == Point3D.Zero)
 					{
-						if (!m_Mobile.Region.AcceptsSpawnsFrom(se.Region))
+						if (!m_Mobile.Region.AcceptsSpawnsFrom(m_Mobile, se.Region))
 						{
 							Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
 						}

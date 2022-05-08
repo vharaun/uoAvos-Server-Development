@@ -2,6 +2,8 @@
 {
 	public class TownRegion : GuardedRegion
 	{
+		public override bool WeatherSupported => true;
+
 		public TownRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
 		}

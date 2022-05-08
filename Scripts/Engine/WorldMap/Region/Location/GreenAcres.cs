@@ -7,6 +7,8 @@ namespace Server.Regions
 {
 	public class GreenAcres : BaseRegion
 	{
+		public override bool WeatherSupported => true;
+
 		public GreenAcres(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
 		}

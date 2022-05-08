@@ -1065,6 +1065,43 @@ namespace Server.Gumps
 
 	public class PropertiesGump : Gump
 	{
+		private static HashSet<PropertiesGump> m_Buffer = new HashSet<PropertiesGump>();
+
+		public static Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>> Instances { get; } = new Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>>();
+
+		public static void Configure()
+		{
+			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+		}
+
+		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		{
+			if (sender != null && Instances.TryGetValue(sender, out var gumps))
+			{
+				Instances[sender] = m_Buffer;
+
+				foreach (var gump in gumps)
+				{
+					var ns = gump.m_Mobile?.NetState;
+
+					if (ns == null)
+					{
+						continue;
+					}
+
+					ns.RemoveGump(gump);
+
+					var g = new PropertiesGump(gump.m_Mobile, gump.m_Object, gump.m_Stack, gump.m_List, gump.m_Page);
+
+					g.SendTo(ns);
+				}
+
+				gumps.Clear();
+
+				m_Buffer = gumps;
+			}
+		}
+
 		private readonly ArrayList m_List;
 		private int m_Page;
 		private readonly Mobile m_Mobile;
@@ -1177,6 +1214,19 @@ namespace Server.Gumps
 
 		private void Initialize(int page)
 		{
+			foreach (var e in m_List)
+			{
+				if (e is INotifyPropertyUpdate u)
+				{
+					if (!Instances.TryGetValue(u, out var gumps))
+					{
+						Instances[u] = gumps = new HashSet<PropertiesGump>();
+					}
+
+					gumps.Add(this);
+				}
+			}
+
 			m_Page = page;
 
 			var count = m_List.Count - (page * EntryCount);
@@ -1315,6 +1365,16 @@ namespace Server.Gumps
 
 		public override void OnResponse(NetState state, RelayInfo info)
 		{
+			if (m_Object is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+			{
+				gumps.Remove(this);
+
+				if (gumps.Count == 0)
+				{
+					Instances.Remove(u);
+				}
+			}
+
 			var from = state.Mobile;
 
 			if (!BaseCommand.IsAccessible(from, m_Object))

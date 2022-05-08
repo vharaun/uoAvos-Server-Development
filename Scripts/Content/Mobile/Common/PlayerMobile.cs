@@ -5295,7 +5295,7 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			if (Region is BaseRegion && !((BaseRegion)Region).YoungProtected)
+			if (Region is BaseRegion && ((BaseRegion)Region).Rules.AllowYoungAggro)
 			{
 				return false;
 			}

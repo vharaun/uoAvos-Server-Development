@@ -5478,7 +5478,7 @@ namespace Server.Mobiles
 			{
 				var se = Spawner as SpawnEntry;
 
-				if (se != null && !se.UnlinkOnTaming && (New == null || !New.AcceptsSpawnsFrom(se.Region)))
+				if (se != null && !se.UnlinkOnTaming && (New == null || !New.AcceptsSpawnsFrom(this, se.Region)))
 				{
 					Spawner.Remove(this);
 					Spawner = null;
