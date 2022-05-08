@@ -11645,7 +11645,7 @@ namespace Server.Multis
 		{
 			base.DefaultInit();
 
-			HousingAllowed = false;
+			Rules.AllowHouses = false;
 		}
 
 		public override bool AllowHousing(Mobile from, Point3D p)

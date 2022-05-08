@@ -1396,8 +1396,8 @@ namespace Server.Engines.CannedEvil
 		{
 			base.DefaultInit();
 
-			HousingAllowed = false;
-			YoungProtected = false;
+			Rules.AllowHouses = false;
+			Rules.AllowYoungAggro = true;
 		}
 
 		public override void AlterLightLevel(Mobile m, ref int global, ref int personal)

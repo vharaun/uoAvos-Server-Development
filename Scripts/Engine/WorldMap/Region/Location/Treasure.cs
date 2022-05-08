@@ -24,7 +24,7 @@ namespace Server
 		{
 			base.DefaultInit();
 
-			HousingAllowed = false;
+			Rules.AllowHouses = false;
 		}
 
 		public override void Serialize(GenericWriter writer)

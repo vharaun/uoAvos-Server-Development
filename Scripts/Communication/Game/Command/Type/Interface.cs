@@ -55,6 +55,51 @@ namespace Server.Commands.Generic
 
 	public class InterfaceGump : BaseGridGump
 	{
+		public static Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>> Instances { get; } = new Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>>();
+
+		private static HashSet<InterfaceGump> m_Buffer = new HashSet<InterfaceGump>();
+
+		public static void Configure()
+		{
+			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+		}
+
+		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		{
+			if (sender != null && Instances.TryGetValue(sender, out var gumps))
+			{
+				Instances[sender] = m_Buffer;
+
+				foreach (var gump in gumps)
+				{
+					foreach (var o in gump.m_List)
+					{
+						if (o != sender && o is INotifyPropertyUpdate u)
+						{
+							Instances.Remove(u);
+						}
+					}
+
+					var ns = gump.m_From?.NetState;
+
+					if (ns == null)
+					{
+						continue;
+					}
+
+					ns.RemoveGump(gump);
+
+					var g = new InterfaceGump(gump.m_From, gump.m_Columns, gump.m_List, gump.m_Page, gump.m_Select);
+
+					g.SendTo(ns);
+				}
+
+				gumps.Clear();
+
+				m_Buffer = gumps;
+			}
+		}
+
 		private readonly Mobile m_From;
 
 		private readonly string[] m_Columns;
@@ -76,6 +121,19 @@ namespace Server.Commands.Generic
 			m_Page = page;
 
 			m_Select = select;
+
+			foreach (var o in m_List)
+			{
+				if (o is INotifyPropertyUpdate u)
+				{
+					if (!Instances.TryGetValue(u, out var gumps))
+					{
+						Instances[u] = gumps = new HashSet<InterfaceGump>();
+					}
+
+					gumps.Add(this);
+				}
+			}
 
 			Render();
 		}
@@ -222,6 +280,19 @@ namespace Server.Commands.Generic
 
 		public override void OnResponse(NetState sender, RelayInfo info)
 		{
+			foreach (var o in m_List)
+			{
+				if (o is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+				{
+					gumps.Remove(this);
+
+					if (gumps.Count == 0)
+					{
+						Instances.Remove(u);
+					}
+				}
+			}
+
 			switch (info.ButtonID)
 			{
 				case 1:

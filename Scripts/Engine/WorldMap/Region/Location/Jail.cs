@@ -46,7 +46,7 @@
 		{
 			base.DefaultInit();
 
-			HousingAllowed = false;
+			Rules.AllowHouses = false;
 		}
 
 		public override bool AllowBeneficial(Mobile from, Mobile target)
