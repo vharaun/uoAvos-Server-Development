@@ -639,14 +639,6 @@ namespace Server
 			}
 		}
 
-		public override IEnumerator<Skill> GetEnumerator()
-		{
-			foreach (var skill in m_Data)
-			{
-				yield return skill;
-			}
-		}
-
 		public void OnSkillChange(Skill skill)
 		{
 			if (skill == m_Highest) // could be downgrading the skill, force a recalc

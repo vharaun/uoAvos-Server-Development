@@ -183,9 +183,9 @@ namespace Server
 
 		public virtual IEnumerator<TVal> GetEnumerator()
 		{
-			foreach (var value in m_Data)
+			foreach (var value in EnumValues)
 			{
-				yield return value;
+				yield return this[value];
 			}
 		}
 

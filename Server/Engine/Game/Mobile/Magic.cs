@@ -614,7 +614,7 @@ namespace Server
 					continue;
 				}
 
-				return states.Data[skipped - index];
+				return states.Data[index - skipped];
 			}
 
 			return default;
@@ -639,7 +639,7 @@ namespace Server
 					continue;
 				}
 
-				states.Data[skipped - index] = value;
+				states.Data[index - skipped] = value;
 				return;
 			}
 		}
