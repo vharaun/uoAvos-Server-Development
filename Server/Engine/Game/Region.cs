@@ -1149,7 +1149,7 @@ namespace Server
 
 		public override string ToString()
 		{
-			return Name ?? $"{GetType().Name} 0x{Id:X}";
+			return String.IsNullOrWhiteSpace(Name) ? $"{GetType().Name} 0x{Id:X}" : Name;
 		}
 
 		public virtual void OnRegister()

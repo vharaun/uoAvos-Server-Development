@@ -460,8 +460,10 @@ namespace Server
 
 		public readonly IEnumerable<Point2D> Points => m_Points.AsEnumerable();
 
+		[CommandProperty(AccessLevel.Counselor)]
 		public readonly Rectangle2D Bounds => m_Bounds;
 
+		[CommandProperty(AccessLevel.Counselor)]
 		public readonly int Count => m_Points.Length;
 
 		public readonly Point2D this[int index] => m_Points[index];
@@ -475,18 +477,29 @@ namespace Server
 		{ }
 
 		public Poly2D(IEnumerable<Point2D> points)
-			: this(points?.ToArray())
-		{ }
+		{
+			m_Hash = 0;
+			m_Bounds = Rectangle2D.Empty;
+
+			m_Points = points?.ToArray() ?? Array.Empty<Point2D>();
+
+			Initialize(ref m_Hash, ref m_Bounds);
+		}
 
 		public Poly2D(params Point2D[] points)
 		{
 			m_Hash = 0;
+			m_Bounds = Rectangle2D.Empty;
 
 			m_Points = points?.ToArray() ?? Array.Empty<Point2D>();
 
+			Initialize(ref m_Hash, ref m_Bounds);
+		}
+
+		private void Initialize(ref int hash, ref Rectangle2D bounds)
+		{
 			if (m_Points.Length == 0)
 			{
-				m_Bounds = new Rectangle2D(0, 0, 0, 0);
 				return;
 			}
 
@@ -501,10 +514,10 @@ namespace Server
 				x2 = Math.Max(x2, m_Points[i].m_X);
 				y2 = Math.Max(y2, m_Points[i].m_Y);
 
-				m_Hash = HashCode.Combine(m_Hash, m_Points[i]);
+				hash = HashCode.Combine(hash, m_Points[i]);
 			}
 
-			m_Bounds = new Rectangle2D(x1, y1, x2 - x1, y2 - y1);
+			bounds = new Rectangle2D(x1, y1, x2 - x1, y2 - y1);
 		}
 
 		public Point2D[] ToArray()
@@ -559,17 +572,17 @@ namespace Server
 				return false;
 			}
 
-			if (x > m_Bounds.End.m_X || y > m_Bounds.End.m_Y)
+			if (x >= m_Bounds.End.m_X || y >= m_Bounds.End.m_Y)
 			{
 				return false;
 			}
 
 			var test = false;
 
-			for (int i = 0, n = m_Points.Length - 1; i < m_Points.Length; n = i++)
+			for (int i = 0, n = 1; i < m_Points.Length; i = n++)
 			{
 				var p1 = m_Points[i];
-				var p2 = m_Points[n];
+				var p2 = m_Points[n % m_Points.Length];
 
 				if (y < p1.m_Y != y < p2.m_Y && x < (p2.m_X - p1.m_X) * (y - p1.m_Y) / (p2.m_Y - p1.m_Y) + p1.m_X)
 				{
@@ -582,6 +595,16 @@ namespace Server
 
 		public bool ProductContains(int x, int y)
 		{
+			if (x < m_Bounds.Start.m_X || y < m_Bounds.Start.m_Y)
+			{
+				return false;
+			}
+
+			if (x >= m_Bounds.End.m_X || y >= m_Bounds.End.m_Y)
+			{
+				return false;
+			}
+
 			static double product(int x1, int y1, int x2, int y2, int x3, int y3)
 			{
 				return Math.Atan2((x1 - x2) * (y3 - y2) - (y1 - y2) * (x3 - x2), (x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2));
@@ -589,9 +612,12 @@ namespace Server
 
 			var total = 0.0;
 
-			for (var i = 0; i < m_Points.Length; i++)
+			for (int i = 0, n = 1; i < m_Points.Length; i = n++)
 			{
-				total += product(m_Points[i].m_X, m_Points[i].m_Y, x, y, m_Points[(i + 1) % m_Points.Length].m_X, m_Points[(i + 1) % m_Points.Length].m_Y);
+				var p1 = m_Points[i];
+				var p2 = m_Points[n % m_Points.Length];
+
+				total += product(p1.m_X, p1.m_Y, x, y, p2.m_X, p2.m_Y);
 			}
 
 			return Math.Abs(total) > 1;
@@ -1228,6 +1254,7 @@ namespace Server
 
 		public readonly IEnumerable<Point2D> Points => m_Poly.m_Points.AsEnumerable();
 
+		[CommandProperty(AccessLevel.Counselor)]
 		public readonly Rectangle2D Bounds => m_Poly.m_Bounds;
 
 		[CommandProperty(AccessLevel.Counselor)]
@@ -1247,8 +1274,13 @@ namespace Server
 		{ }
 
 		public Poly3D(int minZ, int maxZ, IEnumerable<Point2D> points)
-			: this(minZ, maxZ, points?.ToArray())
-		{ }
+		{
+			m_MinZ = minZ;
+			m_MaxZ = maxZ;
+			m_Poly = new(points);
+
+			m_Hash = HashCode.Combine(m_MinZ, m_MaxZ, m_Poly);
+		}
 
 		public Poly3D(int minZ, int maxZ, params Point2D[] points)
 		{

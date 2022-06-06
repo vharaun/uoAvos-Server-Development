@@ -359,12 +359,22 @@ namespace Server
 			return new IPAddress(m_File.ReadInt64());
 		}
 
+		private enum DefaultEnum : long
+		{
+			Undefined
+		}
+
 		public override Enum ReadEnum()
 		{
 			var type = ReadObjectType();
 			var value = ReadLong();
 
-			return (Enum)Enum.ToObject(type, Convert.ChangeType(value, type.GetEnumUnderlyingType()));
+			if (type?.IsEnum == true)
+			{
+				return (Enum)Enum.ToObject(type, Convert.ChangeType(value, type.GetEnumUnderlyingType()));
+			}
+
+			return (DefaultEnum)value;
 		}
 
 		public override T ReadEnum<T>()

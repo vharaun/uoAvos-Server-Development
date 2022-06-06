@@ -100,6 +100,8 @@ using Server.Targeting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 
 #if Map_NewEnumerables || Map_PoolFixColumn || Map_InternalProtection || Map_AllUpdates
@@ -425,6 +427,8 @@ namespace Server
 		private static readonly List<Map> m_AllMaps = new List<Map>();
 
 		public static List<Map> AllMaps => m_AllMaps;
+
+		public static event Action<Map, Region> RegionAdded, RegionRemoved;
 
 		private readonly int m_MapID, m_MapIndex, m_FileIndex;
 
@@ -1434,6 +1438,7 @@ namespace Server
 			return InternalGetSector(x, y);
 		}
 
+		[MethodImpl(MethodImplOptions.Synchronized)]
 		private Sector InternalGetSector(int x, int y)
 		{
 			if (x >= 0 && x < m_SectorsWidth && y >= 0 && y < m_SectorsHeight)
@@ -1708,16 +1713,22 @@ namespace Server
 
 		public void RegisterRegion(Region reg)
 		{
-			m_Regions.Add(reg);
+			if (m_Regions.Add(reg))
+			{
+				RegionAdded?.Invoke(this, reg);
+			}
 		}
 
 		public void UnregisterRegion(Region reg)
 		{
-			m_Regions.Remove(reg);
-
-			if (m_DefaultRegion == reg)
+			if (m_Regions.Remove(reg))
 			{
-				m_DefaultRegion = null;
+				if (m_DefaultRegion == reg)
+				{
+					m_DefaultRegion = null;
+				}
+
+				RegionRemoved?.Invoke(this, reg);
 			}
 		}
 
@@ -2996,6 +3007,277 @@ namespace Server
 
 			throw new ArgumentException();
 		}
+
+		#region Bitmap
+
+		private int[] m_BitmapVoid;
+		private int[][][] m_BitmapFull, m_BitmapLand, m_BitmapStatics;
+
+		public Bitmap GetMapImage()
+		{
+			return GetMapImage(true);
+		}
+
+		public Bitmap GetMapImage(bool useCache)
+		{
+			return GetMapImage(0, 0, Width, Height, true, true, useCache);
+		}
+
+		public Bitmap GetMapImage(bool land, bool statics)
+		{
+			return GetMapImage(land, statics, true);
+		}
+
+		public Bitmap GetMapImage(bool land, bool statics, bool useCache)
+		{
+			return GetMapImage(0, 0, Width, Height, land, statics, useCache);
+		}
+
+		public Bitmap GetMapImage(int x, int y, int width, int height)
+		{
+			return GetMapImage(x, y, width, height, true);
+		}
+
+		public Bitmap GetMapImage(int x, int y, int width, int height, bool useCache)
+		{
+			return GetMapImage(x, y, width, height, true, true, useCache);
+		}
+
+		public Bitmap GetMapImage(int x, int y, int width, int height, bool land, bool statics)
+		{
+			return GetMapImage(x, y, width, height, land, statics, true);
+		}
+
+		public unsafe Bitmap GetMapImage(int x, int y, int width, int height, bool land, bool statics, bool useCache)
+		{
+			try
+			{
+				var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+
+				bmp.MakeTransparent();
+
+				var bd = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bmp.PixelFormat);
+				
+				try
+				{
+					var stride = bd.Stride >> 2;
+					var block = bd.Stride << 1;
+
+					var pStart = (int*)bd.Scan0;
+
+					var w = width >> 3;
+					var h = height >> 3;
+
+					for (int oy = 0, by = y; oy < h; ++oy, ++by, pStart += block)
+					{
+						for (int ox = 0, bx = x; ox < w; ++ox, ++bx)
+						{
+							fixed (int* data = GetRenderedBlock(bx, by, land, statics, useCache))
+							{
+								var pData = data;
+								var pLine = pStart + (bx << 3);
+
+								for (var k = 0; k < 8; k++)
+								{
+									var pRow = pLine + (k * stride);
+
+									for (var p = 0; p < 8; p++)
+									{
+										*pRow++ = *pData++;
+									}
+								}
+							}
+						}
+					}
+				}
+				finally
+				{
+					bmp.UnlockBits(bd);
+				}
+
+				return bmp;
+			}
+			catch (Exception e)
+			{
+				if (Core.Debug)
+				{
+					Console.WriteLine($"[Ultima]: Map.GetMapImage({nameof(x)}:{x}, {nameof(y)}:{y}, {nameof(width)}:{width}, {nameof(height)}:{height}, {nameof(land)}:{land}, {nameof(statics)}:{statics}, {nameof(useCache)}:{useCache})\n{e}");
+				}
+
+				return null;
+			}
+		}
+
+		private int[] GetRenderedBlock(int x, int y, bool land, bool statics, bool useCache)
+		{
+			var matrix = Tiles;
+
+			if (x < 0 || y < 0 || x >= matrix.BlockWidth || y >= matrix.BlockHeight)
+			{
+				return m_BitmapVoid ??= new int[64];
+			}
+
+			if (!useCache)
+			{
+				return RenderBlock(x, y, land, statics);
+			}
+
+			int[][][] cache = null;
+
+			if (land && statics)
+			{
+				cache = m_BitmapFull;
+			}
+			else if (land)
+			{
+				cache = m_BitmapLand;
+			}
+			else if (statics)
+			{
+				cache = m_BitmapStatics;
+			}
+
+			if (cache == null)
+			{
+				if (land && statics)
+				{
+					m_BitmapFull = cache = new int[matrix.BlockHeight][][];
+				}
+				else if (land)
+				{
+					m_BitmapLand = cache = new int[matrix.BlockHeight][][];
+				}
+				else if (statics)
+				{
+					m_BitmapStatics = cache = new int[matrix.BlockHeight][][];
+				}
+			}
+
+			if (cache != null)
+			{
+				cache[y] ??= new int[matrix.BlockWidth][];
+
+				return cache[y][x] ??= RenderBlock(x, y, land, statics);
+			}
+
+			return m_BitmapVoid ??= new int[64];
+		}
+
+		[MethodImpl(MethodImplOptions.Synchronized)]
+		private unsafe int[] RenderBlock(int x, int y, bool drawLand, bool drawStatics)
+		{
+			var data = new int[64];
+
+			fixed (int* colors = data)
+			{
+				var pColors = colors;
+
+				var trans = Color.Transparent.ToArgb();
+
+				fixed (LandTile* landBlock = Tiles.GetLandBlock(x, y))
+				{
+					var landSrc = landBlock;
+					var landEnd = landSrc + data.Length;
+
+					if (drawStatics)
+					{
+						var staticBlock = Tiles.GetStaticBlock(x, y);
+
+						for (var k = 0; k < 8; ++k)
+						{
+							for (var p = 0; p < 8; ++p)
+							{
+								int highTop = -255, highZ = -255, highId = 0, highHue = 0, z, top;
+
+								var highStatic = false;
+
+								var statics = staticBlock[p][k];
+
+								if (statics.Length > 0)
+								{
+									fixed (StaticTile* tiles = statics)
+									{
+										var tilesSrc = tiles;
+										var tilesEnd = tilesSrc + statics.Length;
+
+										while (tilesSrc < tilesEnd)
+										{
+											z = tilesSrc->Z;
+
+											top = z + TileData.ItemTable[tilesSrc->ID].Height;
+
+											if (top > highTop || (z > highZ && top >= highTop))
+											{
+												highTop = top;
+												highZ = z;
+												highId = tilesSrc->ID;
+												highHue = tilesSrc->Hue;
+												highStatic = true;
+											}
+
+											++tilesSrc;
+										}
+									}
+								}
+
+								top = landSrc->Z;
+
+								if (top > highTop)
+								{
+									highId = landSrc->ID;
+									highHue = 0;
+									highStatic = false;
+								}
+
+								if (highHue == 0)
+								{
+									if (highStatic)
+									{
+										*pColors++ = RadarData.StaticColors[highId].ToArgb();
+									}
+									else if (drawLand)
+									{
+										*pColors++ = RadarData.LandColors[highId].ToArgb();
+									}
+									else
+									{
+										*pColors++ = trans;
+									}
+								}
+								else
+								{
+									var hue = HueData.GetHue(highHue - 1);
+									var c16 = HueData.Convert16(RadarData.StaticColors[highId]);
+									var red = (c16 >> 10) & 0x1F;
+
+									*pColors++ = hue.Colors[red].ToArgb();
+								}
+
+								++landSrc;
+							}
+						}
+					}
+					else 
+					{
+						while (landSrc < landEnd)
+						{
+							if (drawLand)
+							{
+								*pColors++ = RadarData.LandColors[landSrc++->ID].ToArgb();
+							}
+							else
+							{
+								*pColors++ = trans;
+							}
+						}
+					}
+				}
+			}
+
+			return data;
+		}
+
+		#endregion
 	}
 
 	#region TileList

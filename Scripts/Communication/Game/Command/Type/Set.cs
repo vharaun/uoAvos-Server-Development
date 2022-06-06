@@ -21,7 +21,7 @@ namespace Server.Commands.Generic
 			{
 				for (var i = 0; (i + 1) < e.Length; i += 2)
 				{
-					var result = Properties.SetValue(e.Mobile, obj, e.GetString(i), e.GetString(i + 1));
+					var result = Props.SetValue(e.Mobile, obj, e.GetString(i), e.GetString(i + 1));
 
 					if (result == "Property has been set.")
 					{
@@ -73,7 +73,7 @@ namespace Server.Commands.Generic
 
 		public override void Execute(CommandEventArgs e, object obj)
 		{
-			var result = Properties.SetValue(e.Mobile, obj, m_Name, m_Value);
+			var result = Props.SetValue(e.Mobile, obj, m_Name, m_Value);
 
 			if (result == "Property has been set.")
 			{

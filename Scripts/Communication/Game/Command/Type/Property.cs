@@ -188,7 +188,7 @@ namespace Server
 					access |= PropertyAccess.Read;
 				}
 
-				var security = Properties.GetCPA(prop);
+				var security = Props.GetCPA(prop);
 
 				if (security == null)
 				{
@@ -302,7 +302,7 @@ namespace Server.Commands
 		ReadWrite = Read | Write
 	}
 
-	public class Properties
+	public class Props
 	{
 		public static void Initialize()
 		{
@@ -2313,11 +2313,11 @@ namespace Server.Gumps
 
 					if (info != null)
 					{
-						result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
 					}
 					else if (m_Property.PropertyType == typeof(Enum) || m_Property.PropertyType.IsSubclassOf(typeof(Enum)))
 					{
-						result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
 					}
 
 					m_Mobile.SendMessage(result);
@@ -2803,7 +2803,7 @@ namespace Server.Gumps
 				{
 					var toSet = m_Values[index];
 
-					var result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
+					var result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
 
 					m_Mobile.SendMessage(result);
 
