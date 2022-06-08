@@ -50,12 +50,13 @@ namespace Server.Tools
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.AutoScroll = true;
             this.AutoSize = true;
-            this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.BackColor = System.Drawing.Color.Black;
             this.Controls.Add(this.Canvas);
             this.DoubleBuffered = true;
             this.Margin = new System.Windows.Forms.Padding(0);
             this.Name = "MapCanvas";
-            this.Size = new System.Drawing.Size(100, 100);
+			this.ResizeRedraw = true;
+            this.Size = new System.Drawing.Size(120, 120);
             ((System.ComponentModel.ISupportInitialize)(this.Canvas)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();

@@ -1147,7 +1147,7 @@ namespace Server
 			return CompareTo(obj as Region);
 		}
 
-		public override string ToString()
+		public sealed override string ToString()
 		{
 			return String.IsNullOrWhiteSpace(Name) ? $"{GetType().Name} 0x{Id:X}" : Name;
 		}

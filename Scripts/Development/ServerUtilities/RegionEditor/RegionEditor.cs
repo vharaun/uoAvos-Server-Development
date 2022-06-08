@@ -53,7 +53,7 @@ namespace Server.Tools
 			Application.Run(m_Instance);
 		}
 
-		private bool m_UpdatingTree;
+		private bool m_UpdatingTree, m_ScrollToView;
 
 		private Editor()
 		{
@@ -146,6 +146,11 @@ namespace Server.Tools
 			else if (e.Node is RegionTreeNode r)
 			{
 				Canvas.MapRegion = r.MapRegion;
+
+				if (m_ScrollToView)
+				{
+					Canvas.ScrollRegionIntoView();
+				}
 			}
 		}
 
@@ -181,76 +186,79 @@ namespace Server.Tools
 
 		private void SyncRegionsSelection(object obj)
 		{
-			if (m_UpdatingTree)
+			m_ScrollToView = false;
+
+			Regions.Select();
+
+			if (obj is Map map)
 			{
-				return;
-			}
-
-			m_UpdatingTree = true;
-
-			try
-			{
-				Regions.BeginUpdate();
-
-				if (obj is Map map)
+				if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
 				{
-					if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
-					{
-						var key = map.ToString();
+					var key = map.ToString();
 
-						if (Regions.Nodes.ContainsKey(key))
+					if (Regions.Nodes.ContainsKey(key))
+					{
+						var c = Regions.Nodes[key];
+
+						c.EnsureVisible();
+
+						Regions.SelectedNode = c;
+					}
+				}
+				else
+				{
+					m.EnsureVisible();
+				}
+			}
+			else if (obj is Region reg)
+			{
+				if (reg.Deleted || reg.IsDefault || !reg.Registered)
+				{
+					if (Regions.SelectedNode is RegionTreeNode r && r.MapRegion == reg)
+					{
+						Regions.SelectedNode = null;
+					}
+				}
+				else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
+				{
+					var key = reg.ToString();
+
+					foreach (var node in Regions.Nodes.Find(key, true))
+					{
+						if (node is RegionTreeNode c && c.MapRegion == reg)
 						{
-							Regions.SelectedNode = Regions.Nodes[key];
+							c.EnsureVisible();
+
+							Regions.SelectedNode = c;
+
+							break;
 						}
 					}
 				}
-				else if (obj is Region reg)
+				else
 				{
-					if (reg.Deleted || reg.IsDefault || !reg.Registered)
-					{ 
-						if (Regions.SelectedNode is RegionTreeNode r && r.MapRegion == reg)
-						{
-							Regions.SelectedNode = null;
-						}
-					}
-					else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
-					{
-						var key = reg.ToString();
-
-						foreach (var node in Regions.Nodes.Find(key, true))
-						{
-							if (node is RegionTreeNode c && c.MapRegion == reg)
-							{
-								Regions.SelectedNode = c;
-								break;
-							}
-						}
-					}
+					r.EnsureVisible();
 				}
-				else if (obj is Type t)
-				{
-					if (t.IsAssignableFrom(typeof(Map)))
-					{
-						if (Regions.SelectedNode is MapTreeNode)
-						{
-							Regions.SelectedNode = null;
-						}
-					}
-					else if (t.IsAssignableFrom(typeof(Region)))
-					{
-						if (Regions.SelectedNode is RegionTreeNode)
-						{
-							Regions.SelectedNode = null;
-						}
-					}
-				}
-
-				Regions.EndUpdate();
 			}
-			finally
+			else if (obj is Type t)
 			{
-				m_UpdatingTree = false;
+				if (t.IsAssignableFrom(typeof(Map)))
+				{
+					if (Regions.SelectedNode is MapTreeNode)
+					{
+						Regions.SelectedNode = null;
+					}
+				}
+				else if (t.IsAssignableFrom(typeof(Region)))
+				{
+					if (Regions.SelectedNode is RegionTreeNode)
+					{
+						Regions.SelectedNode = null;
+					}
+				}
 			}
+
+			m_ScrollToView = true;
 		}
 
 		public void InvalidateRegionsTree()
@@ -372,14 +380,22 @@ namespace Server.Tools
 		}
 	}
 
+	public class MapRegionsTree : TreeView
+	{
+		public MapTreeNode this[Map map] { get => Nodes.Find(map.ToString(), false).OfType<MapTreeNode>().FirstOrDefault(); }
+
+		public RegionTreeNode this[Region reg] { get => this[reg.Map]?.Nodes.Find(reg.ToString(), true).OfType<RegionTreeNode>().FirstOrDefault(); }
+	}
+
 	public class MapTreeNode : TreeNode
 	{
 		public Map Map { get; }
 
 		public MapTreeNode(Map map)
-			: base(map.ToString())
 		{
 			Map = map;
+
+			Name = Text = map.ToString();
 		}
 	}
 
@@ -388,9 +404,10 @@ namespace Server.Tools
 		public Region MapRegion { get; }
 
 		public RegionTreeNode(Region region)
-			: base(region.ToString())
 		{
 			MapRegion = region;
+
+			Name = Text = region.ToString();
 		}
 	}
 }

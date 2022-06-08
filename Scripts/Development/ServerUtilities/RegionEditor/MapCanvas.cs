@@ -121,6 +121,8 @@ namespace Server.Tools
 			if (m_Map != map)
 			{
 				m_Map = map;
+				m_MapRegion = null;
+				m_PolyIndex = m_PointIndex = null;
 
 				Invoke(MapUpdated);
 
@@ -130,41 +132,34 @@ namespace Server.Tools
 
 		private void SetMapRegion(Region region)
 		{
+			var oldMap = m_Map;
 			var oldRegion = m_MapRegion;
 
-			try
+			if (region == null || region.Deleted || region.IsDefault || !region.Registered || region.Map == null || region.Map == Map.Internal)
 			{
-				if (region == null)
-				{
-					m_MapRegion = null;
-					m_PolyIndex = m_PointIndex = null;
-
-					return;
-				}
-
-				if (region.Deleted || region.IsDefault || region.Map == null || region.Map == Map.Internal)
-				{
-					return;
-				}
-
-				if (m_MapRegion == region)
-				{
-					return;
-				}
-
+				m_MapRegion = null;
+				m_PolyIndex = m_PointIndex = null;
+			}
+			else if (m_MapRegion != region)
+			{
+				m_Map = region.Map;
 				m_MapRegion = region;
-			}
-			finally
-			{
-				if (oldRegion != m_MapRegion)
-				{
-					Invoke(MapRegionUpdated);
-				}
+				m_PolyIndex = m_PointIndex = null;
 			}
 
-			if (m_Map != region.Map)
+			if (oldMap != m_Map)
 			{
-				SetMap(region.Map);
+				Invoke(MapUpdated);
+			}
+
+			if (oldRegion != m_MapRegion)
+			{
+				Invoke(MapRegionUpdated);
+			}
+
+			if (oldMap != m_Map)
+			{
+				UpdateCanvas();
 			}
 			else
 			{
@@ -294,7 +289,7 @@ namespace Server.Tools
 
 		private void DrawRegion(Graphics g, Region region)
 		{
-			if (region?.Deleted != false)
+			if (region == null || region.Deleted || region.IsDefault || !region.Registered)
 			{
 				return;
 			}
@@ -338,9 +333,16 @@ namespace Server.Tools
 				{
 					var p = poly[i];
 
-					g.FillRectangle(whiteBrush, p.X - pointRadi, p.Y - pointRadi, pointSize, pointSize);
-					g.FillRectangle(grayBrush, p.X - pointRadi + 1, p.Y - pointRadi + 1, pointSize - 2, pointSize - 2);
-					g.FillRectangle(whiteBrush, p.X, p.Y, 1, 1);
+					if (selectedRegion)
+					{
+						g.FillRectangle(whiteBrush, p.X - pointRadi, p.Y - pointRadi, pointSize, pointSize);
+						g.FillRectangle(grayBrush, p.X - pointRadi + 1, p.Y - pointRadi + 1, pointSize - 2, pointSize - 2);
+						g.FillRectangle(whiteBrush, p.X, p.Y, 1, 1);
+					}
+					else
+					{
+						g.FillRectangle(grayBrush, p.X - pointRadi + 1, p.Y - pointRadi + 1, pointSize - 2, pointSize - 2);
+					}
 				}
 			}
 
@@ -407,10 +409,9 @@ namespace Server.Tools
 			{
 				if (GetData(x, y, out var region, out m_PolyIndex, out m_PointIndex))
 				{
-					MapRegion = region;
 				}
 
-				UpdateRegionOverlay(true);
+				MapRegion = region;
 			}
 		}
 
@@ -420,20 +421,22 @@ namespace Server.Tools
 
 			TranslateToCanvas(true, ref x, ref y);
 
-			GetData(x, y, out var region, out var polyIdx, out var pointIdx);
+			if (GetData(x, y, out var region, out var polyIdx, out var pointIdx))
+			{
+			}
 
 			Cursor.Current = Canvas.Cursor = pointIdx != null ? Cursors.SizeAll : Cursors.Cross;
 
 			if (m_Tooltip != null)
 			{
-				var p = Canvas.PointToClient(Cursor.Position);
+				var p = new Point(x, y);
 
 				p.Offset(-HorizontalScroll.Value, -VerticalScroll.Value);
 				p.Offset(20, 20);
 
 				if (region != null)
 				{
-					m_Tooltip.Show($"({x}, {y}) {region.Name ?? $"#{region.Id}"} [{polyIdx ?? -1}, {pointIdx ?? -1}]", this, p);
+					m_Tooltip.Show($"({x}, {y}) {region} [{polyIdx ?? -1}, {pointIdx ?? -1}]", this, p);
 				}
 				else
 				{
@@ -560,6 +563,28 @@ namespace Server.Tools
 			pointIdx = null;
 
 			return false;
+		}
+
+		public void ScrollRegionIntoView()
+		{
+			ScrollRegionIntoView(m_MapRegion);
+		}
+
+		public void ScrollRegionIntoView(Region region)
+		{
+			Invoke(reg =>
+			{
+				if (reg != null && !reg.Deleted && !reg.IsDefault && reg.Registered && reg.Map == m_Map)
+				{
+					SuspendLayout();
+
+					// NOTE: values are updated twice to fix a native scrolling desync bug
+					HorizontalScroll.Value = HorizontalScroll.Value = Math.Clamp(reg.GoLocation.X - (ClientSize.Width / 2), HorizontalScroll.Minimum, HorizontalScroll.Maximum);
+					VerticalScroll.Value = VerticalScroll.Value = Math.Clamp(reg.GoLocation.Y - (ClientSize.Height / 2), VerticalScroll.Minimum, VerticalScroll.Maximum);
+
+					ResumeLayout(true);
+				}
+			}, region);
 		}
 	}
 }

@@ -31,7 +31,7 @@ namespace Server.Tools
 		{
             this.Canvas = new Server.Tools.MapCanvas();
             this.Frame = new System.Windows.Forms.SplitContainer();
-            this.Regions = new System.Windows.Forms.TreeView();
+            this.Regions = new Server.Tools.MapRegionsTree();
             ((System.ComponentModel.ISupportInitialize)(this.Frame)).BeginInit();
             this.Frame.Panel1.SuspendLayout();
             this.Frame.Panel2.SuspendLayout();
@@ -42,7 +42,6 @@ namespace Server.Tools
             // 
             this.Canvas.AutoScroll = true;
             this.Canvas.AutoSize = true;
-            this.Canvas.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.Canvas.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Canvas.Location = new System.Drawing.Point(0, 0);
             this.Canvas.Map = null;
@@ -111,6 +110,6 @@ namespace Server.Tools
 
 		private System.Windows.Forms.SplitContainer Frame;
 		private MapCanvas Canvas;
-		private System.Windows.Forms.TreeView Regions;
+		private MapRegionsTree Regions;
 	}
 }
