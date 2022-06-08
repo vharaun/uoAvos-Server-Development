@@ -102,6 +102,22 @@ namespace Server.Tools
 			}
 		}
 
+		private void InvokeAsync(Action action)
+		{
+			if (action != null)
+			{
+				BeginInvoke(action);
+			}
+		}
+
+		private void InvokeAsync<T>(Action<T> action, T state)
+		{
+			if (action != null)
+			{
+				BeginInvoke(action, state);
+			}
+		}
+
 		private void Invoke(EventHandler<Editor> callback)
 		{
 			callback?.Invoke(this, this);
@@ -113,7 +129,7 @@ namespace Server.Tools
 
 			Invoke(EditorStarting);
 
-			UpdateRegionsTree();
+			InvokeAsync(UpdateRegionsTree);
 		}
 
 		protected override void OnShown(EventArgs e)
@@ -178,7 +194,7 @@ namespace Server.Tools
 		{
 			if (World.Loaded)
 			{
-				UpdateRegionsTree();
+				InvalidateRegionsTree();
 
 				SyncRegionsSelection(reg);
 			}
@@ -194,15 +210,13 @@ namespace Server.Tools
 			{
 				if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
 				{
-					var key = map.ToString();
+					var n = Regions[map];
 
-					if (Regions.Nodes.ContainsKey(key))
+					if (n != null)
 					{
-						var c = Regions.Nodes[key];
+						n.EnsureVisible();
 
-						c.EnsureVisible();
-
-						Regions.SelectedNode = c;
+						Regions.SelectedNode = n;
 					}
 				}
 				else
@@ -221,18 +235,13 @@ namespace Server.Tools
 				}
 				else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
 				{
-					var key = reg.ToString();
+					var n = Regions[reg];
 
-					foreach (var node in Regions.Nodes.Find(key, true))
+					if (n != null)
 					{
-						if (node is RegionTreeNode c && c.MapRegion == reg)
-						{
-							c.EnsureVisible();
+						n.EnsureVisible();
 
-							Regions.SelectedNode = c;
-
-							break;
-						}
+						Regions.SelectedNode = n;
 					}
 				}
 				else
@@ -382,9 +391,9 @@ namespace Server.Tools
 
 	public class MapRegionsTree : TreeView
 	{
-		public MapTreeNode this[Map map] { get => Nodes.Find(map.ToString(), false).OfType<MapTreeNode>().FirstOrDefault(); }
+		public MapTreeNode this[Map map] { get => Nodes.Find(map.ToString(), false).OfType<MapTreeNode>().FirstOrDefault(n => n.Map == map); }
 
-		public RegionTreeNode this[Region reg] { get => this[reg.Map]?.Nodes.Find(reg.ToString(), true).OfType<RegionTreeNode>().FirstOrDefault(); }
+		public RegionTreeNode this[Region reg] { get => this[reg.Map]?.Nodes.Find(reg.ToString(), true).OfType<RegionTreeNode>().FirstOrDefault(n => n.MapRegion == reg); }
 	}
 
 	public class MapTreeNode : TreeNode

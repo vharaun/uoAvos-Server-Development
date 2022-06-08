@@ -39,15 +39,15 @@ namespace Server.Tools
 		private Map m_Map;
 
 		[Browsable(false)]
-		public Map Map { get => m_Map; set => Invoke(SetMap, value); }
+		public Map Map { get => m_Map; set => SetMap(value); }
 
 		private Region m_MapRegion;
 
 		[Browsable(false)]
-		public Region MapRegion { get => m_MapRegion; set => Invoke(SetMapRegion, value); }
+		public Region MapRegion { get => m_MapRegion; set => SetMapRegion(value); }
 
 		[Browsable(false)]
-		public Image Image { get => Canvas.Image; private set => Invoke(SetImage, value); }
+		public Image Image { get => Canvas.Image; private set => SetImage(value); }
 
 		private int m_VertexRadius = DefVertexRadius;
 
@@ -101,6 +101,14 @@ namespace Server.Tools
 			}
 		}
 
+		private void InvokeAsync(Action action)
+		{
+			if (action != null)
+			{
+				Task.Run(action);
+			}
+		}
+
 		private void Invoke(EventHandler<MapCanvas> callback)
 		{
 			callback?.Invoke(this, this);
@@ -108,102 +116,128 @@ namespace Server.Tools
 
 		private void SetImage(Image image)
 		{
-			if (Canvas.Image != image)
+			Invoke(img =>
 			{
-				Canvas.Image = image;
+				if (Canvas.Image != img)
+				{
+					Canvas.Image = img;
 
-				Refresh();
-			}
+					UpdateOverlays(true);
+				}
+			}, image);
 		}
 
 		private void SetMap(Map map)
 		{
-			if (m_Map != map)
+			Invoke(m =>
 			{
-				m_Map = map;
-				m_MapRegion = null;
-				m_PolyIndex = m_PointIndex = null;
+				if (m_Map != m)
+				{
+					m_Map = m;
+					m_MapRegion = null;
+					m_PolyIndex = m_PointIndex = null;
 
-				Invoke(MapUpdated);
+					Invoke(MapUpdated);
 
-				UpdateCanvas();
-			}
+					UpdateCanvas();
+				}
+			}, map);
 		}
 
 		private void SetMapRegion(Region region)
 		{
-			var oldMap = m_Map;
-			var oldRegion = m_MapRegion;
+			Invoke(reg =>
+			{
+				var oldMap = m_Map;
+				var oldRegion = m_MapRegion;
 
-			if (region == null || region.Deleted || region.IsDefault || !region.Registered || region.Map == null || region.Map == Map.Internal)
-			{
-				m_MapRegion = null;
-				m_PolyIndex = m_PointIndex = null;
-			}
-			else if (m_MapRegion != region)
-			{
-				m_Map = region.Map;
-				m_MapRegion = region;
-				m_PolyIndex = m_PointIndex = null;
-			}
+				if (reg == null || reg.Deleted || reg.IsDefault || !reg.Registered || reg.Map == null || reg.Map == Map.Internal)
+				{
+					m_MapRegion = null;
+					m_PolyIndex = m_PointIndex = null;
+				}
+				else if (m_MapRegion != reg)
+				{
+					m_Map = reg.Map;
+					m_MapRegion = reg;
+					m_PolyIndex = m_PointIndex = null;
+				}
 
-			if (oldMap != m_Map)
-			{
-				Invoke(MapUpdated);
-			}
+				if (oldMap != m_Map)
+				{
+					Invoke(MapUpdated);
+				}
 
-			if (oldRegion != m_MapRegion)
-			{
-				Invoke(MapRegionUpdated);
-			}
+				if (oldRegion != m_MapRegion)
+				{
+					Invoke(MapRegionUpdated);
+				}
 
-			if (oldMap != m_Map)
-			{
-				UpdateCanvas();
-			}
-			else
-			{
-				UpdateRegionOverlay(true);
-			}
+				if (oldMap != m_Map)
+				{
+					UpdateCanvas();
+				}
+				else
+				{
+					UpdateRegionOverlay(true);
+				}
+			}, region);
 		}
 
 		private void UpdateCanvas()
 		{
-			Image?.Dispose();
-			Image = Map?.GetMapImage(true);
+			Invoke(() =>
+			{
+				var image = Image;
 
-			UpdateOverlays(true);
+				if (image != null && Equals(Image.RawFormat, ImageFormat.MemoryBmp))
+				{
+					image.Dispose();
+				}
+
+				SetImage(Properties.Resources.LoadingIcon);
+
+				InvokeAsync(() => SetImage(m_Map?.GetMapImage(true)));
+			});
 		}
 
 		private void UpdateOverlays(bool refresh)
 		{
-			UpdateMobileOverlay(false);
-			UpdateRegionOverlay(false);
-
-			if (refresh)
+			Invoke(r =>
 			{
-				Refresh();
-			}
+				UpdateMobileOverlay(false);
+				UpdateRegionOverlay(false);
+
+				if (r)
+				{
+					Refresh();
+				}
+			}, refresh);
 		}
 
-		private void EnsureOverlay(ref Bitmap image)
+		private bool EnsureOverlay(ref Bitmap image)
 		{
+			if (m_Map == null || Image == null || !Equals(Image.RawFormat, ImageFormat.MemoryBmp))
+			{
+				return false;
+			}
+
 			if (image == null || image.Width != Image.Width || image.Height != Image.Height)
 			{
-				var overlay = new Bitmap(Image.Width, Image.Height, PixelFormat.Format32bppArgb);
+				var overlay = new Bitmap(Image.Width, Image.Height, Image.PixelFormat);
 
 				overlay.MakeTransparent();
 
 				image = overlay;
 			}
+
+			return true;
 		}
 
 		private void UpdateMobileOverlay(bool refresh)
 		{
-			if (m_Map != null)
+			if (EnsureOverlay(ref m_MobileOverlay))
 			{
-				EnsureOverlay(ref m_MobileOverlay);
-
 				using var g = Graphics.FromImage(m_MobileOverlay);
 
 				g.PageUnit = GraphicsUnit.Pixel;
@@ -212,12 +246,12 @@ namespace Server.Tools
 
 				if (NetState.Instances.Count > 0)
 				{
-					using var gray = new SolidBrush(Color.Gray);
-					using var blue = new SolidBrush(Color.SkyBlue);
-					using var red = new SolidBrush(Color.OrangeRed);
-					using var green = new SolidBrush(Color.LawnGreen);
-					using var yellow = new SolidBrush(Color.Yellow);
-					using var white = new SolidBrush(Color.White);
+					var gray = Brushes.Gray;
+					var blue = Brushes.SkyBlue;
+					var red = Brushes.OrangeRed;
+					var green = Brushes.LawnGreen;
+					var yellow = Brushes.Yellow;
+					var white = Brushes.White;
 
 					foreach (var ns in NetState.Instances)
 					{
@@ -253,17 +287,15 @@ namespace Server.Tools
 
 		private void UpdateRegionOverlay(bool refresh)
 		{
-			if (m_Map != null)
+			if (EnsureOverlay(ref m_RegionOverlay))
 			{
-				EnsureOverlay(ref m_RegionOverlay);
-
 				using var g = Graphics.FromImage(m_RegionOverlay);
 
 				g.Clear(Color.Transparent);
 
 				SuspendLayout();
 
-				foreach (var region in m_Map?.Regions)
+				foreach (var region in m_Map.Regions)
 				{
 					if (m_MapRegion != region)
 					{
@@ -289,7 +321,7 @@ namespace Server.Tools
 
 		private void DrawRegion(Graphics g, Region region)
 		{
-			if (region == null || region.Deleted || region.IsDefault || !region.Registered)
+			if (region == null || region.Deleted || region.IsDefault || !region.Registered || region.Map != m_Map)
 			{
 				return;
 			}
@@ -380,6 +412,11 @@ namespace Server.Tools
 
 		private void OnCanvasPaint(object sender, PaintEventArgs e)
 		{
+			if (m_Map == null)
+			{
+				return;
+			}
+
 			if (sender == Canvas)
 			{
 				//e.Graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
@@ -401,6 +438,11 @@ namespace Server.Tools
 
 		private void OnCanvasMouseClick(object sender, MouseEventArgs e)
 		{
+			if (m_Map == null)
+			{
+				return;
+			}
+
 			int x = e.X, y = e.Y;
 
 			TranslateToCanvas(true, ref x, ref y);
@@ -417,6 +459,11 @@ namespace Server.Tools
 
 		private void OnCanvasMouseMove(object sender, MouseEventArgs e)
 		{
+			if (m_Map == null)
+			{
+				return;
+			}
+
 			int x = e.X, y = e.Y;
 
 			TranslateToCanvas(true, ref x, ref y);

@@ -42,6 +42,7 @@ namespace Server.Tools
             // 
             this.Canvas.AutoScroll = true;
             this.Canvas.AutoSize = true;
+            this.Canvas.BackColor = System.Drawing.Color.Black;
             this.Canvas.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Canvas.Location = new System.Drawing.Point(0, 0);
             this.Canvas.Map = null;
@@ -66,6 +67,8 @@ namespace Server.Tools
             // 
             // Frame.Panel2
             // 
+            this.Frame.Panel2.BackColor = System.Drawing.Color.Black;
+            this.Frame.Panel2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.Frame.Panel2.Controls.Add(this.Canvas);
             this.Frame.Panel2MinSize = 200;
             this.Frame.Size = new System.Drawing.Size(1503, 1082);
