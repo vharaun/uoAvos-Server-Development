@@ -34,27 +34,27 @@ namespace Server.Tools
 
 		private Bitmap m_RegionOverlay, m_MobileOverlay;
 
-		private int? m_PolyIndex, m_PointIndex;
+		private volatile int m_PolyIndex, m_PointIndex;
 
-		private Map m_Map;
+		private volatile Map m_Map;
 
 		[Browsable(false)]
 		public Map Map { get => m_Map; set => SetMap(value); }
 
-		private Region m_MapRegion;
+		private volatile Region m_MapRegion;
 
 		[Browsable(false)]
-		public Region MapRegion { get => m_MapRegion; set => SetMapRegion(value); }
+		public Region MapRegion { get => m_MapRegion; set => SetMapRegion(value, -1, -1); }
 
 		[Browsable(false)]
 		public Image Image { get => Canvas.Image; private set => SetImage(value); }
 
-		private int m_VertexRadius = DefVertexRadius;
+		private volatile int m_VertexRadius = DefVertexRadius;
 
 		[Browsable(true), DefaultValue(DefVertexRadius)]
-		public int VertexRadius { get => m_VertexRadius; set => Invoke(v => m_VertexRadius = v, Math.Clamp(value, MinVertexRadius, MaxVertexRadius)); }
+		public int VertexRadius { get => m_VertexRadius; set => Invoke(() => m_VertexRadius = Math.Clamp(value, MinVertexRadius, MaxVertexRadius)); }
 
-		public event EventHandler<MapCanvas> MapUpdated, MapRegionUpdated;
+		public event EventHandler<MapCanvas> MapUpdated, MapRegionUpdated, MapImageUpdating, MapImageUpdated;
 
 		public MapCanvas()
 		{
@@ -84,29 +84,14 @@ namespace Server.Tools
 			}
 		}
 
-		private void Invoke<T>(Action<T> action, T state)
-		{
-			if (action == null)
-			{
-				return;
-			}
-
-			if (InvokeRequired)
-			{
-				base.Invoke(action, state);
-			}
-			else
-			{
-				action(state);
-			}
-		}
-
-		private void InvokeAsync(Action action)
+		private static Task InvokeAsync(Action action)
 		{
 			if (action != null)
 			{
-				Task.Run(action);
+				return Task.Run(action);
 			}
+
+			return Task.CompletedTask;
 		}
 
 		private void Invoke(EventHandler<MapCanvas> callback)
@@ -116,51 +101,59 @@ namespace Server.Tools
 
 		private void SetImage(Image image)
 		{
-			Invoke(img =>
+			Invoke(() =>
 			{
-				if (Canvas.Image != img)
+				if (Canvas.Image != image)
 				{
-					Canvas.Image = img;
+					Canvas.Image = image;
 
 					UpdateOverlays(true);
 				}
-			}, image);
+			});
 		}
 
 		private void SetMap(Map map)
 		{
-			Invoke(m =>
+			Invoke(() =>
 			{
-				if (m_Map != m)
+				if (m_Map != map)
 				{
-					m_Map = m;
+					m_Map = map;
 					m_MapRegion = null;
-					m_PolyIndex = m_PointIndex = null;
+					m_PolyIndex = -1;
+					m_PointIndex = -1;
 
 					Invoke(MapUpdated);
 
 					UpdateCanvas();
 				}
-			}, map);
+			});
 		}
 
-		private void SetMapRegion(Region region)
+		private void SetMapRegion(Region region, int polyIndex, int pointIndex)
 		{
-			Invoke(reg =>
+			Invoke(() =>
 			{
 				var oldMap = m_Map;
 				var oldRegion = m_MapRegion;
 
-				if (reg == null || reg.Deleted || reg.IsDefault || !reg.Registered || reg.Map == null || reg.Map == Map.Internal)
+				if (region == null || region.Deleted || region.IsDefault || !region.Registered || region.Map == null || region.Map == Map.Internal)
 				{
 					m_MapRegion = null;
-					m_PolyIndex = m_PointIndex = null;
+					m_PolyIndex = -1;
+					m_PointIndex = -1;
 				}
-				else if (m_MapRegion != reg)
+				else if (m_MapRegion != region)
 				{
-					m_Map = reg.Map;
-					m_MapRegion = reg;
-					m_PolyIndex = m_PointIndex = null;
+					m_Map = region.Map;
+					m_MapRegion = region;
+					m_PolyIndex = polyIndex;
+					m_PointIndex = pointIndex;
+				}
+				else
+				{
+					m_PolyIndex = polyIndex;
+					m_PointIndex = pointIndex;
 				}
 
 				if (oldMap != m_Map)
@@ -179,15 +172,17 @@ namespace Server.Tools
 				}
 				else
 				{
-					UpdateRegionOverlay(true);
+					UpdateOverlays(true);
 				}
-			}, region);
+			});
 		}
 
 		private void UpdateCanvas()
 		{
 			Invoke(() =>
 			{
+				Invoke(MapImageUpdating);
+
 				var image = Image;
 
 				if (image != null && Equals(Image.RawFormat, ImageFormat.MemoryBmp))
@@ -197,22 +192,27 @@ namespace Server.Tools
 
 				SetImage(Properties.Resources.LoadingIcon);
 
-				InvokeAsync(() => SetImage(m_Map?.GetMapImage(true)));
+				InvokeAsync(() =>
+				{
+					SetImage(m_Map?.GetMapImage(true));
+
+					Invoke(MapImageUpdated);
+				});
 			});
 		}
 
 		private void UpdateOverlays(bool refresh)
 		{
-			Invoke(r =>
+			Invoke(() =>
 			{
 				UpdateMobileOverlay(false);
 				UpdateRegionOverlay(false);
 
-				if (r)
+				if (refresh)
 				{
 					Refresh();
 				}
-			}, refresh);
+			});
 		}
 
 		private bool EnsureOverlay(ref Bitmap image)
@@ -236,87 +236,89 @@ namespace Server.Tools
 
 		private void UpdateMobileOverlay(bool refresh)
 		{
-			if (EnsureOverlay(ref m_MobileOverlay))
+			Invoke(() =>
 			{
-				using var g = Graphics.FromImage(m_MobileOverlay);
-
-				g.PageUnit = GraphicsUnit.Pixel;
-
-				g.Clear(Color.Transparent);
-
-				if (NetState.Instances.Count > 0)
+				if (EnsureOverlay(ref m_MobileOverlay))
 				{
-					var gray = Brushes.Gray;
-					var blue = Brushes.SkyBlue;
-					var red = Brushes.OrangeRed;
-					var green = Brushes.LawnGreen;
-					var yellow = Brushes.Yellow;
-					var white = Brushes.White;
+					using var g = Graphics.FromImage(m_MobileOverlay);
 
-					foreach (var ns in NetState.Instances)
+					g.PageUnit = GraphicsUnit.Pixel;
+
+					g.Clear(Color.Transparent);
+
+					if (NetState.Instances.Count > 0)
 					{
-						var m = ns.Mobile;
+						var gray = Brushes.Gray;
+						var blue = Brushes.SkyBlue;
+						var red = Brushes.OrangeRed;
+						var green = Brushes.LawnGreen;
+						var yellow = Brushes.Yellow;
+						var white = Brushes.White;
 
-						if (m?.Deleted == false)
+						foreach (var ns in NetState.Instances)
 						{
-							if (m.Map == m_Map)
-							{
-								var tool = m.Blessed ? yellow : m.Kills >= 5 ? red : m.Criminal ? gray : blue;
+							var m = ns.Mobile;
 
-								g.FillRectangle(tool, m.Location.X, m.Location.Y, 1, 1);
-							}
-							else if (m.LogoutMap == m_Map)
+							if (m?.Deleted == false)
 							{
-								g.FillRectangle(white, m.LogoutLocation.X, m.LogoutLocation.Y, 1, 1);
+								if (m.Map == m_Map)
+								{
+									var tool = m.Blessed ? yellow : m.Kills >= 5 ? red : m.Criminal ? gray : blue;
+
+									g.FillRectangle(tool, m.Location.X, m.Location.Y, 1, 1);
+								}
+								else if (m.LogoutMap == m_Map)
+								{
+									g.FillRectangle(white, m.LogoutLocation.X, m.LogoutLocation.Y, 1, 1);
+								}
 							}
 						}
 					}
 				}
-			}
-			else
-			{
-				m_MobileOverlay?.Dispose();
-				m_MobileOverlay = null;
-			}
+				else
+				{
+					m_MobileOverlay?.Dispose();
+					m_MobileOverlay = null;
+				}
 
-			if (refresh)
-			{
-				Refresh();
-			}
+				if (refresh)
+				{
+					Refresh();
+				}
+			});
 		}
 
 		private void UpdateRegionOverlay(bool refresh)
 		{
-			if (EnsureOverlay(ref m_RegionOverlay))
+			Invoke(() =>
 			{
-				using var g = Graphics.FromImage(m_RegionOverlay);
-
-				g.Clear(Color.Transparent);
-
-				SuspendLayout();
-
-				foreach (var region in m_Map.Regions)
+				if (EnsureOverlay(ref m_RegionOverlay))
 				{
-					if (m_MapRegion != region)
+					using var g = Graphics.FromImage(m_RegionOverlay);
+
+					g.Clear(Color.Transparent);
+
+					foreach (var region in m_Map.Regions)
 					{
-						DrawRegion(g, region);
+						if (m_MapRegion != region)
+						{
+							DrawRegion(g, region);
+						}
 					}
+
+					DrawRegion(g, m_MapRegion);
+				}
+				else
+				{
+					m_RegionOverlay?.Dispose();
+					m_RegionOverlay = null;
 				}
 
-				DrawRegion(g, m_MapRegion);
-
-				ResumeLayout(false);
-			}
-			else
-			{
-				m_RegionOverlay?.Dispose();
-				m_RegionOverlay = null;
-			}
-
-			if (refresh)
-			{
-				Refresh();
-			}
+				if (refresh)
+				{
+					Refresh();
+				}
+			});
 		}
 
 		private void DrawRegion(Graphics g, Region region)
@@ -378,9 +380,9 @@ namespace Server.Tools
 				}
 			}
 
-			if (selectedRegion && m_PolyIndex != null)
+			if (selectedRegion && m_PolyIndex >= 0)
 			{
-				var poly = area[m_PolyIndex.Value];
+				var poly = area[m_PolyIndex];
 
 				for (int i = 0, n = 1; i < poly.Count; i = n++)
 				{
@@ -421,8 +423,9 @@ namespace Server.Tools
 			{
 				//e.Graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
 				//e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
-				//e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-				//e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+				e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
+				e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+				e.Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.AssumeLinear;
 
 				if (m_MobileOverlay != null)
 				{
@@ -447,13 +450,13 @@ namespace Server.Tools
 
 			TranslateToCanvas(true, ref x, ref y);
 
+			if (GetData(x, y, out var region, out var polyIndex, out var pointIndex))
+			{
+			}
+
 			if (e.Button == MouseButtons.Left)
 			{
-				if (GetData(x, y, out var region, out m_PolyIndex, out m_PointIndex))
-				{
-				}
-
-				MapRegion = region;
+				SetMapRegion(region, polyIndex, pointIndex);
 			}
 		}
 
@@ -472,7 +475,7 @@ namespace Server.Tools
 			{
 			}
 
-			Cursor.Current = Canvas.Cursor = pointIdx != null ? Cursors.SizeAll : Cursors.Cross;
+			Cursor.Current = Canvas.Cursor = pointIdx >= 0 ? Cursors.SizeAll : Cursors.Cross;
 
 			if (m_Tooltip != null)
 			{
@@ -483,7 +486,7 @@ namespace Server.Tools
 
 				if (region != null)
 				{
-					m_Tooltip.Show($"({x}, {y}) {region} [{polyIdx ?? -1}, {pointIdx ?? -1}]", this, p);
+					m_Tooltip.Show($"({x}, {y}) {region} [{polyIdx}, {pointIdx}]", this, p);
 				}
 				else
 				{
@@ -521,7 +524,7 @@ namespace Server.Tools
 			}
 		}
 
-		private bool GetData(int x, int y, out Region region, out int? polyIdx, out int? pointIdx)
+		private bool GetData(int x, int y, out Region region, out int polyIdx, out int pointIdx)
 		{
 			region = Server.Region.Find(x, y, m_Map);
 
@@ -552,13 +555,13 @@ namespace Server.Tools
 			}
 
 			region = null;
-			polyIdx = null;
-			pointIdx = null;
+			polyIdx = -1;
+			pointIdx = -1;
 
 			return false;
 		}
 
-		private bool GetPoly(Poly3D[] area, int x, int y, out int? polyIdx, out int? pointIdx)
+		private bool GetPoly(Poly3D[] area, int x, int y, out int polyIdx, out int pointIdx)
 		{
 			for (var polyIndex = 0; polyIndex < area.Length; polyIndex++)
 			{
@@ -579,13 +582,13 @@ namespace Server.Tools
 				}
 			}
 
-			polyIdx = null;
-			pointIdx = null;
+			polyIdx = -1;
+			pointIdx = -1;
 
 			return false;
 		}
 
-		private bool GetPoint(Poly3D poly, int x, int y, out int? pointIdx)
+		private bool GetPoint(Poly3D poly, int x, int y, out int pointIdx)
 		{
 			var delta = VertexRadius;
 
@@ -607,7 +610,7 @@ namespace Server.Tools
 				}
 			}
 
-			pointIdx = null;
+			pointIdx = -1;
 
 			return false;
 		}
@@ -619,19 +622,19 @@ namespace Server.Tools
 
 		public void ScrollRegionIntoView(Region region)
 		{
-			Invoke(reg =>
+			Invoke(() =>
 			{
-				if (reg != null && !reg.Deleted && !reg.IsDefault && reg.Registered && reg.Map == m_Map)
+				if (region != null && !region.Deleted && !region.IsDefault && region.Registered && region.Map == m_Map)
 				{
 					SuspendLayout();
 
 					// NOTE: values are updated twice to fix a native scrolling desync bug
-					HorizontalScroll.Value = HorizontalScroll.Value = Math.Clamp(reg.GoLocation.X - (ClientSize.Width / 2), HorizontalScroll.Minimum, HorizontalScroll.Maximum);
-					VerticalScroll.Value = VerticalScroll.Value = Math.Clamp(reg.GoLocation.Y - (ClientSize.Height / 2), VerticalScroll.Minimum, VerticalScroll.Maximum);
+					HorizontalScroll.Value = HorizontalScroll.Value = Math.Clamp(region.GoLocation.X - (ClientSize.Width / 2), HorizontalScroll.Minimum, HorizontalScroll.Maximum);
+					VerticalScroll.Value = VerticalScroll.Value = Math.Clamp(region.GoLocation.Y - (ClientSize.Height / 2), VerticalScroll.Minimum, VerticalScroll.Maximum);
 
 					ResumeLayout(true);
 				}
-			}, region);
+			});
 		}
 	}
 }

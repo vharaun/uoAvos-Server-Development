@@ -45,8 +45,6 @@ namespace Server.Tools
             this.Canvas.BackColor = System.Drawing.Color.Black;
             this.Canvas.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Canvas.Location = new System.Drawing.Point(0, 0);
-            this.Canvas.Map = null;
-            this.Canvas.MapRegion = null;
             this.Canvas.Margin = new System.Windows.Forms.Padding(0);
             this.Canvas.Name = "Canvas";
             this.Canvas.Size = new System.Drawing.Size(1197, 1082);
@@ -81,7 +79,7 @@ namespace Server.Tools
             this.Regions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Regions.HideSelection = false;
             this.Regions.HotTracking = true;
-            this.Regions.LabelEdit = true;
+            this.Regions.LabelEdit = false;
             this.Regions.Location = new System.Drawing.Point(0, 0);
             this.Regions.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.Regions.Name = "Regions";

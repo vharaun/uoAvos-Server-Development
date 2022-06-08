@@ -61,7 +61,10 @@ namespace Server.Tools
 
 			Canvas.MapUpdated += OnCanvasMapUpdated;
 			Canvas.MapRegionUpdated += OnCanvasMapRegionUpdated;
+			Canvas.MapImageUpdating += OnCanvasMapImageUpdating;
+			Canvas.MapImageUpdated += OnCanvasMapImageUpdated;
 
+			Regions.BeforeSelect += OnRegionsBeforeSelect;
 			Regions.AfterSelect += OnRegionsAfterSelect;
 
 			Map.RegionAdded += OnMapRegionAdded;
@@ -85,36 +88,11 @@ namespace Server.Tools
 			}
 		}
 
-		private void Invoke<T>(Action<T> action, T state)
-		{
-			if (action == null)
-			{
-				return;
-			}
-
-			if (InvokeRequired)
-			{
-				base.Invoke(action, state);
-			}
-			else
-			{
-				action(state);
-			}
-		}
-
 		private void InvokeAsync(Action action)
 		{
 			if (action != null)
 			{
 				BeginInvoke(action);
-			}
-		}
-
-		private void InvokeAsync<T>(Action<T> action, T state)
-		{
-			if (action != null)
-			{
-				BeginInvoke(action, state);
 			}
 		}
 
@@ -153,32 +131,49 @@ namespace Server.Tools
 			Invoke(EditorClosed);
 		}
 
+		private void OnRegionsBeforeSelect(object sender, TreeViewCancelEventArgs e)
+		{
+			e.Cancel = m_ImageUpdating;
+		}
+
 		private void OnRegionsAfterSelect(object sender, TreeViewEventArgs e)
 		{
-			if (e.Node is MapTreeNode m)
+			if (e.Action != TreeViewAction.Unknown)
 			{
-				Canvas.Map = m.Map;
-			}
-			else if (e.Node is RegionTreeNode r)
-			{
-				Canvas.MapRegion = r.MapRegion;
-
-				if (m_ScrollToView)
+				if (e.Node is MapTreeNode m)
 				{
-					Canvas.ScrollRegionIntoView();
+					Canvas.Map = m.Map;
+				}
+				else if (e.Node is RegionTreeNode r)
+				{
+					Canvas.MapRegion = r.MapRegion; 
+					
+					m_ScrollToView = true;
 				}
 			}
 		}
 
 		private void OnCanvasMapUpdated(object sender, MapCanvas e)
 		{
-			Invoke(SyncRegionsSelection, e.Map);
+			SyncRegionsSelection(e.Map);
 		}
 
 		private void OnCanvasMapRegionUpdated(object sender, MapCanvas e)
 		{
-			Invoke(SyncRegionsSelection, e.MapRegion);
+			SyncRegionsSelection(e.MapRegion);
 		}
+
+		private bool m_ImageUpdating;
+
+		private void OnCanvasMapImageUpdating(object sender, MapCanvas e)
+		{
+			m_ImageUpdating = true;
+		}
+
+		private void OnCanvasMapImageUpdated(object sender, MapCanvas e)
+		{
+			m_ImageUpdating = false;
+		}		
 
 		private void OnMapRegionAdded(Map map, Region reg)
 		{
@@ -202,144 +197,155 @@ namespace Server.Tools
 
 		private void SyncRegionsSelection(object obj)
 		{
-			m_ScrollToView = false;
-
-			Regions.Select();
-
-			if (obj is Map map)
+			Invoke(() =>
 			{
-				if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
+				Regions.Select();
+
+				if (obj is Map map)
 				{
-					var n = Regions[map];
-
-					if (n != null)
+					if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
 					{
-						n.EnsureVisible();
+						var n = Regions[map];
 
-						Regions.SelectedNode = n;
+						if (n != null)
+						{
+							n.EnsureVisible();
+
+							Regions.SelectedNode = n;
+						}
+					}
+					else
+					{
+						m.EnsureVisible();
 					}
 				}
-				else
+				else if (obj is Region reg)
 				{
-					m.EnsureVisible();
-				}
-			}
-			else if (obj is Region reg)
-			{
-				if (reg.Deleted || reg.IsDefault || !reg.Registered)
-				{
-					if (Regions.SelectedNode is RegionTreeNode r && r.MapRegion == reg)
+					if (reg.Deleted || reg.IsDefault || !reg.Registered)
 					{
-						Regions.SelectedNode = null;
+						if (Regions.SelectedNode is RegionTreeNode r && r.MapRegion == reg)
+						{
+							Regions.SelectedNode = null;
+						}
 					}
-				}
-				else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
-				{
-					var n = Regions[reg];
+					else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
+					{
+						var n = Regions[reg];
 
-					if (n != null)
-					{
-						n.EnsureVisible();
+						if (n != null)
+						{
+							n.EnsureVisible();
 
-						Regions.SelectedNode = n;
+							Regions.SelectedNode = n;
+						}
 					}
-				}
-				else
-				{
-					r.EnsureVisible();
-				}
-			}
-			else if (obj is Type t)
-			{
-				if (t.IsAssignableFrom(typeof(Map)))
-				{
-					if (Regions.SelectedNode is MapTreeNode)
+					else
 					{
-						Regions.SelectedNode = null;
+						r.EnsureVisible();
 					}
 				}
-				else if (t.IsAssignableFrom(typeof(Region)))
+				else if (obj is Type t)
 				{
-					if (Regions.SelectedNode is RegionTreeNode)
+					if (t.IsAssignableFrom(typeof(Map)))
 					{
-						Regions.SelectedNode = null;
+						if (Regions.SelectedNode is MapTreeNode)
+						{
+							Regions.SelectedNode = null;
+						}
+					}
+					else if (t.IsAssignableFrom(typeof(Region)))
+					{
+						if (Regions.SelectedNode is RegionTreeNode)
+						{
+							Regions.SelectedNode = null;
+						}
 					}
 				}
-			}
 
-			m_ScrollToView = true;
+				if (m_ScrollToView)
+				{
+					m_ScrollToView = false;
+
+					Canvas.ScrollRegionIntoView();
+				}
+			});
 		}
 
 		public void InvalidateRegionsTree()
 		{
-			Invoke(InvalidateRegionsTree, Regions.Nodes);
+			InvalidateRegionsTree(Regions.Nodes);
 		}
 
 		private void InvalidateRegionsTree(TreeNodeCollection root)
 		{
-			var index = root.Count;
-
-			while (--index >= 0)
+			Invoke(() =>
 			{
-				if (index < root.Count)
+				var index = root.Count;
+
+				while (--index >= 0)
 				{
-					if (root[index] is MapTreeNode m)
+					if (index < root.Count)
 					{
-						if (m.Map == null || m.Map == Map.Internal || !Map.AllMaps.Contains(m.Map))
+						if (root[index] is MapTreeNode m)
 						{
-							root.RemoveAt(index);
-							continue;
-						}
+							if (m.Map == null || m.Map == Map.Internal || !Map.AllMaps.Contains(m.Map))
+							{
+								root.RemoveAt(index);
+								continue;
+							}
 
-						InvalidateRegionsTree(m.Nodes);
-					}
-					else if (root[index] is RegionTreeNode r)
-					{
-						if (r.MapRegion == null || r.MapRegion.Deleted || r.MapRegion.IsDefault || !r.MapRegion.Registered)
+							InvalidateRegionsTree(m.Nodes);
+						}
+						else if (root[index] is RegionTreeNode r)
 						{
-							root.RemoveAt(index);
-							continue;
-						}
+							if (r.MapRegion == null || r.MapRegion.Deleted || r.MapRegion.IsDefault || !r.MapRegion.Registered)
+							{
+								root.RemoveAt(index);
+								continue;
+							}
 
-						InvalidateRegionsTree(r.Nodes);
+							InvalidateRegionsTree(r.Nodes);
+						}
 					}
 				}
-			}
+			});
 		}
 
 		public void UpdateRegionsTree()
 		{
-			//UpdateRegionsTree(Regions.Nodes);
-			Invoke(UpdateRegionsTree, Regions.Nodes);
+			UpdateRegionsTree(Regions.Nodes);
 		}
 
 		private void UpdateRegionsTree(TreeNodeCollection root)
 		{
-			if (m_UpdatingTree)
+			Invoke(() =>
 			{
-				return;
-			}
-
-			m_UpdatingTree = true;
-
-			try
-			{
-				Regions.BeginUpdate();
-
-				foreach (var map in Map.AllMaps)
+				if (m_UpdatingTree)
 				{
-					if (map != null && map != Map.Internal)
-					{
-						BuildRegionsTree(root, map);
-					}
+					return;
 				}
 
-				Regions.EndUpdate();
-			}
-			finally
-			{
-				m_UpdatingTree = false;
-			}
+				m_UpdatingTree = true;
+
+				try
+				{
+					Regions.BeginUpdate();
+
+					foreach (var map in Map.AllMaps)
+					{
+						if (map != null && map != Map.Internal)
+						{
+							BuildRegionsTree(root, map);
+						}
+					}
+
+					Regions.EndUpdate();
+				}
+				finally
+				{
+					m_UpdatingTree = false;
+				}
+			});
 		}
 
 		private static void RecursiveAddRegion(TreeNodeCollection c, Region r)
@@ -403,7 +409,7 @@ namespace Server.Tools
 		public MapTreeNode(Map map)
 		{
 			Map = map;
-
+			
 			Name = Text = map.ToString();
 		}
 	}
