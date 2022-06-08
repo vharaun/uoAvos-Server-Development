@@ -123,9 +123,9 @@ namespace Server.Tools
 					m_PolyIndex = -1;
 					m_PointIndex = -1;
 
-					Invoke(MapUpdated);
-
 					UpdateCanvas();
+
+					Invoke(MapUpdated);
 				}
 			});
 		}
@@ -158,21 +158,21 @@ namespace Server.Tools
 
 				if (oldMap != m_Map)
 				{
+					UpdateCanvas();
+				}
+				else
+				{
+					UpdateOverlays(true);
+				}
+
+				if (oldMap != m_Map)
+				{
 					Invoke(MapUpdated);
 				}
 
 				if (oldRegion != m_MapRegion)
 				{
 					Invoke(MapRegionUpdated);
-				}
-
-				if (oldMap != m_Map)
-				{
-					UpdateCanvas();
-				}
-				else
-				{
-					UpdateOverlays(true);
 				}
 			});
 		}

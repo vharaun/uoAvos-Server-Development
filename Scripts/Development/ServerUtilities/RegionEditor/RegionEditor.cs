@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -53,7 +54,7 @@ namespace Server.Tools
 			Application.Run(m_Instance);
 		}
 
-		private bool m_UpdatingTree, m_ScrollToView;
+		private volatile bool m_UpdatingTree, m_UpdatingImage, m_ScrollToView;
 
 		private Editor()
 		{
@@ -133,7 +134,12 @@ namespace Server.Tools
 
 		private void OnRegionsBeforeSelect(object sender, TreeViewCancelEventArgs e)
 		{
-			e.Cancel = m_ImageUpdating;
+			e.Cancel = m_UpdatingImage;
+
+			if (e.Action != TreeViewAction.Unknown)
+			{
+				m_ScrollToView = true;
+			}
 		}
 
 		private void OnRegionsAfterSelect(object sender, TreeViewEventArgs e)
@@ -146,9 +152,7 @@ namespace Server.Tools
 				}
 				else if (e.Node is RegionTreeNode r)
 				{
-					Canvas.MapRegion = r.MapRegion; 
-					
-					m_ScrollToView = true;
+					Canvas.MapRegion = r.MapRegion; 					
 				}
 			}
 		}
@@ -161,18 +165,31 @@ namespace Server.Tools
 		private void OnCanvasMapRegionUpdated(object sender, MapCanvas e)
 		{
 			SyncRegionsSelection(e.MapRegion);
-		}
 
-		private bool m_ImageUpdating;
+			if (m_ScrollToView && !m_UpdatingImage)
+			{
+				m_ScrollToView = false;
+
+				Canvas.ScrollRegionIntoView();
+			}
+		}
 
 		private void OnCanvasMapImageUpdating(object sender, MapCanvas e)
 		{
-			m_ImageUpdating = true;
+			m_UpdatingImage = true;
+			m_ScrollToView = true;
 		}
 
 		private void OnCanvasMapImageUpdated(object sender, MapCanvas e)
 		{
-			m_ImageUpdating = false;
+			m_UpdatingImage = false;
+
+			if (m_ScrollToView)
+			{
+				m_ScrollToView = false;
+
+				Canvas.ScrollRegionIntoView();
+			}
 		}		
 
 		private void OnMapRegionAdded(Map map, Region reg)
@@ -260,13 +277,6 @@ namespace Server.Tools
 							Regions.SelectedNode = null;
 						}
 					}
-				}
-
-				if (m_ScrollToView)
-				{
-					m_ScrollToView = false;
-
-					Canvas.ScrollRegionIntoView();
 				}
 			});
 		}
@@ -400,6 +410,19 @@ namespace Server.Tools
 		public MapTreeNode this[Map map] { get => Nodes.Find(map.ToString(), false).OfType<MapTreeNode>().FirstOrDefault(n => n.Map == map); }
 
 		public RegionTreeNode this[Region reg] { get => this[reg.Map]?.Nodes.Find(reg.ToString(), true).OfType<RegionTreeNode>().FirstOrDefault(n => n.MapRegion == reg); }
+
+		public MapRegionsTree()
+		{
+			TreeViewNodeSorter = new NodeComparer();
+		}
+
+		private class NodeComparer : IComparer
+		{
+			public int Compare(object x, object y)
+			{
+				return StringComparer.InvariantCultureIgnoreCase.Compare(x?.ToString(), y?.ToString());
+			}
+		}
 	}
 
 	public class MapTreeNode : TreeNode
