@@ -18,7 +18,7 @@
 			{
 				for (var i = 0; i < e.Length; ++i)
 				{
-					var result = Properties.GetValue(e.Mobile, obj, e.GetString(i));
+					var result = Props.GetValue(e.Mobile, obj, e.GetString(i));
 
 					if (result == "Property not found." || result == "Property is write only." || result.StartsWith("Getting this property"))
 					{

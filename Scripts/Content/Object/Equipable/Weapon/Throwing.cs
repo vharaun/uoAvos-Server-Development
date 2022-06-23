@@ -109,7 +109,7 @@ namespace Server.Items
 
 			to.Damage(1);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerStateCallback(ReleaseBolaLock), from);
+			Timer.DelayCall(TimeSpan.FromSeconds(2.0), ReleaseBolaLock, from);
 		}
 
 		private static bool HasFreeHands(Mobile from)
@@ -209,7 +209,7 @@ namespace Server.Items
 						from.Animate(11, 5, 1, true, false, 0);
 						from.MovingEffect(to, 0x26AC, 10, 0, false, false);
 
-						Timer.DelayCall(TimeSpan.FromSeconds(0.5), new TimerStateCallback(FinishThrow), new object[] { from, to });
+						Timer.DelayCall(TimeSpan.FromSeconds(0.5), FinishThrow, new object[] { from, to });
 					}
 					else
 					{
@@ -375,7 +375,7 @@ namespace Server.Items
 
 			if (m_Timer == null)
 			{
-				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), new TimerCallback(OnFirebombTimerTick));
+				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), OnFirebombTimerTick);
 				m_LitBy = from;
 				from.SendLocalizedMessage(1060582); // You light the firebomb.  Throw it now!
 			}
@@ -529,7 +529,7 @@ namespace Server.Items
 
 			Effects.SendMovingEffect(from, to, ItemID, 7, 0, false, false, Hue, 0);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(FirebombReposition_OnTick), new object[] { p, Map });
+			Timer.DelayCall(TimeSpan.FromSeconds(1.0), FirebombReposition_OnTick, new object[] { p, Map });
 			Internalize();
 		}
 
@@ -579,7 +579,7 @@ namespace Server.Items
 			m_LitBy = litBy;
 			m_Expire = DateTime.UtcNow + TimeSpan.FromSeconds(10);
 			m_Burning = toDamage;
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.0), new TimerCallback(OnFirebombFieldTimerTick));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.0), OnFirebombFieldTimerTick);
 		}
 
 		public FirebombField(Serial serial) : base(serial)

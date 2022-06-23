@@ -6203,7 +6203,7 @@ namespace Server
 
 			/*	//Moved into cleanup in scripts.
 			if( version < 30 )
-				Timer.DelayCall( TimeSpan.Zero, new TimerCallback( ConvertHair ) );
+				Timer.DelayCall( TimeSpan.Zero,  ConvertHair  );
 			 * */
 
 		}
@@ -7526,14 +7526,16 @@ namespace Server
 				return;
 			}
 
+			var oldRegion = m_Region;
 			var newRegion = Region.Find(m_Location, m_Map);
 
-			if (newRegion != m_Region)
+			if (oldRegion != newRegion)
 			{
-				Region.OnRegionChange(this, m_Region, newRegion);
-
 				m_Region = newRegion;
-				OnRegionChange(m_Region, newRegion);
+
+				Region.OnRegionChange(this, oldRegion, newRegion);
+
+				OnRegionChange(oldRegion, newRegion);
 			}
 		}
 

@@ -226,7 +226,7 @@ namespace Server.Spells.Necromancy
 								Effects.PlaySound(p, map, 0x1FB);
 								Effects.SendLocationParticles(EffectItem.Create(p, map, EffectItem.DefaultDuration), 0x3789, 1, 40, 0x3F, 3, 9907, 0);
 
-								Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerStateCallback(SummonDelay_Callback), new object[] { Caster, c, p, map, group });
+								Timer.DelayCall(TimeSpan.FromSeconds(2.0), SummonDelay, Caster, c, p, map, group);
 							}
 						}
 					}
@@ -295,16 +295,14 @@ namespace Server.Spells.Necromancy
 
 			if (list.Count > 3)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(list[0].Kill));
+				Timer.DelayCall(list[0].Kill);
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(2.0), TimeSpan.FromSeconds(2.0), new TimerStateCallback(Summoned_Damage), summoned);
+			Timer.DelayCall(TimeSpan.FromSeconds(2.0), TimeSpan.FromSeconds(2.0), SummonedDamage, summoned);
 		}
 
-		private static void Summoned_Damage(object state)
+		private static void SummonedDamage(Mobile mob)
 		{
-			var mob = (Mobile)state;
-
 			if (mob.Hits > 0)
 			{
 				--mob.Hits;
@@ -315,16 +313,8 @@ namespace Server.Spells.Necromancy
 			}
 		}
 
-		private static void SummonDelay_Callback(object state)
+		private static void SummonDelay(Mobile caster, Corpse corpse, Point3D loc, Map map, CreatureGroup group)
 		{
-			var states = (object[])state;
-
-			var caster = (Mobile)states[0];
-			var corpse = (Corpse)states[1];
-			var loc = (Point3D)states[2];
-			var map = (Map)states[3];
-			var group = (CreatureGroup)states[4];
-
 			if (corpse.Animated)
 			{
 				return;

@@ -480,7 +480,7 @@ namespace Server.Items
 
 			writer.WriteEncodedInt(0); // version
 
-			writer.WriteItem<PlagueBeastOrgan>(m_Organ);
+			writer.Write(m_Organ);
 		}
 
 		public override void Deserialize(GenericReader reader)
@@ -532,7 +532,7 @@ namespace Server.Items
 
 			Movable = false;
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(Initialize));
+			Timer.DelayCall(TimeSpan.Zero, Initialize);
 		}
 
 		public virtual void Initialize()
@@ -561,7 +561,7 @@ namespace Server.Items
 			{
 				if (!m_Opened && m_Timer == null)
 				{
-					m_Timer = Timer.DelayCall<Mobile>(TimeSpan.FromSeconds(3), new TimerStateCallback<Mobile>(FinishOpening), from);
+					m_Timer = Timer.DelayCall<Mobile>(TimeSpan.FromSeconds(3), FinishOpening, from);
 					scissors.PublicOverheadMessage(MessageType.Regular, 0x3B2, 1071897); // You carefully cut into the organ.
 					return true;
 				}
@@ -917,7 +917,7 @@ namespace Server.Items
 			if (to.Hue == 0x1 && m_Gland == null && item is PlagueBeastGland)
 			{
 				m_Gland = item;
-				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(3), new TimerCallback(FinishHealing));
+				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(3), FinishHealing);
 				from.SendAsciiMessage(0x3B2, "* You place the healthy gland inside the organ sac *");
 				item.Movable = false;
 
@@ -950,7 +950,7 @@ namespace Server.Items
 				Components[i].Hue = 0x6;
 			}
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2), new TimerCallback(OpenOrgan));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(2), OpenOrgan);
 		}
 
 		public void OpenOrgan()
@@ -1127,7 +1127,7 @@ namespace Server.Items
 			{
 				if (!m_Cut && m_Timer == null)
 				{
-					m_Timer = Timer.DelayCall<Mobile>(TimeSpan.FromSeconds(3), new TimerStateCallback<Mobile>(CuttingDone), from);
+					m_Timer = Timer.DelayCall<Mobile>(TimeSpan.FromSeconds(3), CuttingDone, from);
 					scissors.PublicOverheadMessage(MessageType.Regular, 0x3B2, 1071899); // You begin cutting through the vein.
 					return true;
 				}
@@ -1208,7 +1208,7 @@ namespace Server.Items
 
 		public PlagueBeastBlood() : base(0x122C, 0)
 		{
-			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(1.5), 3, new TimerCallback(Hemorrhage));
+			m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(1.5), 3, Hemorrhage);
 		}
 
 		public override void OnAfterDelete()
@@ -1364,7 +1364,7 @@ namespace Server.Items
 
 				if (owner != null)
 				{
-					Timer.DelayCall<PlagueBeastLord>(TimeSpan.FromSeconds(1), new TimerStateCallback<PlagueBeastLord>(KillParent), owner);
+					Timer.DelayCall<PlagueBeastLord>(TimeSpan.FromSeconds(1), KillParent, owner);
 				}
 
 				return true;

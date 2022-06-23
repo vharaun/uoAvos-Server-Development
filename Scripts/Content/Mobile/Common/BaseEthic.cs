@@ -268,7 +268,7 @@ namespace Server.Ethics
 
 							if (pl.Mobile != null)
 							{
-								Timer.DelayCall(TimeSpan.Zero, new TimerCallback(pl.CheckAttach));
+								Timer.DelayCall(TimeSpan.Zero, pl.CheckAttach);
 							}
 						}
 

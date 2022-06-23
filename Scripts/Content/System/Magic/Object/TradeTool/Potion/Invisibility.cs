@@ -33,7 +33,7 @@ namespace Server.Items
 			}
 
 			Consume();
-			m_Table[from] = Timer.DelayCall(TimeSpan.FromSeconds(2), new TimerStateCallback(Hide_Callback), from);
+			m_Table[from] = Timer.DelayCall(TimeSpan.FromSeconds(2), Hide_Callback, from);
 			PlayDrinkEffect(from);
 		}
 
@@ -57,7 +57,7 @@ namespace Server.Items
 
 			RemoveTimer(m);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(30), new TimerStateCallback(EndHide_Callback), m);
+			Timer.DelayCall(TimeSpan.FromSeconds(30), EndHide_Callback, m);
 		}
 
 		private static void EndHide_Callback(object obj)

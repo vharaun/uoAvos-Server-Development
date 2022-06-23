@@ -49,7 +49,7 @@ namespace Server.Engines.Quests.Items
 
 			m_Maabus.Direction = m_Maabus.GetDirectionTo(caller);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(7.5), new TimerCallback(BeginSleep));
+			Timer.DelayCall(TimeSpan.FromSeconds(7.5), BeginSleep);
 		}
 
 		public void BeginSleep()
@@ -61,7 +61,7 @@ namespace Server.Engines.Quests.Items
 
 			Effects.PlaySound(m_Maabus.Location, m_Maabus.Map, 0x48E);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(2.5), new TimerCallback(Sleep));
+			Timer.DelayCall(TimeSpan.FromSeconds(2.5), Sleep);
 		}
 
 		public void Sleep()

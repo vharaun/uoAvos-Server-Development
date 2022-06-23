@@ -487,7 +487,7 @@ namespace Server.Items
 				timer.Stop();
 			}
 
-			m_Delay[m] = Timer.DelayCall(TimeSpan.FromSeconds(30), new TimerStateCallback(EndDelay_Callback), m);
+			m_Delay[m] = Timer.DelayCall(TimeSpan.FromSeconds(30), EndDelay_Callback, m);
 		}
 
 		public static int GetDelay(Mobile m)
@@ -566,7 +566,7 @@ namespace Server.Items
 				}
 
 				Effects.SendMovingEffect(from, to, 0xF0D, 7, 0, false, false, m_Potion.Hue, 0);
-				Timer.DelayCall(TimeSpan.FromSeconds(1.5), new TimerStateCallback(m_Potion.Explode_Callback), new object[] { from, new Point3D(p), from.Map });
+				Timer.DelayCall(TimeSpan.FromSeconds(1.5), m_Potion.Explode_Callback, new object[] { from, new Point3D(p), from.Map });
 			}
 		}
 
@@ -833,7 +833,7 @@ namespace Server.Items
 
 			Geometry.Circle2D(loc, map, Radius, new DoEffect_Callback(BlastEffect), 270, 90);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(0.3), new TimerStateCallback(CircleEffect2), new object[] { loc, map });
+			Timer.DelayCall(TimeSpan.FromSeconds(0.3), CircleEffect2, new object[] { loc, map });
 
 			foreach (var mobile in map.GetMobilesInRange(loc, Radius))
 			{
@@ -880,7 +880,7 @@ namespace Server.Items
 				timer.Stop();
 			}
 
-			m_Delay[m] = Timer.DelayCall(TimeSpan.FromSeconds(60), new TimerStateCallback(EndDelay_Callback), m);
+			m_Delay[m] = Timer.DelayCall(TimeSpan.FromSeconds(60), EndDelay_Callback, m);
 		}
 
 		public static int GetDelay(Mobile m)
@@ -959,7 +959,7 @@ namespace Server.Items
 				}
 
 				Effects.SendMovingEffect(from, to, 0xF0D, 7, 0, false, false, m_Potion.Hue, 0);
-				Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(m_Potion.Explode_Callback), new object[] { from, new Point3D(p), from.Map });
+				Timer.DelayCall(TimeSpan.FromSeconds(1.0), m_Potion.Explode_Callback, new object[] { from, new Point3D(p), from.Map });
 			}
 		}
 	}
@@ -1165,11 +1165,11 @@ namespace Server.Items
 
 				if (Core.ML)
 				{
-					m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.25), 5, new TimerStateCallback(Detonate_OnTick), new object[] { from, 3 }); // 3.6 seconds explosion delay
+					m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.25), 5, Detonate_OnTick, new object[] { from, 3 }); // 3.6 seconds explosion delay
 				}
 				else
 				{
-					m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(0.75), TimeSpan.FromSeconds(1.0), 4, new TimerStateCallback(Detonate_OnTick), new object[] { from, 3 }); // 2.6 seconds explosion delay
+					m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(0.75), TimeSpan.FromSeconds(1.0), 4, Detonate_OnTick, new object[] { from, 3 }); // 2.6 seconds explosion delay
 				}
 			}
 		}
@@ -1313,7 +1313,7 @@ namespace Server.Items
 				}
 
 				m_Potion.Internalize();
-				Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(m_Potion.Reposition_OnTick), new object[] { from, p, map });
+				Timer.DelayCall(TimeSpan.FromSeconds(1.0), m_Potion.Reposition_OnTick, new object[] { from, p, map });
 			}
 		}
 
@@ -1471,7 +1471,7 @@ namespace Server.Items
 							Consume();
 						}
 
-						Timer.DelayCall(TimeSpan.FromSeconds(Delay), new TimerStateCallback(ReleaseHealLock), from);
+						Timer.DelayCall(TimeSpan.FromSeconds(Delay), ReleaseHealLock, from);
 					}
 					else
 					{

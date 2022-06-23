@@ -10,6 +10,7 @@ using Server.Targeting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 
 using CPA = Server.CommandPropertyAttribute;
@@ -187,7 +188,7 @@ namespace Server
 					access |= PropertyAccess.Read;
 				}
 
-				var security = Properties.GetCPA(prop);
+				var security = Props.GetCPA(prop);
 
 				if (security == null)
 				{
@@ -301,11 +302,12 @@ namespace Server.Commands
 		ReadWrite = Read | Write
 	}
 
-	public class Properties
+	public class Props
 	{
 		public static void Initialize()
 		{
-			CommandSystem.Register("Props", AccessLevel.Counselor, new CommandEventHandler(Props_OnCommand));
+			CommandSystem.Register("Props", AccessLevel.Counselor, Props_OnCommand);
+			CommandSystem.Register("PropsRegion", AccessLevel.Counselor, PropsRegion_OnCommand);
 		}
 
 		private class PropsTarget : Target
@@ -316,6 +318,45 @@ namespace Server.Commands
 
 			protected override void OnTarget(Mobile from, object o)
 			{
+				if (!BaseCommand.IsAccessible(from, o))
+				{
+					from.SendMessage("That is not accessible.");
+				}
+				else
+				{
+					from.SendGump(new PropertiesGump(from, o));
+				}
+			}
+		}
+
+		private class PropsRegionTarget : Target
+		{
+			public PropsRegionTarget() : base(-1, true, TargetFlags.None)
+			{
+			}
+
+			protected override void OnTarget(Mobile from, object o)
+			{
+				IPoint2D loc = from.Location;
+				var map = from.Map;
+
+				if (o is Item item)
+				{
+					loc = item.GetWorldLocation();
+					map = item.Map;
+				}
+				else if (o is IEntity e)
+				{
+					loc = e.Location;
+					map = e.Map;
+				}
+				else if (o is IPoint2D p)
+				{
+					loc = p;
+				}
+
+				o = Region.Find(loc, map);
+
 				if (!BaseCommand.IsAccessible(from, o))
 				{
 					from.SendMessage("That is not accessible.");
@@ -351,6 +392,37 @@ namespace Server.Commands
 			else
 			{
 				e.Mobile.Target = new PropsTarget();
+			}
+		}
+
+		[Usage("PropsRegion [name]")]
+		[Description("Opens a menu where you can view and edit all properties of a targeted (or specified) region.")]
+		private static void PropsRegion_OnCommand(CommandEventArgs e)
+		{
+			if (e.Length == 1)
+			{
+				var name = e.GetString(0);
+
+				var count = 0;
+
+				foreach (var reg in e.Mobile.Map.Regions)
+				{
+					if (Insensitive.Equals(reg.Name, name) && BaseCommand.IsAccessible(e.Mobile, reg))
+					{
+						++count;
+
+						e.Mobile.SendGump(new PropertiesGump(e.Mobile, reg));
+					}
+				}
+
+				if (count == 0)
+				{
+					e.Mobile.SendMessage($"No region with that name was found in {e.Mobile.Map.Name}.");
+				}
+			}
+			else
+			{
+				e.Mobile.Target = new PropsRegionTarget();
 			}
 		}
 
@@ -993,6 +1065,43 @@ namespace Server.Gumps
 
 	public class PropertiesGump : Gump
 	{
+		private static HashSet<PropertiesGump> m_Buffer = new HashSet<PropertiesGump>();
+
+		public static Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>> Instances { get; } = new Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>>();
+
+		public static void Configure()
+		{
+			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+		}
+
+		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		{
+			if (sender != null && Instances.TryGetValue(sender, out var gumps))
+			{
+				Instances[sender] = m_Buffer;
+
+				foreach (var gump in gumps)
+				{
+					var ns = gump.m_Mobile?.NetState;
+
+					if (ns == null)
+					{
+						continue;
+					}
+
+					ns.RemoveGump(gump);
+
+					var g = new PropertiesGump(gump.m_Mobile, gump.m_Object, gump.m_Stack, gump.m_List, gump.m_Page);
+
+					g.SendTo(ns);
+				}
+
+				gumps.Clear();
+
+				m_Buffer = gumps;
+			}
+		}
+
 		private readonly ArrayList m_List;
 		private int m_Page;
 		private readonly Mobile m_Mobile;
@@ -1105,6 +1214,19 @@ namespace Server.Gumps
 
 		private void Initialize(int page)
 		{
+			foreach (var e in m_List)
+			{
+				if (e is INotifyPropertyUpdate u)
+				{
+					if (!Instances.TryGetValue(u, out var gumps))
+					{
+						Instances[u] = gumps = new HashSet<PropertiesGump>();
+					}
+
+					gumps.Add(this);
+				}
+			}
+
 			m_Page = page;
 
 			var count = m_List.Count - (page * EntryCount);
@@ -1243,6 +1365,16 @@ namespace Server.Gumps
 
 		public override void OnResponse(NetState state, RelayInfo info)
 		{
+			if (m_Object is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+			{
+				gumps.Remove(this);
+
+				if (gumps.Count == 0)
+				{
+					Instances.Remove(u);
+				}
+			}
+
 			var from = state.Mobile;
 
 			if (!BaseCommand.IsAccessible(from, m_Object))
@@ -2181,11 +2313,11 @@ namespace Server.Gumps
 
 					if (info != null)
 					{
-						result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
 					}
 					else if (m_Property.PropertyType == typeof(Enum) || m_Property.PropertyType.IsSubclassOf(typeof(Enum)))
 					{
-						result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
 					}
 
 					m_Mobile.SendMessage(result);
@@ -2671,7 +2803,7 @@ namespace Server.Gumps
 				{
 					var toSet = m_Values[index];
 
-					var result = Properties.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
+					var result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
 
 					m_Mobile.SendMessage(result);
 

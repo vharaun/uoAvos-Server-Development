@@ -2,8 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
-		<TargetFramework>net5.0</TargetFramework>
-		<EnableDefaultItems>false</EnableDefaultItems>
+		<TargetFramework>net5.0-windows</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 		<AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
@@ -12,6 +11,7 @@
 		<RootNamespace>Server</RootNamespace>
 		<AssemblyName>Server</AssemblyName>
 		<DefineConstants>NEWTIMERS;NEWPARENT;UOAVOS</DefineConstants>
+		<EnableDefaultItems>true</EnableDefaultItems>
 	</PropertyGroup>
 
 	<!-- Assembly Info -->
@@ -24,75 +24,6 @@
 		<Company>uoAvocation</Company>
 		<Version>1.0.0.0</Version>
 	</PropertyGroup>
-	<ItemGroup>
-	  <Compile Include="Console.cs" />
-	  <Compile Include="Engine\Game\Account.cs" />
-	  <Compile Include="Engine\Game\Assets\AnimData.cs" />
-	  <Compile Include="Engine\Game\Assets\ArtData.cs" />
-	  <Compile Include="Engine\Game\Assets\FileIndex.cs" />
-	  <Compile Include="Engine\Game\Assets\GumpData.cs" />
-	  <Compile Include="Engine\Game\Assets\HueData.cs" />
-	  <Compile Include="Engine\Game\Assets\MultiData.cs" />
-	  <Compile Include="Engine\Game\Assets\StringList.cs" />
-	  <Compile Include="Engine\Game\Assets\TileData.cs" />
-	  <Compile Include="Engine\Game\Attribute.cs" />
-	  <Compile Include="Engine\Game\Client.cs" />
-	  <Compile Include="Engine\Game\Compiler.cs" />
-	  <Compile Include="Engine\Game\Diagnostic.cs" />
-	  <Compile Include="Engine\Game\EventLog.cs" />
-	  <Compile Include="Engine\Game\Expansion.cs" />
-	  <Compile Include="Engine\Game\Facet.cs" />
-	  <Compile Include="Engine\Game\Geometry.cs" />
-	  <Compile Include="Engine\Game\Gump.cs" />
-	  <Compile Include="Engine\Game\Hue.cs" />
-	  <Compile Include="Engine\Game\Insensitive.cs" />
-	  <Compile Include="Engine\Game\Menu.cs" />
-	  <Compile Include="Engine\Game\Mobile\Behavior.cs" />
-	  <Compile Include="Engine\Game\Mobile\Body.cs" />
-	  <Compile Include="Engine\Game\Mobile\ContainerLayer.cs" />
-	  <Compile Include="Engine\Game\Mobile\Event.cs" />
-	  <Compile Include="Engine\Game\Mobile\Guild.cs" />
-	  <Compile Include="Engine\Game\Mobile\Hair.cs" />
-	  <Compile Include="Engine\Game\Mobile\Magic.cs" />
-	  <Compile Include="Engine\Game\Mobile\Mount.cs" />
-	  <Compile Include="Engine\Game\Mobile\Movement.cs" />
-	  <Compile Include="Engine\Game\Mobile\Notoriety.cs" />
-	  <Compile Include="Engine\Game\Mobile\Party.cs" />
-	  <Compile Include="Engine\Game\Mobile\Property.cs" />
-	  <Compile Include="Engine\Game\Mobile\Quest.cs" />
-	  <Compile Include="Engine\Game\Mobile\Race.cs" />
-	  <Compile Include="Engine\Game\Mobile\SecureTrade.cs" />
-	  <Compile Include="Engine\Game\Mobile\Sickness.cs" />
-	  <Compile Include="Engine\Game\Mobile\Skill.cs" />
-	  <Compile Include="Engine\Game\Mobile\Speech.cs" />
-	  <Compile Include="Engine\Game\Mobile\Targeting.cs" />
-	  <Compile Include="Engine\Game\Mobile\Vendor.cs" />
-	  <Compile Include="Engine\Game\Mobile\Virtue.cs" />
-	  <Compile Include="Engine\Game\Object\Bounds.cs" />
-	  <Compile Include="Engine\Game\Object\Container.cs" />
-	  <Compile Include="Engine\Game\Object\Currency.cs" />
-	  <Compile Include="Engine\Game\Object\Entity.cs" />
-	  <Compile Include="Engine\Game\Object\Multi.cs" />
-	  <Compile Include="Engine\Game\Object\Property.cs" />
-	  <Compile Include="Engine\Game\Object\Spawner.cs" />
-	  <Compile Include="Engine\Game\Object\TradeTool.cs" />
-	  <Compile Include="Engine\Game\Object\Weapon.cs" />
-	  <Compile Include="Engine\Game\ParticleEffect.cs" />
-	  <Compile Include="Engine\Game\Prompt.cs" />
-	  <Compile Include="Engine\Game\Region.cs" />
-	  <Compile Include="Engine\Game\Regions.cs" />
-	  <Compile Include="Engine\NativeReader.cs" />
-	  <Compile Include="Engine\Network.cs" />
-	  <Compile Include="Engine\Packet.cs" />
-	  <Compile Include="Engine\Random.cs" />
-	  <Compile Include="Engine\Save.cs" />
-	  <Compile Include="Engine\Serialization.cs" />
-	  <Compile Include="Engine\Timer.cs" />
-	  <Compile Include="Engine\Utility.cs" />
-	</ItemGroup>
-	<ItemGroup>
-	  <None Include="Plugins\directory.reserved" />
-	</ItemGroup>
 	
 	<ItemGroup>
 		<RuntimeHostConfigurationOption Include="System.Globalization.UseNls" Value="true" />

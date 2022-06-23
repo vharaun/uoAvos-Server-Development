@@ -928,7 +928,7 @@ namespace Server.Guilds
 				Disband();
 			*/
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(VerifyGuild_Callback));
+			Timer.DelayCall(TimeSpan.Zero, VerifyGuild_Callback);
 		}
 
 		private void VerifyGuild_Callback()

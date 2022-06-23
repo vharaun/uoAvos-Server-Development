@@ -75,14 +75,14 @@ namespace Server.Misc
 			if (WarningDelay > TimeSpan.Zero)
 			{
 				Warning_Callback();
-				Timer.DelayCall(WarningDelay, WarningDelay, new TimerCallback(Warning_Callback));
+				Timer.DelayCall(WarningDelay, WarningDelay, Warning_Callback);
 			}
 
 			AutoSave.Save();
 
 			m_Restarting = true;
 
-			Timer.DelayCall(RestartDelay, new TimerCallback(Restart_Callback));
+			Timer.DelayCall(RestartDelay, Restart_Callback);
 		}
 	}
 }

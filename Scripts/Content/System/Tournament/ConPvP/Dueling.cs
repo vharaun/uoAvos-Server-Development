@@ -565,9 +565,7 @@ namespace Server.Engines.ConPVP
 	{
 		public static readonly int SafeZonePriority = HouseRegion.HousePriority + 1;
 
-		/*public override bool AllowReds{ get{ return true; } }*/
-
-		public SafeZone(Rectangle2D area, Point3D goloc, Map map, bool isGuarded) : base(null, map, SafeZonePriority, area)
+		public SafeZone(Rectangle2D area, Point3D goloc, Map map, bool isGuarded) : this(null, map, SafeZonePriority, area)
 		{
 			GoLocation = goloc;
 
@@ -576,19 +574,56 @@ namespace Server.Engines.ConPVP
 			Register();
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
+		public SafeZone(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
 		{
-			if (from.AccessLevel < AccessLevel.GameMaster)
-			{
-				return false;
-			}
+		}
 
-			return base.AllowHousing(from, p);
+		public SafeZone(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public SafeZone(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public SafeZone(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public SafeZone(int id) : base(id)
+		{
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			Rules.AllowHouses = false;
 		}
 
 		public override bool OnMoveInto(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation)
 		{
-			if (m.Player && Factions.Sigil.ExistsOn(m))
+			if (m.Player && Sigil.ExistsOn(m))
 			{
 				m.SendMessage(0x22, "You are holding a sigil and cannot enter this zone.");
 				return false;
@@ -596,14 +631,9 @@ namespace Server.Engines.ConPVP
 
 			var pm = m as PlayerMobile;
 
-			if (pm == null && m is BaseCreature)
+			if (pm == null && m is BaseCreature bc && bc.Summoned)
 			{
-				var bc = (BaseCreature)m;
-
-				if (bc.Summoned)
-				{
-					pm = bc.SummonMaster as PlayerMobile;
-				}
+				pm = bc.SummonMaster as PlayerMobile;
 			}
 
 			if (pm != null && pm.DuelContext != null && pm.DuelContext.StartedBeginCountdown)
@@ -623,16 +653,34 @@ namespace Server.Engines.ConPVP
 		public override void OnEnter(Mobile m)
 		{
 			m.SendMessage("You have entered a dueling safezone. No combat other than duels are allowed in this zone.");
+
+			base.OnEnter(m);
 		}
 
 		public override void OnExit(Mobile m)
 		{
 			m.SendMessage("You have left a dueling safezone. Combat is now unrestricted.");
+
+			base.OnExit(m);
 		}
 
 		public override bool CanUseStuckMenu(Mobile m)
 		{
 			return false;
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
 		}
 	}
 
@@ -1887,7 +1935,7 @@ namespace Server.Engines.ConPVP
 
 		public void DelayBounce(TimeSpan ts, Mobile mob, Container corpse)
 		{
-			Timer.DelayCall(ts, new TimerStateCallback(DelayBounce_Callback), new object[] { mob, corpse });
+			Timer.DelayCall(ts, DelayBounce_Callback, new object[] { mob, corpse });
 		}
 
 		public static bool AllowSpecialMove(Mobile from, string name, SpecialMove move)
@@ -2651,7 +2699,7 @@ namespace Server.Engines.ConPVP
 				m_EventGame.OnStop();
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(9.0), new TimerCallback(UnregisterRematch));
+			Timer.DelayCall(TimeSpan.FromSeconds(9.0), UnregisterRematch);
 		}
 
 		public void Award(Mobile us, Mobile them, bool won)
@@ -2882,7 +2930,7 @@ namespace Server.Engines.ConPVP
 		public void StartCountdown(int count, CountdownCallback cb)
 		{
 			cb(count);
-			m_Countdown = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.0), count, new TimerStateCallback(Countdown_Callback), new object[] { count - 1, cb });
+			m_Countdown = Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.0), count, Countdown_Callback, new object[] { count - 1, cb });
 		}
 
 		public void StopCountdown()
@@ -2952,14 +3000,14 @@ namespace Server.Engines.ConPVP
 				m_SDWarnTimer.Stop();
 			}
 
-			m_SDWarnTimer = Timer.DelayCall(TimeSpan.FromMinutes(timeUntilActive.TotalMinutes * 0.9), new TimerCallback(WarnSuddenDeath));
+			m_SDWarnTimer = Timer.DelayCall(TimeSpan.FromMinutes(timeUntilActive.TotalMinutes * 0.9), WarnSuddenDeath);
 
 			if (m_SDActivateTimer != null)
 			{
 				m_SDActivateTimer.Stop();
 			}
 
-			m_SDActivateTimer = Timer.DelayCall(timeUntilActive, new TimerCallback(ActivateSuddenDeath));
+			m_SDActivateTimer = Timer.DelayCall(timeUntilActive, ActivateSuddenDeath);
 		}
 
 		public void WarnSuddenDeath()
@@ -3058,7 +3106,7 @@ namespace Server.Engines.ConPVP
 				? AutoTieDelay
 				: TimeSpan.FromMinutes(90.0);
 
-			m_AutoTieTimer = Timer.DelayCall(ts, new TimerCallback(InvokeAutoTie));
+			m_AutoTieTimer = Timer.DelayCall(ts, InvokeAutoTie);
 		}
 
 		public void EndAutoTie()
@@ -3132,7 +3180,7 @@ namespace Server.Engines.ConPVP
 				m_Tournament.HandleTie(m_Arena, m_Match, remaining);
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(10.0), new TimerCallback(Unregister));
+			Timer.DelayCall(TimeSpan.FromSeconds(10.0), Unregister);
 		}
 
 		public bool IsOneVsOne
@@ -4433,7 +4481,7 @@ namespace Server.Engines.ConPVP
 				TitleColor = 0x7800;
 				TitleNumber = 1062051; // Gate Warning
 
-				Timer.DelayCall(TimeSpan.FromSeconds(10.0), new TimerCallback(Delete));
+				Timer.DelayCall(TimeSpan.FromSeconds(10.0), Delete);
 			}
 
 			public override void CheckGate(Mobile m, int range)
@@ -5151,7 +5199,7 @@ namespace Server.Engines.ConPVP
 
 			AddButton(314, 173, 247, 248, 1, GumpButtonType.Reply, 0);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(15.0), new TimerCallback(AutoReject));
+			Timer.DelayCall(TimeSpan.FromSeconds(15.0), AutoReject);
 		}
 
 		public void AutoReject()

@@ -1,13 +1,490 @@
-﻿using Server.Gumps;
+﻿using Server.Commands;
+using Server.Engines.Weather;
+using Server.Gumps;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
+using Server.Spells;
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
+using System.Drawing;
+using System.Linq;
 
 namespace Server.Regions
 {
+	public class RegionEditorGump : BaseGump
+	{
+		private static Timer m_PreviewTimer;
+
+		public static void Initialize()
+		{
+			CommandSystem.Register("RegionEditor", AccessLevel.GameMaster, e =>
+			{
+				if (e.Mobile is PlayerMobile pm && !pm.HasGump(typeof(RegionEditorGump)))
+				{
+					BaseGump.SendGump(new RegionEditorGump(pm));
+				}
+			});
+
+			CommandSystem.Register("RegionPreview", AccessLevel.GameMaster, e=>
+			{
+				if (m_PreviewTimer?.Running == true)
+				{
+					m_PreviewTimer.Stop();
+					m_PreviewTimer = null;
+					return;
+				}
+
+				m_PreviewTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromSeconds(1), reg =>
+				{
+					foreach (var p in reg.Area)
+					{
+						for (var i = 0; i < p.Count; i++) 
+						{
+							Geometry.Line2D(new Point3D(p[i], 0), new Point3D(p[(i + 1) % p.Count], 0), reg.Map, (loc, map) =>
+							{
+								loc.Z = map.GetAverageZ(loc.X, loc.Y);
+
+								Effects.SendLocationEffect(loc, map, 0x50D, 10, 1, 0x22, 0);
+							});
+						}
+					}
+				}, e.Mobile.Region);
+			});
+		}
+
+		private static void Resize(ref int x, ref int y, ref int w, ref int h, int delta)
+		{
+			x += delta * -1;
+			y += delta * -1;
+			w += delta * +2;
+			h += delta * +2;
+		}
+
+		private Poly3D[] m_LastArea;
+
+		public Map Facet { get; private set; }
+		public Region Region { get; private set; }
+
+		private int m_Width = 800, m_Height = 600;
+
+		private int m_NavPage, m_FacetPage, m_RegionPage;
+
+		public RegionEditorGump(PlayerMobile user) : base(user)
+		{
+			Region = user.Region;
+			Facet = user.Map;
+		}
+
+		private void Slice()
+		{
+			if (Region?.IsDefault == true)
+			{
+				Region = null;
+			}
+
+			if (Region?.Map != null && Region.Map != Facet)
+			{
+				Facet = Region.Map;
+
+				m_FacetPage = 0;
+			}
+		}
+
+		public override void AddGumpLayout()
+		{
+			Slice();
+
+			var x = 0;
+			var y = 0;
+			var w = m_Width;
+			var h = m_Height;
+
+			var mx = x;
+			var my = y;
+			var mw = w / 4;
+			var mh = h;
+
+			AddMenuPanel(mx, my, mw, mh);
+
+			var tx = mx + mw;
+			var ty = y;
+			var tw = w - mw;
+			var th = 40;
+
+			AddTitlePanel(tx, ty, tw, th);
+
+			var cx = tx;
+			var cy = ty + th;
+			var cw = tw;
+			var ch = h - th;
+
+			AddContentPanel(cx, cy, cw, ch);
+		}
+
+		private void AddMenuPanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			var per = (h - 30) / 22;
+			var pages = (int)Math.Ceiling(Map.AllMaps.Count / (double)per);
+
+			m_NavPage = Math.Clamp(m_NavPage, 0, Math.Max(0, pages - 1));
+
+			foreach (var map in Map.AllMaps.Skip(m_NavPage * per).Take(per))
+			{
+				var color = Color.White;
+
+				if (map != Map.Internal)
+				{
+					color = map != Facet ? Color.White : Color.Yellow;
+					
+					AddButton(x, y, map != Facet ? 4005 : 4006, 4007, () => SelectFacet(map));
+				}
+				else
+				{
+					color = Color.Red;
+
+					AddImage(x, y, 4005, 900);
+				}
+
+				AddHtml(x + 35, y, w - 35, 40, map.Name ?? $"Facet {map.MapIndex}", false, false, color);
+
+				y += 22;
+				h -= 22;
+			}
+
+			y += h - 30;
+			h = 30;
+
+			y += 8;
+			h -= 8;
+
+			if (pages > 1)
+			{
+				AddButton(x, y, 4015, 4016, () =>
+				{
+					if (--m_NavPage < 0)
+					{
+						m_NavPage = pages - 1;
+					}
+
+					Refresh();
+				});
+				AddTooltip(1011067);
+
+				AddButton(x + (w - 30), y, 4006, 4007, () =>
+				{
+					if (++m_NavPage >= pages)
+					{
+						m_NavPage = 0;
+					}
+
+					Refresh();
+				});
+				AddTooltip(1011066);
+			}
+			else
+			{
+				AddImage(x, y, 4014, 900);
+				AddImage(x + (w - 30), y, 4005, 900);
+			}
+
+			AddHtml(x + 30, y, w - 60, 20, Center($"{m_NavPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+		}
+
+		private void AddTitlePanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			if (Facet != null)
+			{
+				if (Region != null)
+				{
+					AddHtml(x, y, w, h, $"{Facet?.Name ?? "Unnamed Facet"} : {Region}", false, false, Color.White);
+				}
+				else
+				{
+					AddHtml(x, y, w, h, $"{Facet?.Name ?? "Unnamed Facet"}", false, false, Color.White);
+				}
+			}
+		}
+
+		private void AddContentPanel(int x, int y, int w, int h)
+		{
+			AddBackground(x, y, w, h, 2620);
+
+			Resize(ref x, ref y, ref w, ref h, -10);
+
+			if (Region == null)
+			{
+				var per = (h - 30) / 22;
+				var pages = (int)Math.Ceiling(Facet.Regions.Count / (double)per);
+
+				m_FacetPage = Math.Clamp(m_FacetPage, 0, Math.Max(0, pages - 1));
+
+				foreach (var reg in Facet.Regions.Skip(m_FacetPage * per).Take(per))
+				{
+					AddButton(x, y, 208, 209, () => SelectRegion(reg));
+
+					var name = reg.ToString();
+
+					if (reg.ChildLevel > 0)
+					{
+						name = $"{new string('\u25B6', reg.ChildLevel)}{name}";
+					}
+
+					AddHtml(x + 25, y, w - 25, 40, name, false, false, Color.White);
+
+					y += 22;
+					h -= 22;
+				}
+
+				y += h - 30;
+				h = 30;
+
+				y += 8;
+				h -= 8;
+
+				if (pages > 1)
+				{
+					AddButton(x, y, 4015, 4016, () =>
+					{
+						if (--m_FacetPage < 0)
+						{
+							m_FacetPage = pages - 1;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011067);
+
+					AddButton(x + (w - 30), y, 4006, 4007, () =>
+					{
+						if (++m_FacetPage >= pages)
+						{
+							m_FacetPage = 0;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011066);
+				}
+				else
+				{
+					AddImage(x, y, 4014, 900);
+					AddImage(x + (w - 30), y, 4005, 900);
+				}
+
+				AddHtml(x + 30, y, w - 60, 20, Center($"{m_FacetPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+			}
+			else
+			{
+				var xo = x;
+				var yo = y;
+				var wo = w;
+
+				var per = (h - 30) / 22;
+				var pages = (int)Math.Ceiling(Region.Area.Length / (double)per);
+
+				m_RegionPage = Math.Clamp(m_RegionPage, 0, Math.Max(0, pages - 1));
+
+				foreach (var poly in Region.Area.Skip(m_RegionPage * per).Take(per))
+				{
+					AddButton(xo, yo, 4018, 4019, () => RemovePoly(poly));
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4012, 4013, () => EditPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4011, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4009, 4010, () => VisualPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4008, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddButton(xo, yo, 4006, 4007, () => VisitPoly(poly));
+					}
+					else
+					{
+						AddImage(xo, yo, 4005, 900);
+					}
+
+					xo += 32;
+					wo -= 32;
+
+					if (poly.Count > 0)
+					{
+						AddHtml(xo, yo + 2, wo, 20, $"{poly[0]}..[{poly.Count - 1}], {poly.MinZ}..{poly.MaxZ}", false, false, Color.White);
+					}
+					else
+					{
+						AddHtml(xo, yo + 2, wo, 20, $"Empty, {poly.MinZ}\u261E{poly.MaxZ}...[{poly.Depth}]", false, false, Color.Red);
+					}
+
+					xo = x;
+					yo += 22;
+					wo = w;
+				}
+
+				y += h - 30;
+				h = 30;
+
+				y += 8;
+				h -= 8;
+
+				if (pages > 1)
+				{
+					AddButton(x, y, 4015, 4016, () =>
+					{
+						if (--m_RegionPage < 0)
+						{
+							m_RegionPage = pages - 1;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011067);
+
+					AddButton(x + (w - 30), y, 4006, 4007, () =>
+					{
+						if (++m_RegionPage >= pages)
+						{
+							m_RegionPage = 0;
+						}
+
+						Refresh();
+					});
+					AddTooltip(1011066);
+				}
+				else
+				{
+					AddImage(x, y, 4014, 900);
+					AddImage(x + (w - 30), y, 4005, 900);
+				}
+
+				AddHtml(x + 30, y, w - 60, 20, Center($"{m_RegionPage + 1:N0} / {Math.Max(1, pages):N0}"), false, false, Color.Yellow);
+			}
+		}
+
+		private void SelectFacet(Map map)
+		{
+			if (Facet != map)
+			{
+				m_LastArea = null;
+
+				m_FacetPage = 0;
+				m_RegionPage = 0;
+			}
+
+			Facet = map;
+			Region = null;
+
+			Refresh();
+		}
+
+		private void SelectRegion(Region reg)
+		{
+			if (Region != reg)
+			{
+				m_LastArea = null;
+
+				m_RegionPage = 0;
+			}
+			
+			Region = reg;
+
+			Refresh();
+		}
+
+		private void RemovePoly(Poly3D poly)
+		{
+			var oldArea = m_LastArea = Region.Area;
+			var newArea = new Poly3D[oldArea.Length - 1];
+
+			for (int i = 0, n = 0; i < oldArea.Length; i++)
+			{
+				if (oldArea[i] != poly)
+				{
+					newArea[n++] = oldArea[i];
+				}
+			}
+
+			Region.Area = newArea;
+
+			Refresh();
+		}
+
+		private void EditPoly(Poly3D poly)
+		{
+			/*var oldArea = Region.Area;
+			var newArea = new Poly3D[oldArea.Length - 1];
+
+			for (int i = 0, n = 0; i < oldArea.Length; i++)
+			{
+				if (oldArea[i] != poly)
+				{
+					newArea[n++] = oldArea[i];
+				}
+			}
+
+			Region.Area = newArea;*/
+
+			Refresh();
+		}
+
+		private void VisualPoly(Poly3D poly)
+		{
+			Refresh();
+		}
+
+		private void VisitPoly(Poly3D poly)
+		{
+			if (poly.Count > 0)
+			{
+				var p = poly[0];
+				var z = Facet.GetAverageZ(p.X, p.Y);
+
+				User.MoveToWorld(new Point3D(p, z), Facet);
+			}
+
+			Refresh();
+		}
+
+		private void UndoAreaEdit()
+		{
+			Region.Area = m_LastArea;
+
+			m_LastArea = null;
+
+			Refresh();
+		}
+	}
+
 	public enum SpawnZLevel
 	{
 		Lowest,
@@ -15,87 +492,362 @@ namespace Server.Regions
 		Random
 	}
 
+	[Flags]
+	public enum RegionFlags : ulong
+	{
+		None = 0ul,
+
+		AllowPvP = 1ul << 1,
+		AllowPvM = 1ul << 2,
+		AllowMvP = 1ul << 3,
+		AllowMvM = 1ul << 4,
+
+		AllowDelayLogout = 1ul << 5,
+		AllowParentSpawns = 1ul << 6,
+		AllowYoungAggro = 1ul << 7,
+		AllowItemDecay = 1ul << 8,
+		AllowLogout = 1ul << 9,
+		AllowHouses = 1ul << 10,
+		AllowVehicles = 1ul << 11,
+		AllowSpawning = 1ul << 12,
+		AllowFollowers = 1ul << 13,
+		AllowEthereal = 1ul << 14,
+		AllowMount = 1ul << 15,
+		AllowMagic = 1ul << 16,
+		AllowMelee = 1ul << 17,
+		AllowRanged = 1ul << 18,
+		AllowSkills = 1ul << 19,
+
+		AllowPlayerDeath = 1ul << 20,
+		AllowPlayerRes = 1ul << 21,
+		AllowPlayerHeal = 1ul << 22,
+		AllowPlayerHarm = 1ul << 23,
+		AllowPlayerLooting = 1ul << 24,
+		//PLACEHOLDER = 1ul << 25,
+		//PLACEHOLDER = 1ul << 26,
+		//PLACEHOLDER = 1ul << 27,
+		//PLACEHOLDER = 1ul << 28,
+		//PLACEHOLDER = 1ul << 29,
+
+		AllowCreatureDeath = 1ul << 30,
+		AllowCreatureRes = 1ul << 31,
+		AllowCreatureHeal = 1ul << 32,
+		AllowCreatureHarm = 1ul << 33,
+		AllowCreatureLooting = 1ul << 34,
+		//PLACEHOLDER = 1ul << 35,
+		//PLACEHOLDER = 1ul << 36,
+		//PLACEHOLDER = 1ul << 37,
+		//PLACEHOLDER = 1ul << 38,
+		//PLACEHOLDER = 1ul << 39,
+
+		CanEnter = 1ul << 40,
+		CanEnterAlive = 1ul << 41,
+		CanEnterDead = 1ul << 42,
+		CanEnterYoung = 1ul << 43,
+		CanEnterInnocent = 1ul << 44,
+		CanEnterCriminal = 1ul << 45,
+		CanEnterMurderer = 1ul << 46,
+		//PLACEHOLDER = 1ul << 47,
+		//PLACEHOLDER = 1ul << 48,
+		//PLACEHOLDER = 1ul << 49,
+
+		CanExit = 1ul << 50,
+		CanExitAlive = 1ul << 51,
+		CanExitDead = 1ul << 52,
+		CanExitYoung = 1ul << 53,
+		CanExitInnocent = 1ul << 54,
+		CanExitCriminal = 1ul << 55,
+		CanExitMurderer = 1ul << 56,
+		//PLACEHOLDER = 1ul << 57,
+		//PLACEHOLDER = 1ul << 58,
+		//PLACEHOLDER = 1ul << 59,
+
+		FreeMovement = 1ul << 60,
+		FreeReagents = 1ul << 61,
+		FreeInsurance = 1ul << 62,
+		//PLACEHOLDER = 1ul << 63,
+
+		All = ~None,
+
+		/// <summary>
+		/// Default every rule to true except those in this list
+		/// </summary>
+		DefaultRules = All & ~(AllowYoungAggro | AllowParentSpawns | FreeMovement | FreeReagents | FreeInsurance | 1ul << 63),
+	}
+
+	[PropertyObject]
+	public class RegionRules
+	{
+		public RegionFlags Flags { get; set; } = RegionFlags.DefaultRules;
+
+		public bool this[RegionFlags flags] { get => GetFlag(flags); set => SetFlag(flags, value); }
+
+		#region General Combat
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPvP { get => GetFlag(RegionFlags.FreeMovement); set => SetFlag(RegionFlags.AllowPvP, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPvM { get => GetFlag(RegionFlags.AllowPvM); set => SetFlag(RegionFlags.AllowPvM, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowMvP { get => GetFlag(RegionFlags.AllowMvP); set => SetFlag(RegionFlags.AllowMvP, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowMvM { get => GetFlag(RegionFlags.AllowMvM); set => SetFlag(RegionFlags.AllowMvM, value); }
+
+		#endregion
+
+		#region General Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowDelayLogout { get => GetFlag(RegionFlags.AllowDelayLogout); set => SetFlag(RegionFlags.AllowDelayLogout, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowParentSpawns { get => GetFlag(RegionFlags.AllowParentSpawns); set => SetFlag(RegionFlags.AllowParentSpawns, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowYoungAggro { get => GetFlag(RegionFlags.AllowYoungAggro); set => SetFlag(RegionFlags.AllowYoungAggro, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowItemDecay { get => GetFlag(RegionFlags.AllowItemDecay); set => SetFlag(RegionFlags.AllowItemDecay, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowLogout { get => GetFlag(RegionFlags.AllowLogout); set => SetFlag(RegionFlags.AllowLogout, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowHouses { get => GetFlag(RegionFlags.AllowHouses); set => SetFlag(RegionFlags.AllowHouses, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowVehicles { get => GetFlag(RegionFlags.AllowVehicles); set => SetFlag(RegionFlags.AllowVehicles, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowSpawning { get => GetFlag(RegionFlags.AllowSpawning); set => SetFlag(RegionFlags.AllowSpawning, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowFollowers { get => GetFlag(RegionFlags.AllowFollowers); set => SetFlag(RegionFlags.AllowFollowers, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowEthereal { get => GetFlag(RegionFlags.AllowEthereal); set => SetFlag(RegionFlags.AllowEthereal, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowMount { get => GetFlag(RegionFlags.AllowMount); set => SetFlag(RegionFlags.AllowMount, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowMagic { get => GetFlag(RegionFlags.AllowMagic); set => SetFlag(RegionFlags.AllowMagic, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowMelee { get => GetFlag(RegionFlags.AllowMelee); set => SetFlag(RegionFlags.AllowMelee, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowRanged { get => GetFlag(RegionFlags.AllowRanged); set => SetFlag(RegionFlags.AllowRanged, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowSkills { get => GetFlag(RegionFlags.AllowSkills); set => SetFlag(RegionFlags.AllowSkills, value); }
+
+		#endregion
+
+		#region Player Action Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPlayerDeath { get => GetFlag(RegionFlags.AllowPlayerDeath); set => SetFlag(RegionFlags.AllowPlayerDeath, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPlayerRes { get => GetFlag(RegionFlags.AllowPlayerRes); set => SetFlag(RegionFlags.AllowPlayerRes, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPlayerHeal { get => GetFlag(RegionFlags.AllowPlayerHeal); set => SetFlag(RegionFlags.AllowPlayerHeal, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPlayerHarm { get => GetFlag(RegionFlags.AllowPlayerHarm); set => SetFlag(RegionFlags.AllowPlayerHarm, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPlayerLooting { get => GetFlag(RegionFlags.AllowPlayerLooting); set => SetFlag(RegionFlags.AllowPlayerLooting, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		#endregion
+
+		#region Creature Action Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowCreatureDeath { get => GetFlag(RegionFlags.AllowCreatureDeath); set => SetFlag(RegionFlags.AllowCreatureDeath, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowCreatureRes { get => GetFlag(RegionFlags.AllowCreatureRes); set => SetFlag(RegionFlags.AllowCreatureRes, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowCreatureHeal { get => GetFlag(RegionFlags.AllowCreatureHeal); set => SetFlag(RegionFlags.AllowCreatureHeal, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowCreatureHarm { get => GetFlag(RegionFlags.AllowCreatureHarm); set => SetFlag(RegionFlags.AllowCreatureHarm, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowCreatureLooting { get => GetFlag(RegionFlags.AllowCreatureLooting); set => SetFlag(RegionFlags.AllowCreatureLooting, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		#endregion
+
+		#region Enter Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnter { get => GetFlag(RegionFlags.CanEnter); set => SetFlag(RegionFlags.CanEnter, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterAlive { get => GetFlag(RegionFlags.CanEnterAlive); set => SetFlag(RegionFlags.CanEnterAlive, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterDead { get => GetFlag(RegionFlags.CanEnterDead); set => SetFlag(RegionFlags.CanEnterDead, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterYoung { get => GetFlag(RegionFlags.CanEnterYoung); set => SetFlag(RegionFlags.CanEnterYoung, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterInnocent { get => GetFlag(RegionFlags.CanEnterInnocent); set => SetFlag(RegionFlags.CanEnterInnocent, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterCriminal { get => GetFlag(RegionFlags.CanEnterCriminal); set => SetFlag(RegionFlags.CanEnterCriminal, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanEnterMurderer { get => GetFlag(RegionFlags.CanEnterMurderer); set => SetFlag(RegionFlags.CanEnterMurderer, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		#endregion
+
+		#region Exit Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExit { get => GetFlag(RegionFlags.CanExit); set => SetFlag(RegionFlags.CanExit, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitAlive { get => GetFlag(RegionFlags.CanExitAlive); set => SetFlag(RegionFlags.CanExitAlive, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitDead { get => GetFlag(RegionFlags.CanExitDead); set => SetFlag(RegionFlags.CanExitDead, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitYoung { get => GetFlag(RegionFlags.CanExitYoung); set => SetFlag(RegionFlags.CanExitYoung, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitInnocent { get => GetFlag(RegionFlags.CanExitInnocent); set => SetFlag(RegionFlags.CanExitInnocent, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitCriminal { get => GetFlag(RegionFlags.CanExitCriminal); set => SetFlag(RegionFlags.CanExitCriminal, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CanExitMurderer { get => GetFlag(RegionFlags.CanExitMurderer); set => SetFlag(RegionFlags.CanExitMurderer, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		#endregion
+
+		#region Passive Rules
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool FreeMovement { get => GetFlag(RegionFlags.FreeMovement); set => SetFlag(RegionFlags.FreeMovement, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool FreeReagents { get => GetFlag(RegionFlags.FreeReagents); set => SetFlag(RegionFlags.FreeReagents, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool FreeInsurance { get => GetFlag(RegionFlags.FreeInsurance); set => SetFlag(RegionFlags.FreeInsurance, value); }
+
+		//[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
+
+		#endregion
+
+		public void Defaults()
+		{
+			Flags = RegionFlags.DefaultRules;
+		}
+
+		public bool GetFlag(RegionFlags flags)
+		{
+			return Flags.HasFlag(flags);
+		}
+
+		public void SetFlag(RegionFlags flags, bool state)
+		{
+			if (state)
+			{
+				Flags |= flags;
+			}
+			else
+			{
+				Flags &= ~flags;
+			}
+		}
+	}
+
 	public class BaseRegion : Region
 	{
-		public virtual bool YoungProtected => true;
-		public virtual bool YoungMayEnter => true;
-		public virtual bool MountsAllowed => true;
-		public virtual bool DeadMayEnter => true;
-		public virtual bool ResurrectionAllowed => true;
-		public virtual bool LogoutAllowed => true;
+		private static readonly List<Poly3D> m_RectBuffer1 = new();
+		private static readonly List<Poly3D> m_RectBuffer2 = new();
+
+		private static readonly List<int> m_SpawnBuffer1 = new();
+		private static readonly List<Item> m_SpawnBuffer2 = new();
 
 		public static void Configure()
 		{
-			Region.DefaultRegionType = typeof(BaseRegion);
-		}
-
-		private string m_RuneName;
-		private bool m_NoLogoutDelay;
-
-		private SpawnEntry[] m_Spawns;
-		private SpawnZLevel m_SpawnZLevel;
-		private bool m_ExcludeFromParentSpawns;
-
-		public string RuneName { get => m_RuneName; set => m_RuneName = value; }
-
-		public bool NoLogoutDelay { get => m_NoLogoutDelay; set => m_NoLogoutDelay = value; }
-
-		public SpawnEntry[] Spawns
-		{
-			get => m_Spawns;
-			set
-			{
-				if (m_Spawns != null)
-				{
-					for (var i = 0; i < m_Spawns.Length; i++)
-					{
-						m_Spawns[i].Delete();
-					}
-				}
-
-				m_Spawns = value;
-			}
-		}
-
-		public SpawnZLevel SpawnZLevel { get => m_SpawnZLevel; set => m_SpawnZLevel = value; }
-
-		public bool ExcludeFromParentSpawns { get => m_ExcludeFromParentSpawns; set => m_ExcludeFromParentSpawns = value; }
-
-		public override void OnUnregister()
-		{
-			base.OnUnregister();
-
-			Spawns = null;
+			DefaultRegionType = typeof(BaseRegion);
 		}
 
 		public static string GetRuneNameFor(Region region)
 		{
 			while (region != null)
 			{
-				var br = region as BaseRegion;
-
-				if (br != null && br.m_RuneName != null)
+				if (region is BaseRegion br && br.RuneName != null)
 				{
-					return br.m_RuneName;
+					return br.RuneName;
 				}
 
 				region = region.Parent;
 			}
 
 			return null;
-		}
-
-		public override TimeSpan GetLogoutDelay(Mobile m)
-		{
-			if (m_NoLogoutDelay)
-			{
-				if (m.Aggressors.Count == 0 && m.Aggressed.Count == 0 && !m.Criminal)
-				{
-					return TimeSpan.Zero;
-				}
-			}
-
-			return base.GetLogoutDelay(m);
 		}
 
 		public static bool CanSpawn(Region region, params Type[] types)
@@ -107,9 +859,7 @@ namespace Server.Regions
 					return false;
 				}
 
-				var br = region as BaseRegion;
-
-				if (br != null)
+				if (region is BaseRegion br)
 				{
 					if (br.Spawns != null)
 					{
@@ -124,7 +874,7 @@ namespace Server.Regions
 						}
 					}
 
-					if (br.ExcludeFromParentSpawns)
+					if (!br.Rules.AllowParentSpawns)
 					{
 						return false;
 					}
@@ -136,37 +886,655 @@ namespace Server.Regions
 			return false;
 		}
 
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public string RuneName { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public SkillPermissions SkillPermissions { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public SpellPermissions SpellPermissions { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public RegionRules Rules { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public AccessLevel RulesOverride { get; set; } = AccessLevel.GameMaster;
+
+		#region Legacy Compatibility Properties
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool HousingAllowed { get => Rules.AllowHouses; set => Rules.AllowHouses = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool YoungProtected { get => !Rules.AllowYoungAggro; set => Rules.AllowYoungAggro = !value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool YoungMayEnter { get => Rules.CanEnterYoung; set => Rules.CanEnterYoung = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool MountsAllowed { get => Rules.AllowMount; set => Rules.AllowMount = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool DeadMayEnter { get => Rules.CanEnterDead; set => Rules.CanEnterDead = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool ResurrectionAllowed { get => Rules.AllowPlayerRes; set => Rules.AllowPlayerRes = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool LogoutAllowed { get => Rules.AllowLogout; set => Rules.AllowLogout = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool NoLogoutDelay { get => !Rules.AllowDelayLogout; set => Rules.AllowDelayLogout = !value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool ExcludeFromParentSpawns { get => !Rules.AllowParentSpawns; set => Rules.AllowParentSpawns = !value; }
+
+		#endregion
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public SpawnZLevel SpawnZLevel { get; set; }
+
+		private SpawnEntry[] m_Spawns;
+
+		public SpawnEntry[] Spawns
+		{
+			get => m_Spawns;
+			set
+			{
+				if (m_Spawns != null)
+				{
+					for (var i = 0; i < m_Spawns.Length; i++)
+					{
+						m_Spawns[i]?.Delete();
+					}
+				}
+
+				m_Spawns = value;
+			}
+		}
+
+		private Poly3D[] m_Areas;
+		private int[] m_RectangleWeights;
+		private int m_TotalWeight;
+
+		public virtual bool WeatherSupported => Weather != null;
+
+		public virtual int DefaultTemperature => 15;
+		public virtual int DefaultPercipitationChance => 50;
+		public virtual int DefaultExtremeTemperatureChance => 5;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public RegionalWeather Weather { get; set; }
+
+		public BaseRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Poly2D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, int priority, params Poly3D[] area) : base(name, map, priority, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Poly2D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(string name, Map map, Region parent, params Poly3D[] area) : base(name, map, parent, area)
+		{
+		}
+
+		public BaseRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
+		{
+		}
+
+		public BaseRegion(int id) : base(id)
+		{ 
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+
+			SkillPermissions.SetAll(true);
+			SpellPermissions.SetAll(true);
+
+			Rules.Flags = RegionFlags.DefaultRules;
+
+			SpawnZLevel = SpawnZLevel.Lowest;
+
+			if (Weather != null)
+			{
+				Weather.Temperature = DefaultTemperature;
+				Weather.ChanceOfPercipitation = DefaultPercipitationChance;
+				Weather.ChanceOfExtremeTemperature = DefaultExtremeTemperatureChance;
+			}
+			else 
+			{
+				WeatherInit();
+			}
+		}
+
+		protected virtual void WeatherInit()
+		{
+			if (WeatherSupported)
+			{
+				Weather ??= new RegionalWeather(this);
+			}
+		}
+
+		protected virtual void WeatherUpdate()
+		{
+			WeatherInit();
+
+			Weather?.Update();
+		}
+
+		public override void OnRegister()
+		{
+			base.OnRegister();
+
+			WeatherUpdate();
+		}
+
+		public override TimeSpan GetLogoutDelay(Mobile m)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (!Rules.AllowDelayLogout && m.Aggressors.Count == 0 && m.Aggressed.Count == 0 && !m.Criminal)
+				{
+					return TimeSpan.Zero;
+				}
+			}
+
+			return base.GetLogoutDelay(m);
+		}
+
+		public override bool AllowSpawn()
+		{
+			if (!Rules.AllowSpawning)
+			{
+				return OnRuleEnforced(RegionFlags.AllowSpawning, this, this, false);
+			}
+
+			return base.AllowSpawn();
+		}
+
+		public virtual bool AllowInteraction(ref Mobile from, ref Mobile target)
+		{
+			while (from is BaseCreature fbc && fbc.ControlMaster != null)
+			{
+				from = fbc.ControlMaster;
+			}
+
+			while (target is BaseCreature fbt && fbt.ControlMaster != null)
+			{
+				target = fbt.ControlMaster;
+			}
+
+			if (from.AccessLevel >= RulesOverride)
+			{
+				return true;
+			}
+
+			if (from.Player && target.Player)
+			{
+				if (!Rules.AllowPvP)
+				{
+					return OnRuleEnforced(RegionFlags.AllowPvP, from, target, false);
+				}
+			}
+			else if (from.Player && !target.Player)
+			{
+				if (!Rules.AllowPvM)
+				{
+					return OnRuleEnforced(RegionFlags.AllowPvM, from, target, false);
+				}
+			}
+			else if (!from.Player && target.Player)
+			{
+				if (!Rules.AllowMvP)
+				{
+					return OnRuleEnforced(RegionFlags.AllowMvP, from, target, false);
+				}
+			}
+			else if (!from.Player && !target.Player)
+			{
+				if (!Rules.AllowMvM)
+				{
+					return OnRuleEnforced(RegionFlags.AllowMvM, from, target, false);
+				}
+			}
+
+			return true;
+		}
+
+		public override bool AllowBeneficial(Mobile from, Mobile target)
+		{
+			if (!AllowInteraction(ref from, ref target))
+			{
+				return false;
+			}
+
+			if (from.AccessLevel < RulesOverride)
+			{
+				if (target.Player)
+				{
+					if (!Rules.AllowPlayerHeal)
+					{
+						return OnRuleEnforced(RegionFlags.AllowPlayerHeal, from, target, false);
+					}
+				}
+				else
+				{
+					if (!Rules.AllowCreatureHeal)
+					{
+						return OnRuleEnforced(RegionFlags.AllowCreatureHeal, from, target, false);
+					}
+				}
+			}
+
+			return base.AllowBeneficial(from, target);
+		}
+
+		public override bool AllowHarmful(Mobile from, Mobile target)
+		{
+			if (!AllowInteraction(ref from, ref target))
+			{
+				return false;
+			}
+
+			if (from.AccessLevel < RulesOverride)
+			{
+				if (target.Player)
+				{
+					if (!Rules.AllowPlayerHarm)
+					{
+						return OnRuleEnforced(RegionFlags.AllowPlayerHarm, from, target, false);
+					}
+				}
+				else
+				{
+					if (!Rules.AllowCreatureHarm)
+					{
+						return OnRuleEnforced(RegionFlags.AllowCreatureHarm, from, target, false);
+					}
+				}
+			}
+
+			return base.AllowHarmful(from, target);
+		}
+
+		public override bool OnBeforeDeath(Mobile m)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (m.Player)
+				{
+					if (!Rules.AllowPlayerDeath)
+					{
+						return OnRuleEnforced(RegionFlags.AllowPlayerDeath, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.AllowCreatureDeath)
+					{
+						return OnRuleEnforced(RegionFlags.AllowCreatureDeath, m, m, false);
+					}
+				}
+			}
+
+			return base.OnBeforeDeath(m);
+		}
+
+		public override bool OnResurrect(Mobile m)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (m.Player)
+				{
+					if (!Rules.AllowPlayerRes)
+					{
+						return OnRuleEnforced(RegionFlags.AllowPlayerRes, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.AllowCreatureRes)
+					{
+						return OnRuleEnforced(RegionFlags.AllowCreatureRes, m, m, false);
+					}
+				}
+			}
+
+			return base.OnResurrect(m);
+		}
+
+		public override bool OnBeginSpellCast(Mobile m, ISpell s)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (!Rules.AllowMagic || !SpellPermissions[s.ID])
+				{
+					return OnRuleEnforced(RegionFlags.AllowMagic, m, s, false);
+				}
+			}
+
+			return base.OnBeginSpellCast(m, s);
+		}
+
+		public override bool OnDecay(Item item)
+		{
+			if (!Rules.AllowItemDecay)
+			{
+				return OnRuleEnforced(RegionFlags.AllowItemDecay, item, item, false);
+			}
+
+			return base.OnDecay(item);
+		}
+
+		public override bool OnSkillUse(Mobile m, int skill)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (!Rules.AllowSkills || !SkillPermissions[skill])
+				{
+					return OnRuleEnforced(RegionFlags.AllowSkills, m, skill, false);
+				}
+			}
+
+			return base.OnSkillUse(m, skill);
+		}
+
+		public override bool OnDoubleClick(Mobile m, object o)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (o is Corpse c && c.Owner != m)
+				{
+					if (c.Owner != null && c.Owner.Player)
+					{
+						if (!Rules.AllowPlayerLooting)
+						{
+							return OnRuleEnforced(RegionFlags.AllowPlayerLooting, m, o, false);
+						}
+					}
+					else
+					{
+						if (!Rules.AllowCreatureLooting)
+						{
+							return OnRuleEnforced(RegionFlags.AllowCreatureLooting, m, o, false);
+						}
+					}
+				}
+			}
+
+			return base.OnDoubleClick(m, o);
+		}
+
+		public override bool CheckAccessibility(Item item, Mobile from)
+		{
+			if (from.AccessLevel < RulesOverride)
+			{
+				if (item.RootParent is Corpse c && c.Owner != from)
+				{
+					if (c.Owner != null && c.Owner.Player)
+					{
+						if (!Rules.AllowPlayerLooting)
+						{
+							return OnRuleEnforced(RegionFlags.AllowPlayerLooting, from, item, false);
+						}
+					}
+					else
+					{
+						if (!Rules.AllowCreatureLooting)
+						{
+							return OnRuleEnforced(RegionFlags.AllowCreatureLooting, from, item, false);
+						}
+					}
+				}
+			}
+
+			return base.CheckAccessibility(item, from);
+		}
+
+		public override bool AcceptsSpawnsFrom(Mobile spawn, Region region)
+		{
+			if (region != this)
+			{
+				if (!Rules.AllowParentSpawns)
+				{
+					return OnRuleEnforced(RegionFlags.AllowParentSpawns, spawn, region, false);
+				}
+			}
+
+			return base.AcceptsSpawnsFrom(spawn, region);
+		}
+
+		public override bool AllowHousing(Mobile from, Point3D p)
+		{
+			if (from.AccessLevel < RulesOverride)
+			{
+				if (!Rules.AllowHouses)
+				{
+					return OnRuleEnforced(RegionFlags.AllowHouses, from, p, false);
+				}
+			}
+
+			return base.AllowHousing(from, p);
+		}
+
+		public override bool CanEnter(Mobile m)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (!Rules.CanEnter)
+				{
+					return OnRuleEnforced(RegionFlags.CanEnter, m, m, false);
+				}
+
+				if (m.Alive)
+				{
+					if (!Rules.CanEnterAlive)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterAlive, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.CanEnterDead)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterDead, m, m, false);
+					}
+				}
+
+				if (m.Kills > 5)
+				{
+					if (!Rules.CanEnterMurderer)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterMurderer, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.CanEnterInnocent)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterInnocent, m, m, false);
+					}
+				}
+
+				if (m.Criminal)
+				{
+					if (!Rules.CanEnterCriminal)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterCriminal, m, m, false);
+					}
+				}
+
+				if (m is PlayerMobile pm && pm.Young)
+				{
+					if (!Rules.CanEnterYoung)
+					{
+						return OnRuleEnforced(RegionFlags.CanEnterYoung, m, m, false);
+					}
+				}
+			}
+
+			return base.CanEnter(m);
+		}
+
+		public override bool CanExit(Mobile m)
+		{
+			if (m.AccessLevel < RulesOverride)
+			{
+				if (!Rules.CanExit)
+				{
+					return OnRuleEnforced(RegionFlags.CanExit, m, m, false);
+				}
+
+				if (m.Alive)
+				{
+					if (!Rules.CanExitAlive)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitAlive, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.CanExitDead)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitDead, m, m, false);
+					}
+				}
+
+				if (m.Kills > 5)
+				{
+					if (!Rules.CanExitMurderer)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitMurderer, m, m, false);
+					}
+				}
+				else
+				{
+					if (!Rules.CanExitInnocent)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitInnocent, m, m, false);
+					}
+				}
+
+				if (m.Criminal)
+				{
+					if (!Rules.CanExitCriminal)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitCriminal, m, m, false);
+					}
+				}
+
+				if (m is PlayerMobile pm && pm.Young)
+				{
+					if (!Rules.CanExitYoung)
+					{
+						return OnRuleEnforced(RegionFlags.CanExitYoung, m, m, false);
+					}
+				}
+			}
+
+			return base.CanExit(m);
+		}
+
+		protected virtual bool OnRuleEnforced(RegionFlags rule, object src, object trg, bool result)
+		{
+			if (!result && src is Mobile m && m.NetState != null)
+			{
+				string message = null;
+
+				switch (rule)
+				{
+					case RegionFlags.AllowLogout: message = "You cannot log-out in this area."; break;
+					case RegionFlags.AllowHouses: message = "You cannot place houses in this area."; break;
+					case RegionFlags.AllowVehicles: message = "You cannot place vehicles in this area."; break;
+					case RegionFlags.AllowSpawning: message = "You cannot spawn in this area."; break;
+					case RegionFlags.AllowFollowers: message = "You cannot bring followers to this area."; break;
+					case RegionFlags.AllowEthereal: message = "You cannot use ethereal mounts in this area."; break;
+					case RegionFlags.AllowMount: message = "You cannot use mounts in this area."; break;
+					case RegionFlags.AllowMagic: message = "You cannot use magic in this area."; break;
+					case RegionFlags.AllowMelee: message = "You cannot use melee weapons in this area."; break;
+					case RegionFlags.AllowRanged: message = "You cannot use ranged weapons in this area."; break;
+					case RegionFlags.AllowSkills: message = "You cannot directly use skills this area."; break;
+
+					case RegionFlags.AllowPlayerDeath: message = "You cannot kill players this area."; break;
+					case RegionFlags.AllowPlayerRes: message = "You cannot resurrect players this area."; break;
+					case RegionFlags.AllowPlayerHeal: message = "You cannot heal players this area."; break;
+					case RegionFlags.AllowPlayerHarm: message = "You cannot harm players this area."; break;
+					case RegionFlags.AllowPlayerLooting: message = "You cannot loot players this area."; break;
+
+					case RegionFlags.AllowCreatureDeath: message = "You cannot kill creatures in this area."; break;
+					case RegionFlags.AllowCreatureRes: message = "You cannot resurrect creatures in this area."; break;
+					case RegionFlags.AllowCreatureHeal: message = "You cannot heal creatures in this area."; break;
+					case RegionFlags.AllowCreatureHarm: message = "You cannot harm creatures in this area."; break;
+					case RegionFlags.AllowCreatureLooting: message = "You cannot loot creatures this area."; break;
+
+					case RegionFlags.CanEnter: message = "You cannot roam into this area."; break;
+					case RegionFlags.CanEnterAlive: message = "You cannot roam into this area while alive."; break;
+					case RegionFlags.CanEnterDead: message = "You cannot roam into this area while dead."; break;
+					case RegionFlags.CanEnterYoung: message = "You cannot roam into this area while young."; break;
+					case RegionFlags.CanEnterInnocent: message = "You cannot roam into this area while innocent."; break;
+					case RegionFlags.CanEnterCriminal: message = "You cannot roam into this area while criminal."; break;
+					case RegionFlags.CanEnterMurderer: message = "You cannot roam into this area while murderer."; break;
+
+					case RegionFlags.CanExit: message = "You cannot roam out of this area."; break;
+					case RegionFlags.CanExitAlive: message = "You cannot roam out of this area while alive."; break;
+					case RegionFlags.CanExitDead: message = "You cannot roam out of this area while dead."; break;
+					case RegionFlags.CanExitYoung: message = "You cannot roam out of this area while young."; break;
+					case RegionFlags.CanExitInnocent: message = "You cannot roam out of this area while innocent."; break;
+					case RegionFlags.CanExitCriminal: message = "You cannot roam out of this area while criminal."; break;
+					case RegionFlags.CanExitMurderer: message = "You cannot roam out of this area while murderer."; break;
+				}
+
+				if (!String.IsNullOrWhiteSpace(message))
+				{
+					m.PrivateOverheadMessage(Network.MessageType.Regular, 0x22, false, message, m.NetState);
+				}
+			}
+
+			return result;
+		}
+
 		public override void OnEnter(Mobile m)
 		{
-			if (m is PlayerMobile && ((PlayerMobile)m).Young)
+			base.OnEnter(m);
+
+			if (m.AccessLevel < RulesOverride)
 			{
-				if (!YoungProtected)
+				if (m is PlayerMobile pm && pm.Young)
 				{
-					m.SendGump(new YoungDungeonWarning());
+					if (Rules.AllowYoungAggro)
+					{
+						pm.SendGump(new YoungDungeonWarning());
+					}
 				}
 			}
 		}
 
-		public override bool AcceptsSpawnsFrom(Region region)
+		private void InitArea()
 		{
-			if (region == this || !m_ExcludeFromParentSpawns)
-			{
-				return base.AcceptsSpawnsFrom(region);
-			}
-
-			return false;
-		}
-
-		private Rectangle3D[] m_Rectangles;
-		private int[] m_RectangleWeights;
-		private int m_TotalWeight;
-
-		private static readonly List<Rectangle3D> m_RectBuffer1 = new List<Rectangle3D>();
-		private static readonly List<Rectangle3D> m_RectBuffer2 = new List<Rectangle3D>();
-
-		private void InitRectangles()
-		{
-			if (m_Rectangles != null)
+			if (m_Areas != null)
 			{
 				return;
 			}
@@ -184,15 +1552,15 @@ namespace Server.Regions
 					{
 						var rect = m_RectBuffer2[k];
 
-						int l1 = rect.Start.X, r1 = rect.End.X, t1 = rect.Start.Y, b1 = rect.End.Y;
-						int l2 = comp.Start.X, r2 = comp.End.X, t2 = comp.Start.Y, b2 = comp.End.Y;
+						int l1 = rect.Bounds.Start.X, r1 = rect.Bounds.End.X, t1 = rect.Bounds.Start.Y, b1 = rect.Bounds.End.Y;
+						int l2 = comp.Bounds.Start.X, r2 = comp.Bounds.End.X, t2 = comp.Bounds.Start.Y, b2 = comp.Bounds.End.Y;
 
 						if (l1 < r2 && r1 > l2 && t1 < b2 && b1 > t2)
 						{
 							m_RectBuffer2.RemoveAt(k);
 
-							var sz = rect.Start.Z;
-							var ez = rect.End.X;
+							var sz = rect.MinZ;
+							var ez = rect.MaxZ;
 
 							if (l1 < l2)
 							{
@@ -221,22 +1589,20 @@ namespace Server.Regions
 				m_RectBuffer2.Clear();
 			}
 
-			m_Rectangles = m_RectBuffer1.ToArray();
+			m_Areas = m_RectBuffer1.ToArray();
 			m_RectBuffer1.Clear();
 
-			m_RectangleWeights = new int[m_Rectangles.Length];
-			for (var i = 0; i < m_Rectangles.Length; i++)
+			m_RectangleWeights = new int[m_Areas.Length];
+
+			for (var i = 0; i < m_Areas.Length; i++)
 			{
-				var rect = m_Rectangles[i];
-				var weight = rect.Width * rect.Height;
+				var rect = m_Areas[i];
+				var weight = rect.Bounds.Width * rect.Bounds.Height;
 
 				m_RectangleWeights[i] = weight;
 				m_TotalWeight += weight;
 			}
 		}
-
-		private static readonly List<int> m_SpawnBuffer1 = new List<int>();
-		private static readonly List<Item> m_SpawnBuffer2 = new List<Item>();
 
 		public Point3D RandomSpawnLocation(int spawnHeight, bool land, bool water, Point3D home, int range)
 		{
@@ -247,14 +1613,14 @@ namespace Server.Regions
 				return Point3D.Zero;
 			}
 
-			InitRectangles();
+			InitArea();
 
 			if (m_TotalWeight <= 0)
 			{
 				return Point3D.Zero;
 			}
 
-			for (var i = 0; i < 10; i++) // Try 10 times
+			for (var i = 0; i < 100; i++)
 			{
 				int x, y, minZ, maxZ;
 
@@ -264,21 +1630,25 @@ namespace Server.Regions
 
 					x = Int32.MinValue; y = Int32.MinValue;
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < m_RectangleWeights.Length; j++)
 					{
 						var curWeight = m_RectangleWeights[j];
 
 						if (rand < curWeight)
 						{
-							var rect = m_Rectangles[j];
+							var poly = m_Areas[j];
+							var rect = poly.Bounds;
 
 							x = rect.Start.X + rand % rect.Width;
 							y = rect.Start.Y + rand / rect.Width;
 
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
-
-							break;
+							if (poly.Contains(x, y))
+							{
+								minZ = poly.MinZ;
+								maxZ = poly.MaxZ;
+								break;
+							}
 						}
 
 						rand -= curWeight;
@@ -290,14 +1660,15 @@ namespace Server.Regions
 					y = Utility.RandomMinMax(home.Y - range, home.Y + range);
 
 					minZ = Int32.MaxValue; maxZ = Int32.MinValue;
+
 					for (var j = 0; j < Area.Length; j++)
 					{
-						var rect = Area[j];
+						var poly = Area[j];
 
-						if (x >= rect.Start.X && x < rect.End.X && y >= rect.Start.Y && y < rect.End.Y)
+						if (poly.Contains(x, y))
 						{
-							minZ = rect.Start.Z;
-							maxZ = rect.End.Z;
+							minZ = poly.MinZ;
+							maxZ = poly.MaxZ;
 							break;
 						}
 					}
@@ -367,7 +1738,7 @@ namespace Server.Regions
 				{
 					var item = sector.Items[j];
 
-					if (!(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue && item.AtWorldPoint(x, y))
+					if (item is not BaseMulti && item.ItemID <= TileData.MaxItemValue && item.AtWorldPoint(x, y))
 					{
 						m_SpawnBuffer2.Add(item);
 
@@ -403,7 +1774,8 @@ namespace Server.Regions
 				}
 
 				int z;
-				switch (m_SpawnZLevel)
+
+				switch (SpawnZLevel)
 				{
 					case SpawnZLevel.Lowest:
 						{
@@ -440,6 +1812,7 @@ namespace Server.Regions
 					default: // SpawnZLevel.Random
 						{
 							var index = Utility.Random(m_SpawnBuffer1.Count);
+
 							z = m_SpawnBuffer1[index];
 
 							break;
@@ -448,8 +1821,9 @@ namespace Server.Regions
 
 				m_SpawnBuffer1.Clear();
 
+				var r = Find(new Point3D(x, y, z), map);
 
-				if (!Region.Find(new Point3D(x, y, z), map).AcceptsSpawnsFrom(this))
+				if (!r.AcceptsSpawnsFrom(null, this))
 				{
 					m_SpawnBuffer2.Clear();
 					continue;
@@ -458,6 +1832,7 @@ namespace Server.Regions
 				var top = z + spawnHeight;
 
 				var ok = true;
+
 				for (var j = 0; j < m_SpawnBuffer2.Count; j++)
 				{
 					var item = m_SpawnBuffer2[j];
@@ -503,7 +1878,7 @@ namespace Server.Regions
 				{
 					var m = sector.Mobiles[j];
 
-					if (m.X == x && m.Y == y && (m.AccessLevel == AccessLevel.Player || !m.Hidden))
+					if (m.X == x && m.Y == y && (m.AccessLevel < AccessLevel.Counselor || !m.Hidden))
 					{
 						if (m.Z + 16 > z && m.Z < top)
 						{
@@ -522,40 +1897,147 @@ namespace Server.Regions
 			return Point3D.Zero;
 		}
 
-		public override string ToString()
+		public override void Serialize(GenericWriter writer)
 		{
-			if (Name != null)
+			base.Serialize(writer);
+
+			writer.Write(3);
+
+			writer.Write(RuneName);
+
+			writer.Write(Rules.Flags);
+
+			writer.Write(SpawnZLevel);
+
+			if (m_Spawns != null)
 			{
-				return Name;
-			}
-			else if (RuneName != null)
-			{
-				return RuneName;
+				writer.Write(m_Spawns.Length);
+
+				foreach (var se in m_Spawns)
+				{
+					writer.Write(se.ID);
+				}
 			}
 			else
 			{
-				return GetType().Name;
+				writer.Write(0);
+			}
+
+			if (SkillPermissions != null)
+			{
+				writer.Write(true);
+
+				SkillPermissions.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
+			}
+
+			if (SpellPermissions != null)
+			{
+				writer.Write(true);
+
+				SpellPermissions.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
+			}
+
+			if (Weather != null)
+			{
+				writer.Write(true);
+
+				Weather.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
 			}
 		}
 
-		public BaseRegion(string name, Map map, int priority, params Rectangle2D[] area) : base(name, map, priority, area)
+		public override void Deserialize(GenericReader reader)
 		{
-		}
+			base.Deserialize(reader);
 
-		public BaseRegion(string name, Map map, int priority, params Rectangle3D[] area) : base(name, map, priority, area)
-		{
-		}
+			var v = reader.ReadInt();
+			
+			RuneName = reader.ReadString();
 
-		public BaseRegion(string name, Map map, Region parent, params Rectangle2D[] area) : base(name, map, parent, area)
-		{
-		}
+			if (v >= 2)
+			{
+				Rules.Flags = reader.ReadEnum<RegionFlags>();
+			}
+			else
+			{
+				Rules.AllowHouses = reader.ReadBool();
+				Rules.AllowYoungAggro = !reader.ReadBool();
+				Rules.CanEnterYoung = reader.ReadBool();
+				Rules.AllowMount = reader.ReadBool();
+				Rules.CanEnterDead = reader.ReadBool();
+				Rules.AllowPlayerRes = reader.ReadBool();
+				Rules.AllowLogout = reader.ReadBool();
+				Rules.AllowDelayLogout = !reader.ReadBool();
+				Rules.AllowParentSpawns = !reader.ReadBool();
+			}
 
-		public BaseRegion(string name, Map map, Region parent, params Rectangle3D[] area) : base(name, map, parent, area)
-		{
-		}
+			SpawnZLevel = reader.ReadEnum<SpawnZLevel>();
 
-		public BaseRegion(RegionDefinition def, Map map, Region parent) : base(def, map, parent)
-		{
+			var count = reader.ReadInt();
+
+			if (count > 0)
+			{
+				var spawns = new List<SpawnEntry>(count);
+
+				while (--count >= 0)
+				{
+					var index = reader.ReadInt();
+
+					if (SpawnEntry.Table[index] is SpawnEntry e)
+					{
+						spawns.Add(e);
+					}
+				}
+
+				if (spawns.Count > 0)
+				{
+					m_Spawns = spawns.ToArray();
+
+					spawns.Clear();
+				}
+				
+				spawns.TrimExcess();
+			}
+
+			if (v >= 3)
+			{
+				if (reader.ReadBool())
+				{
+					SkillPermissions.Deserialize(reader);
+				}
+
+				if (reader.ReadBool())
+				{
+					SpellPermissions.Deserialize(reader);
+				}
+			}
+
+			if (v >= 1 && reader.ReadBool())
+			{
+				if (Weather != null)
+				{
+					Weather.Deserialize(reader);
+				}
+				else
+				{
+					Weather = new RegionalWeather(reader);
+				}
+			}
+			else
+			{
+				Timer.DelayCall(WeatherInit);
+			}
 		}
 	}
 }

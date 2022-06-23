@@ -129,12 +129,9 @@ namespace Server.SkillHandlers
 				}
 			}
 
-			public virtual void ResetPacify(object obj)
+			public virtual void ResetPacify(BaseCreature c)
 			{
-				if (obj is BaseCreature)
-				{
-					((BaseCreature)obj).BardPacified = true;
-				}
+				c.BardPacified = true;
 			}
 
 			protected override void OnTarget(Mobile from, object targeted)
@@ -206,7 +203,7 @@ namespace Server.SkillHandlers
 
 								if (creature.BardPacified && Utility.RandomDouble() > .24)
 								{
-									Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerStateCallback(ResetPacify), creature);
+									Timer.DelayCall(TimeSpan.FromSeconds(2.0), ResetPacify, creature);
 								}
 								else
 								{

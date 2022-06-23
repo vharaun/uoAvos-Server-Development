@@ -233,7 +233,7 @@ namespace Server.Mobiles
 				to.SendLocalizedMessage(1072069); // A cacophonic sound lambastes you, suppressing your ability to move.
 				to.PlaySound(0x584);
 
-				m_Table[to] = Timer.DelayCall(TimeSpan.FromSeconds(30), new TimerStateCallback(EndCacophonic_Callback), to);
+				m_Table[to] = Timer.DelayCall(TimeSpan.FromSeconds(30), EndCacophonic_Callback, to);
 			}
 		}
 

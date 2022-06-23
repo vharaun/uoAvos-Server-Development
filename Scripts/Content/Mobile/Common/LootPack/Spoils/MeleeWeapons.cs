@@ -38,7 +38,7 @@ namespace Server
 			typeof( TwoHandedAxe ),         typeof( WarAxe ),               typeof( Club ),
 			typeof( Mace ),                 typeof( Maul ),                 typeof( WarHammer ),
 			typeof( WarMace ),              typeof( Bardiche ),             typeof( Halberd ),
-			typeof( Spear ),                typeof( ShortSpear ),           typeof( Pitchfork ),
+			typeof( Spear ),                typeof( ShortSpear ),           /*typeof( Pitchfork ),*/
 			typeof( WarFork ),              typeof( BlackStaff ),           typeof( GnarledStaff ),
 			typeof( QuarterStaff ),         typeof( Broadsword ),           typeof( Cutlass ),
 			typeof( Katana ),               typeof( Kryss ),                typeof( Longsword ),

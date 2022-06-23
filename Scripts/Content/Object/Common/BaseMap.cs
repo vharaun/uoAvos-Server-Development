@@ -496,4 +496,62 @@ namespace Server.Items
 			var version = reader.ReadEncodedInt();
 		}
 	}
+
+	public class RegionBorderMap : MapItem
+	{
+		public override string DefaultName => "region border map";
+
+		[Constructable]
+		public RegionBorderMap()
+		{
+			SetDisplay(0, 0, 5119, 4095, 400, 400);
+		}
+
+		public override void OnDoubleClick(Mobile from)
+		{
+			var facet = from.Map;
+
+			if (facet == null)
+			{
+				return;
+			}
+
+			var region = from.Region;
+
+			if (region == null || region.IsDefault)
+			{
+				return;
+			}
+
+			ClearPins();
+
+			foreach (var a in region.Area)
+			{
+				foreach (var p in a.Points)
+				{
+					AddWorldPin(p.X, p.Y);
+				}
+			}
+
+			base.OnDoubleClick(from);
+		}
+
+		public RegionBorderMap(Serial serial) : base(serial)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+		}
+	}
 }

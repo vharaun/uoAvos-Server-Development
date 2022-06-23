@@ -1,27 +1,30 @@
 ﻿#region Developer Notations
 
 /// Static Weather:
-/// Format: AddWeather( temperature, chanceOfPercipitation, chanceOfExtremeTemperature, <area ...> );
+/// Format: Weather.Register( facet, temperature, chanceOfPercipitation, chanceOfExtremeTemperature, <area ...> );
 
 /// Dynamic weather:
-/// Format: AddDynamicWeather( temperature, chanceOfPercipitation, chanceOfExtremeTemperature, moveSpeed, width, height, bounds );
+/// Format: DynamicWeather.Register( facet, temperature, chanceOfPercipitation, chanceOfExtremeTemperature, moveSpeed, width, height, bounds );
 
 #endregion
 
 namespace Server.Engines.Weather
 {
-	public partial class Weather
+	public static class EastBritanniaWeather
 	{
-		public static void EastBritannia() // Covetous Entrance, Around Vesper and Minoc
+		public static void Initialize()
 		{
-			m_Facets = new Map[] { Map.Felucca, Map.Trammel };
+			var facets = new Map[] { Map.Felucca, Map.Trammel };
 
-			AddWeather(+15, 50, 5, new Rectangle2D(2425, 725, 250, 250));
-
-			/// Moves Weather Pattern Across The Entire Map
-			for (var i = 0; i < 15; ++i)
+			foreach (var facet in facets)
 			{
-				AddDynamicWeather(+15, 100, 5, 8, 400, 400, new Rectangle2D(0, 0, 5120, 4096));
+				Weather.Register(facet, +15, 50, 5, new Rectangle2D(2425, 725, 250, 250));
+
+				// Moves Weather Pattern Across The Entire Map
+				for (var i = 0; i < 15; ++i)
+				{
+					DynamicWeather.Register(facet, +15, 100, 5, 8, 400, 400, new Rectangle2D(0, 0, 5120, 4096));
+				}
 			}
 		}
 	}

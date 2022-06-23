@@ -54,7 +54,7 @@ namespace Server.Spells.Chivalry
 					delay = 24;
 				}
 
-				m_Table[Caster] = t = Timer.DelayCall(TimeSpan.FromSeconds(delay), new TimerStateCallback(Expire_Callback), Caster);
+				m_Table[Caster] = t = Timer.DelayCall(TimeSpan.FromSeconds(delay), Expire_Callback, Caster);
 				Caster.Delta(MobileDelta.WeaponDamage);
 
 				BuffInfo.AddBuff(Caster, new BuffInfo(BuffIcon.DivineFury, 1060589, 1075634, TimeSpan.FromSeconds(delay), Caster));

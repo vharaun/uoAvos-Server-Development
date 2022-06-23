@@ -79,20 +79,11 @@ namespace Server
 			m_TimeLength = length;
 			m_TimeStart = DateTime.UtcNow;
 
-			m_Timer = Timer.DelayCall(length, new TimerCallback(
-				delegate
-				{
-					var pm = m as PlayerMobile;
-
-					if (pm == null)
-					{
-						return;
-					}
-
-					pm.RemoveBuff(this);
-				}));
+			if (m is PlayerMobile pm)
+			{
+				m_Timer = Timer.DelayCall(length, pm.RemoveBuff, this);
+			}
 		}
-
 
 		public BuffInfo(BuffIcon iconID, int titleCliloc, TextDefinition args)
 			: this(iconID, titleCliloc, titleCliloc + 1, args)

@@ -122,7 +122,7 @@ namespace Server.Items
 			Effects.SendMovingEffect(new Entity(Serial.Zero, startLoc, map), new Entity(Serial.Zero, endLoc, map),
 				0x36E4, 5, 0, false, false);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(1.0), new TimerStateCallback(FinishLaunch), new object[] { from, endLoc, map });
+			Timer.DelayCall(TimeSpan.FromSeconds(1.0), FinishLaunch, new object[] { from, endLoc, map });
 		}
 
 		private void FinishLaunch(object state)

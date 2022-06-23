@@ -205,7 +205,7 @@ namespace Server.Misc
 					World.Broadcast(0x35, true, "The world will save in {0} second{1}.", s, s != 1 ? "s" : "");
 				}
 
-				Timer.DelayCall(m_Warning, new TimerCallback(Save));
+				Timer.DelayCall(m_Warning, Save);
 			}
 		}
 

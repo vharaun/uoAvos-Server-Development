@@ -3074,37 +3074,37 @@ namespace Server.Gumps
 								}
 							case 6:
 								{
-									Properties.SetValue(from, m, "Blessed", "False");
+									Props.SetValue(from, m, "Blessed", "False");
 									notice = "They are now mortal.";
 									break;
 								}
 							case 7:
 								{
-									Properties.SetValue(from, m, "Blessed", "True");
+									Props.SetValue(from, m, "Blessed", "True");
 									notice = "They are now immortal.";
 									break;
 								}
 							case 8:
 								{
-									Properties.SetValue(from, m, "Squelched", "True");
+									Props.SetValue(from, m, "Squelched", "True");
 									notice = "They are now squelched.";
 									break;
 								}
 							case 9:
 								{
-									Properties.SetValue(from, m, "Squelched", "False");
+									Props.SetValue(from, m, "Squelched", "False");
 									notice = "They are now unsquelched.";
 									break;
 								}
 							case 10:
 								{
-									Properties.SetValue(from, m, "Hidden", "True");
+									Props.SetValue(from, m, "Hidden", "True");
 									notice = "They are now hidden.";
 									break;
 								}
 							case 11:
 								{
-									Properties.SetValue(from, m, "Hidden", "False");
+									Props.SetValue(from, m, "Hidden", "False");
 									notice = "They are now unhidden.";
 									break;
 								}

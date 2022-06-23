@@ -3138,10 +3138,9 @@ namespace Server
 
 			if (HeldBy != null)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(FixHolding_Sandbox));
+				Timer.DelayCall(FixHolding_Sandbox);
 			}
 
-			//if ( version < 9 )
 			VerifyCompactInfo();
 		}
 

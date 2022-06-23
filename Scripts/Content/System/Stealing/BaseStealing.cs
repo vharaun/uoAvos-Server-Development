@@ -244,7 +244,7 @@ namespace Server.Items
 				m_Artifacts[i] = new StealableInstance(m_Entries[i]);
 			}
 
-			m_RespawnTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromMinutes(15.0), new TimerCallback(CheckRespawn));
+			m_RespawnTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromMinutes(15.0), CheckRespawn);
 		}
 
 		public override void OnDelete()
@@ -331,7 +331,7 @@ namespace Server.Items
 				m_Artifacts[i] = new StealableInstance(m_Entries[i]);
 			}
 
-			m_RespawnTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromMinutes(15.0), new TimerCallback(CheckRespawn));
+			m_RespawnTimer = Timer.DelayCall(TimeSpan.Zero, TimeSpan.FromMinutes(15.0), CheckRespawn);
 		}
 	}
 }

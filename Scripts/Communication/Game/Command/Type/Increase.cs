@@ -22,7 +22,7 @@ namespace Server.Commands.Generic
 			}
 			else if (e.Length >= 2)
 			{
-				var result = Properties.IncreaseValue(e.Mobile, obj, e.Arguments);
+				var result = Props.IncreaseValue(e.Mobile, obj, e.Arguments);
 
 				if (result == "The property has been increased." || result == "The properties have been increased." || result == "The property has been decreased." || result == "The properties have been decreased." || result == "The properties have been changed.")
 				{

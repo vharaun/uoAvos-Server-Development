@@ -3,6 +3,7 @@ using Server.Network;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -10,54 +11,50 @@ namespace Server.Gumps
 {
 	public abstract class BaseGump : Gump, IDisposable
 	{
-		public static int CenterLoc = 1114513;     // <center>~1_val~</center>
-		public static int AlignRightLoc = 1114514; // <DIV ALIGN=RIGHT>~1_TOKEN~</DIV>
+		public const int CenterLoc = 1114513;     // <center>~1_val~</center>
+		public const int AlignRightLoc = 1114514; // <DIV ALIGN=RIGHT>~1_TOKEN~</DIV>
 
 		private Gump _Parent;
 
-		public PlayerMobile User { get; private set; }
-		public bool Open { get; set; }
+		private int _ButtonID;
 
-		public virtual bool CloseOnMapChange => false;
+		private Dictionary<int, Action<int>> _Buttons;
+
+		public PlayerMobile User { get; private set; }
+
+		public bool Open { get; protected set; }
+
+		public bool CloseOnMapChange { get; set; }
 
 		public Gump Parent
 		{
 			get => _Parent;
 			set
 			{
+				if (_Parent == value)
+				{
+					return;
+				}
+
+				if (_Parent is BaseGump opg)
+				{
+					opg.Children.Remove(this);
+				}
+
 				_Parent = value;
 
-				if (_Parent != null)
+				if (_Parent is BaseGump npg)
 				{
-					if (_Parent is BaseGump)
-					{
-						var g = (BaseGump)_Parent;
-
-						if (!g.Children.Contains(this))
-						{
-							g.Children.Add(this);
-						}
-						else
-						{
-							g.Children.Remove(this);
-						}
-					}
+					npg.Children.Add(this);
 				}
 			}
 		}
 
-		public List<BaseGump> Children { get; set; }
+		public HashSet<BaseGump> Children { get; private set; } = new();
 
 		public BaseGump(PlayerMobile user, int x = 50, int y = 50, BaseGump parent = null)
 			: base(x, y)
 		{
-			if (user == null)
-			{
-				return;
-			}
-
-			Children = new List<BaseGump>();
-
 			User = user;
 			Parent = parent;
 		}
@@ -97,10 +94,12 @@ namespace Server.Gumps
 
 		public void Dispose()
 		{
+			GC.SuppressFinalize(this);
+
 			Children.Clear();
 			Children = null;
 
-			Children = null;
+			User = null;
 			Parent = null;
 
 			foreach (var kvp in _TextTooltips)
@@ -156,9 +155,9 @@ namespace Server.Gumps
 
 		public void RefreshParent(bool resend = false)
 		{
-			if (Parent is BaseGump)
+			if (Parent is BaseGump pg)
 			{
-				((BaseGump)Parent).Refresh();
+				pg.Refresh();
 			}
 
 			if (resend)
@@ -177,20 +176,21 @@ namespace Server.Gumps
 
 		public virtual void OnClosed()
 		{
-			Children.ForEach(child => child.Close());
+			foreach (var child in Children)
+			{
+				child.Close();
+			}
+
 			Children.Clear();
 
 			Open = false;
 
-			if (Parent != null)
+			if (Parent is BaseGump pg)
 			{
-				if (Parent is BaseGump)
-				{
-					((BaseGump)Parent).OnChildClosed(this);
-				}
-
-				Parent = null;
+				pg.OnChildClosed(this);
 			}
+
+			Parent = null;
 		}
 
 		public virtual void OnChildClosed(BaseGump gump)
@@ -209,6 +209,18 @@ namespace Server.Gumps
 
 		public virtual void OnResponse(RelayInfo info)
 		{
+			if (_Buttons != null && _Buttons.TryGetValue(info.ButtonID, out var callback) && callback != null)
+			{
+				callback(info.ButtonID);
+			}
+			else if (info.ButtonID != 0)
+			{
+				Refresh();
+			}
+			else
+			{
+				Close();
+			}
 		}
 
 		public virtual void OnServerClosed(NetState state)
@@ -227,6 +239,10 @@ namespace Server.Gumps
 
 			User.Send(new CloseGump(TypeID, 0));
 			User.NetState.RemoveGump(this);
+
+			OnClosed();
+
+			_Buttons?.Clear();
 		}
 
 		public static T GetGump<T>(PlayerMobile pm, Func<T, bool> predicate) where T : Gump
@@ -236,53 +252,27 @@ namespace Server.Gumps
 
 		public static IEnumerable<T> EnumerateGumps<T>(PlayerMobile pm, Func<T, bool> predicate = null) where T : Gump
 		{
-			var ns = pm.NetState;
+			return pm?.NetState?.Gumps?.OfType<T>().Where(g => predicate == null || predicate(g)) ?? Enumerable.Empty<T>();
+		}
 
-			if (ns == null)
-			{
-				yield break;
-			}
-
-			foreach (var gump in ns.Gumps.OfType<BaseGump>().Where(g => g.GetType() == typeof(T) && (predicate == null || predicate(g as T))))
-			{
-				yield return gump as T;
-			}
+		public static List<Gump> GetGumps(PlayerMobile pm)
+		{
+			return new(EnumerateGumps<Gump>(pm));
 		}
 
 		public static List<T> GetGumps<T>(PlayerMobile pm) where T : Gump
 		{
-			var ns = pm.NetState;
-			var list = new List<T>();
-
-			if (ns == null)
-			{
-				return list;
-			}
-
-			foreach (var gump in ns.Gumps.OfType<BaseGump>().Where(g => g.GetType() == typeof(T)))
-			{
-				list.Add(gump as T);
-			}
-
-			return list;
+			return new(EnumerateGumps<T>(pm));
 		}
 
-		public static List<BaseGump> GetGumps(PlayerMobile pm, bool checkOpen = false)
+		public static List<BaseGump> GetGumps(PlayerMobile pm, bool checkOpen)
 		{
-			var ns = pm.NetState;
-			var list = new List<BaseGump>();
+			return new(EnumerateGumps<BaseGump>(pm, g => !checkOpen || g.Open));
+		}
 
-			if (ns == null)
-			{
-				return list;
-			}
-
-			foreach (var gump in ns.Gumps.OfType<BaseGump>().Where(g => (!checkOpen || g.Open)))
-			{
-				list.Add(gump);
-			}
-
-			return list;
+		public static List<T> GetGumps<T>(PlayerMobile pm, bool checkOpen) where T : BaseGump
+		{
+			return new(EnumerateGumps<T>(pm, g => !checkOpen || g.Open));
 		}
 
 		public static void CheckCloseGumps(PlayerMobile pm, bool checkOpen = false)
@@ -293,14 +283,46 @@ namespace Server.Gumps
 			{
 				var gumps = GetGumps(pm, checkOpen);
 
-				foreach (var gump in gumps.Where(g => g.CloseOnMapChange))
+				foreach (var gump in gumps)
 				{
-					pm.CloseGump(gump.GetType());
+					if (gump.CloseOnMapChange)
+					{
+						pm.CloseGump(gump.GetType());
+					}
 				}
 
 				gumps.Clear();
 				gumps.TrimExcess();
 			}
+		}
+
+		public void AddButton(int x, int y, int normalID, int pressedID, Action callback)
+		{
+			AddButton(x, y, normalID, pressedID, _ => callback());
+		}
+
+		public void AddButton(int x, int y, int normalID, int pressedID, Action<int> callback)
+		{
+			var buttonID = ++_ButtonID;
+
+			AddButton(x, y, normalID, pressedID, buttonID, GumpButtonType.Reply, buttonID);
+
+			if (_Buttons == null)
+			{
+				_Buttons = new Dictionary<int, Action<int>>();
+			}
+
+			_Buttons[buttonID] = callback;
+		}
+
+		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar, Color color)
+		{
+			AddHtml(x, y, width, height, text, background, scrollbar, color, Color.Empty);
+		}
+
+		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar, Color color, Color reset)
+		{
+			AddHtml(x, y, width, height, SetColor(color, reset, text), background, scrollbar);
 		}
 
 		public void AddItemProperty(Item item)
@@ -353,54 +375,69 @@ namespace Server.Gumps
 			return (r << 10) | (g << 5) | (b << 0);
 		}
 
-		protected string Color(string color, string str)
+		public static string SetColor(System.Drawing.Color color, string str)
 		{
-			return String.Format("<basefont color={0}>{1}", color, str);
+			return SetColor(color, Color.White, str);
 		}
 
-		protected string Color(int color, string str)
+		public static string SetColor(Color color, Color reset, string str)
 		{
-			return String.Format("<basefont color=#{0:X6}>{1}", color, str);
+			if (!reset.IsEmpty)
+			{
+				return $"{SetColor(color.ToArgb(), str)}{SetColor(reset.ToArgb(), String.Empty)}";
+			}
+
+			return SetColor(color.ToArgb(), str);
 		}
 
-		protected string ColorAndCenter(string color, string str)
+		public static string SetColor(string color, string str)
 		{
-			return String.Format("<center><basefont color={0}>{1}</center>", color, str);
+			return $"<basefont color={color}>{str}";
 		}
 
-		protected string ColorAndSize(string color, int size, string str)
+		public static string SetColor(int color, string str)
 		{
-			return String.Format("<basefont color={0} size={1}>{2}", color, size.ToString(), str);
+			return $"<basefont color=#{color & 0x00FFFFFF:X6}>{str}";
 		}
 
-		protected string ColorAndCenterAndSize(string color, int size, string str)
+		public static string ColorAndCenter(string color, string str)
 		{
-			return String.Format("<basefont color={0} size={1}><center>{2}</center>", color, size.ToString(), str);
+			return $"<center><basefont color={color}>{str}</center>";
 		}
 
-		protected string ColorAndCenter(int color, string str)
+		public static string ColorAndSize(string color, int size, string str)
 		{
-			return String.Format("<basefont color=#{0:X6}><center>{1}</center>", color, str);
+			return $"<basefont color={color} size={size}>{str}";
 		}
 
-		protected string Center(string str)
+		public static string ColorAndCenterAndSize(string color, int size, string str)
 		{
-			return String.Format("<CENTER>{0}</CENTER>", str);
+			return $"<basefont color={color} size={size}><center>{str}</center>";
 		}
 
-		protected string ColorAndAlignRight(int color, string str)
+		public static string ColorAndCenter(int color, string str)
 		{
-			return String.Format("<DIV ALIGN=RIGHT><basefont color=#{0:X6}>{1}</DIV>", color, str);
+			return $"<basefont color=#{color:X6}><center>{str}</center>";
 		}
 
-		protected string ColorAndAlignRight(string color, string str)
+		public static string Center(string str)
 		{
-			return String.Format("<DIV ALIGN=RIGHT><basefont color={0}>{1}</DIV>", color, str);
+			return $"<CENTER>{str}</CENTER>";
 		}
 
-		protected string AlignRight(string str)
+		public static string ColorAndAlignRight(int color, string str)
 		{
-			return String.Format("<DIV ALIGN=RIGHT>{0}</DIV>", str);
+			return $"<DIV ALIGN=RIGHT><basefont color=#{color:X6}>{str}</DIV>";
+		}
+
+		public static string ColorAndAlignRight(string color, string str)
+		{
+			return $"<DIV ALIGN=RIGHT><basefont color={color}>{str}</DIV>";
+		}
+
+		public static string AlignRight(string str)
+		{
+			return $"<DIV ALIGN=RIGHT>{str}</DIV>";
 		}
 
 		public void AddHtmlTextDefinition(int x, int y, int length, int height, TextDefinition text, bool background, bool scrollbar)
@@ -415,36 +452,36 @@ namespace Server.Gumps
 			}
 		}
 
-		public void AddHtmlTextDefinition(int x, int y, int length, int height, TextDefinition text, int hue, bool background, bool scrollbar)
+		public void AddHtmlTextDefinition(int x, int y, int length, int height, TextDefinition text, int color, bool background, bool scrollbar)
 		{
 			if (text.Number > 0)
 			{
-				AddHtmlLocalized(x, y, length, height, text.Number, hue, false, false);
+				AddHtmlLocalized(x, y, length, height, text.Number, color, false, false);
 			}
 			else if (!String.IsNullOrEmpty(text.String))
 			{
-				AddHtml(x, y, length, height, Color(hue, text.String), background, scrollbar);
+				AddHtml(x, y, length, height, SetColor(color, text.String), background, scrollbar);
 			}
 		}
 
 		public void AddHtmlLocalizedCentered(int x, int y, int length, int height, int localization, bool background, bool scrollbar)
 		{
-			AddHtmlLocalized(x, y, length, height, 1113302, String.Format("#{0}", localization), 0, background, scrollbar);
+			AddHtmlLocalized(x, y, length, height, 1113302, $"#{localization}", 0, background, scrollbar);
 		}
 
 		public void AddHtmlLocalizedCentered(int x, int y, int length, int height, int localization, int hue, bool background, bool scrollbar)
 		{
-			AddHtmlLocalized(x, y, length, height, 1113302, String.Format("#{0}", localization), hue, background, scrollbar);
+			AddHtmlLocalized(x, y, length, height, 1113302, $"#{localization}", hue, background, scrollbar);
 		}
 
 		public void AddHtmlLocalizedAlignRight(int x, int y, int length, int height, int localization, bool background, bool scrollbar)
 		{
-			AddHtmlLocalized(x, y, length, height, 1114514, String.Format("#{0}", localization), 0, background, scrollbar);
+			AddHtmlLocalized(x, y, length, height, 1114514, $"#{localization}", 0, background, scrollbar);
 		}
 
 		public void AddHtmlLocalizedAlignRight(int x, int y, int length, int height, int localization, int hue, bool background, bool scrollbar)
 		{
-			AddHtmlLocalized(x, y, length, height, 1114514, String.Format("#{0}", localization), hue, background, scrollbar);
+			AddHtmlLocalized(x, y, length, height, 1114514, $"#{localization}", hue, background, scrollbar);
 		}
 
 		#endregion

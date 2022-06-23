@@ -270,16 +270,13 @@ namespace Server.Engines.ConPVP
 
 				if (m_Region != null)
 				{
-					m_Region.Unregister();
+					m_Region.Delete();
+					m_Region = null;
 				}
 
 				if (m_Zone.Start != Point2D.Zero && m_Zone.End != Point2D.Zero && m_Facet != null)
 				{
 					m_Region = new SafeZone(m_Zone, m_Outside, m_Facet, m_IsGuarded);
-				}
-				else
-				{
-					m_Region = null;
 				}
 			}
 		}
@@ -321,7 +318,8 @@ namespace Server.Engines.ConPVP
 				{
 					if (m_Region != null)
 					{
-						m_Region.Unregister();
+						m_Region.Delete();
+						m_Region = null;
 					}
 
 					m_Region = new SafeZone(m_Zone, m_Outside, m_Facet, m_IsGuarded);
@@ -330,10 +328,9 @@ namespace Server.Engines.ConPVP
 				{
 					if (m_Region != null)
 					{
-						m_Region.Unregister();
+						m_Region.Delete();
+						m_Region = null;
 					}
-
-					m_Region = null;
 				}
 			}
 		}
@@ -391,10 +388,9 @@ namespace Server.Engines.ConPVP
 
 			if (m_Region != null)
 			{
-				m_Region.Unregister();
+				m_Region.Delete();
+				m_Region = null;
 			}
-
-			m_Region = null;
 		}
 
 		public override string ToString()
@@ -532,6 +528,12 @@ namespace Server.Engines.ConPVP
 
 			switch (version)
 			{
+				case 8:
+					{
+						m_Region = reader.ReadRegion<SafeZone>();
+
+						goto case 7;
+					}
 				case 7:
 					{
 						m_IsGuarded = reader.ReadBool();
@@ -603,19 +605,27 @@ namespace Server.Engines.ConPVP
 					}
 			}
 
-			if (m_Zone.Start != Point2D.Zero && m_Zone.End != Point2D.Zero && m_Facet != null)
-			{
-				m_Region = new SafeZone(m_Zone, m_Outside, m_Facet, m_IsGuarded);
-			}
-
 			if (IsOccupied)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerCallback(Evict));
+				Timer.DelayCall(TimeSpan.FromSeconds(2.0), Evict);
+			}
+
+			if (m_Region == null)
+			{
+				Timer.DelayCall(UpdateRegion_Sandbox);
 			}
 
 			if (m_Tournament != null)
 			{
-				Timer.DelayCall(TimeSpan.Zero, new TimerCallback(AttachToTournament_Sandbox));
+				Timer.DelayCall(AttachToTournament_Sandbox);
+			}
+		}
+
+		private void UpdateRegion_Sandbox()
+		{
+			if (m_Region == null && m_Zone.Start != Point2D.Zero && m_Zone.End != Point2D.Zero && m_Facet != null)
+			{
+				m_Region = new SafeZone(m_Zone, m_Outside, m_Facet, m_IsGuarded);
 			}
 		}
 
@@ -706,7 +716,9 @@ namespace Server.Engines.ConPVP
 
 		public void Serialize(GenericWriter writer)
 		{
-			writer.WriteEncodedInt(7);
+			writer.WriteEncodedInt(8);
+
+			writer.Write(m_Region);
 
 			writer.Write(m_IsGuarded);
 

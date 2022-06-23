@@ -1,6 +1,8 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace Server.Spells
 {
@@ -373,6 +375,67 @@ namespace Server.Spells
 					//Register( 692, typeof( Mysticism.RisingColossusSpell ) );
 				}
 			}
+			/*
+			var args = new object[] { null, null };
+
+			var spellEnu = new StringBuilder();
+			var spellOut = new StringBuilder();
+
+			spellOut.AppendLine($"public class SpellStates<T>");
+			spellOut.AppendLine($"{{");
+
+			var spellTypes = typeof(Spell).Assembly.GetTypes().Where(t => !t.IsAbstract && (t.IsAssignableTo(typeof(Spell)) || t.IsAssignableTo(typeof(SpecialMove))));
+
+			var results = spellTypes.Select(type =>
+			{
+				try
+				{
+					return (Spell)Activator.CreateInstance(type, args);
+				}
+				catch
+				{
+					return null;
+				}
+			}).Where(s => s != null).Select(s => (Spell: s, Id: SpellRegistry.GetRegistryNumber(s))).Where(o => o.Id >= 0).OrderBy(o => o.Id).ToDictionary(o => o.Id, o => o.Spell);
+
+			foreach (var result in results.GroupBy(o => o.Value.GetType().Namespace))
+			{
+				var scope = result.Key.Split('.').Last();
+
+				spellOut.AppendLine($"\t[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]");
+				spellOut.AppendLine($"\tpublic {scope}States<T> {scope} {{ get; set; }}");
+				spellOut.AppendLine();
+				spellOut.AppendLine($"\tpublic class {scope}States<T> : SpellStates<T>");
+				spellOut.AppendLine($"\t{{");
+				spellOut.AppendLine($"\t\t#region {scope}");
+				spellOut.AppendLine();
+
+				spellEnu.AppendLine($"public enum {scope}SpellName");
+				spellEnu.AppendLine($"{{");
+
+				foreach (var data in result)
+				{
+					var name = data.Value.GetType().Name.Replace("Spell", String.Empty);
+
+					spellOut.AppendLine($"\t\t[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]");
+					spellOut.AppendLine($"\t\tpublic T {name} {{ get => this[SpellName.{name}]; set => this[SpellName.{name}] = value; }}");
+					spellOut.AppendLine();
+
+					spellEnu.AppendLine($"\t{name} = SpellName.{name},");
+				}
+
+				spellOut.AppendLine();
+				spellOut.AppendLine($"\t\t#endregion");
+
+				spellOut.AppendLine($"\t}}");
+				spellOut.AppendLine();
+
+				spellEnu.AppendLine($"}}");
+				spellEnu.AppendLine();
+			}
+
+			System.IO.File.WriteAllText("Spells.txt", $"{spellEnu}\n{spellOut}");
+			*/
 		}
 
 		public static void Register(int spellId, Type type)

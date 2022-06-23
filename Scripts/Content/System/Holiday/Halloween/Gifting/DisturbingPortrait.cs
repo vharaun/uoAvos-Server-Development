@@ -233,7 +233,7 @@ namespace Server.Items
 
 		public DisturbingPortrait2Component() : base(0x2A5D)
 		{
-			m_Timer = Timer.DelayCall(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(3), new TimerCallback(Change));
+			m_Timer = Timer.DelayCall(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(3), Change);
 		}
 
 		public DisturbingPortrait2Component(Serial serial) : base(serial)
@@ -275,7 +275,7 @@ namespace Server.Items
 
 			var version = reader.ReadEncodedInt();
 
-			m_Timer = Timer.DelayCall(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(3), new TimerCallback(Change));
+			m_Timer = Timer.DelayCall(TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(3), Change);
 		}
 
 		private void Change()

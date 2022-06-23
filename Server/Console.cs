@@ -19,7 +19,7 @@ namespace Server
 	public static class Core
 	{
 		private static bool m_Crashed;
-		private static Thread timerThread;
+		private static Thread m_TimerThread;
 		private static string m_BaseDirectory;
 		private static string m_ExePath;
 
@@ -37,7 +37,7 @@ namespace Server
 		private static DateTime m_ProfileStart;
 		private static TimeSpan m_ProfileTime;
 
-		private static MessagePump m_MessagePump;
+		private static volatile MessagePump m_MessagePump;
 
 		public static MessagePump MessagePump
 		{
@@ -262,7 +262,7 @@ namespace Server
 
 		#endregion
 
-		public static string ExePath => m_ExePath ?? (m_ExePath = Assembly.Location);
+		public static string ExePath => m_ExePath ??= Assembly.Location;
 
 		public static string BaseDirectory
 		{
@@ -404,7 +404,7 @@ namespace Server
 
 			m_Closing = true;
 
-			Console.Write("Exiting...");
+			Console.WriteLine("Exiting...");
 
 			World.WaitForWriteCompletion();
 
@@ -463,12 +463,16 @@ namespace Server
 			{
 				if (m_Service)
 				{
-					if (!Directory.Exists("Export/Logs"))
+					var path = Path.Combine("Export", "Logs");
+
+					if (!Directory.Exists(path))
 					{
-						Directory.CreateDirectory("Export/Logs");
+						Directory.CreateDirectory(path);
 					}
 
-					Console.SetOut(m_MultiConOut = new MultiTextWriter(new FileLogger("Export/Logs/Console.log")));
+					path = Path.Combine(path, "Console.log");
+
+					Console.SetOut(m_MultiConOut = new MultiTextWriter(new FileLogger(path)));
 				}
 				else
 				{
@@ -493,8 +497,7 @@ namespace Server
 				Directory.SetCurrentDirectory(BaseDirectory);
 			}
 
-			var ttObj = new Timer.TimerThread();
-			timerThread = new Thread(ttObj.TimerMain)
+			m_TimerThread = new Thread(Timer.TimerThread.TimerMain)
 			{
 				Name = "Timer Thread"
 			};
@@ -513,7 +516,7 @@ namespace Server
 
 			if (s.Length > 0)
 			{
-				Console.WriteLine("Core: Running with arguments: {0}", s);
+				Console.WriteLine($"Core: Running with arguments: {s}");
 			}
 
 			m_ProcessorCount = Environment.ProcessorCount;
@@ -575,7 +578,6 @@ namespace Server
 
 			ScriptCompiler.Invoke("Configure");
 
-			Region.Load();
 			World.Load();
 
 			ScriptCompiler.Invoke("Initialize");
@@ -584,7 +586,7 @@ namespace Server
 
 			var messagePump = m_MessagePump = new MessagePump();
 
-			timerThread.Start();
+			m_TimerThread.Start();
 
 			foreach (var m in Map.AllMaps)
 			{

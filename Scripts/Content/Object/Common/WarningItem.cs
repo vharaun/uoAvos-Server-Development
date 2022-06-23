@@ -136,7 +136,7 @@ namespace Server.Items
 				}
 			}
 
-			Timer.DelayCall(TimeSpan.Zero, new TimerCallback(InternalCallback));
+			Timer.DelayCall(TimeSpan.Zero, InternalCallback);
 		}
 
 		private void InternalCallback()

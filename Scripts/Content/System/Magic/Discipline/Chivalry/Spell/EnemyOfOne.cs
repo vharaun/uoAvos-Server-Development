@@ -53,7 +53,7 @@ namespace Server.Spells.Chivalry
 					delay = 3.5;
 				}
 
-				m_Table[Caster] = Timer.DelayCall(TimeSpan.FromMinutes(delay), new TimerStateCallback(Expire_Callback), Caster);
+				m_Table[Caster] = Timer.DelayCall(TimeSpan.FromMinutes(delay), Expire_Callback, Caster);
 
 				if (Caster is PlayerMobile)
 				{

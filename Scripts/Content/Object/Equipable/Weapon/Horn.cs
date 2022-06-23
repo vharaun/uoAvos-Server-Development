@@ -69,7 +69,7 @@ namespace Server.Items
 			}
 
 			from.BeginAction(typeof(FireHorn));
-			Timer.DelayCall(Core.AOS ? TimeSpan.FromSeconds(6.0) : TimeSpan.FromSeconds(12.0), new TimerStateCallback(EndAction), from);
+			Timer.DelayCall(Core.AOS ? TimeSpan.FromSeconds(6.0) : TimeSpan.FromSeconds(12.0), EndAction, from);
 
 			var music = from.Skills[SkillName.Musicianship].Fixed;
 

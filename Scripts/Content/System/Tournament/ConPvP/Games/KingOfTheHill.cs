@@ -5,6 +5,7 @@ using Server.Network;
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Server.Engines.ConPVP
@@ -813,7 +814,7 @@ namespace Server.Engines.ConPVP
 	{
 		private KHTeamInfo[] m_TeamInfo;
 		private HillOfTheKing[] m_Hills;
-		private ArrayList m_Boards;
+		private List<KHBoard> m_Boards;
 		private TimeSpan m_Duration;
 		private int m_ScoreInterval;
 
@@ -857,7 +858,7 @@ namespace Server.Engines.ConPVP
 		[CommandProperty(AccessLevel.GameMaster)]
 		public HillOfTheKing Hill4 { get => m_Hills[3]; set => m_Hills[3] = value; }
 
-		public ArrayList Boards => m_Boards;
+		public List<KHBoard> Boards => m_Boards;
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public TimeSpan Duration
@@ -904,7 +905,7 @@ namespace Server.Engines.ConPVP
 			Name = "King of the Hill Controller";
 
 			m_Duration = TimeSpan.FromMinutes(30.0);
-			m_Boards = new ArrayList();
+			m_Boards = new List<KHBoard>();
 			m_Hills = new HillOfTheKing[4];
 			m_TeamInfo = new KHTeamInfo[8];
 
@@ -957,12 +958,12 @@ namespace Server.Engines.ConPVP
 
 						m_Duration = reader.ReadTimeSpan();
 
-						m_Boards = reader.ReadItemList();
+						m_Boards = reader.ReadStrongItemList<KHBoard>();
 
 						m_Hills = new HillOfTheKing[reader.ReadEncodedInt()];
 						for (var i = 0; i < m_Hills.Length; ++i)
 						{
-							m_Hills[i] = reader.ReadItem() as HillOfTheKing;
+							m_Hills[i] = reader.ReadItem<HillOfTheKing>();
 						}
 
 						m_TeamInfo = new KHTeamInfo[reader.ReadEncodedInt()];
@@ -1110,7 +1111,7 @@ namespace Server.Engines.ConPVP
 
 		public void DelayBounce(TimeSpan ts, Mobile mob, Container corpse)
 		{
-			Timer.DelayCall(ts, new TimerStateCallback(DelayBounce_Callback), new object[] { mob, corpse });
+			Timer.DelayCall(ts, DelayBounce_Callback, new object[] { mob, corpse });
 		}
 
 		private void DelayBounce_Callback(object state)
@@ -1144,7 +1145,7 @@ namespace Server.Engines.ConPVP
 
 			if (corpse != null && !corpse.Deleted)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(30), new TimerCallback(corpse.Delete));
+				Timer.DelayCall(TimeSpan.FromSeconds(30), corpse.Delete);
 			}
 		}
 
@@ -1237,7 +1238,7 @@ namespace Server.Engines.ConPVP
 				}
 			}
 
-			m_FinishTimer = Timer.DelayCall(m_Controller.Duration, new TimerCallback(Finish_Callback));
+			m_FinishTimer = Timer.DelayCall(m_Controller.Duration, Finish_Callback);
 		}
 
 		private void Finish_Callback()

@@ -79,7 +79,7 @@ namespace Server.Engines.Quests.Items
 
 					--Charges;
 
-					m_PlayTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerStateCallback(PlayTimer_Callback), from);
+					m_PlayTimer = Timer.DelayCall(TimeSpan.FromSeconds(5.0), PlayTimer_Callback, from);
 				}
 				else
 				{
@@ -159,7 +159,7 @@ namespace Server.Engines.Quests.Items
 
 			Dispellable = false;
 
-			Timer.DelayCall(TimeSpan.FromSeconds(10.0), new TimerCallback(Delete));
+			Timer.DelayCall(TimeSpan.FromSeconds(10.0), Delete);
 		}
 
 		public override void BeginConfirmation(Mobile from)

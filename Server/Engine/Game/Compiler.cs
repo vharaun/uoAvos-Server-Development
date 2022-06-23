@@ -19,55 +19,56 @@ namespace Server
 			set => m_Assemblies = value;
 		}
 
-		private static readonly Type[] m_SerialTypeArray = new Type[1] { typeof(Serial) };
+		private static readonly Type[] m_SerialTypeArray = { typeof(Serial) };
+		private static readonly Type[] m_IDTypeArray = { typeof(int) };
 
 		private static void VerifyType(Type t)
 		{
-			if (t.IsSubclassOf(typeof(Item)) || t.IsSubclassOf(typeof(Mobile)))
+			try
 			{
 				StringBuilder warningSb = null;
 
-				try
+				if (t.IsSubclassOf(typeof(Region)))
+				{
+					if (t.GetConstructor(m_IDTypeArray) == null)
+					{
+						warningSb ??= new StringBuilder();
+						warningSb.AppendLine("       - No serialization constructor");
+					}
+				}
+				else if (t.IsSubclassOf(typeof(Item)) || t.IsSubclassOf(typeof(Mobile)))
 				{
 					if (t.GetConstructor(m_SerialTypeArray) == null)
 					{
-						if (warningSb == null)
-						{
-							warningSb = new StringBuilder();
-						}
-
+						warningSb ??= new StringBuilder();
 						warningSb.AppendLine("       - No serialization constructor");
 					}
-
-					if (t.GetMethod("Serialize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly) == null)
-					{
-						if (warningSb == null)
-						{
-							warningSb = new StringBuilder();
-						}
-
-						warningSb.AppendLine("       - No Serialize() method");
-					}
-
-					if (t.GetMethod("Deserialize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly) == null)
-					{
-						if (warningSb == null)
-						{
-							warningSb = new StringBuilder();
-						}
-
-						warningSb.AppendLine("       - No Deserialize() method");
-					}
-
-					if (warningSb != null && warningSb.Length > 0)
-					{
-						Console.WriteLine("Warning: {0}\n{1}", t, warningSb.ToString());
-					}
 				}
-				catch
+				else
 				{
-					Console.WriteLine("Warning: Exception in serialization verification of type {0}", t);
+					return;
 				}
+
+				if (t.GetMethod("Serialize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly) == null)
+				{
+					warningSb ??= new StringBuilder();
+					warningSb.AppendLine("       - No Serialize() method");
+				}
+
+				if (t.GetMethod("Deserialize", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly) == null)
+				{
+					warningSb ??= new StringBuilder();
+					warningSb.AppendLine("       - No Deserialize() method");
+				}
+
+				if (warningSb?.Length > 0)
+				{
+					Console.WriteLine($"Warning: {t}\n{warningSb}");
+				}
+			}
+			catch
+			{
+				Console.WriteLine($"Warning: Exception in serialization verification of type {t}");
 			}
 		}
 

@@ -119,7 +119,7 @@ namespace Server.Items
 					Registry.Add(m, t);
 				}
 
-				Timer.DelayCall(TimeSpan.FromSeconds(2.0), new TimerStateCallback(RepeatEffect), attacker);
+				Timer.DelayCall(TimeSpan.FromSeconds(2.0), RepeatEffect, attacker);
 			}
 		}
 

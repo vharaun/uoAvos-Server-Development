@@ -158,7 +158,7 @@ namespace Server.Spells.Mysticism
 
 			public void Start()
 			{
-				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(8.0), new TimerCallback(EndPlague));
+				m_Timer = Timer.DelayCall(TimeSpan.FromSeconds(8.0), EndPlague);
 				m_Timer.Start();
 
 				BuffInfo.AddBuff(m_Target, new BuffInfo(BuffIcon.SpellPlague, 1031690, 1080167, TimeSpan.FromSeconds(8.5), m_Target));

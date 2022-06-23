@@ -688,7 +688,7 @@ namespace Server.Mobiles
 
 			Direction = GetDirectionTo(target);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(BreathEffectDelay), new TimerStateCallback(BreathEffect_Callback), target);
+			Timer.DelayCall(TimeSpan.FromSeconds(BreathEffectDelay), BreathEffect_Callback, target);
 		}
 
 		public virtual void BreathStallMovement()
@@ -721,7 +721,7 @@ namespace Server.Mobiles
 			BreathPlayEffectSound();
 			BreathPlayEffect(target);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(BreathDamageDelay), new TimerStateCallback(BreathDamage_Callback), target);
+			Timer.DelayCall(TimeSpan.FromSeconds(BreathDamageDelay), BreathDamage_Callback, target);
 		}
 
 		public virtual void BreathPlayEffectSound()
@@ -1552,9 +1552,9 @@ namespace Server.Mobiles
 					CheckDistracted(from);
 				}
 			}
-			else if (from is PlayerMobile)
+			else if (from is PlayerMobile pm)
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(10), new TimerCallback(((PlayerMobile)from).RecoverAmmo));
+				Timer.DelayCall(TimeSpan.FromSeconds(10), pm.RecoverAmmo);
 			}
 
 			base.OnDamage(amount, from, willKill);
@@ -3894,10 +3894,10 @@ namespace Server.Mobiles
 					Say(1013037 + Utility.Random(16));
 					guardedRegion.CallGuards(Location);
 
-					Timer.DelayCall(TimeSpan.FromSeconds(5.0), new TimerCallback(ReleaseGuardLock));
+					Timer.DelayCall(TimeSpan.FromSeconds(5.0), ReleaseGuardLock);
 
 					m_NoDupeGuards = m;
-					Timer.DelayCall(TimeSpan.Zero, new TimerCallback(ReleaseGuardDupeLock));
+					Timer.DelayCall(TimeSpan.Zero, ReleaseGuardDupeLock);
 				}
 			}
 		}
@@ -5485,7 +5485,7 @@ namespace Server.Mobiles
 			{
 				var se = Spawner as SpawnEntry;
 
-				if (se != null && !se.UnlinkOnTaming && (New == null || !New.AcceptsSpawnsFrom(se.Region)))
+				if (se != null && !se.UnlinkOnTaming && (New == null || !New.AcceptsSpawnsFrom(this, se.Region)))
 				{
 					Spawner.Remove(this);
 					Spawner = null;
@@ -5608,7 +5608,7 @@ namespace Server.Mobiles
 
 			var seconds = (onSelf ? HealDelay : HealOwnerDelay) + (patient.Alive ? 0.0 : 5.0);
 
-			m_HealTimer = Timer.DelayCall(TimeSpan.FromSeconds(seconds), new TimerStateCallback(Heal_Callback), patient);
+			m_HealTimer = Timer.DelayCall(TimeSpan.FromSeconds(seconds), Heal_Callback, patient);
 		}
 
 		private void Heal_Callback(object state)
@@ -6133,7 +6133,7 @@ namespace Server.Mobiles
 		{
 			if (!Deleted && ReturnsToHome && IsSpawnerBound() && !InRange(Home, (RangeHome + 5)))
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds((Utility.Random(45) + 15)), new TimerCallback(GoHome_Callback));
+				Timer.DelayCall(TimeSpan.FromSeconds((Utility.Random(45) + 15)), GoHome_Callback);
 
 				m_ReturnQueued = true;
 			}
