@@ -29,6 +29,11 @@ namespace Server.Mobiles
 		AI_Mage,
 		AI_Berserk,
 		AI_Predator,
+
+		#region ActionAI
+		AI_ActionAI,
+		#endregion
+
 		AI_Thief
 	}
 
