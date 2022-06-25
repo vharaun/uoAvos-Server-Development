@@ -45,7 +45,8 @@ namespace Server.Engines.Harvest
 			HarvestVein[] veins;
 
 			#region Fishing
-			var fish = new HarvestDefinition {
+			HarvestDefinition fish = new HarvestDefinition 
+			{
 
 				// Resource banks are every 8x8 tiles
 				BankWidth = 8,
@@ -88,23 +89,7 @@ namespace Server.Engines.Harvest
 				ToolBrokeMessage = 503174 // You broke your fishing pole.
 			};
 			
-			private static readonly int[] m_WaterTiles = new int[]
-			{
-				/* FOR TESTING */
-
-				3, 4, 5, 6, /* grass for testing fresh water */
-				1083, /* for testing regions */
-
-				/* END TESTING */
-
-
-				0x00A8, 0x00AB,
-				0x0136, 0x0137,
-				0x5797, 0x579C,
-				0x746E, 0x7485,
-				0x7490, 0x74AB,
-				0x74B5, 0x75D5
-			};
+			
 
 
 			// Base Harvest Resource for all tile types and regions. This is like the Iron Ore default resource if tile/region specific resource gathering "fails". 
@@ -134,6 +119,24 @@ namespace Server.Engines.Harvest
 			Definitions.Add(fish);
 			#endregion
 		}
+
+		private static readonly int[] m_WaterTiles = new int[]
+			{
+				/* FOR TESTING */
+
+				3, 4, 5, 6, /* grass for testing fresh water */
+				1083, /* for testing regions */
+
+				/* END TESTING */
+
+
+				0x00A8, 0x00AB,
+				0x0136, 0x0137,
+				0x5797, 0x579C,
+				0x746E, 0x7485,
+				0x7490, 0x74AB,
+				0x74B5, 0x75D5
+			};
 
 		public override void OnConcurrentHarvest(Mobile from, Item tool, HarvestDefinition def, object toHarvest)
 		{
