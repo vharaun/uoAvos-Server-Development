@@ -354,7 +354,7 @@ namespace Server.Mobiles
                 Effects.SendLocationEffect(p, this.Map, 0x352D, 16, 4);
                 Effects.PlaySound(p, this.Map, 0x364);
 
-                Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.25), 14, new TimerStateCallback(DoFishnetEffect), new object[] { p, 0, this, m_Net });
+                Timer.DelayCall(TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.25), 14, DoFishnetEffect, p, 0, this, m_Net );
             }
             else
             {
@@ -362,19 +362,19 @@ namespace Server.Mobiles
             }
         }
 
-        private void DoFishnetEffect(object state)
+        private void DoFishnetEffect(Point3D point3D, int indexID, Mobile m, SpecialFishingNet fishnet)
         {
             if (Deleted)
                 return;
 
-            object[] states = (object[])state;
+            //object[] states = (object[])state;
 
-            Point3D p = (Point3D)states[0];
-            int index = (int)states[1];
-            Mobile from = (Mobile)states[2];
-            SpecialFishingNet net = (SpecialFishingNet)states[3];
+			Point3D p = point3D; // (Point3D)states[0];
+			int index = indexID; // (int)states[1];
+			Mobile from = m; // (Mobile)states[2];
+			SpecialFishingNet net = fishnet; // (SpecialFishingNet)states[3];
 
-            states[1] = ++index;
+			// states[1] = ++index;
 
             if (index == 1)
             {
