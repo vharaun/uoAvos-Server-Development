@@ -1,22 +1,27 @@
-﻿using System;
+﻿using Server.Tools.Controls;
+
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Windows.Forms;
 
 namespace Server.Tools
 {
-	public partial class Editor : Form
+	public partial class RegionEditor : Form
 	{
-		public static event EventHandler<Editor> EditorStarting, EditorStarted;
-		public static event EventHandler<Editor> EditorClosing, EditorClosed;
+		public static event EventHandler<RegionEditor> EditorStarting, EditorStarted;
+		public static event EventHandler<RegionEditor> EditorClosing, EditorClosed;
 
 		private static volatile Thread m_Thread;
-		private static volatile Editor m_Instance;
+		private static volatile RegionEditor m_Instance;
 
 		[CallPriority(Int32.MaxValue)]
 		public static void Configure()
@@ -28,7 +33,7 @@ namespace Server.Tools
 		{
 			if (m_Instance?.IsDisposed != false)
 			{
-				m_Instance = new Editor();
+				m_Instance = new RegionEditor();
 			}
 
 			if (m_Thread?.IsAlive != true)
@@ -47,17 +52,20 @@ namespace Server.Tools
 		[STAThread]
 		private static void Run()
 		{
-			Application.SetHighDpiMode(HighDpiMode.SystemAware);
+			Application.SetHighDpiMode(HighDpiMode.DpiUnawareGdiScaled);
+
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
-
+			
 			Application.Run(m_Instance);
 		}
 
 		private volatile bool m_UpdatingTree, m_UpdatingImage, m_ScrollToView;
 
-		private Editor()
+		private RegionEditor()
 		{
+			SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+
 			InitializeComponent();
 
 			Canvas.MapUpdated += OnCanvasMapUpdated;
@@ -67,6 +75,9 @@ namespace Server.Tools
 
 			Regions.BeforeSelect += OnRegionsBeforeSelect;
 			Regions.AfterSelect += OnRegionsAfterSelect;
+
+			Server.Region.OnRegistered += OnRegionRegistered;
+			Server.Region.OnUnregistered += OnRegionUnregistered;
 
 			Map.RegionAdded += OnMapRegionAdded;
 			Map.RegionRemoved += OnMapRegionRemoved;
@@ -97,7 +108,7 @@ namespace Server.Tools
 			}
 		}
 
-		private void Invoke(EventHandler<Editor> callback)
+		private void Invoke(EventHandler<RegionEditor> callback)
 		{
 			callback?.Invoke(this, this);
 		}
@@ -152,25 +163,29 @@ namespace Server.Tools
 				}
 				else if (e.Node is RegionTreeNode r)
 				{
-					Canvas.MapRegion = r.MapRegion; 					
+					Canvas.MapRegion = r.MapRegion;
 				}
 			}
 		}
 
 		private void OnCanvasMapUpdated(object sender, MapCanvas e)
 		{
-			SyncRegionsSelection(e.Map);
+			SyncRegionsSelection();
+
+			Props.SelectedObject = null;
 		}
 
 		private void OnCanvasMapRegionUpdated(object sender, MapCanvas e)
 		{
-			SyncRegionsSelection(e.MapRegion);
+			SyncRegionsSelection();
+
+			Props.SelectedObject = e.MapRegion;
 
 			if (m_ScrollToView && !m_UpdatingImage)
 			{
 				m_ScrollToView = false;
 
-				Canvas.ScrollRegionIntoView();
+				e.ScrollRegionIntoView();
 			}
 		}
 
@@ -188,27 +203,61 @@ namespace Server.Tools
 			{
 				m_ScrollToView = false;
 
-				Canvas.ScrollRegionIntoView();
+				e.ScrollRegionIntoView();
 			}
-		}		
+		}
 
-		private void OnMapRegionAdded(Map map, Region reg)
+		private void OnRegionRegistered(Region reg)
 		{
 			if (World.Loaded)
 			{
-				UpdateRegionsTree();
-
-				SyncRegionsSelection(reg);
+				if (Canvas.MapRegion == reg)
+				{
+					SyncRegionsSelection(reg);
+				}
+				else
+				{
+					UpdateRegionsTree();
+				}
 			}
+		}
+
+		private void OnRegionUnregistered(Region reg)
+		{
+			if (World.Loaded)
+			{
+				if (Canvas.MapRegion == reg)
+				{
+					SyncRegionsSelection(reg);
+				}
+				else
+				{
+					UpdateRegionsTree();
+				}
+			}
+		}
+
+		private void OnMapRegionAdded(Map map, Region reg)
+		{
 		}
 
 		private void OnMapRegionRemoved(Map map, Region reg)
 		{
-			if (World.Loaded)
-			{
-				InvalidateRegionsTree();
+		}
 
-				SyncRegionsSelection(reg);
+		private void SyncRegionsSelection()
+		{
+			if (Canvas.MapRegion != null)
+			{
+				SyncRegionsSelection(Canvas.MapRegion);
+			}
+			else if (Canvas.Map != null)
+			{
+				SyncRegionsSelection(Canvas.Map);
+			}
+			else
+			{
+				SyncRegionsSelection(null);
 			}
 		}
 
@@ -220,113 +269,51 @@ namespace Server.Tools
 
 				if (obj is Map map)
 				{
-					if (Regions.SelectedNode is not MapTreeNode m || m.Map != map)
-					{
-						var n = Regions[map];
+					var n = Regions[map];
 
-						if (n != null)
-						{
-							n.EnsureVisible();
-
-							Regions.SelectedNode = n;
-						}
-					}
-					else
+					if (n != null && n.IsValid)
 					{
-						m.EnsureVisible();
+						n.EnsureVisible();
+
+						Regions.SelectedNode = n;
 					}
 				}
 				else if (obj is Region reg)
 				{
-					if (reg.Deleted || reg.IsDefault || !reg.Registered)
-					{
-						if (Regions.SelectedNode is RegionTreeNode r && r.MapRegion == reg)
-						{
-							Regions.SelectedNode = null;
-						}
-					}
-					else if (Regions.SelectedNode is not RegionTreeNode r || r.MapRegion != reg)
-					{
-						var n = Regions[reg];
+					var n = Regions[reg];
 
-						if (n != null)
-						{
-							n.EnsureVisible();
-
-							Regions.SelectedNode = n;
-						}
-					}
-					else
+					if (n != null && n.IsValid)
 					{
-						r.EnsureVisible();
+						n.EnsureVisible();
+
+						Regions.SelectedNode = n;
 					}
 				}
 				else if (obj is Type t)
 				{
-					if (t.IsAssignableFrom(typeof(Map)))
+					if (t.Equals(typeof(Map)))
 					{
-						if (Regions.SelectedNode is MapTreeNode)
+						if (Regions.SelectedNode is MapTreeNode m)
 						{
-							Regions.SelectedNode = null;
+							Regions.SelectedNode = m.Parent;
 						}
 					}
-					else if (t.IsAssignableFrom(typeof(Region)))
+					else if (t.Equals(typeof(Region)))
 					{
-						if (Regions.SelectedNode is RegionTreeNode)
+						if (Regions.SelectedNode is RegionTreeNode r)
 						{
-							Regions.SelectedNode = null;
+							Regions.SelectedNode = r.Parent;
 						}
 					}
 				}
-			});
-		}
-
-		public void InvalidateRegionsTree()
-		{
-			InvalidateRegionsTree(Regions.Nodes);
-		}
-
-		private void InvalidateRegionsTree(TreeNodeCollection root)
-		{
-			Invoke(() =>
-			{
-				var index = root.Count;
-
-				while (--index >= 0)
+				else
 				{
-					if (index < root.Count)
-					{
-						if (root[index] is MapTreeNode m)
-						{
-							if (m.Map == null || m.Map == Map.Internal || !Map.AllMaps.Contains(m.Map))
-							{
-								root.RemoveAt(index);
-								continue;
-							}
-
-							InvalidateRegionsTree(m.Nodes);
-						}
-						else if (root[index] is RegionTreeNode r)
-						{
-							if (r.MapRegion == null || r.MapRegion.Deleted || r.MapRegion.IsDefault || !r.MapRegion.Registered)
-							{
-								root.RemoveAt(index);
-								continue;
-							}
-
-							InvalidateRegionsTree(r.Nodes);
-						}
-					}
+					Regions.SelectedNode = Regions.SelectedNode?.Parent;
 				}
 			});
 		}
 
 		public void UpdateRegionsTree()
-		{
-			UpdateRegionsTree(Regions.Nodes);
-		}
-
-		private void UpdateRegionsTree(TreeNodeCollection root)
 		{
 			Invoke(() =>
 			{
@@ -337,79 +324,158 @@ namespace Server.Tools
 
 				m_UpdatingTree = true;
 
-				try
-				{
-					Regions.BeginUpdate();
+				Regions.BeginUpdate();
 
-					foreach (var map in Map.AllMaps)
-					{
-						if (map != null && map != Map.Internal)
-						{
-							BuildRegionsTree(root, map);
-						}
-					}
-
-					Regions.EndUpdate();
-				}
-				finally
+				foreach (var map in Map.AllMaps)
 				{
-					m_UpdatingTree = false;
+					RecursiveAddMap(Regions.Nodes, map);
 				}
+
+				Regions.EndUpdate();
+
+				m_UpdatingTree = false;
 			});
 		}
 
-		private static void RecursiveAddRegion(TreeNodeCollection c, Region r)
+		private void RecursiveAddMap(TreeNodeCollection root, Map map)
 		{
-			var n = new RegionTreeNode(r);
-
-			c.Add(n);
-
-			foreach (var cr in r.Children)
+			if (map == null || map == Map.Internal || !Map.AllMaps.Contains(map))
 			{
-				RecursiveAddRegion(n.Nodes, cr);
+				return;
 			}
-		}
 
-		private static void BuildRegionsTree(TreeNodeCollection root, Map map)
-		{
-			var key = map.ToString();
+			MapTreeNode node = null;
 
-			MapTreeNode node;
+			var key = MapTreeNode.GetTreeKey(map);
 
-			if (!root.ContainsKey(key))
-			{
-				node = new MapTreeNode(map);
-
-				root.Add(node);
-			}
-			else
+			if (root.ContainsKey(key))
 			{
 				node = (MapTreeNode)root[key];
 
-				node.Nodes.Clear();
-
-				if (node.Map == null || node.Map == Map.Internal)
+				if (!node.IsValid)
 				{
 					root.Remove(node);
-					return;
+
+					node = null;
 				}
 			}
 
-			foreach (var region in map.Regions.ToArray())
+			if (node == null)
 			{
-				if (!region.IsDefault && region.Parent == null)
+				root.Add(node = new(map));
+			}
+
+			foreach (var region in map.Regions)
+			{
+				if (region != null && region.Parent == null)
 				{
 					RecursiveAddRegion(node.Nodes, region);
 				}
 			}
 		}
-	}
 
+		private void RecursiveAddRegion(TreeNodeCollection root, Region region)
+		{
+			if (region == null || region.Deleted || region.IsDefault || !region.Registered)
+			{
+				return;
+			}
+
+			RegionTreeNode node = null;
+
+			var key = RegionTreeNode.GetTreeKey(region);
+
+			if (root.ContainsKey(key))
+			{
+				node = (RegionTreeNode)root[key];
+
+				if (!node.IsValid)
+				{
+					root.Remove(node);
+
+					node = null;
+				}
+			}
+
+			if (node == null)
+			{
+				root.Add(node = new(region));
+			}
+
+			foreach (var child in region.Children)
+			{
+				RecursiveAddRegion(node.Nodes, child);
+			}
+		}
+	}
+}
+
+namespace Server.Tools.Controls
+{
 	public class MapRegionsTree : TreeView
 	{
-		public MapTreeNode this[Map map] { get => Nodes.Find(map.ToString(), false).OfType<MapTreeNode>().FirstOrDefault(n => n.Map == map); }
+		private static TreeNode Search(TreeNodeCollection root, string k, bool recurse)
+		{
+			if (root == null)
+			{
+				return null;
+			}
 
-		public RegionTreeNode this[Region reg] { get => this[reg.Map]?.Nodes.Find(reg.ToString(), true).OfType<RegionTreeNode>().FirstOrDefault(n => n.MapRegion == reg); }
+			foreach (TreeNode n in root)
+			{
+				if (n.Name == k)
+				{
+					return n;
+				}
+
+				if (recurse)
+				{
+					var c = Search(n.Nodes, k, true);
+
+					if (c != null)
+					{
+						return c;
+					}
+				}
+			}
+
+			return null;
+		}
+
+		public MapTreeNode this[Map map]
+		{
+			get
+			{
+				if (map != null)
+				{
+					var key = MapTreeNode.GetTreeKey(map);
+
+					return Search(Nodes, key, false) as MapTreeNode;
+				}
+
+				return null;
+			}
+		}
+
+		public RegionTreeNode this[Region reg]
+		{
+			get
+			{
+				if (reg != null && reg.Map != null)
+				{
+					var root = this[reg.Map];
+
+					if (root != null)
+					{
+						var key = RegionTreeNode.GetTreeKey(reg);
+
+						return Search(root.Nodes, key, true) as RegionTreeNode;
+					}
+				}
+
+				return null;
+			}
+		}
 
 		public MapRegionsTree()
 		{
@@ -420,6 +486,11 @@ namespace Server.Tools
 		{
 			public int Compare(object x, object y)
 			{
+				if (x is MapTreeNode a && y is MapTreeNode b && a.Level == b.Level)
+				{
+					return 0; // no sorting for same-level map nodes
+				}
+
 				return StringComparer.InvariantCultureIgnoreCase.Compare(x?.ToString(), y?.ToString());
 			}
 		}
@@ -427,25 +498,386 @@ namespace Server.Tools
 
 	public class MapTreeNode : TreeNode
 	{
+		public static string GetTreeKey(Map map)
+		{
+			return $"{map.MapIndex}:{map}";
+		}
+
 		public Map Map { get; }
+
+		public bool IsValid => Map != null && Map != Map.Internal && Map.AllMaps.Contains(Map);
 
 		public MapTreeNode(Map map)
 		{
 			Map = map;
-			
-			Name = Text = map.ToString();
+
+			Text = map.ToString();
+
+			Name = GetTreeKey(map);
 		}
 	}
 
 	public class RegionTreeNode : TreeNode
 	{
+		public static string GetTreeKey(Region region)
+		{
+			return $"{region.Id}:{region}";
+		}
+
 		public Region MapRegion { get; }
+
+		public bool IsValid => MapRegion != null && !MapRegion.Deleted && !MapRegion.IsDefault && MapRegion.Registered;
 
 		public RegionTreeNode(Region region)
 		{
 			MapRegion = region;
 
-			Name = Text = region.ToString();
+			Text = region.ToString();
+
+			Name = GetTreeKey(region);
+		}
+	}
+
+	public class RegionPropertyGrid : PropertyGrid
+	{
+		private readonly Wrapper _Wrapper = new();
+
+		public new Region SelectedObject
+		{
+			get
+			{
+				if (base.SelectedObject is Wrapper wrapper)
+				{
+					return wrapper.Region;
+				}
+
+				return null;
+			}
+			set
+			{
+				base.SelectedObject = null;
+
+				_Wrapper.Region = value;
+
+				base.SelectedObject = _Wrapper;
+
+				Refresh();
+			}
+		}
+
+		[TypeConverter(typeof(Converter))]
+		private sealed class Wrapper : TypeConverter
+		{
+			private PropertyDescriptorCollection m_Properties;
+
+			private Region m_Region;
+
+			[Browsable(false)]
+			public Region Region
+			{
+				get => m_Region;
+				set
+				{
+					if (m_Region == value)
+					{
+						return;
+					}
+
+					m_Properties = null;
+
+					m_Region = value;
+
+					if (m_Region == null)
+					{
+						return;
+					}
+
+					var props = new HashSet<Descriptor>();
+
+					var type = m_Region.GetType();
+
+					foreach (var prop in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+					{
+						if (prop.PropertyType.IsEnum || prop.PropertyType.IsPrimitive || prop.PropertyType.Equals(typeof(string)))
+						{
+							props.Add(new Descriptor(m_Region, prop));
+						}
+					}
+
+					m_Properties = new PropertyDescriptorCollection(props.ToArray(), false);
+
+					props.Clear();
+					props.TrimExcess();
+				}
+			}
+
+			public object this[string property]
+			{
+				get
+				{
+					if (m_Properties?[property] is Descriptor prop)
+					{
+						return prop.GetValue(Region);
+					}					
+
+					return null;
+				}
+				set
+				{
+					if (m_Properties?[property] is Descriptor prop)
+					{
+						prop.SetValue(Region, value);
+					}
+				}
+			}
+
+			public object this[PropertyInfo property] { get => this[property.Name]; set => this[property.Name] = value; }
+
+			private sealed class Converter : ExpandableObjectConverter
+			{
+				public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext context, object value, Attribute[] attributes)
+				{
+					if (value is Wrapper wrapper)
+					{
+						return wrapper.m_Properties;
+					}
+
+					return null;
+				}
+			}
+
+			private sealed class Descriptor : PropertyDescriptor
+			{
+				public Region Region { get; }
+				public PropertyInfo Property { get; }
+
+				public CommandPropertyAttribute CPA { get; }
+
+				public object DefaultValue { get; }
+
+				public override Type PropertyType => Property.PropertyType;
+				public override Type ComponentType => typeof(Wrapper);
+
+				public override bool IsReadOnly => Property.CanRead && (!Property.CanWrite || CPA?.ReadOnly == true);
+
+				public override string Category => Property.DeclaringType.Name;
+
+				public override string Name => Property.Name;
+
+				public override string DisplayName => Property.Name;
+
+				public override bool DesignTimeOnly => false;
+
+				public override bool IsBrowsable => !IsReadOnly;
+
+				public Descriptor(Region region, PropertyInfo property)
+					: base(property.Name, null)
+				{
+					Region = region;
+					Property = property;
+
+					DefaultValue = Property.GetValue(Region);
+
+					CPA = Property.GetCustomAttribute<CommandPropertyAttribute>();
+				}
+
+				public override string ToString()
+				{
+					return DisplayName;
+				}
+
+				public override bool ShouldSerializeValue(object component)
+				{
+					if (component is Wrapper wrapper)
+					{
+						return wrapper[Property] != null;
+					}
+
+					return false;
+				}
+
+				public override bool CanResetValue(object component)
+				{
+					return !IsReadOnly;
+				}
+
+				public override void ResetValue(object component)
+				{
+					if (component is Wrapper wrapper)
+					{
+						wrapper[Property] = DefaultValue;
+					}
+					else if (component is Region region)
+					{
+						Property.SetValue(region, DefaultValue);
+					}
+				}
+
+				public override void SetValue(object component, object value)
+				{
+					if (component is Wrapper wrapper)
+					{
+						wrapper[Property] = value;
+					}
+					else if (component is Region region)
+					{
+						Property.SetValue(region, value);
+					}
+				}
+
+				public override object GetValue(object component)
+				{
+					if (component is Wrapper wrapper)
+					{
+						return wrapper[Property];
+					}
+
+					if (component is Region region)
+					{
+						return Property.GetValue(region);
+					}
+
+					return null;
+				}
+			}
+		}
+	}
+
+	public class MapCanvasZoom : Panel
+	{
+		private Bitmap m_ZoomImage;
+		private Graphics m_ZoomGraphics;
+
+		protected override Cursor DefaultCursor => Cursors.SizeAll;
+
+		public MapCanvasZoom()
+		{
+			SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+
+			AutoSize = false;
+			AutoSizeMode = AutoSizeMode.GrowOnly;
+			BackColor = Color.Transparent;
+			Cursor = Cursors.SizeAll;
+			DoubleBuffered = true;
+			Margin = new Padding(0);
+			Padding = new Padding(0);
+		}
+
+		protected override void OnPaint(PaintEventArgs e)
+		{
+			if (Visible)
+			{
+				if (m_Dragging == null)
+				{
+					var p = Cursor.Position;
+					var s = Size;
+
+					var inW = (s.Width - 1) / 8;
+					var inH = (s.Height - 1) / 8;
+
+					var zoomInput = new Rectangle(p.X - inW, p.Y - inH, inW * 2, inH * 2);
+
+					if (m_ZoomImage == null || m_ZoomImage.Width != zoomInput.Width || m_ZoomImage.Height != zoomInput.Height)
+					{
+						m_ZoomImage?.Dispose();
+						m_ZoomGraphics?.Dispose();
+
+						m_ZoomImage = new Bitmap(zoomInput.Width, zoomInput.Height);
+						m_ZoomGraphics = Graphics.FromImage(m_ZoomImage);
+					}
+
+					m_ZoomGraphics.Clear(Color.Transparent);
+
+					m_ZoomGraphics.CopyFromScreen(zoomInput.Location, Point.Empty, zoomInput.Size, CopyPixelOperation.SourceCopy);
+
+					e.Graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+					e.Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.AssumeLinear;
+					e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+					e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+					e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+
+					e.Graphics.DrawImage(m_ZoomImage, new Rectangle(Point.Empty, s), new RectangleF(Point.Empty, m_ZoomImage.Size), GraphicsUnit.Pixel);
+
+					var clip = e.ClipRectangle;
+
+					var cur = Cursors.Cross;
+					var curS = cur.Size;
+					var curP = new Point(clip.X + (clip.Width / 2) - (curS.Width / 2), clip.Y + (clip.Height / 2) - (curS.Height / 2));
+
+					cur.Draw(e.Graphics, new Rectangle(curP, curS));
+				}
+				else
+				{
+					m_ZoomGraphics.Clear(Color.LightSkyBlue);
+				}
+			}
+
+			base.OnPaint(e);
+		}
+
+		protected override void OnSizeChanged(EventArgs e)
+		{
+			base.OnSizeChanged(e);
+
+			var s = Size;
+
+			if (s.Width % 2 != 1)
+			{
+				++s.Width;
+			}
+
+			if (s.Height % 2 != 1)
+			{
+				++s.Height;
+			}
+
+			Size = s;
+		}
+
+		private Point? m_Dragging;
+
+		protected override void OnMouseDown(MouseEventArgs e)
+		{
+			base.OnMouseDown(e);
+
+			m_Dragging = new Point(e.X, e.Y);
+		}
+
+		protected override void OnMouseUp(MouseEventArgs e)
+		{
+			base.OnMouseUp(e);
+
+			m_Dragging = null;
+		}
+
+		protected override void OnMouseLeave(EventArgs e)
+		{
+			base.OnMouseLeave(e);
+
+			m_Dragging = null;
+		}
+
+		protected override void OnMouseMove(MouseEventArgs e)
+		{
+			base.OnMouseMove(e);
+
+			if (m_Dragging != null)
+			{
+				var x = Math.Max(0, Location.X + (e.X - m_Dragging.Value.X));
+				var y = Math.Max(0, Location.Y + (e.Y - m_Dragging.Value.Y));
+
+				if (x + Size.Width > Parent.Bounds.Right)
+				{
+					x = Parent.Bounds.Right - Size.Width;
+				}
+
+				if (y + Size.Height > Parent.Bounds.Bottom)
+				{
+					y = Parent.Bounds.Bottom - Size.Height;
+				}
+
+				Location = new Point(x, y);
+			}
 		}
 	}
 }

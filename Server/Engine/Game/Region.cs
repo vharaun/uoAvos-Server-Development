@@ -136,6 +136,8 @@ namespace Server
 
 		public static event Action<Region, Mobile, Region> OnTransition;
 
+		public static event Action<Region> OnRegistered, OnUnregistered;
+
 		public static Region Find(int id)
 		{
 			return World.FindRegion(id);
@@ -702,7 +704,16 @@ namespace Server
 
 			Validate();
 
+			Registered = true;
+			
 			Map.RegisterRegion(this);
+
+			if (!Registered)
+			{
+				return;
+			}
+
+			m_RequiresRegistration = false;
 
 			if (Area.Length > 0)
 			{
@@ -741,16 +752,14 @@ namespace Server
 				Sectors = Array.Empty<Sector>();
 			}
 
-			Registered = true;
-
-			m_RequiresRegistration = false;
-
 			foreach (var c in Children)
 			{
 				c.Register();
 			}
 
 			OnRegister();
+
+			OnRegistered?.Invoke(this);
 		}
 
 		public void Unregister()
@@ -760,7 +769,14 @@ namespace Server
 				return;
 			}
 
+			Registered = false;
+
 			Map.UnregisterRegion(this);
+
+			if (Registered)
+			{
+				return;
+			}
 
 			if (Sectors != null)
 			{
@@ -772,14 +788,14 @@ namespace Server
 
 			Sectors = null;
 
-			Registered = false;
-
 			foreach (var c in Children)
 			{
 				c.Unregister();
 			}
 
 			OnUnregister();
+
+			OnUnregistered?.Invoke(this);
 		}
 
 		public bool Contains(Point2D p)

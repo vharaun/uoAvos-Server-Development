@@ -398,8 +398,9 @@ namespace Server
 #endif
 		#endregion
 
-		public const int SectorSize = 16;
 		public const int SectorShift = 4;
+		public const int SectorSize = 1 << SectorShift;
+		
 		public static int SectorActiveRange = 2;
 
 		private static readonly Map[] m_Maps = new Map[0x100];

@@ -678,7 +678,45 @@ namespace Server
 			loc = Point2D.Zero;
 			return false;
 		}
+/*
+		public void Scale(double scale)
+		{
+			var center = new Point2D(m_Bounds.X + (m_Bounds.Width / 2), m_Bounds.Y + (m_Bounds.Height / 2));
 
+			for (var i = 0; i < m_Points.Length; i++)
+			{
+				var point = m_Points[i];
+
+				var xDelta = center.m_X - point.m_X;
+				var yDelta = center.m_Y - point.m_Y;
+
+				var dist = Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+
+				var angle = Angle.FromPoints(center, point);
+
+				m_Points[i] = angle.GetPoint2D(center.X, center.m_Y, dist * scale);
+			}
+		}
+
+		public void Scale(int offset)
+		{
+			var center = new Point2D(m_Bounds.X + (m_Bounds.Width / 2), m_Bounds.Y + (m_Bounds.Height / 2));
+
+			for (var i = 0; i < m_Points.Length; i++)
+			{
+				var point = m_Points[i];
+
+				var xDelta = center.m_X - point.m_X;
+				var yDelta = center.m_Y - point.m_Y;
+
+				var dist = Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+
+				var angle = Angle.FromPoints(center, point);
+
+				m_Points[i] = angle.GetPoint2D(center.X, center.m_Y, dist + offset);
+			}
+		}
+*/
 		public bool Equals(Poly2D p)
 		{
 			return m_Hash == p.m_Hash;
@@ -1267,7 +1305,7 @@ namespace Server
 		public readonly int MaxZ => m_MaxZ;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public readonly int Depth => m_MaxZ - m_MinZ;
+		public readonly int Depth => Math.Abs(m_MaxZ - m_MinZ);
 
 		public Poly3D(Poly3D poly)
 			: this(poly.m_MinZ, poly.m_MaxZ, poly.m_Poly.m_Points)
@@ -1345,7 +1383,17 @@ namespace Server
 		{
 			return z >= m_MinZ && z < m_MaxZ && m_Poly.ProductContains(x, y);
 		}
+/*
+		public void Scale(double scale)
+		{
+			m_Poly.Scale(scale);
+		}
 
+		public void Scale(int tiles)
+		{
+			m_Poly.Scale(tiles);
+		}
+*/
 		public bool Equals(Poly3D p)
 		{
 			return m_Hash == p.m_Hash;
@@ -1470,6 +1518,7 @@ namespace Server
 			if ((m_Count + 1) > m_List.Length)
 			{
 				var old = m_List;
+
 				m_List = new Point3D[old.Length * 2];
 
 				for (var i = 0; i < old.Length; ++i)
@@ -1481,10 +1530,11 @@ namespace Server
 			m_List[m_Count].m_X = p.m_X;
 			m_List[m_Count].m_Y = p.m_Y;
 			m_List[m_Count].m_Z = p.m_Z;
+
 			++m_Count;
 		}
 
-		private static readonly Point3D[] m_EmptyList = new Point3D[0];
+		private static readonly Point3D[] m_EmptyList = Array.Empty<Point3D>();
 
 		public Point3D[] ToArray()
 		{
@@ -1507,4 +1557,329 @@ namespace Server
 	}
 
 	#endregion
+
+	[Parsable, PropertyObject]
+	public struct Angle : IEquatable<Angle>, IEquatable<int>, IEquatable<double>, IComparable<Angle>, IComparable<int>, IComparable<double>
+	{
+		public const double D2R = Math.PI / 180.0;
+		public const double R2D = 180.0 / Math.PI;
+
+		public static readonly Angle Zero = 0;
+
+		public static readonly Angle MinValue = -360;
+		public static readonly Angle MaxValue = 360;
+
+		public static Angle FromDirection(Direction dir)
+		{
+			int x = 0, y = 0;
+
+			Movement.Movement.Offset(dir & Direction.Mask, ref x, ref y);
+
+			return FromPoints(0, 0, x, y);
+		}
+
+		public static Angle FromPoints(IPoint2D p1, IPoint2D p2)
+		{
+			return FromPoints(p1.X, p1.Y, p2.X, p2.Y);
+		}
+
+		public static Angle FromPoints(IPoint2D p1, IPoint2D p2, IPoint2D p3)
+		{
+			return FromPoints(p1.X, p1.Y, p2.X, p2.Y, p3.X, p3.Y);
+		}
+
+		public static Angle FromPoints(int x1, int y1, int x2, int y2)
+		{
+			return Math.Atan2(y2, x2) - Math.Atan2(y1, x1);
+		}
+
+		public static Angle FromPoints(int x1, int y1, int x2, int y2, int x3, int y3)
+		{
+			return FromPoints(x2, y2, x1, y1) - FromPoints(x2, y2, x3, y3);
+		}
+
+		public static Angle FromDegrees(int degrees)
+		{
+			return degrees;
+		}
+
+		public static Angle FromRadians(double radians)
+		{
+			return radians;
+		}
+
+		public static Angle GetPitch(IPoint3D p1, IPoint3D p2)
+		{
+			int x = p2.X - p1.X, y = p2.Y - p1.Y, z = p2.Z - p1.Z;
+
+			return -Math.Atan2(z, Math.Sqrt((x * x) + (y * y)));
+		}
+
+		public static Angle GetYaw(IPoint2D p, IPoint2D left, IPoint2D right)
+		{
+			return Math.Abs(FromPoints(p, left) - FromPoints(p, right));
+		}
+
+		public static void Transform(ref Point3D p, Angle angle, double offset)
+		{
+			int x = p.X, y = p.Y, z = p.Z;
+
+			Transform(ref x, ref y, angle, offset);
+
+			p = new Point3D(x, y, z);
+		}
+
+		public static void Transform(ref Point2D p, Angle angle, double offset)
+		{
+			int x = p.X, y = p.Y;
+
+			Transform(ref x, ref y, angle, offset);
+
+			p = new Point2D(x, y);
+		}
+
+		public static void Transform(ref int x, ref int y, Angle angle, double offset)
+		{
+			x += (int)(offset * Math.Cos(angle.m_Radians));
+			y += (int)(offset * Math.Sin(angle.m_Radians));
+		}
+
+		public static Point2D GetPoint2D(int x, int y, Angle angle, double distance)
+		{
+			return new Point2D(x + (int)(distance * Math.Cos(angle.m_Radians)), y + (int)(distance * Math.Sin(angle.m_Radians)));
+		}
+
+		public static Point3D GetPoint3D(int x, int y, int z, Angle angle, double distance)
+		{
+			return new Point3D(x + (int)(distance * Math.Cos(angle.m_Radians)),				y + (int)(distance * Math.Sin(angle.m_Radians)),				z);
+		}
+
+		public static bool TryParse(string value, out Angle angle)
+		{
+			try
+			{
+				angle = Parse(value);
+				return true;
+			}
+			catch
+			{
+				angle = Zero;
+				return false;
+			}
+		}
+
+		public static Angle Parse(string value)
+		{
+			value ??= String.Empty;
+			value = value.Trim();
+
+			int d;
+			double r;
+
+			if (!value.Contains(","))
+			{
+				if (Int32.TryParse(value, out d))
+				{
+					return d;
+				}
+
+				if (Double.TryParse(value, out r))
+				{
+					return r;
+				}
+			}
+			else
+			{
+				value = value.Trim('(', ')', ' ');
+
+				var i = value.IndexOf(',');
+
+				if (Int32.TryParse(value.Substring(0, i).Trim(), out d))
+				{
+					return d;
+				}
+
+				if (Double.TryParse(value.Substring(i + 1).Trim(), out r))
+				{
+					return r;
+				}
+			}
+
+			throw new FormatException(
+				"The specified angle must be represented by Int32 (Degrees) or Double (Radians) using the format " + //
+				"'###', '#.##', or '(###, #.##)'");
+		}
+
+		internal readonly int m_Degrees;
+		internal readonly double m_Radians;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Degrees => m_Degrees;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public double Radians => m_Radians;
+
+		public Angle(Angle angle)
+		{
+			m_Degrees = angle.m_Degrees;
+			m_Radians = angle.m_Radians;
+		}
+
+		public Angle(int degrees)
+		{
+			m_Degrees = degrees;
+			m_Radians = m_Degrees * D2R;
+		}
+
+		public Angle(double radians)
+			: this((int)(radians * R2D))
+		{ }
+
+		public Angle(int x1, int y1, int x2, int y2)
+			: this(Math.Atan2(y2, x2) - Math.Atan2(y1, x1))
+		{ }
+
+		public Angle(IPoint2D p1, IPoint2D p2)
+			: this(p1.X, p1.Y, p2.X, p2.Y)
+		{ }
+
+		public void Transform(ref Point3D p, double offset)
+		{
+			Transform(ref p, this, offset);
+		}
+
+		public void Transform(ref Point2D p, double offset)
+		{
+			Transform(ref p, this, offset);
+		}
+
+		public void Transform(ref int x, ref int y, double offset)
+		{
+			Transform(ref x, ref y, this, offset);
+		}
+
+		public Point2D GetPoint2D(int x, int y, double distance)
+		{
+			return GetPoint2D(x, y, this, distance);
+		}
+
+		public Point3D GetPoint3D(int x, int y, int z, double distance)
+		{
+			return GetPoint3D(x, y, z, this, distance);
+		}
+
+		public override int GetHashCode()
+		{
+			return m_Degrees;
+		}
+
+		public override bool Equals(object obj)
+		{
+			return (obj is Angle a && Equals(a)) || (obj is int i && Equals(i)) || (obj is double d && Equals(d));
+		}
+
+		public bool Equals(Angle angle)
+		{
+			return m_Degrees == angle.m_Degrees;
+		}
+
+		public bool Equals(int degrees)
+		{
+			return m_Degrees == degrees;
+		}
+
+		public bool Equals(double radians)
+		{
+			return m_Radians == radians;
+		}
+
+		public int CompareTo(Angle angle)
+		{
+			return m_Degrees.CompareTo(angle.m_Degrees);
+		}
+
+		public int CompareTo(int degrees)
+		{
+			return m_Degrees.CompareTo(degrees);
+		}
+
+		public int CompareTo(double radians)
+		{
+			return m_Radians.CompareTo(radians);
+		}
+
+		public override string ToString()
+		{
+			return $"({m_Degrees}, {m_Radians})";
+		}
+
+		public Angle Normalize()
+		{
+			return m_Degrees % 360;
+		}
+
+		#region Operators
+
+		public static Angle operator --(Angle a)
+		{
+			return a.m_Degrees - 1;
+		}
+
+		public static Angle operator ++(Angle a)
+		{
+			return a.m_Degrees + 1;
+		}
+
+		public static implicit operator int(Angle a)
+		{
+			return a.m_Degrees;
+		}
+
+		public static implicit operator double(Angle a)
+		{
+			return a.m_Radians;
+		}
+
+		public static implicit operator Angle(int d)
+		{
+			return new Angle(d);
+		}
+
+		public static implicit operator Angle(double r)
+		{
+			return new Angle(r);
+		}
+
+		public static bool operator ==(Angle left, Angle right)
+		{
+			return left.Equals(right);
+		}
+
+		public static bool operator !=(Angle left, Angle right)
+		{
+			return !left.Equals(right);
+		}
+
+		public static bool operator <(Angle left, Angle right)
+		{
+			return left.CompareTo(right) < 0;
+		}
+
+		public static bool operator <=(Angle left, Angle right)
+		{
+			return left.CompareTo(right) <= 0;
+		}
+
+		public static bool operator >(Angle left, Angle right)
+		{
+			return left.CompareTo(right) > 0;
+		}
+
+		public static bool operator >=(Angle left, Angle right)
+		{
+			return left.CompareTo(right) >= 0;
+		}
+
+		#endregion Operators
+	}
 }
