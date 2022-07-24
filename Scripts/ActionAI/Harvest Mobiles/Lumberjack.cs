@@ -1,6 +1,4 @@
-﻿using ActionAI;
-
-using Server;
+﻿using Server;
 using Server.Engines.Harvest;
 using Server.Items;
 using Server.Misc;
@@ -17,98 +15,13 @@ using System.Linq;
 
 /// Description:
 /// this mobile will harvest resources just as if they were real players on your server. They will appear
-/// to place a camp, work (harvest their designated resource), move to pre-defined waypoints, and then when
+/// to place a camp, work (harvest their designated resource), move to the next waypoint, and then when
 /// their work is done they will return to their camp (or home location) and drop off their harvest into a
 /// crate which will self-delete (with its contents) after a duration; players can loot these crates and
 /// obtain free resources should they stumble upon these mobiles.
 
-namespace ActionAI
-{
-    /* public class Lumberjack_Paths_Felucca
-    {
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0001 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Left Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2691, 1002, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(2685, 1002, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2677, 1002, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2672, 1007, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2661, 1010, 0), Direction.Left)),
-            (new Tuple<Point3D, Direction> (new Point3D(2664, 1018, 0), Direction.Right))
-
-        };
-
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0002 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Right Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2676, 980, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2676, 976, 0), Direction.North)),
-            (new Tuple<Point3D, Direction> (new Point3D(2684, 973, 0), Direction.North)),
-            (new Tuple<Point3D, Direction> (new Point3D(2695, 972, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(2696, 961, 0), Direction.Right)),
-            (new Tuple<Point3D, Direction> (new Point3D(2685, 954, 0), Direction.Left))
-        };
-
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0003 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Left Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2705, 1017, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2708, 1028, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2719, 1033, 0), Direction.Right)),
-            (new Tuple<Point3D, Direction> (new Point3D(2713, 1043, 0), Direction.Left))
-
-        };
-
-        public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> ListOfPaths = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>>
-        {
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0001[0].Item1), lumberjack_path_0001)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0002[0].Item1), lumberjack_path_0002)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0003[0].Item1), lumberjack_path_0003))
-        };
-    }
-
-    public class Lumberjack_Paths_Trammel
-    {
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0001 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Left Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2691, 1002, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(2685, 1002, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2677, 1002, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2672, 1007, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2661, 1010, 0), Direction.Left)),
-            (new Tuple<Point3D, Direction> (new Point3D(2664, 1018, 0), Direction.Right))
-        };
-
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0002 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Right Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2676, 980, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2676, 976, 0), Direction.North)),
-            (new Tuple<Point3D, Direction> (new Point3D(2684, 973, 0), Direction.North)),
-            (new Tuple<Point3D, Direction> (new Point3D(2695, 972, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(2696, 961, 0), Direction.Right)),
-            (new Tuple<Point3D, Direction> (new Point3D(2685, 954, 0), Direction.Left))
-        };
-
-        public static List<Tuple<Point3D, Direction>> lumberjack_path_0003 = new List<Tuple<Point3D, Direction>>
-        {
-            /// Outside Vesper (Left Side Of The Path)
-            (new Tuple<Point3D, Direction> (new Point3D(2705, 1017, 0), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(2708, 1028, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(2719, 1033, 0), Direction.Right)),
-            (new Tuple<Point3D, Direction> (new Point3D(2713, 1043, 0), Direction.Left))
-
-        };
-
-        public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> ListOfPaths = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>>
-        {
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0001[0].Item1), lumberjack_path_0001)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0002[0].Item1), lumberjack_path_0002)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(lumberjack_path_0003[0].Item1), lumberjack_path_0003))
-        };
-    } */
-}
+/// the path they follow will be auto-generated after spawning and will be re-generated with each loop after
+/// returnting to their home location and waiting for a predefined amount of time.
 
 namespace Server.Mobiles
 {
@@ -228,7 +141,6 @@ namespace Server.Mobiles
 
             SetPath();
 
-            //if (m_MobilePath == null)
             if (pointsList == null)
             {
                 return;
@@ -236,7 +148,6 @@ namespace Server.Mobiles
 
             /// Create The First Waypoint
             m_waypoint = new WayPoint();
-            //m_waypoint.MoveToWorld(m_MobilePath[0].Item1, Map);
             m_waypoint.MoveToWorld(pointsList[0], Map);
 
             CurrentWayPoint = m_waypoint;
@@ -269,50 +180,13 @@ namespace Server.Mobiles
                         if (m_TreeTiles.Contains(tiles[0].ID))
                         { 
                             points.Add(new Point3D(xx + 1, yy, tiles[0].Z ));
-                            /* Console.WriteLine("X" + xx + " :: Y " + yy  + " :: Z " + tiles[i].Z);
-                            Console.WriteLine("  "); */
                         }
                     }
                 } 
             }
 
-            // convert hashset to list so we can index
+            // convert hashset to list so we can use an indexer
             pointsList = points.ToList();
-
-            /* if (this.Map == Map.Felucca)
-            {
-                List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> MapPaths = Lumberjack_Paths_Felucca.ListOfPaths;
-
-                for (int i = 0; i < MapPaths.Count; i++)
-                {
-                    if (Utility.InRange(this.Home, MapPaths[i].Item1, 25))
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-            }
-            else if (this.Map == Map.Trammel)
-            {
-                List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> MapPaths = Lumberjack_Paths_Trammel.ListOfPaths;
-
-                for (int i = 0; i < MapPaths.Count; i++)
-                {
-                    if (Utility.InRange(this.Home, MapPaths[i].Item1, 25))
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-            } */
 
             Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
         }
@@ -345,7 +219,6 @@ namespace Server.Mobiles
                 return;
             }
 
-            //if (m_MobilePath == null || m_waypoint == null)
             if (pointsList == null || m_waypoint == null)
             {
                 return;
@@ -394,13 +267,10 @@ namespace Server.Mobiles
                 {
                     CantWalk = false;
 
-                    //if ((m_Index + 1) < m_MobilePath.Count)
                     if ( (m_Index + 1) < pointsList.Count )
                     {
                         m_Index++;
-                        Emote("moving to next point"); // Debug
-
-                        //waypoint.Location = m_MobilePath[m_Index].Item1;
+                        //Emote("moving to next point"); // Debug
                         waypoint.Location = pointsList[m_Index];
                         CurrentWayPoint = waypoint;
                         Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
@@ -408,8 +278,7 @@ namespace Server.Mobiles
                     else
                     {
                         m_Index = 0;
-
-                        Emote("returning to camp"); // Debug
+                        //Emote("returning to camp"); // Debug
                         waypoint.Location = Home;
                         CurrentWayPoint = waypoint;
                     }
@@ -430,7 +299,6 @@ namespace Server.Mobiles
                 SetPath();
                 CurrentWayPoint = waypoint;
 
-                //if (m_MobilePath == null)
                 if (pointsList == null)
                 {
                     return;
@@ -440,13 +308,10 @@ namespace Server.Mobiles
                 {
                     CantWalk = false;
 
-                    //if ((m_Index + 1) < m_MobilePath.Count)
                     if ((m_Index + 1) < pointsList.Count)
                     {
                         m_Index++;
                         // Emote("moving to next point"); // Debug
-
-                        //waypoint.Location = m_MobilePath[m_Index].Item1;
                         waypoint.Location = pointsList[m_Index];
                         CurrentWayPoint = waypoint;
 
@@ -456,7 +321,6 @@ namespace Server.Mobiles
                     {
                         m_Index = 0;
                         // Emote("returning to camp"); // Debug
-
                         waypoint.Location = Home;
                         CurrentWayPoint = waypoint;
                     }
@@ -502,7 +366,6 @@ namespace Server.Mobiles
             m_Camp = reader.ReadItem() as LumberjackCamp;
             m_waypoint = reader.ReadItem() as WayPoint;
 
-            // Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPointOnDeserialize);
             Timer.DelayCall(TimeSpan.FromSeconds(3.0), SetPath);
         }
     }
