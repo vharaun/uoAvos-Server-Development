@@ -341,6 +341,11 @@ namespace Server
 			get => m_Name;
 			set
 			{
+				if (String.IsNullOrWhiteSpace(value))
+				{
+					value = null;
+				}
+
 				if (m_Name != value)
 				{
 					var old = m_Name;

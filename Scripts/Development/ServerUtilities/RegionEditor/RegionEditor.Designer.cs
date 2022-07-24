@@ -83,10 +83,10 @@ namespace Server.Tools
             this.Frame.SplitterDistance = 300;
             this.Frame.SplitterWidth = 5;
             this.Frame.TabIndex = 1;
-            // 
-            // Navigation
-            // 
-            this.Navigation.Dock = System.Windows.Forms.DockStyle.Fill;
+			// 
+			// Navigation
+			// 
+			this.Navigation.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Navigation.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
             this.Navigation.Location = new System.Drawing.Point(0, 0);
             this.Navigation.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -106,9 +106,10 @@ namespace Server.Tools
             this.Navigation.SplitterDistance = 200;
             this.Navigation.SplitterWidth = 5;
             this.Navigation.TabIndex = 1;
-            // 
-            // Regions
-            // 
+			// 
+			// Regions
+			// 
+			this.Regions.AllowDrop = true;
             this.Regions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.Regions.HideSelection = false;
             this.Regions.LabelEdit = true;

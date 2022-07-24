@@ -9,6 +9,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Windows.Forms;
@@ -31,14 +32,14 @@ namespace Server.Tools
 
 		private static void Start()
 		{
-			if (m_Instance?.IsDisposed != false)
-			{
-				m_Instance = new RegionEditor();
-			}
-
 			if (m_Thread?.IsAlive != true)
 			{
-				m_Thread = new Thread(Run);
+				m_Thread = new Thread(Run)
+				{
+					Name = "Region Editor"
+				};
+
+				m_Thread.SetApartmentState(ApartmentState.STA);
 
 				m_Thread.Start();
 
@@ -49,18 +50,24 @@ namespace Server.Tools
 			}
 		}
 
-		[STAThread]
 		private static void Run()
 		{
 			Application.SetHighDpiMode(HighDpiMode.DpiUnawareGdiScaled);
 
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
-			
+
+			if (m_Instance?.IsDisposed != false)
+			{
+				m_Instance = new RegionEditor();
+			}
+
 			Application.Run(m_Instance);
 		}
 
 		private volatile bool m_UpdatingTree, m_UpdatingImage, m_ScrollToView, m_ExtenalEventsState;
+
+		private TreeNode m_DragNodeGhost, m_DragOverLast;
 
 		private RegionEditor()
 		{
@@ -77,6 +84,11 @@ namespace Server.Tools
 			Regions.AfterSelect += OnRegionsAfterSelect;
 			Regions.BeforeLabelEdit += OnRegionsBeforeLabelEdit;
 			Regions.AfterLabelEdit += OnRegionsAfterLabelEdit;
+
+			Regions.ItemDrag += OnRegionsItemDrag;
+			Regions.DragEnter += OnRegionsDragEnter;
+			Regions.DragOver += OnRegionsDragOver;
+			Regions.DragDrop += OnRegionsDragDrop;
 		}
 
 		private void SetExternalEvents(bool state)
@@ -148,7 +160,7 @@ namespace Server.Tools
 		protected override void OnShown(EventArgs e)
 		{
 			base.OnShown(e);
-			
+
 			SetExternalEvents(true);
 
 			Invoke(EditorStarted);
@@ -168,51 +180,6 @@ namespace Server.Tools
 			SetExternalEvents(false);
 
 			Invoke(EditorClosed);
-		}
-
-		private void OnRegionsBeforeSelect(object sender, TreeViewCancelEventArgs e)
-		{
-			e.Cancel = m_UpdatingImage;
-
-			if (e.Action != TreeViewAction.Unknown)
-			{
-				m_ScrollToView = true;
-			}
-		}
-
-		private void OnRegionsAfterSelect(object sender, TreeViewEventArgs e)
-		{
-			if (e.Action != TreeViewAction.Unknown)
-			{
-				if (e.Node is MapTreeNode m)
-				{
-					Canvas.Map = m.Map;
-				}
-				else if (e.Node is RegionTreeNode r)
-				{
-					Canvas.MapRegion = r.MapRegion;
-				}
-			}
-		}
-
-		private void OnRegionsBeforeLabelEdit(object sender, NodeLabelEditEventArgs e)
-		{
-			if (e.Node is not RegionTreeNode n || n.MapRegion?.Deleted != false)
-			{
-				e.CancelEdit = true;
-			}
-		}
-
-		private void OnRegionsAfterLabelEdit(object sender, NodeLabelEditEventArgs e)
-		{
-			if (e.Node is RegionTreeNode n && n.MapRegion?.Deleted == false)
-			{
-				n.MapRegion.Name = e.Label;
-			}
-			else
-			{
-				e.CancelEdit = true;
-			}
 		}
 
 		private void OnCanvasMapUpdated(object sender, MapCanvas e)
@@ -254,6 +221,195 @@ namespace Server.Tools
 			}
 		}
 
+		private void OnRegionsItemDrag(object sender, ItemDragEventArgs e)
+		{
+			if (e.Button == MouseButtons.Left && e.Item is RegionTreeNode draggedNode)
+			{
+				Canvas.MapRegion = draggedNode.MapRegion;
+
+				m_DragNodeGhost ??= new()
+				{
+					ForeColor = Color.Green
+				};
+
+				m_DragNodeGhost.Remove();
+
+				m_DragNodeGhost.Tag = draggedNode;
+				m_DragNodeGhost.Text = draggedNode.Text;
+
+				Regions.DoDragDrop(draggedNode, DragDropEffects.Move | DragDropEffects.Scroll);
+			}
+		}
+
+		private void OnRegionsDragEnter(object sender, DragEventArgs e)
+		{
+			e.Effect = e.AllowedEffect;
+		}
+
+		private void OnRegionsDragOver(object sender, DragEventArgs e)
+		{
+			if (!e.Effect.HasFlag(DragDropEffects.Move))
+			{
+				return;
+			}
+
+			if (e.Data.GetData(typeof(RegionTreeNode)) is RegionTreeNode draggedNode)
+			{
+				var targetPoint = Regions.PointToClient(new Point(e.X, e.Y));
+				var targetNode = Regions.GetNodeAt(targetPoint);
+
+				if (targetNode != m_DragOverLast)
+				{
+					Regions.BeginUpdate();
+
+					m_DragNodeGhost.Remove();
+
+					m_DragOverLast = targetNode;
+
+					if (targetNode is MapTreeNode m)
+					{
+						if (m.Map == draggedNode.MapRegion.Map && !ContainsNode(draggedNode, m))
+						{
+							m.Nodes.Insert(0, m_DragNodeGhost);
+
+							m.Expand();
+						}
+					}
+					else if (targetNode is RegionTreeNode r)
+					{
+						if (draggedNode != r && !ContainsNode(draggedNode, r))
+						{
+							r.Nodes.Insert(0, m_DragNodeGhost);
+
+							r.Expand();
+						}
+					}
+
+					Regions.EndUpdate();
+				}
+				else 
+				{
+					Regions.Scroll(targetPoint, 10);
+				}
+			}
+		}
+
+		private void OnRegionsDragDrop(object sender, DragEventArgs e)
+		{
+			Regions.BeginUpdate();
+
+			m_DragNodeGhost.Remove();
+
+			m_DragNodeGhost.Tag = null;
+			m_DragNodeGhost.Text = null;
+
+			m_DragOverLast = null;
+
+			if (!e.Effect.HasFlag(DragDropEffects.Move))
+			{
+				return;
+			}
+
+			if (e.Data.GetData(typeof(RegionTreeNode)) is RegionTreeNode draggedNode)
+			{
+				var targetPoint = Regions.PointToClient(new Point(e.X, e.Y));
+				var targetNode = Regions.GetNodeAt(targetPoint);
+
+				if (targetNode is MapTreeNode m)
+				{
+					if (m.Map == draggedNode.MapRegion.Map && !ContainsNode(draggedNode, m))
+					{
+						draggedNode.Remove();
+
+						m.Nodes.Insert(0, draggedNode);
+
+						m.Expand();
+
+						draggedNode.MapRegion.Parent = null;
+
+						Regions.SelectedNode = draggedNode;
+					}
+				}
+				else if (targetNode is RegionTreeNode r)
+				{
+					if (draggedNode != r && !ContainsNode(draggedNode, r))
+					{
+						draggedNode.Remove();
+
+						r.Nodes.Insert(0, draggedNode);
+
+						r.Expand();
+
+						draggedNode.MapRegion.Parent = r.MapRegion;
+
+						Regions.SelectedNode = draggedNode;
+					}
+				}
+			}
+
+			Regions.EndUpdate();
+		}
+
+		private void OnRegionsBeforeSelect(object sender, TreeViewCancelEventArgs e)
+		{
+			e.Cancel = m_UpdatingImage;
+
+			if (e.Action != TreeViewAction.Unknown)
+			{
+				m_ScrollToView = true;
+			}
+		}
+
+		private void OnRegionsAfterSelect(object sender, TreeViewEventArgs e)
+		{
+			if (e.Action != TreeViewAction.Unknown)
+			{
+				if (e.Node is MapTreeNode m)
+				{
+					Canvas.Map = m.Map;
+				}
+				else if (e.Node is RegionTreeNode r)
+				{
+					Canvas.MapRegion = r.MapRegion;
+				}
+			}
+		}
+
+		private void OnRegionsBeforeLabelEdit(object sender, NodeLabelEditEventArgs e)
+		{
+			if (e.Node is RegionTreeNode n && n.MapRegion?.Deleted == false)
+			{
+				if (String.IsNullOrWhiteSpace(e.Label))
+				{
+					e.CancelEdit = true;
+				}
+			}
+			else
+			{
+				e.CancelEdit = true;
+			}
+		}
+
+		private void OnRegionsAfterLabelEdit(object sender, NodeLabelEditEventArgs e)
+		{
+			if (e.Node is RegionTreeNode n && n.MapRegion?.Deleted == false)
+			{
+				if (String.IsNullOrWhiteSpace(e.Label))
+				{
+					e.CancelEdit = true;
+				}
+
+				if (!e.CancelEdit)
+				{
+					n.MapRegion.Name = e.Label;
+				}
+			}
+			else
+			{
+				e.CancelEdit = true;
+			}
+		}
+
 		private void OnRegionRegistered(Region reg)
 		{
 			if (World.Loaded)
@@ -286,17 +442,20 @@ namespace Server.Tools
 
 		private void OnRegionNameChanged(Region reg, string oldName)
 		{
-			var node = Regions[reg];
-
-			if (node != null)
+			if (World.Loaded)
 			{
-				node.Text = reg.Name;
-			}
+				var node = Regions[reg];
 
-			if (Props.SelectedObject == reg)
-			{
-				Props.Refresh();
-				Props.Update();
+				if (node != null)
+				{
+					node.Text = reg.Name;
+				}
+
+				if (Props.SelectedObject == reg)
+				{
+					Props.Refresh();
+					Props.Update();
+				}
 			}
 		}
 
@@ -504,6 +663,11 @@ namespace Server.Tools
 				RecursiveAddRegion(node.Nodes, child);
 			}
 		}
+
+		private static bool ContainsNode(TreeNode node1, TreeNode node2)
+		{
+			return node2?.Parent != null && (node2.Parent == node1 || ContainsNode(node1, node2.Parent));
+		}
 	}
 }
 
@@ -511,6 +675,9 @@ namespace Server.Tools.Controls
 {
 	public class MapRegionsTree : TreeView
 	{
+		[DllImport("user32.dll", CharSet = CharSet.Auto)]
+		private static extern IntPtr SendMessage(IntPtr ptr, int msg, int wParam, int lParam);
+
 		private static TreeNode Search(TreeNodeCollection root, string k, bool recurse)
 		{
 			if (root == null)
@@ -579,10 +746,42 @@ namespace Server.Tools.Controls
 			TreeViewNodeSorter = new NodeComparer();
 		}
 
+		internal void Scroll(Point client, int distance)
+		{
+			if (client.Y < distance)
+			{
+				while (client.Y < distance)
+				{
+					_ = SendMessage(Handle, 277, 0, 0);
+
+					client.Y += distance;
+				}
+			}
+			else if (client.Y + distance > Height)
+			{
+				while (client.Y + distance > Height)
+				{
+					_ = SendMessage(Handle, 277, 1, 0);
+
+					client.Y -= distance;
+				}
+			}
+		}
+
 		private class NodeComparer : IComparer
 		{
 			public int Compare(object x, object y)
 			{
+				if (x is TreeNode nx && nx.Tag is RegionTreeNode)
+				{
+					return -1; // ghost nodes from dragging always appear at the top
+				}
+
+				if (y is TreeNode ny && ny.Tag is RegionTreeNode)
+				{
+					return 1; // ghost nodes from dragging always appear at the top
+				}
+
 				if (x is MapTreeNode a && y is MapTreeNode b && a.Level == b.Level)
 				{
 					return 0; // no sorting for same-level map nodes
@@ -715,7 +914,7 @@ namespace Server.Tools.Controls
 					if (m_Properties?[property] is Descriptor prop)
 					{
 						return prop.GetValue(Region);
-					}					
+					}
 
 					return null;
 				}
