@@ -7946,7 +7946,7 @@ namespace Server
 					},
 
 					#endregion
-					#region MedusasLair
+					#region Medusa's Lair
 
 					new("BaseRegion")
 					{
@@ -7954,7 +7954,7 @@ namespace Server
 						{ "NoLogoutDelay", false },
 						{ "SpawnZLevel", "Lowest" },
 						{ "ExcludeFromParentSpawns", false },
-						{ "Name", "MedusasLair" },
+						{ "Name", "Medusa's Lair" },
 						{ "Priority", 50 },
 						{ "GoLocation", new Point3D(771, 928, 0) },
 						{ "Music", "StygianAbyss" },

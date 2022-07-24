@@ -165,7 +165,7 @@ namespace Server.Commands
 					}
 					else
 					{
-						var attr = Properties.GetCPA(thisProp);
+						var attr = Props.GetCPA(thisProp);
 
 						if (attr == null)
 						{
@@ -307,7 +307,7 @@ namespace Server.Commands
 						continue;
 					}
 
-					var result = Properties.InternalSetValue(from, built, built, realProps[i], props[i, 1], props[i, 1], false);
+					var result = Props.InternalSetValue(from, built, built, realProps[i], props[i, 1], props[i, 1], false);
 
 					if (result != "Property has been set.")
 					{

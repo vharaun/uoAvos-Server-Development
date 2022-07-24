@@ -555,7 +555,7 @@ namespace Server.Mobiles
 
 					if (thisProp != null)
 					{
-						var attr = Properties.GetCPA(thisProp);
+						var attr = Props.GetCPA(thisProp);
 
 						if (attr != null && AccessLevel.GameMaster >= attr.WriteLevel && thisProp.CanWrite && !attr.ReadOnly)
 						{
@@ -598,7 +598,7 @@ namespace Server.Mobiles
 								continue;
 							}
 
-							var result = Properties.InternalSetValue(built, realProps[j], props[j, 1]);
+							var result = Props.InternalSetValue(built, realProps[j], props[j, 1]);
 						}
 					}
 

@@ -37,7 +37,7 @@ namespace Server
 		private static DateTime m_ProfileStart;
 		private static TimeSpan m_ProfileTime;
 
-		private static MessagePump m_MessagePump;
+		private static volatile MessagePump m_MessagePump;
 
 		public static MessagePump MessagePump
 		{

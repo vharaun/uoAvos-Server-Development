@@ -10,7 +10,7 @@ namespace Server
 {
 	public static class HueData
 	{
-		private static readonly int[] m_Header = new int[0];
+		private static readonly int[] m_Header = Array.Empty<int>();
 
 		public static Hue[] List { get; } = new Hue[3000];
 
@@ -172,19 +172,44 @@ namespace Server
 			}
 		}
 
-		private static int Convert32(ushort value)
+		public static uint Convert32(ushort value)
 		{
-			int argb;
+			uint argb;
 
-			argb = ((value & 0x7C00) << 9) | ((value & 0x03E0) << 6) | ((value & 0x1F) << 3);
-			argb = ((value & 0x8000) * 0x1FE00) | argb | ((argb >> 5) & 0x070707);
+			argb = ((value & 0x00007C00u) << 9) | ((value & 0x000003E0u) << 6) | ((value & 0x0000001Fu) << 3);
+			argb = ((value & 0x00008000u) * 0x0001FE00u) | argb | ((argb >> 5) & 0x00070707u) | 0xFF000000u;
 
 			return argb;
 		}
 
-		private static ushort Convert16(int value)
+		public static ushort Convert16(Color value)
 		{
-			return (ushort)(((value >> 16) & 0x8000) | ((value >> 9) & 0x7C00) | ((value >> 6) & 0x03E0) | ((value >> 3) & 0x1F));
+			return Convert16(value.ToArgb());
+		}
+
+		public static ushort Convert16(int value)
+		{
+			return Convert16((uint)value);
+		}
+
+		public static ushort Convert16(uint value)
+		{
+			return (ushort)(((value >> 16) & 0x00008000) | ((value >> 9) & 0x00007C00) | ((value >> 6) & 0x000003E0) | ((value >> 3) & 0x0000001F));
+		}
+
+		public static Color ConvertColor(ushort value)
+		{
+			return Color.FromArgb((int)Convert32(value));
+		}
+
+		public static uint ToArgb(int index, int block)
+		{
+			return (uint)(GetHue(index)?.Colors?[block].ToArgb() ?? 0);
+		}
+
+		public static ushort ToRgb(int index, int block)
+		{
+			return Convert16(ToArgb(index, block));
 		}
 
 		public sealed class Hue
@@ -210,11 +235,11 @@ namespace Server
 
 				for (var i = 0; i < 32; ++i)
 				{
-					Colors[i] = Color.FromArgb(Convert32((ushort)(entry.Colors[i] | 0x8000)));
+					Colors[i] = ConvertColor(entry.Colors[i]);
 				}
 
-				TableStart = Color.FromArgb(Convert32((ushort)(entry.TableStart | 0x8000)));
-				TableEnd = Color.FromArgb(Convert32((ushort)(entry.TableEnd | 0x8000)));
+				TableStart = ConvertColor(entry.TableStart);
+				TableEnd = ConvertColor(entry.TableEnd);
 
 				var count = 0;
 

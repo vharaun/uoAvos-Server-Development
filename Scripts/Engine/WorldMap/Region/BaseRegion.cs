@@ -1897,11 +1897,6 @@ namespace Server.Regions
 			return Point3D.Zero;
 		}
 
-		public override string ToString()
-		{
-			return Name ?? RuneName ?? $"{GetType().Name} 0x{Id:X}";
-		}
-
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);

@@ -175,7 +175,7 @@ namespace Server.Commands.Generic
 						if (obj != null)
 						{
 							string failReason = null;
-							var chain = Properties.GetPropertyInfoChain(m_From, obj.GetType(), m_Columns[i], PropertyAccess.Read, ref failReason);
+							var chain = Props.GetPropertyInfoChain(m_From, obj.GetType(), m_Columns[i], PropertyAccess.Read, ref failReason);
 
 							if (chain != null && chain.Length > 0)
 							{
@@ -246,7 +246,7 @@ namespace Server.Commands.Generic
 						string value;
 						var failReason = "";
 
-						var chain = Properties.GetPropertyInfoChain(m_From, src.GetType(), m_Columns[j], PropertyAccess.Read, ref failReason);
+						var chain = Props.GetPropertyInfoChain(m_From, src.GetType(), m_Columns[j], PropertyAccess.Read, ref failReason);
 
 						if (chain == null || chain.Length == 0)
 						{
@@ -254,7 +254,7 @@ namespace Server.Commands.Generic
 						}
 						else
 						{
-							var p = Properties.GetPropertyInfo(ref src, chain, ref failReason);
+							var p = Props.GetPropertyInfo(ref src, chain, ref failReason);
 
 							if (p == null)
 							{

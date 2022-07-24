@@ -119,7 +119,7 @@ namespace Server.Commands
 
 							if (chain == null && !propertyChains.Contains(type))
 							{
-								propertyChains[type] = chain = Properties.GetPropertyInfoChain(e.Mobile, type, bc.Object, PropertyAccess.Read, ref failReason);
+								propertyChains[type] = chain = Props.GetPropertyInfoChain(e.Mobile, type, bc.Object, PropertyAccess.Read, ref failReason);
 							}
 
 							if (chain == null)
@@ -127,7 +127,7 @@ namespace Server.Commands
 								continue;
 							}
 
-							var endProp = Properties.GetPropertyInfo(ref obj, chain, ref failReason);
+							var endProp = Props.GetPropertyInfo(ref obj, chain, ref failReason);
 
 							if (endProp == null)
 							{
