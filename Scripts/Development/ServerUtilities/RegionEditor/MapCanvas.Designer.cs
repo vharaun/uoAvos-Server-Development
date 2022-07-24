@@ -36,7 +36,6 @@ namespace Server.Tools.Controls
             this.Surface = new Server.Tools.Controls.MapCanvas.CanvasLayer();
             this.Menu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.MenuCreateRegion = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.MenuInsertBounds = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuDeleteRegion = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuDeleteBounds = new System.Windows.Forms.ToolStripMenuItem();
@@ -104,52 +103,54 @@ namespace Server.Tools.Controls
             this.Menu.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.Menu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.MenuCreateRegion,
-            this.MenuSeparator1,
             this.MenuInsertBounds,
             this.MenuDeleteRegion,
             this.MenuDeleteBounds,
             this.MenuDeletePoint});
             this.Menu.Name = "Menu";
-            this.Menu.Size = new System.Drawing.Size(208, 170);
+            this.Menu.Size = new System.Drawing.Size(317, 197);
             // 
             // MenuCreateRegion
             // 
             this.MenuCreateRegion.Image = global::Server.Properties.Resources.AddIcon;
             this.MenuCreateRegion.Name = "MenuCreateRegion";
-            this.MenuCreateRegion.Size = new System.Drawing.Size(207, 32);
+            this.MenuCreateRegion.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.R)));
+            this.MenuCreateRegion.Size = new System.Drawing.Size(316, 32);
             this.MenuCreateRegion.Text = "Create Region";
-            // 
-            // MenuSeparator1
-            // 
-            this.MenuSeparator1.Name = "MenuSeparator1";
-            this.MenuSeparator1.Size = new System.Drawing.Size(204, 6);
             // 
             // MenuInsertBounds
             // 
             this.MenuInsertBounds.Image = global::Server.Properties.Resources.AddIcon;
             this.MenuInsertBounds.Name = "MenuInsertBounds";
-            this.MenuInsertBounds.Size = new System.Drawing.Size(207, 32);
+            this.MenuInsertBounds.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.B)));
+            this.MenuInsertBounds.Size = new System.Drawing.Size(316, 32);
             this.MenuInsertBounds.Text = "Insert Bounds";
             // 
             // MenuDeleteRegion
             // 
             this.MenuDeleteRegion.Image = global::Server.Properties.Resources.DeleteIcon;
             this.MenuDeleteRegion.Name = "MenuDeleteRegion";
-            this.MenuDeleteRegion.Size = new System.Drawing.Size(207, 32);
+            this.MenuDeleteRegion.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
+            | System.Windows.Forms.Keys.R)));
+            this.MenuDeleteRegion.Size = new System.Drawing.Size(316, 32);
             this.MenuDeleteRegion.Text = "Delete Region";
             // 
             // MenuDeleteBounds
             // 
             this.MenuDeleteBounds.Image = global::Server.Properties.Resources.DeleteIcon;
             this.MenuDeleteBounds.Name = "MenuDeleteBounds";
-            this.MenuDeleteBounds.Size = new System.Drawing.Size(207, 32);
+            this.MenuDeleteBounds.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
+            | System.Windows.Forms.Keys.B)));
+            this.MenuDeleteBounds.Size = new System.Drawing.Size(316, 32);
             this.MenuDeleteBounds.Text = "Delete Bounds";
             // 
             // MenuDeletePoint
             // 
             this.MenuDeletePoint.Image = global::Server.Properties.Resources.DeleteIcon;
             this.MenuDeletePoint.Name = "MenuDeletePoint";
-            this.MenuDeletePoint.Size = new System.Drawing.Size(207, 32);
+            this.MenuDeletePoint.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
+            | System.Windows.Forms.Keys.P)));
+            this.MenuDeletePoint.Size = new System.Drawing.Size(316, 32);
             this.MenuDeletePoint.Text = "Delete Point";
             // 
             // MapCanvas
@@ -185,7 +186,6 @@ namespace Server.Tools.Controls
 		private System.Windows.Forms.ToolStripMenuItem MenuCreateRegion;
 		private System.Windows.Forms.ToolStripMenuItem MenuDeleteBounds;
 		private System.Windows.Forms.ToolStripMenuItem MenuDeletePoint;
-		private System.Windows.Forms.ToolStripSeparator MenuSeparator1;
 		private System.Windows.Forms.ToolStripMenuItem MenuInsertBounds;
 		private System.Windows.Forms.ToolStripMenuItem MenuDeleteRegion;
 	}

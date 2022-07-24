@@ -142,9 +142,10 @@ namespace Server.Tools.Controls
 					continue;
 				}
 
-				var item = new ToolStripButton(type.Name)
+				var item = new ToolStripMenuItem(type.Name)
 				{
-					Tag = type
+					Tag = type,
+					Image = Properties.Resources.StarIcon
 				};
 
 				item.Click += OnCreateRegion;
@@ -189,7 +190,7 @@ namespace Server.Tools.Controls
 			if (m_Selection.Region?.Deleted == false)
 			{
 				var region = m_Selection.Region;
-				
+
 				if (MapRegion == region)
 				{
 					MapRegion = region.Parent;
@@ -201,7 +202,7 @@ namespace Server.Tools.Controls
 				else
 				{
 					region.Delete();
-					
+
 					m_Selection.Reset();
 
 					UpdateOverlays();
@@ -256,13 +257,33 @@ namespace Server.Tools.Controls
 		{
 			if (m_Selection.Region?.Deleted == false)
 			{
+				var area = m_Selection.Area.ToList();
+
+				var poly = area[0];
+
+				var pb = poly.Bounds;
+				var cx = pb.X + (pb.Width / 2);
+				var cy = pb.Y + (pb.Height / 2);
+
+				area.Add(new Rectangle3D(cx - 25, cy - 25, poly.MinZ, 50, 50, poly.MaxZ - poly.MinZ));
+
+				Surface.SuspendLayout();
+
+				m_Selection.PolyIndex = area.Count - 1;
+				m_Selection.Area = area.ToArray();
+
+				area.Clear();
+				area.TrimExcess();
+
+				Surface.ResumeLayout();
+
 				UpdateOverlays();
 			}
 		}
 
 		private void OnMenuOpening(object sender, CancelEventArgs e)
 		{
-			if (m_Map == null)
+			if (m_Map == null || m_UpdatingImage)
 			{
 				e.Cancel = true;
 				return;
@@ -587,41 +608,51 @@ namespace Server.Tools.Controls
 
 			int x = e.X, y = e.Y;
 
-			if (e.Button == MouseButtons.Left)
+			switch (e.Button)
 			{
-				GetData(x, y, out var region, out var polyIdx, out var pointIdx);
+				case MouseButtons.Left:
+					{
+						GetData(x, y, out var region, out var polyIdx, out var pointIdx);
 
-				if (pointIdx >= 0)
-				{
-					SetMapRegion(region, polyIdx, pointIdx);
+						if (pointIdx >= 0)
+						{
+							SetMapRegion(region, polyIdx, pointIdx);
 
-					m_MouseDragStart.X = x;
-					m_MouseDragStart.Y = y;
-				}
-				else
-				{
-					m_MouseDragStart.X = -1;
-					m_MouseDragStart.Y = -1;
-				}
+							m_MouseDragStart.X = x;
+							m_MouseDragStart.Y = y;
+						}
+						else
+						{
+							m_MouseDragStart.X = -1;
+							m_MouseDragStart.Y = -1;
+						}
 
-				m_MenuLocation.X = -1;
-				m_MenuLocation.Y = -1;
-			}
-			else if (e.Button == MouseButtons.Right)
-			{
-				m_MouseDragStart.X = -1;
-				m_MouseDragStart.Y = -1;
+						m_MenuLocation.X = -1;
+						m_MenuLocation.Y = -1;
+					}
+					break;
+				case MouseButtons.Right:
+					{
+						GetData(x, y, out var region, out var polyIdx, out var pointIdx);
 
-				m_MenuLocation.X = x;
-				m_MenuLocation.Y = y;
-			}
-			else
-			{
-				m_MouseDragStart.X = -1;
-				m_MouseDragStart.Y = -1;
+						SetMapRegion(region, polyIdx, pointIdx);
 
-				m_MenuLocation.X = -1;
-				m_MenuLocation.Y = -1;
+						m_MouseDragStart.X = -1;
+						m_MouseDragStart.Y = -1;
+
+						m_MenuLocation.X = x;
+						m_MenuLocation.Y = y;
+					}
+					break;
+				default:
+					{
+						m_MouseDragStart.X = -1;
+						m_MouseDragStart.Y = -1;
+
+						m_MenuLocation.X = -1;
+						m_MenuLocation.Y = -1;
+					}
+					break;
 			}
 		}
 
@@ -634,31 +665,36 @@ namespace Server.Tools.Controls
 
 			int x = e.X, y = e.Y;
 
-			if (e.Button == MouseButtons.Left)
+			if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right)
 			{
-				if (m_MouseDrag)
+				return;
+			}
+
+			if (e.Button == MouseButtons.Left && m_MouseDrag)
+			{
+				if (m_MouseDragStart.X >= 0 && m_MouseDragStart.Y >= 0 && (m_MouseDragStart.X != x || m_MouseDragStart.Y != y))
 				{
-					if (m_MouseDragStart.X >= 0 && m_MouseDragStart.Y >= 0 && (m_MouseDragStart.X != x || m_MouseDragStart.Y != y))
+					if (m_Selection.CanEdit)
 					{
-						if (m_Selection.CanEdit)
-						{
-							m_Selection.Point = new Point2D(x, y);
+						m_Selection.Point = new Point2D(x, y);
 
-							m_EditingPoints = false;
+						m_EditingPoints = false;
 
-							UpdateOverlays();
-						}
+						UpdateOverlays();
 					}
-
-					m_MouseDragStart.X = m_MouseDragCurrent.X = -1;
-					m_MouseDragStart.Y = m_MouseDragCurrent.Y = -1;
-
-					m_MouseDrag = false;
 				}
-				else
-				{
-					GetData(x, y, out var region, out var polyIdx, out var pointIdx);
 
+				m_MouseDragStart.X = m_MouseDragCurrent.X = -1;
+				m_MouseDragStart.Y = m_MouseDragCurrent.Y = -1;
+
+				m_MouseDrag = false;
+			}
+			else
+			{
+				GetData(x, y, out var region, out var polyIdx, out var pointIdx);
+
+				if (e.Button == MouseButtons.Left)
+				{
 					if (region != null && region == m_Selection.Region && polyIdx >= 0 && pointIdx < 0)
 					{
 						var area = region.Area;
@@ -696,21 +732,17 @@ namespace Server.Tools.Controls
 							}
 						}
 					}
+				}
 
-					SetMapRegion(region, polyIdx, pointIdx); 
-					
-					if (pointIdx >= 0)
-					{
-						Cursor.Current = Cursor = Cursors.SizeAll;
-					}
-					else if (region != null && region.Contains(x, y))
-					{
-						Cursor.Current = Cursor = Cursors.SizeAll;
-					}
-					else
-					{
-						Cursor.Current = Cursor = Cursors.Cross;
-					}
+				SetMapRegion(region, polyIdx, pointIdx);
+
+				if (pointIdx >= 0)
+				{
+					Cursor.Current = Cursor = Cursors.SizeAll;
+				}
+				else
+				{
+					Cursor.Current = Cursor = Cursors.Cross;
 				}
 			}
 		}
@@ -790,10 +822,6 @@ namespace Server.Tools.Controls
 				{
 					Cursor.Current = Cursor = Cursors.SizeAll;
 				}
-				else if (region.Contains(x, y))
-				{
-					Cursor.Current = Cursor = Cursors.SizeAll;
-				}
 				else
 				{
 					Cursor.Current = Cursor = Cursors.Cross;
@@ -822,7 +850,7 @@ namespace Server.Tools.Controls
 					}
 				}
 				else
-				{					
+				{
 					m_Tooltip.Show($"({x}, {y})", this, p);
 				}
 			}
@@ -909,7 +937,7 @@ namespace Server.Tools.Controls
 
 		private static int GetPoly(Poly3D[] area, int x, int y)
 		{
-			for (var polyIndex = 0; polyIndex < area.Length; polyIndex++)
+			for (var polyIndex = area.Length - 1; polyIndex >= 0; polyIndex--)
 			{
 				if (area[polyIndex].Contains(x, y))
 				{
@@ -1405,12 +1433,12 @@ namespace Server.Tools.Controls
 		private static extern bool GetIconInfo(IntPtr hIcon, ref IconInfo pIconInfo);
 
 		[DllImport("user32.dll")]
-		private static extern IntPtr CreateIconIndirect(ref IconInfo icon); 
-		
+		private static extern IntPtr CreateIconIndirect(ref IconInfo icon);
+
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		private static extern bool DestroyIcon(IntPtr hIcon); 
-		
+		private static extern bool DestroyIcon(IntPtr hIcon);
+
 		[DllImport("gdi32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		private static extern bool DeleteObject(IntPtr hObject);
