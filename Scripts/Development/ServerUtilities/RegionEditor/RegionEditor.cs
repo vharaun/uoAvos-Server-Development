@@ -1,4 +1,5 @@
-﻿using Server.Tools.Controls;
+﻿using Server.Commands;
+using Server.Tools.Controls;
 
 using System;
 using System.Collections;
@@ -27,12 +28,65 @@ namespace Server.Tools
 		[CallPriority(Int32.MaxValue)]
 		public static void Configure()
 		{
-			EventSink.ServerStarted += () => Timer.DelayCall(Start);
+			CommandSystem.Register("[ExternalRegionEditor", AccessLevel.Administrator, e =>
+			{
+				if (e.Arguments?.Length > 0)
+				{
+					var arg = e.GetString(0);
+
+					if (Insensitive.Equals(arg, "open"))
+					{
+						var result = OpenEditor();
+
+						switch (result)
+						{
+							case false:
+								e.Mobile.SendMessage(0x33, "The Region Editor application was already started on the host machine.");
+								break;
+							case true:
+								e.Mobile.SendMessage(0x55, "The Region Editor application was started on the host machine.");
+								break;
+							case null: // error
+								e.Mobile.SendMessage(0x22, "The Region Editor application could not be started on the host machine.");
+								break;
+						}
+
+						return;
+					}
+
+					if (Insensitive.Equals(arg, "close"))
+					{
+						var result = CloseEditor();
+
+						switch (result)
+						{
+							case false:
+								e.Mobile.SendMessage(0x33, "The Region Editor application was not running on the host machine.");
+								break;
+							case true:
+								e.Mobile.SendMessage(0x55, "The Region Editor application is no longer running on the host machine.");
+								break;
+							case null: // error
+								e.Mobile.SendMessage(0x22, "The Region Editor application may still be running on the host machine.");
+								break;
+						}
+
+						return;
+					}
+				}
+
+				e.Mobile.SendMessage($"Usage: {CommandSystem.Prefix}{e.Command} <open|close>");
+			});
 		}
 
-		private static void Start()
+		public static bool? OpenEditor()
 		{
-			if (m_Thread?.IsAlive != true)
+			if (m_Thread?.IsAlive == true)
+			{
+				return false;
+			}
+
+			try
 			{
 				m_Thread = new Thread(Run)
 				{
@@ -47,7 +101,47 @@ namespace Server.Tools
 				{
 					Thread.Sleep(1);
 				}
+
+				return true;
 			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		public static bool? CloseEditor()
+		{
+			if (m_Thread?.IsAlive == true)
+			{
+				try
+				{
+					m_Instance?.Close();
+				}
+				catch (ObjectDisposedException)
+				{
+					m_Instance = null;
+				}
+				catch
+				{ }
+
+				try
+				{
+					m_Thread.Join();
+				}
+				catch
+				{
+					return null;
+				}
+				finally
+				{
+					m_Thread = null;
+				}
+
+				return true;
+			}
+
+			return false;
 		}
 
 		private static void Run()
