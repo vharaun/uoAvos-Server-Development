@@ -22,6 +22,8 @@ using System.Linq;
 
 /// the path they follow will be auto-generated after spawning and will be re-generated with each loop after
 /// returnting to their home location and waiting for a predefined amount of time.
+/// the list will first be created via a hashset to prevent duplicating locations, it will then be 
+/// converted to a List so an indexer can be used to move the waypoint to each "point" in the List.
 
 namespace Server.Mobiles
 {
