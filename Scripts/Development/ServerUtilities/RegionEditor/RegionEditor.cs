@@ -60,7 +60,7 @@ namespace Server.Tools
 			Application.Run(m_Instance);
 		}
 
-		private volatile bool m_UpdatingTree, m_UpdatingImage, m_ScrollToView;
+		private volatile bool m_UpdatingTree, m_UpdatingImage, m_ScrollToView, m_ExtenalEventsState;
 
 		private RegionEditor()
 		{
@@ -75,12 +75,35 @@ namespace Server.Tools
 
 			Regions.BeforeSelect += OnRegionsBeforeSelect;
 			Regions.AfterSelect += OnRegionsAfterSelect;
+			Regions.BeforeLabelEdit += OnRegionsBeforeLabelEdit;
+			Regions.AfterLabelEdit += OnRegionsAfterLabelEdit;
+		}
 
-			Server.Region.OnRegistered += OnRegionRegistered;
-			Server.Region.OnUnregistered += OnRegionUnregistered;
+		private void SetExternalEvents(bool state)
+		{
+			if (m_ExtenalEventsState == state)
+			{
+				return;
+			}
 
-			Map.RegionAdded += OnMapRegionAdded;
-			Map.RegionRemoved += OnMapRegionRemoved;
+			if (m_ExtenalEventsState = state)
+			{
+				Server.Region.OnRegistered += OnRegionRegistered;
+				Server.Region.OnUnregistered += OnRegionUnregistered;
+				Server.Region.OnNameChanged += OnRegionNameChanged;
+
+				Map.RegionAdded += OnMapRegionAdded;
+				Map.RegionRemoved += OnMapRegionRemoved;
+			}
+			else
+			{
+				Server.Region.OnRegistered -= OnRegionRegistered;
+				Server.Region.OnUnregistered -= OnRegionUnregistered;
+				Server.Region.OnNameChanged -= OnRegionNameChanged;
+
+				Map.RegionAdded -= OnMapRegionAdded;
+				Map.RegionRemoved -= OnMapRegionRemoved;
+			}
 		}
 
 		private void Invoke(Action action)
@@ -125,6 +148,8 @@ namespace Server.Tools
 		protected override void OnShown(EventArgs e)
 		{
 			base.OnShown(e);
+			
+			SetExternalEvents(true);
 
 			Invoke(EditorStarted);
 		}
@@ -139,6 +164,8 @@ namespace Server.Tools
 		protected override void OnClosed(EventArgs e)
 		{
 			base.OnClosed(e);
+
+			SetExternalEvents(false);
 
 			Invoke(EditorClosed);
 		}
@@ -165,6 +192,26 @@ namespace Server.Tools
 				{
 					Canvas.MapRegion = r.MapRegion;
 				}
+			}
+		}
+
+		private void OnRegionsBeforeLabelEdit(object sender, NodeLabelEditEventArgs e)
+		{
+			if (e.Node is not RegionTreeNode n || n.MapRegion?.Deleted != false)
+			{
+				e.CancelEdit = true;
+			}
+		}
+
+		private void OnRegionsAfterLabelEdit(object sender, NodeLabelEditEventArgs e)
+		{
+			if (e.Node is RegionTreeNode n && n.MapRegion?.Deleted == false)
+			{
+				n.MapRegion.Name = e.Label;
+			}
+			else
+			{
+				e.CancelEdit = true;
 			}
 		}
 
@@ -234,6 +281,22 @@ namespace Server.Tools
 				{
 					UpdateRegionsTree();
 				}
+			}
+		}
+
+		private void OnRegionNameChanged(Region reg, string oldName)
+		{
+			var node = Regions[reg];
+
+			if (node != null)
+			{
+				node.Text = reg.Name;
+			}
+
+			if (Props.SelectedObject == reg)
+			{
+				Props.Refresh();
+				Props.Update();
 			}
 		}
 
@@ -315,6 +378,14 @@ namespace Server.Tools
 
 		public void UpdateRegionsTree()
 		{
+			if (Thread.CurrentThread != Core.Thread)
+			{
+				while (Server.Region.Generating)
+				{
+					Thread.Sleep(1);
+				}
+			}
+
 			Invoke(() =>
 			{
 				if (m_UpdatingTree)
@@ -365,7 +436,20 @@ namespace Server.Tools
 				root.Add(node = new(map));
 			}
 
-			foreach (var region in map.Regions)
+			var index = node.Nodes.Count;
+
+			while (--index >= 0)
+			{
+				if (node.Nodes[index] is RegionTreeNode n)
+				{
+					if (!n.IsValid)
+					{
+						node.Nodes.RemoveAt(index);
+					}
+				}
+			}
+
+			foreach (var region in map.Regions.ToArray())
 			{
 				if (region != null && region.Parent == null)
 				{
@@ -400,6 +484,19 @@ namespace Server.Tools
 			if (node == null)
 			{
 				root.Add(node = new(region));
+			}
+
+			var index = node.Nodes.Count;
+
+			while (--index >= 0)
+			{
+				if (node.Nodes[index] is RegionTreeNode n)
+				{
+					if (!n.IsValid)
+					{
+						node.Nodes.RemoveAt(index);
+					}
+				}
 			}
 
 			foreach (var child in region.Children)
@@ -521,7 +618,7 @@ namespace Server.Tools.Controls
 	{
 		public static string GetTreeKey(Region region)
 		{
-			return $"{region.Id}:{region}";
+			return $"{region.Id}";
 		}
 
 		public Region MapRegion { get; }

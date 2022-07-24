@@ -124,6 +124,8 @@ namespace Server
 	{
 		private static int m_NextID = 1;
 
+		public static int NextID => m_NextID;
+
 		public static Type DefaultRegionType { get; set; } = typeof(Region);
 
 		public static TimeSpan StaffLogoutDelay { get; set; } = TimeSpan.Zero;
@@ -137,6 +139,8 @@ namespace Server
 		public static event Action<Region, Mobile, Region> OnTransition;
 
 		public static event Action<Region> OnRegistered, OnUnregistered;
+
+		public static event Action<Region, string> OnNameChanged;
 
 		public static Region Find(int id)
 		{
@@ -329,8 +333,24 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public int Id { get; private set; }
 
+		private string m_Name;
+
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public string Name { get; set; }
+		public string Name
+		{
+			get => m_Name;
+			set
+			{
+				if (m_Name != value)
+				{
+					var old = m_Name;
+
+					m_Name = value;
+
+					OnNameChanged?.Invoke(this, old);
+				}
+			}
+		}
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public Map Map { get; private set; }
@@ -579,7 +599,7 @@ namespace Server
 			writer.Write(IsDefault);
 			writer.Write(Registered);
 
-			writer.Write(Name);
+			writer.Write(m_Name);
 
 			writer.Write(Map);
 
@@ -613,7 +633,7 @@ namespace Server
 			var isDefault = reader.ReadBool();
 			var isRegistered = reader.ReadBool();
 
-			Name = reader.ReadString();
+			m_Name = reader.ReadString();
 
 			Map = reader.ReadMap();
 
@@ -652,25 +672,29 @@ namespace Server
 				return;
 			}
 
+			var children = Children.ToDictionary(c => c, c => c.Registered);
+
 			Unregister();
-
-			OnDelete();
-
-			var children = new Queue<Region>(Children);
 
 			Children.Clear();
 
-			while (children.Count > 0)
+			foreach (var o in children)
 			{
-				var child = children.Dequeue();
-
-				if (child?.Deleted == false)
+				if (!o.Key.Deleted)
 				{
-					child.Parent = Parent;
+					o.Key.Parent = Parent;
+
+					if (o.Value)
+					{
+						o.Key.Register();
+					}
 				}
 			}
 
+			children.Clear();
 			children.TrimExcess();
+
+			OnDelete();
 
 			Deleted = true;
 
@@ -1163,7 +1187,7 @@ namespace Server
 			return CompareTo(obj as Region);
 		}
 
-		public sealed override string ToString()
+		public override sealed string ToString()
 		{
 			return String.IsNullOrWhiteSpace(Name) ? $"{GetType().Name} 0x{Id:X}" : Name;
 		}
@@ -1638,37 +1662,53 @@ namespace Server
 			OnTransition?.Invoke(oldRegion, m, newRegion);
 		}
 
+		public static bool Generating { get; private set; }
+
 		internal static void GenerateRegions()
 		{
-			Console.WriteLine("Regions: Generating...");
-
-			var count = 0;
-
-			foreach (var entry in m_Definitions)
+			if (Generating)
 			{
-				var map = Map.Parse(entry.Key);
-
-				if (map == Map.Internal)
-				{
-					Console.WriteLine("Invalid internal map in a facet element");
-				}
-				else
-				{
-					count += GenerateRegions(entry.Value, map, null);
-				}
+				return;
 			}
 
-			Console.WriteLine("Regions: Registering...");
+			Generating = true;
 
-			foreach (var region in World.Regions.Values)
+			try
 			{
-				if (region.Parent == null)
-				{
-					region.Register();
-				}
-			}
+				Console.WriteLine("Regions: Generating...");
 
-			Console.WriteLine($"Regions: done ({count:N0} regions)");
+				var count = 0;
+
+				foreach (var entry in m_Definitions)
+				{
+					var map = Map.Parse(entry.Key);
+
+					if (map == Map.Internal)
+					{
+						Console.WriteLine("Invalid internal map in a facet element");
+					}
+					else
+					{
+						count += GenerateRegions(entry.Value, map, null);
+					}
+				}
+
+				Console.WriteLine("Regions: Registering...");
+
+				foreach (var region in World.Regions.Values)
+				{
+					if (region.Parent == null)
+					{
+						region.Register();
+					}
+				}
+
+				Console.WriteLine($"Regions: done ({count:N0} regions)");
+			}
+			finally
+			{
+				Generating = false;
+			}
 		}
 
 		private static int GenerateRegions(HashSet<RegionDefinition> defs, Map map, Region parent)
@@ -1677,31 +1717,39 @@ namespace Server
 
 			foreach (var def in defs)
 			{
-				var type = def.Type ?? DefaultRegionType;
+				var region = CreateInstance(def, map, parent);
 
-				if (!typeof(Region).IsAssignableFrom(type))
+				if (region != null)
 				{
-					Console.WriteLine($"Invalid region type '{type.FullName}'");
-					continue;
+					count += 1 + GenerateRegions(def.Children, map, region);
 				}
-
-				Region region;
-
-				try
-				{
-					region = (Region)Activator.CreateInstance(type, def, map, parent);
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine($"Error during the creation of region type '{type.FullName}':");
-					Console.WriteLine(ex);
-					continue;
-				}
-
-				count += 1 + GenerateRegions(def.Children, map, region);
 			}
 
 			return count;
+		}
+
+		public static Region CreateInstance(RegionDefinition def, Map map, Region parent)
+		{
+			var type = def.Type ?? DefaultRegionType; 
+			
+			if (!typeof(Region).IsAssignableFrom(type))
+			{
+				Console.WriteLine($"Invalid region type '{type.FullName}'");
+
+				return null;
+			}
+
+			try
+			{
+				return (Region)Activator.CreateInstance(type, def, map, parent);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error during the creation of region type '{type.FullName}':");
+				Console.WriteLine(ex);
+
+				return null;
+			}
 		}
 
 		public Region(RegionDefinition def, Map map, Region parent)

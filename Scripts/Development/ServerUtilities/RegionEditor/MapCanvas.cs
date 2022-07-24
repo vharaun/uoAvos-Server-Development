@@ -22,6 +22,13 @@ namespace Server.Tools.Controls
 		public const int MinVertexRadius = 1;
 		public const int MaxVertexRadius = 5;
 
+		private static readonly Type[] m_RegionTypes, m_RegionSignature = new[] { typeof(RegionDefinition), typeof(Map), typeof(Region) };
+
+		static MapCanvas()
+		{
+			m_RegionTypes = ScriptCompiler.Assemblies.SelectMany(a => a.GetTypes().Where(t => t.IsAssignableTo(typeof(Region)))).OrderBy(t => t.Name).ToArray();
+		}
+
 		public static Point2D Convert(Point p)
 		{
 			return new Point2D(p.X, p.Y);
@@ -41,6 +48,7 @@ namespace Server.Tools.Controls
 
 		private bool m_MouseDrag, m_EditingPoints, m_UpdatingImage;
 
+		private Point m_MenuLocation = new(-1, -1);
 		private Point m_MouseLocation = new(-1, -1);
 		private Point m_MouseDragStart = new(-1, -1);
 		private Point m_MouseDragCurrent = new(-1, -1);
@@ -114,7 +122,6 @@ namespace Server.Tools.Controls
 
 			Surface.MouseDown += OnSurfaceMouseDown;
 			Surface.MouseUp += OnSurfaceMouseUp;
-			Surface.MouseClick += OnSurfaceMouseClick;
 			Surface.MouseEnter += OnSurfaceMouseEnter;
 			Surface.MouseLeave += OnSurfaceMouseLeave;
 			Surface.MouseMove += OnSurfaceMouseMove;
@@ -123,17 +130,150 @@ namespace Server.Tools.Controls
 			Menu.Opened += OnMenuOpened;
 			Menu.Closing += OnMenuClosing;
 			Menu.Closed += OnMenuClosed;
+
+			Menu.SuspendLayout();
+
+			for (var i = 0; i < m_RegionTypes.Length; i++)
+			{
+				var type = m_RegionTypes[i];
+
+				if (type.IsAbstract || type.GetConstructor(m_RegionSignature) == null)
+				{
+					continue;
+				}
+
+				var item = new ToolStripButton(type.Name)
+				{
+					Tag = type
+				};
+
+				item.Click += OnCreateRegion;
+
+				MenuCreateRegion.DropDownItems.Add(item);
+			}
+
+			Menu.ResumeLayout();
+
+			MenuDeleteRegion.Click += OnDeleteRegion;
+			MenuDeleteBounds.Click += OnDeleteBounds;
+			MenuDeletePoint.Click += OnDeletePoint;
+			MenuInsertBounds.Click += OnInsertBounds;
+		}
+
+		private void OnCreateRegion(object sender, EventArgs e)
+		{
+			if (sender is ToolStripButton b && b.OwnerItem == MenuCreateRegion)
+			{
+				var type = (Type)b.Tag;
+
+				var pos = m_MenuLocation;
+
+				var region = Server.Region.CreateInstance(new(type.Name)
+				{
+					{ "Name", $"Region {Server.Region.NextID}" },
+					{ "GoLocation", new Point3D(pos.X + 50, pos.Y + 50, 0) },
+					{ pos.X, pos.Y, Server.Region.MinZ, 100, 100, Server.Region.MaxZ - Server.Region.MinZ }
+				}, Map, null);
+
+				if (region != null)
+				{
+					region.Register();
+
+					SetMapRegion(region, 0, -1);
+				}
+			}
+		}
+
+		private void OnDeleteRegion(object sender, EventArgs e)
+		{
+			if (m_Selection.Region?.Deleted == false)
+			{
+				var region = m_Selection.Region;
+				
+				if (MapRegion == region)
+				{
+					MapRegion = region.Parent;
+
+					region.Delete();
+
+					UpdateOverlays();
+				}
+				else
+				{
+					region.Delete();
+					
+					m_Selection.Reset();
+
+					UpdateOverlays();
+				}
+			}
+		}
+
+		private void OnDeleteBounds(object sender, EventArgs e)
+		{
+			if (m_Selection.Region?.Deleted == false && m_Selection.PolyIndex >= 0)
+			{
+				var area = m_Selection.Area;
+
+				if (area.Length > 1)
+				{
+					m_Selection.Area = area.Where((p, i) => i != m_Selection.PolyIndex).ToArray();
+
+					m_Selection.PolyIndex = -1;
+					m_Selection.PointIndex = -1;
+
+					UpdateOverlays();
+				}
+				else
+				{
+					OnDeleteRegion(sender, e);
+				}
+			}
+		}
+
+		private void OnDeletePoint(object sender, EventArgs e)
+		{
+			if (m_Selection.Region?.Deleted == false && m_Selection.PolyIndex >= 0 && m_Selection.PointIndex >= 0)
+			{
+				var poly = m_Selection.Poly;
+
+				if (poly.Count > 3)
+				{
+					m_Selection.Poly = new(poly.MinZ, poly.MaxZ, poly.Points.Where((p, i) => i != m_Selection.PointIndex));
+
+					m_Selection.PointIndex = -1;
+
+					UpdateOverlays();
+				}
+				else
+				{
+					OnDeleteBounds(sender, e);
+				}
+			}
+		}
+
+		private void OnInsertBounds(object sender, EventArgs e)
+		{
+			if (m_Selection.Region?.Deleted == false)
+			{
+				UpdateOverlays();
+			}
 		}
 
 		private void OnMenuOpening(object sender, CancelEventArgs e)
 		{
-			if(m_Map == null)
+			if (m_Map == null)
 			{
 				e.Cancel = true;
 				return;
 			}
 
+			var enabled = m_Selection.Region?.Deleted == false;
 
+			MenuDeleteRegion.Enabled = enabled;
+			MenuInsertBounds.Enabled = enabled;
+			MenuDeleteBounds.Enabled = enabled && m_Selection.PolyIndex >= 0;
+			MenuDeletePoint.Enabled = enabled && m_Selection.PointIndex >= 0;
 		}
 
 		private void OnMenuOpened(object sender, EventArgs e)
@@ -296,6 +436,7 @@ namespace Server.Tools.Controls
 		public void UpdateOverlays()
 		{
 			Invoke(Regions.Refresh);
+			Invoke(Regions.Update);
 		}
 
 		private void DrawRegion(Graphics g, Region region)
@@ -437,54 +578,6 @@ namespace Server.Tools.Controls
 			}
 		}
 
-		private void OnSurfaceMouseClick(object sender, MouseEventArgs e)
-		{
-			if (m_Map == null || m_UpdatingImage)
-			{
-				return;
-			}
-
-			int x = e.X, y = e.Y;
-
-			GetData(x, y, out var region, out var polyIndex, out var pointIndex);
-
-			if (region != null && polyIndex >= 0 && pointIndex < 0)
-			{
-				var area = region.Area;
-				var poly = area[polyIndex];
-
-				var p0 = new Point2D(x, y);
-
-				for (int i = 0, n = 1; i < poly.Count; i = n++)
-				{
-					var p1 = poly[i];
-					var p2 = poly[n % poly.Count];
-
-					var p1p2 = (int)Math.Sqrt((p2.X - p1.X) * (p2.X - p1.X) + (p2.Y - p1.Y) * (p2.Y - p1.Y));
-					var p1p0 = (int)Math.Sqrt((p0.X - p1.X) * (p0.X - p1.X) + (p0.Y - p1.Y) * (p0.Y - p1.Y));
-					var p0p2 = (int)Math.Sqrt((p2.X - p0.X) * (p2.X - p0.X) + (p2.Y - p0.Y) * (p2.Y - p0.Y));
-
-					if (p1p2 == p1p0 + p0p2)
-					{
-						var points = new List<Point2D>(poly.Points);
-
-						points.Insert(n, p0);
-
-						area[polyIndex] = new Poly3D(poly.MinZ, poly.MaxZ, points);
-
-						region.Area = area;
-
-						SetMapRegion(region, polyIndex, n);
-
-						points.Clear();
-						points.TrimExcess();
-
-						break;
-					}
-				}
-			}
-		}
-
 		private void OnSurfaceMouseDown(object sender, MouseEventArgs e)
 		{
 			if (m_Map == null || m_UpdatingImage)
@@ -510,6 +603,25 @@ namespace Server.Tools.Controls
 					m_MouseDragStart.X = -1;
 					m_MouseDragStart.Y = -1;
 				}
+
+				m_MenuLocation.X = -1;
+				m_MenuLocation.Y = -1;
+			}
+			else if (e.Button == MouseButtons.Right)
+			{
+				m_MouseDragStart.X = -1;
+				m_MouseDragStart.Y = -1;
+
+				m_MenuLocation.X = x;
+				m_MenuLocation.Y = y;
+			}
+			else
+			{
+				m_MouseDragStart.X = -1;
+				m_MouseDragStart.Y = -1;
+
+				m_MenuLocation.X = -1;
+				m_MenuLocation.Y = -1;
 			}
 		}
 
@@ -534,7 +646,7 @@ namespace Server.Tools.Controls
 
 							m_EditingPoints = false;
 
-							Regions.Refresh();
+							UpdateOverlays();
 						}
 					}
 
@@ -546,6 +658,44 @@ namespace Server.Tools.Controls
 				else
 				{
 					GetData(x, y, out var region, out var polyIdx, out var pointIdx);
+
+					if (region != null && region == m_Selection.Region && polyIdx >= 0 && pointIdx < 0)
+					{
+						var area = region.Area;
+						var poly = area[polyIdx];
+
+						var p0 = new Point2D(x, y);
+
+						for (int i = 0, n = 1; i < poly.Count; i = n++)
+						{
+							var p1 = poly[i];
+							var p2 = poly[n % poly.Count];
+
+							var p1p2 = (int)Math.Sqrt((p2.X - p1.X) * (p2.X - p1.X) + (p2.Y - p1.Y) * (p2.Y - p1.Y));
+							var p1p0 = (int)Math.Sqrt((p0.X - p1.X) * (p0.X - p1.X) + (p0.Y - p1.Y) * (p0.Y - p1.Y));
+							var p0p2 = (int)Math.Sqrt((p2.X - p0.X) * (p2.X - p0.X) + (p2.Y - p0.Y) * (p2.Y - p0.Y));
+
+							if (p1p2 == p1p0 + p0p2)
+							{
+								var points = new List<Point2D>(poly.Points);
+
+								points.Insert(pointIdx = n, p0);
+
+								area[polyIdx] = new Poly3D(poly.MinZ, poly.MaxZ, points);
+
+								points.Clear();
+								points.TrimExcess();
+
+								Surface.SuspendLayout();
+
+								region.Area = area;
+
+								Surface.ResumeLayout(true);
+
+								break;
+							}
+						}
+					}
 
 					SetMapRegion(region, polyIdx, pointIdx); 
 					

@@ -464,7 +464,7 @@ namespace Server
 		public readonly Rectangle2D Bounds => m_Bounds;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public readonly int Count => m_Points.Length;
+		public readonly int Count => m_Points?.Length ?? 0;
 
 		public readonly Point2D this[int index] => m_Points[index];
 
