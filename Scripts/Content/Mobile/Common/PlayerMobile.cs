@@ -807,6 +807,16 @@ namespace Server.Mobiles
 			}
 		}
 
+		public string ApplyTownSuffix(string suffix)
+		{
+			if (HomeTownsEnabled && HomeTown != null)
+			{
+				suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+			}
+
+			return suffix;
+		}
+
 		public sealed class HomeTownGump : BaseGridGump
 		{
 			private const int EntriesPerPage = 10;
@@ -5395,6 +5405,8 @@ namespace Server.Mobiles
 
 		public override string ApplyNameSuffix(string suffix)
 		{
+			suffix = ApplyTownSuffix(suffix);
+
 			if (Young)
 			{
 				if (suffix.Length == 0)
