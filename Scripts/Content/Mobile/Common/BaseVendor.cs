@@ -163,6 +163,8 @@ namespace Server.Mobiles
 
 		public virtual NpcGuild NpcGuild => NpcGuild.None;
 
+		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+
 		public override bool IsInvulnerable => true;
 
 		#region Holiday Season Events
@@ -216,14 +218,21 @@ namespace Server.Mobiles
 		#region Faction
 		public virtual int GetPriceScalar(Mobile buyer)
 		{
+			var scalar = 100;
+
+			if (NpcGuild != NpcGuild.None && buyer is PlayerMobile player && player.NpcGuild == NpcGuild)
+			{
+				scalar -= NpcGuildInfo.VendorDiscount;
+			}
+
 			var town = Town.FromRegion(Region);
 
 			if (town != null)
 			{
-				return (100 + town.Tax);
+				scalar += town.Tax;
 			}
 
-			return 100;
+			return Math.Max(0, scalar);
 		}
 
 		public void UpdateBuyInfo(Mobile buyer)

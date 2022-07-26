@@ -1,8 +1,12 @@
-﻿using Server.Items;
+﻿using Server.Commands;
+using Server.Commands.Generic;
+using Server.Items;
 using Server.Network;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Server.Mobiles
 {
@@ -174,4 +178,216 @@ namespace Server.Mobiles
 			var version = reader.ReadInt();
 		}
 	}
+
+	#region Npc Guilds
+
+	public enum NpcGuild
+	{
+		None,
+		MagesGuild,
+		WarriorsGuild,
+		ThievesGuild,
+		RangersGuild,
+		HealersGuild,
+		MinersGuild,
+		MerchantsGuild,
+		TinkersGuild,
+		TailorsGuild,
+		FishermensGuild,
+		BardsGuild,
+		BlacksmithsGuild
+	}
+
+	[Parsable, PropertyObject]
+	public sealed record NpcGuildInfo
+	{
+		private static readonly NpcGuild[] m_Values = Enum.GetValues<NpcGuild>();
+
+		public static readonly string[] Names = new string[m_Values.Length];
+
+		public static readonly NpcGuildInfo[] Guilds = new NpcGuildInfo[m_Values.Length];
+
+		public static readonly NpcGuildInfo None = new(0);
+
+		public static readonly string FilePath = Path.Combine(Core.BaseDirectory, "Export/Saves/Current", "NpcGuilds", "NpcGuildInfo.bin");
+
+		static NpcGuildInfo()
+		{
+			Guilds[0] = None;
+			Names[0] = None.Name;
+
+			for (var i = 1; i < Guilds.Length; i++)
+			{
+				var info = new NpcGuildInfo(m_Values[i]);
+
+				Guilds[i] = info;
+				Names[i] = info.Name;
+			}
+		}
+
+		[CallPriority(Int32.MinValue + 10)]
+		public static void Configure()
+		{
+			CommandSystem.Register("NpcGuilds", AccessLevel.Administrator, e =>
+			{
+				var guilds = Guilds.Skip(1);
+
+				e.Mobile.SendGump(new InterfaceGump(e.Mobile, guilds));
+			});
+
+			EventSink.WorldSave += OnSave;
+			EventSink.WorldLoad += OnLoad;
+		}
+
+		public static bool TryParse(string input, out NpcGuildInfo value)
+		{
+			try
+			{
+				value = Parse(input);
+				return true;
+			}
+			catch
+			{
+				value = None;
+				return false;
+			}
+		}
+
+		public static NpcGuildInfo Parse(string input)
+		{
+			return Guilds.Single(info => Insensitive.Equals(info.Name, input));
+		}
+
+		public static NpcGuildInfo Find(BaseVendor vendor)
+		{
+			if (vendor?.Deleted == false)
+			{
+				return Find(vendor.NpcGuild);
+			}
+
+			return None;
+		}
+
+		public static NpcGuildInfo Find(PlayerMobile player)
+		{
+			if (player?.Deleted == false)
+			{
+				return Find(player.NpcGuild);
+			}
+
+			return None;
+		}
+
+		public static NpcGuildInfo Find(NpcGuild guild)
+		{
+			if (Enum.IsDefined(guild))
+			{
+				return Find(Convert.ToInt32(guild));
+			}
+
+			return None;
+		}
+
+		public static NpcGuildInfo Find(int id)
+		{
+			if (id >= 0 && id < Guilds.Length)
+			{
+				return Guilds[id];
+			}
+
+			return None;
+		}
+
+		private static void OnSave(WorldSaveEventArgs e)
+		{
+			Persistence.Serialize(FilePath, OnSerialize);
+		}
+
+		private static void OnSerialize(GenericWriter writer)
+		{
+			writer.Write(0);
+
+			writer.Write(Guilds.Length);
+
+			for (var i = 0; i < Guilds.Length; i++)
+			{
+				if (i == 0)
+				{
+					continue;
+				}
+
+				var info = Guilds[i];
+
+				info.Serialize(writer);
+			}
+		}
+
+		private static void OnLoad()
+		{
+			Persistence.Deserialize(FilePath, OnDeserialize);
+		}
+
+		private static void OnDeserialize(GenericReader reader)
+		{
+			reader.ReadInt();
+
+			var count = reader.ReadInt();
+
+			for (var i = 0; i < count; i++)
+			{
+				if (i == 0)
+				{
+					continue;
+				}
+
+				var info = i < Guilds.Length ? Guilds[i] : new NpcGuildInfo(0);
+
+				info.Deserialize(reader);
+			}
+		}
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public NpcGuild Guild { get; init; }
+
+		private string m_Name;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public string Name => m_Name ??= $"{Guild}".Replace("Guild", " Guild");
+
+		private int m_VendorDiscount;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public int VendorDiscount { get => m_VendorDiscount; set => m_VendorDiscount = Math.Clamp(value, 0, 100); }
+
+		private NpcGuildInfo(NpcGuild guild)
+		{
+			Guild = guild;
+
+			if (Guild != NpcGuild.None)
+			{
+				m_VendorDiscount = 10;
+			}
+		}
+
+		public override string ToString()
+		{
+			return Name;
+		}
+
+		private void Serialize(GenericWriter writer)
+		{
+			writer.WriteEncodedInt(0);
+
+			writer.WriteEncodedInt(m_VendorDiscount);
+		}
+
+		private void Deserialize(GenericReader reader)
+		{
+			reader.ReadEncodedInt();
+
+			m_VendorDiscount = reader.ReadEncodedInt();
+		}
+	}
+
+	#endregion
 }

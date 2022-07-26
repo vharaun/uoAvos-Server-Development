@@ -31,6 +31,7 @@ using System.Collections.Generic;
 namespace Server.Mobiles
 {
 	#region Enums
+
 	[Flags]
 	public enum PlayerFlag // First 16 bits are reserved for default-distro use, start custom flags at 0x00010000
 	{
@@ -50,23 +51,6 @@ namespace Server.Mobiles
 		DisplayChampionTitle = 0x00001000,
 		HasStatReward = 0x00002000,
 		RefuseTrades = 0x00004000
-	}
-
-	public enum NpcGuild
-	{
-		None,
-		MagesGuild,
-		WarriorsGuild,
-		ThievesGuild,
-		RangersGuild,
-		HealersGuild,
-		MinersGuild,
-		MerchantsGuild,
-		TinkersGuild,
-		TailorsGuild,
-		FishermensGuild,
-		BardsGuild,
-		BlacksmithsGuild
 	}
 
 	public enum SolenFriendship
@@ -520,6 +504,16 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public TimeSpan NpcGuildGameTime
+		{
+			get => m_NpcGuildGameTime;
+			set => m_NpcGuildGameTime = value;
+		}
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime NextBODTurnInTime
 		{
 			get => m_NextBODTurnInTime;
@@ -535,13 +529,6 @@ namespace Server.Mobiles
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public long LastMoved => LastMoveTime;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public TimeSpan NpcGuildGameTime
-		{
-			get => m_NpcGuildGameTime;
-			set => m_NpcGuildGameTime = value;
-		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime PromoGiftLast
