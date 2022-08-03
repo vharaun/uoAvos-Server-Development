@@ -29,17 +29,18 @@ namespace Server
 		public static Serial LastMobile => m_LastMobile;
 		public static Serial LastItem => m_LastItem;
 
-		public static readonly Serial MinusOne = new Serial(-1);
-		public static readonly Serial Zero = new Serial(0);
+		public static readonly Serial MinusOne = new(-1);
+		public static readonly Serial Zero = new(0);
 
 		public static Serial NewMobile
 		{
 			get
 			{
-				while (World.FindMobile(m_LastMobile = (m_LastMobile + 1)) != null)
+				do
 				{
-					;
+					++m_LastMobile;
 				}
+				while (World.FindMobile(m_LastMobile) != null);
 
 				return m_LastMobile;
 			}
@@ -49,10 +50,11 @@ namespace Server
 		{
 			get
 			{
-				while (World.FindItem(m_LastItem = (m_LastItem + 1)) != null)
+				do
 				{
-					;
+					++m_LastItem;
 				}
+				while (World.FindItem(m_LastItem) != null);
 
 				return m_LastItem;
 			}
@@ -83,26 +85,27 @@ namespace Server
 
 		public int CompareTo(object other)
 		{
-			if (other is Serial)
+			if (other is Serial s)
 			{
-				return CompareTo((Serial)other);
+				return CompareTo(s);
 			}
-			else if (other == null)
+			
+			if (other == null)
 			{
 				return -1;
 			}
 
-			throw new ArgumentException();
+			return 0;
 		}
 
 		public override bool Equals(object o)
 		{
-			if (o == null || !(o is Serial))
+			if (o == null || o is not Serial s)
 			{
 				return false;
 			}
 
-			return ((Serial)o).m_Serial == m_Serial;
+			return s.m_Serial == m_Serial;
 		}
 
 		public static bool operator ==(Serial l, Serial r)
@@ -185,6 +188,8 @@ namespace Server
 		public abstract byte ReadByte();
 		public abstract sbyte ReadSByte();
 		public abstract bool ReadBool();
+
+		public abstract byte[] ReadBytes();
 
 		public abstract Point3D ReadPoint3D();
 		public abstract Point2D ReadPoint2D();
@@ -447,6 +452,18 @@ namespace Server
 			return m_File.ReadBoolean();
 		}
 
+		public override byte[] ReadBytes()
+		{
+			var length = ReadEncodedInt();
+
+			if (length >= 0)
+			{
+				return m_File.ReadBytes(length);
+			}
+
+			return null;
+		}
+
 		public override Point3D ReadPoint3D()
 		{
 			return new Point3D(ReadInt(), ReadInt(), ReadInt());
@@ -559,7 +576,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadItem() as T;
+					var item = ReadItem<T>();
 
 					if (item != null)
 					{
@@ -590,7 +607,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadItem() as T;
+					var item = ReadItem<T>();
 
 					if (item != null)
 					{
@@ -621,7 +638,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var m = ReadMobile() as T;
+					var m = ReadMobile<T>();
 
 					if (m != null)
 					{
@@ -652,7 +669,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadMobile() as T;
+					var item = ReadMobile<T>();
 
 					if (item != null)
 					{
@@ -683,7 +700,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var g = ReadGuild() as T;
+					var g = ReadGuild<T>();
 
 					if (g != null)
 					{
@@ -714,7 +731,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadGuild() as T;
+					var item = ReadGuild<T>();
 
 					if (item != null)
 					{
@@ -745,7 +762,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var r = ReadRegion() as T;
+					var r = ReadRegion<T>();
 
 					if (r != null)
 					{
@@ -776,7 +793,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var r = ReadRegion() as T;
+					var r = ReadRegion<T>();
 
 					if (r != null)
 					{
@@ -838,6 +855,8 @@ namespace Server
 		public abstract void Write(byte value);
 		public abstract void Write(sbyte value);
 		public abstract void Write(bool value);
+
+		public abstract void Write(byte[] value);
 
 		public abstract void Write(Point3D value);
 		public abstract void Write(Point2D value);
@@ -978,6 +997,11 @@ namespace Server
 
 				return m_File;
 			}
+		}
+
+		public long Seek(long offset, SeekOrigin origin)
+		{
+			return UnderlyingStream.Seek(offset, origin);
 		}
 
 		public override void Close()
@@ -1337,6 +1361,23 @@ namespace Server
 			}
 
 			m_Buffer[m_Index++] = (byte)(value ? 1 : 0);
+		}
+
+		public override void Write(byte[] value)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(value.Length);
+
+				for (var i = 0; i < value.Length; i++)
+				{
+					Write(value[i]);
+				}
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
 		}
 
 		public override void Write(Point3D value)
@@ -1997,6 +2038,21 @@ namespace Server
 			OnWrite();
 		}
 
+		public override void Write(byte[] value)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(value.Length);
+
+				m_Bin.Write(value, 0, value.Length);
+				OnWrite();
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
+		}
+
 		public override void Write(Point3D value)
 		{
 			Write(value.m_X);
@@ -2139,7 +2195,7 @@ namespace Server
 
 		public override void WriteItemList<T>(List<T> list)
 		{
-			WriteItemList<T>(list, false);
+			WriteItemList(list, false);
 		}
 
 		public override void WriteItemList<T>(List<T> list, bool tidy)
@@ -2199,7 +2255,7 @@ namespace Server
 
 		public override void WriteMobileList<T>(List<T> list)
 		{
-			WriteMobileList<T>(list, false);
+			WriteMobileList(list, false);
 		}
 
 		public override void WriteMobileList<T>(List<T> list, bool tidy)
@@ -2259,7 +2315,7 @@ namespace Server
 
 		public override void WriteGuildList<T>(List<T> list)
 		{
-			WriteGuildList<T>(list, false);
+			WriteGuildList(list, false);
 		}
 
 		public override void WriteGuildList<T>(List<T> list, bool tidy)
@@ -2360,16 +2416,6 @@ namespace Server
 			}
 
 			WriteCollection(set, Write);
-		}
-
-		private void WriteCollection<T>(ICollection col, Action<T> write)
-		{
-			Write(col.Count);
-
-			foreach (T o in col)
-			{
-				write(o);
-			}
 		}
 
 		private void WriteCollection<T>(ICollection<T> col, Action<T> write)

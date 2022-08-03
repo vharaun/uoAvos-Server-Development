@@ -991,6 +991,18 @@ namespace Server.Mobiles
 					}
 				}
 			}
+			else if (m_Mobile.Formation != null && m_Mobile.Formation.Commander != m_Mobile)
+			{
+				if (m_Mobile.Formation.CheckMove(m_Mobile, out var to))
+				{
+					MoveTo(to, !m_Mobile.InRange(to, 2), 0);
+
+					if (m_Mobile.InRange(to, 0))
+					{
+						m_Mobile.Direction = m_Mobile.Formation.Commander.Direction;
+					}
+				}
+			}
 			else if (m_Mobile.IsAnimatedDead)
 			{
 				// animated dead follow their master
@@ -2118,6 +2130,20 @@ namespace Server.Mobiles
 
 		public double TransformMoveDelay(double delay)
 		{
+			if (m_Mobile.Formation != null && m_Mobile != m_Mobile.Formation.Commander)
+			{
+				delay = m_Mobile.Formation.Commander.CurrentSpeed;
+
+				if (!m_Mobile.InRange(m_Mobile.Formation.Commander, m_Mobile.Formation.Range))
+				{
+					delay *= 0.10;
+				}
+
+				delay = Math.Max(0.125, delay);
+
+				return delay;
+			}
+
 			var isPassive = (delay == m_Mobile.PassiveSpeed);
 			var isControlled = (m_Mobile.Controlled || m_Mobile.Summoned);
 
@@ -2159,7 +2185,7 @@ namespace Server.Mobiles
 			{
 				delay += 0.1;
 			}
-			else if (m_Mobile.Controlled)
+			else if (isControlled)
 			{
 				if (m_Mobile.ControlOrder == OrderType.Follow && m_Mobile.ControlTarget == m_Mobile.ControlMaster)
 				{
@@ -2521,20 +2547,20 @@ namespace Server.Mobiles
 			}
 		}
 
-		public virtual bool MoveTo(Mobile m, bool run, int range)
+		public virtual bool MoveTo(IPoint3D p, bool run, int range)
 		{
-			if (m_Mobile.Deleted || m_Mobile.DisallowAllMoves || m == null || m.Deleted)
+			if (m_Mobile.Deleted || m_Mobile.DisallowAllMoves || p == null)
 			{
 				return false;
 			}
 
-			if (m_Mobile.InRange(m, range))
+			if (m_Mobile.InRange(p, range))
 			{
 				m_Path = null;
 				return true;
 			}
 
-			if (m_Path != null && m_Path.Goal == m)
+			if (m_Path != null && m_Path.Goal == p)
 			{
 				if (m_Path.Follow(run, 1))
 				{
@@ -2542,10 +2568,10 @@ namespace Server.Mobiles
 					return true;
 				}
 			}
-			else if (!DoMove(m_Mobile.GetDirectionTo(m), true))
+			else if (!DoMove(m_Mobile.GetDirectionTo(p), true))
 			{
-				m_Path = new PathFollower(m_Mobile, m) {
-					Mover = new MoveMethod(DoMoveImpl)
+				m_Path = new PathFollower(m_Mobile, p) {
+					Mover = DoMoveImpl
 				};
 
 				if (m_Path.Follow(run, 1))
@@ -2775,13 +2801,19 @@ namespace Server.Mobiles
 						continue;
 					}
 
+					// Don't attack other troops in our formation
+					if (!m.Player && m_Mobile.Formation != null && m_Mobile.Formation.IsMember(m))
+					{
+						continue;
+					}
+
 					// Can't acquire a target we can't see.
 					if (!m_Mobile.CanSee(m))
 					{
 						continue;
 					}
 
-					if (Core.AOS && m is BaseCreature && (m as BaseCreature).Summoned && !(m as BaseCreature).Controlled)
+					if (Core.AOS && m is BaseCreature mc && mc.Summoned && !mc.Controlled)
 					{
 						continue;
 					}

@@ -2280,28 +2280,24 @@ namespace Server
 		{
 		}
 
+		public double GetDistanceToSqrt(Point2D p)
+		{
+			return Utility.GetDistanceToSqrt(m_Location, p);
+		}
+
 		public double GetDistanceToSqrt(Point3D p)
 		{
-			var xDelta = m_Location.m_X - p.m_X;
-			var yDelta = m_Location.m_Y - p.m_Y;
-
-			return Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+			return Utility.GetDistanceToSqrt(m_Location, p);
 		}
 
 		public double GetDistanceToSqrt(Mobile m)
 		{
-			var xDelta = m_Location.m_X - m.m_Location.m_X;
-			var yDelta = m_Location.m_Y - m.m_Location.m_Y;
-
-			return Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+			return Utility.GetDistanceToSqrt(m_Location, m);
 		}
 
 		public double GetDistanceToSqrt(IPoint2D p)
 		{
-			var xDelta = m_Location.m_X - p.X;
-			var yDelta = m_Location.m_Y - p.Y;
-
-			return Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+			return Utility.GetDistanceToSqrt(m_Location, p);
 		}
 
 		public virtual void AggressiveAction(Mobile aggressor)

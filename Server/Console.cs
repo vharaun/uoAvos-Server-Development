@@ -289,6 +289,8 @@ namespace Server
 			}
 		}
 
+		public static string CurrentSavesDirectory => Path.Combine(BaseDirectory, "Export", "Saves", "Current");
+
 		private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
 		{
 			Console.WriteLine(e.IsTerminating ? "Error:" : "Warning:");

@@ -164,6 +164,45 @@ namespace Server.Mobiles
 	{
 		public const int MaxLoyalty = 100;
 
+		#region Troop Formations
+
+		// NOTE: Serialization is handled externally in the Formation class
+
+		private Formation m_Formation;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public Formation Formation
+		{
+			get => m_Formation;
+			set
+			{
+				if (m_Formation == value)
+				{
+					return;
+				}
+
+				var old = m_Formation;
+
+				m_Formation = value;
+
+				old?.Remove(this);
+
+				m_Formation?.Add(this);
+
+				if (!World.Loading)
+				{
+					OnFormationChange(old);
+				}
+			}
+		}
+
+		protected virtual void OnFormationChange(Formation old)
+		{
+			AIObject?.Activate();
+		}
+
+		#endregion
+
 		#region Var declarations
 		private BaseAI m_AI;                    // THE AI
 
@@ -944,6 +983,11 @@ namespace Server.Mobiles
 				return false;
 			}
 
+			if (!m.Player && Formation?.IsMember(m) == true)
+			{
+				return true;
+			}
+
 			if (!(m is BaseCreature))
 			{
 				return false;
@@ -1009,6 +1053,11 @@ namespace Server.Mobiles
 			if (g != null && g.IsEnemy(this, m))
 			{
 				return true;
+			}
+
+			if (!m.Player && Formation?.IsMember(m) == true)
+			{
+				return false;
 			}
 
 			if (m is BaseGuard)
@@ -1492,6 +1541,16 @@ namespace Server.Mobiles
 				Combatant = from;
 				Warmode = true;
 			}
+		}
+
+		public override bool CheckShove(Mobile shoved)
+		{
+			if (Combatant == null && Formation?.IsMember(shoved) == true)
+			{
+				return true;
+			}
+
+			return base.CheckShove(shoved);
 		}
 
 		public override void OnDamage(int amount, Mobile from, bool willKill)
@@ -5362,6 +5421,8 @@ namespace Server.Mobiles
 
 		public override void OnDelete()
 		{
+			Formation = null;
+
 			var m = m_ControlMaster;
 
 			SetControlMaster(null);
@@ -6093,11 +6154,9 @@ namespace Server.Mobiles
 
 			return base.CanBeDamaged();
 		}
-
-		public virtual bool PlayerRangeSensitive => (CurrentWayPoint == null);  //If they are following a waypoint, they'll continue to follow it even if players aren't around
-
-		/* until we are sure about who should be getting deleted, move them instead */
-		/* On OSI, they despawn */
+		
+		// If they are following a waypoint, they'll continue to follow it even if players aren't around
+		public virtual bool PlayerRangeSensitive => CurrentWayPoint == null && Formation == null; 
 
 		private bool m_ReturnQueued;
 

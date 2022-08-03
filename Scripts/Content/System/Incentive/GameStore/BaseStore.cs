@@ -205,7 +205,7 @@ namespace Server.Engines.UOStore
 
 	public static class PromoCodes
 	{
-		public static readonly string FilePath = Path.Combine(Core.BaseDirectory, "Export/Saves/Current", "GameStore", "PromoCodes.bin");
+		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "GameStore", "PromoCodes.bin");
 
 		public static readonly Dictionary<string, PromoCodeHandler> Codes = new Dictionary<string, PromoCodeHandler>(StringComparer.InvariantCultureIgnoreCase);
 
@@ -402,15 +402,10 @@ namespace Server.Engines.UOStore
 
 		public static void OnSave(WorldSaveEventArgs e)
 		{
-			Persistence.Serialize(FilePath, Serialize);
+			Persistence.Serialize(FilePath, OnSerialize);
 		}
 
-		public static void OnLoad()
-		{
-			Persistence.Deserialize(FilePath, Deserialize);
-		}
-
-		private static void Serialize(GenericWriter writer)
+		private static void OnSerialize(GenericWriter writer)
 		{
 			writer.Write(0);
 
@@ -429,7 +424,12 @@ namespace Server.Engines.UOStore
 			}
 		}
 
-		private static void Deserialize(GenericReader reader)
+		public static void OnLoad()
+		{
+			Persistence.Deserialize(FilePath, OnDeserialize);
+		}
+
+		private static void OnDeserialize(GenericReader reader)
 		{
 			reader.ReadInt();
 

@@ -712,6 +712,14 @@ namespace Server
 		}
 		#endregion
 
+		public static double GetDistanceToSqrt(IPoint2D p1, IPoint2D p2)
+		{
+			var xDelta = p1.X - p2.X;
+			var yDelta = p1.Y - p2.Y;
+
+			return Math.Sqrt((xDelta * xDelta) + (yDelta * yDelta));
+		}
+
 		public static Direction GetDirection(IPoint2D from, IPoint2D to)
 		{
 			var dx = to.X - from.X;
@@ -1219,27 +1227,34 @@ namespace Server
 			return m_CraftSkills[Utility.Random(m_CraftSkills.Length)];
 		}
 
-		public static void FixPoints(ref Point3D top, ref Point3D bottom)
+		public static void FixPoints(ref Point2D top, ref Point2D bottom)
 		{
 			if (bottom.m_X < top.m_X)
 			{
-				var swap = top.m_X;
-				top.m_X = bottom.m_X;
-				bottom.m_X = swap;
+				(bottom.m_X, top.m_X) = (top.m_X, bottom.m_X);
 			}
 
 			if (bottom.m_Y < top.m_Y)
 			{
-				var swap = top.m_Y;
-				top.m_Y = bottom.m_Y;
-				bottom.m_Y = swap;
+				(bottom.m_Y, top.m_Y) = (top.m_Y, bottom.m_Y);
+			}
+		}
+
+		public static void FixPoints(ref Point3D top, ref Point3D bottom)
+		{
+			if (bottom.m_X < top.m_X)
+			{
+				(bottom.m_X, top.m_X) = (top.m_X, bottom.m_X);
+			}
+
+			if (bottom.m_Y < top.m_Y)
+			{
+				(bottom.m_Y, top.m_Y) = (top.m_Y, bottom.m_Y);
 			}
 
 			if (bottom.m_Z < top.m_Z)
 			{
-				var swap = top.m_Z;
-				top.m_Z = bottom.m_Z;
-				bottom.m_Z = swap;
+				(bottom.m_Z, top.m_Z) = (top.m_Z, bottom.m_Z);
 			}
 		}
 

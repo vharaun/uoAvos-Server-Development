@@ -209,7 +209,7 @@ namespace Server.Mobiles
 
 		public static readonly NpcGuildInfo None = new(0);
 
-		public static readonly string FilePath = Path.Combine(Core.BaseDirectory, "Export/Saves/Current", "NpcGuilds", "NpcGuildInfo.bin");
+		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "NpcGuilds", "NpcGuildInfo.bin");
 
 		static NpcGuildInfo()
 		{
