@@ -27,7 +27,7 @@ namespace Server
 		TypeAmounts Types { get; }
 	}
 
-	[PropertyObject, StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[PropertyObject]
 	public struct TypeAmount : IEquatable<TypeAmount>, IEquatable<Type>
 	{
 		public static readonly TypeAmount Empty = new();
@@ -172,6 +172,7 @@ namespace Server
 		}
 	}
 
+	[PropertyObject]
 	public class TypeAmounts : ICollection<TypeAmount>, INotifyPropertyUpdate
 	{
 		private readonly List<TypeAmount> _Entries = new();
@@ -464,7 +465,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject, StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[PropertyObject]
 	public struct TypeEntry : IEquatable<TypeEntry>, IEquatable<Type>
 	{
 		public static readonly TypeEntry Empty = new();
@@ -609,6 +610,7 @@ namespace Server
 		}
 	}
 
+	[PropertyObject]
 	public class TypeList : ICollection<TypeEntry>, INotifyPropertyUpdate
 	{
 		private readonly List<TypeEntry> _Entries = new();

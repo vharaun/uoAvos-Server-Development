@@ -56,9 +56,9 @@ namespace Server.Commands.Generic
 
 	public class InterfaceGump : BaseGridGump
 	{
-		public static Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>> Instances { get; } = new Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>>();
+		public static Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>> Instances { get; } = new();
 
-		private static HashSet<InterfaceGump> m_Buffer = new HashSet<InterfaceGump>();
+		private static HashSet<InterfaceGump> m_Buffer = new();
 
 		public static void Configure()
 		{
@@ -214,28 +214,40 @@ namespace Server.Commands.Generic
 				AddNewLine();
 
 				var obj = m_List[i];
+				var isNull = obj == null;
 				var isDeleted = false;
 
-				if (obj is Item)
+				if (obj is Item item)
 				{
-					var item = (Item)obj;
-
 					if (!(isDeleted = item.Deleted))
 					{
 						AddEntryHtml(40 + 130, item.GetType().Name);
 					}
 				}
-				else if (obj is Mobile)
+				else if (obj is Mobile mob)
 				{
-					var mob = (Mobile)obj;
-
 					if (!(isDeleted = mob.Deleted))
 					{
 						AddEntryHtml(40 + 130, mob.Name);
 					}
 				}
+				else if (!isNull)
+				{
+					AddEntryHtml(40 + 130, obj.ToString());
+				}
 
-				if (isDeleted)
+				if (isNull)
+				{
+					AddEntryHtml(40 + 130, "(null)");
+
+					for (var j = 1; j < m_Columns.Length; ++j)
+					{
+						AddEntryHtml(130, "---");
+					}
+
+					AddEntryHeader(20);
+				}
+				else if (isDeleted)
 				{
 					AddEntryHtml(40 + 130, "(deleted)");
 
@@ -345,10 +357,19 @@ namespace Server.Commands.Generic
 							{
 								m_From.SendGump(new InterfaceMobileGump(m_From, m_Columns, m_List, m_Page, m));
 							}
-							else if (obj != null && Attribute.IsDefined(obj.GetType(), typeof(PropertyObjectAttribute)))
+							else if (obj != null)
 							{
 								m_From.SendGump(new InterfaceGump(m_From, m_Columns, m_List, m_Page, obj));
-								m_From.SendGump(new PropertiesGump(m_From, obj));
+
+								if (Attribute.IsDefined(obj.GetType(), typeof(PropertyObjectAttribute)))
+								{
+									m_From.SendGump(new PropertiesGump(m_From, obj));
+								}
+
+								if (obj is ICollection col)
+								{
+									_ = m_From.SendGump(new InterfaceGump(m_From, col));
+								}
 							}
 							else
 							{
