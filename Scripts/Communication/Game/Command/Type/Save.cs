@@ -11,17 +11,15 @@ namespace Server.Accounting
 	{
 		private static Dictionary<string, IAccount> m_Accounts = new Dictionary<string, IAccount>();
 
+		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "Accounts", "accounts.xml");
+
+		public static int Count => m_Accounts.Count;
+
 		public static void Configure()
 		{
 			EventSink.WorldLoad += new WorldLoadEventHandler(Load);
 			EventSink.WorldSave += new WorldSaveEventHandler(Save);
 		}
-
-		static Accounts()
-		{
-		}
-
-		public static int Count => m_Accounts.Count;
 
 		public static ICollection<IAccount> GetAccounts()
 		{
@@ -51,7 +49,7 @@ namespace Server.Accounting
 		{
 			m_Accounts = new Dictionary<string, IAccount>(32, StringComparer.OrdinalIgnoreCase);
 
-			var filePath = Path.Combine("Export", "Saves", "Current", "Accounts", "accounts.xml");
+			var filePath = FilePath;
 
 			if (!File.Exists(filePath))
 			{

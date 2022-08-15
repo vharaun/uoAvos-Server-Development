@@ -318,28 +318,51 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor)]
 		public int Height { get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
 
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Left => m_Start.m_X;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Top => m_Start.m_Y;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Right => m_End.m_X;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Bottom => m_End.m_Y;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public Point2D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2));
+
 		public Rectangle2D(Point2D start, Point2D end)
 		{
 			m_Start = start;
 			m_End = end;
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public Rectangle2D(IPoint2D start, IPoint2D end)
 		{
 			m_Start = new Point2D(start);
 			m_End = new Point2D(end);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public Rectangle2D(int x, int y, int width, int height)
 		{
 			m_Start = new Point2D(x, y);
 			m_End = new Point2D(x + width, y + height);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public void Set(int x, int y, int width, int height)
 		{
 			m_Start = new Point2D(x, y);
 			m_End = new Point2D(x + width, y + height);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public bool Contains(Point2D p)
@@ -1149,28 +1172,57 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor)]
 		public int Depth { get => m_End.m_Z - m_Start.m_Z; set => m_End.m_Z = m_Start.m_Z + value; }
 
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Left => m_Start.m_X;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Top => m_Start.m_Y;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Floor => m_Start.m_Z;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Right => m_End.m_X;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Bottom => m_End.m_Y;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Roof => m_End.m_Z;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public Point3D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2), m_Start.m_Z + ((m_End.m_Z - m_Start.m_Z) / 2));
+
 		public Rectangle3D(Point3D start, Point3D end)
 		{
 			m_Start = start;
 			m_End = end;
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public Rectangle3D(IPoint3D start, IPoint3D end)
 		{
 			m_Start = new Point3D(start);
 			m_End = new Point3D(end);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public Rectangle3D(int x, int y, int z, int width, int height, int depth)
 		{
 			m_Start = new Point3D(x, y, z);
 			m_End = new Point3D(x + width, y + height, z + depth);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public void Set(int x, int y, int z, int width, int height, int depth)
 		{
 			m_Start = new Point3D(x, y, z);
 			m_End = new Point3D(x + width, y + height, z + depth);
+
+			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
 		public bool Contains(Point2D p)

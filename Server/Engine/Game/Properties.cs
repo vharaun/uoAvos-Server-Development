@@ -22,12 +22,7 @@ namespace Server
 		}
 	}
 
-	public interface ITypeAmountImpl
-	{ 
-		TypeAmounts Types { get; }
-	}
-
-	[PropertyObject, StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[PropertyObject]
 	public struct TypeAmount : IEquatable<TypeAmount>, IEquatable<Type>
 	{
 		public static readonly TypeAmount Empty = new();
@@ -172,6 +167,7 @@ namespace Server
 		}
 	}
 
+	[PropertyObject]
 	public class TypeAmounts : ICollection<TypeAmount>, INotifyPropertyUpdate
 	{
 		private readonly List<TypeAmount> _Entries = new();
@@ -188,17 +184,15 @@ namespace Server
 		public int Count => _Entries.Count;
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public string AddTypeByName
+		public virtual string AddTypeByName
 		{
-			get => "Add ->";
+			get => String.Empty;
 			set
 			{
-				if (value == null || value == "Add ->")
+				if (String.IsNullOrWhiteSpace(value))
 				{
 					return;
 				}
-
-				value = value.Replace("Add ->", String.Empty);
 
 				var type = ScriptCompiler.FindTypeByName(value, true);
 
@@ -210,17 +204,15 @@ namespace Server
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public string RemoveTypeByName
+		public virtual string RemoveTypeByName
 		{
-			get => "Remove ->";
+			get => String.Empty;
 			set
 			{
-				if (value == null || value == "Remove ->")
+				if (String.IsNullOrWhiteSpace(value))
 				{
 					return;
 				}
-
-				value = value.Replace("Remove ->", String.Empty);
 
 				var type = ScriptCompiler.FindTypeByName(value, true);
 
@@ -244,12 +236,17 @@ namespace Server
 			_Entries.AddRange(entries);
 		}
 
-		void ICollection<TypeAmount>.Add(TypeAmount t)
+		public virtual bool IsValidType(Type type)
+		{
+			return type != null;
+		}
+
+		public void Add(TypeAmount t)
 		{
 			Set(t.Type, t.Amount, t.Inherit);
 		}
 
-		bool ICollection<TypeAmount>.Remove(TypeAmount t)
+		public virtual bool Remove(TypeAmount t)
 		{
 			if (_Entries.Remove(t))
 			{
@@ -260,7 +257,15 @@ namespace Server
 			return false;
 		}
 
-		bool ICollection<TypeAmount>.Contains(TypeAmount t)
+		public void RemoveAt(int index)
+		{
+			if (index >= 0 && index < _Entries.Count)
+			{
+				Remove(_Entries[index]);
+			}
+		}
+
+		public bool Contains(TypeAmount t)
 		{
 			return _Entries.Contains(t);
 		}
@@ -323,9 +328,14 @@ namespace Server
 			return success;
 		}
 
-		public bool Set(Type type, int amount, bool inherit)
+		public virtual bool Set(Type type, int amount, bool inherit)
 		{
 			if (type == null || amount < 0)
+			{
+				return false;
+			}
+
+			if (!IsValidType(type))
 			{
 				return false;
 			}
@@ -346,9 +356,14 @@ namespace Server
 			return true;
 		}
 
-		public bool Set(Type type, int amount)
+		public virtual bool Set(Type type, int amount)
 		{
 			if (type == null || amount < 0)
+			{
+				return false;
+			}
+
+			if (!IsValidType(type))
 			{
 				return false;
 			}
@@ -369,9 +384,14 @@ namespace Server
 			return true;
 		}
 
-		public void SetInherit(Type type, bool inherit)
+		public virtual void SetInherit(Type type, bool inherit)
 		{
 			if (type == null)
+			{
+				return;
+			}
+
+			if (!IsValidType(type))
 			{
 				return;
 			}
@@ -392,14 +412,7 @@ namespace Server
 
 		public void Unset(Type type)
 		{
-			var index = IndexOf(type);
-
-			if (index >= 0)
-			{
-				_Entries.RemoveAt(index);
-
-				PropertyNotifier.Notify(this, _Entries);
-			}
+			RemoveAt(IndexOf(type));
 		}
 
 		public void Clear()
@@ -437,7 +450,7 @@ namespace Server
 			return $"Types[{Count}]";
 		}
 
-		public void Serialize(GenericWriter writer)
+		public virtual void Serialize(GenericWriter writer)
 		{
 			writer.Write(0);
 
@@ -449,7 +462,7 @@ namespace Server
 			}
 		}
 
-		public void Deserialize(GenericReader reader)
+		public virtual void Deserialize(GenericReader reader)
 		{
 			reader.ReadInt();
 
@@ -460,11 +473,11 @@ namespace Server
 				_Entries.Add(new TypeAmount(reader));
 			}
 
-			_Entries.RemoveAll(e => e.Type == null);
+			_Entries.RemoveAll(e => e.Type == null || !IsValidType(e.Type));
 		}
 	}
 
-	[PropertyObject, StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[PropertyObject]
 	public struct TypeEntry : IEquatable<TypeEntry>, IEquatable<Type>
 	{
 		public static readonly TypeEntry Empty = new();
@@ -609,6 +622,7 @@ namespace Server
 		}
 	}
 
+	[PropertyObject]
 	public class TypeList : ICollection<TypeEntry>, INotifyPropertyUpdate
 	{
 		private readonly List<TypeEntry> _Entries = new();
@@ -625,17 +639,15 @@ namespace Server
 		public int Count => _Entries.Count;
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public string AddTypeByName
+		public virtual string AddTypeByName
 		{
-			get => "Add ->";
+			get => String.Empty;
 			set
 			{
-				if (value == null || value == "Add ->")
+				if (String.IsNullOrWhiteSpace(value))
 				{
 					return;
 				}
-
-				value = value.Replace("Add ->", String.Empty);
 
 				var type = ScriptCompiler.FindTypeByName(value, true);
 
@@ -647,17 +659,15 @@ namespace Server
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public string RemoveTypeByName
+		public virtual string RemoveTypeByName
 		{
-			get => "Remove ->";
+			get => String.Empty;
 			set
 			{
-				if (value == null || value == "Remove ->")
+				if (String.IsNullOrWhiteSpace(value))
 				{
 					return;
 				}
-
-				value = value.Replace("Remove ->", String.Empty);
 
 				var type = ScriptCompiler.FindTypeByName(value, true);
 
@@ -681,12 +691,17 @@ namespace Server
 			_Entries.AddRange(entries);
 		}
 
-		void ICollection<TypeEntry>.Add(TypeEntry t)
+		public virtual bool IsValidType(Type type)
+		{
+			return type != null;
+		}
+
+		public void Add(TypeEntry t)
 		{
 			Set(t.Type, t.State, t.Inherit);
 		}
 
-		bool ICollection<TypeEntry>.Remove(TypeEntry t)
+		public virtual bool Remove(TypeEntry t)
 		{
 			if (_Entries.Remove(t))
 			{
@@ -697,7 +712,15 @@ namespace Server
 			return false;
 		}
 
-		bool ICollection<TypeEntry>.Contains(TypeEntry t)
+		public void RemoveAt(int index)
+		{
+			if (index >= 0 && index < _Entries.Count)
+			{
+				Remove(_Entries[index]);
+			}
+		}
+
+		public bool Contains(TypeEntry t)
 		{
 			return _Entries.Contains(t);
 		}
@@ -760,9 +783,14 @@ namespace Server
 			return success;
 		}
 
-		public bool Set(Type type, bool state, bool inherit)
+		public virtual bool Set(Type type, bool state, bool inherit)
 		{
 			if (type == null)
+			{
+				return false;
+			}
+
+			if (!IsValidType(type))
 			{
 				return false;
 			}
@@ -783,9 +811,14 @@ namespace Server
 			return true;
 		}
 
-		public bool Set(Type type, bool state)
+		public virtual bool Set(Type type, bool state)
 		{
 			if (type == null)
+			{
+				return false;
+			}
+
+			if (!IsValidType(type))
 			{
 				return false;
 			}
@@ -806,9 +839,14 @@ namespace Server
 			return true;
 		}
 
-		public void SetInherit(Type type, bool inherit)
+		public virtual void SetInherit(Type type, bool inherit)
 		{
 			if (type == null)
+			{
+				return;
+			}
+
+			if (!IsValidType(type))
 			{
 				return;
 			}
@@ -829,14 +867,7 @@ namespace Server
 
 		public void Unset(Type type)
 		{
-			var index = IndexOf(type);
-
-			if (index >= 0)
-			{
-				_Entries.RemoveAt(index);
-
-				PropertyNotifier.Notify(this, _Entries);
-			}
+			RemoveAt(IndexOf(type));
 		}
 
 		public void Clear()
@@ -874,7 +905,7 @@ namespace Server
 			return $"Types[{Count}]";
 		}
 
-		public void Serialize(GenericWriter writer)
+		public virtual void Serialize(GenericWriter writer)
 		{
 			writer.Write(0);
 
@@ -886,7 +917,7 @@ namespace Server
 			}
 		}
 
-		public void Deserialize(GenericReader reader)
+		public virtual void Deserialize(GenericReader reader)
 		{
 			reader.ReadInt();
 
@@ -897,7 +928,7 @@ namespace Server
 				_Entries.Add(new TypeEntry(reader));
 			}
 
-			_Entries.RemoveAll(e => e.Type == null);
+			_Entries.RemoveAll(e => e.Type == null || !IsValidType(e.Type));
 		}
 	}
 }

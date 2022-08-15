@@ -83,9 +83,9 @@ namespace Server.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap StarIcon {
+        internal static System.Drawing.Bitmap LoadingIcon {
             get {
-                object obj = ResourceManager.GetObject("StarIcon", resourceCulture);
+                object obj = ResourceManager.GetObject("LoadingIcon", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -93,9 +93,9 @@ namespace Server.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap LoadingIcon {
+        internal static System.Drawing.Bitmap StarIcon {
             get {
-                object obj = ResourceManager.GetObject("LoadingIcon", resourceCulture);
+                object obj = ResourceManager.GetObject("StarIcon", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

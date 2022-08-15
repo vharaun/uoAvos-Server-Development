@@ -31,6 +31,7 @@ using System.Collections.Generic;
 namespace Server.Mobiles
 {
 	#region Enums
+
 	[Flags]
 	public enum PlayerFlag // First 16 bits are reserved for default-distro use, start custom flags at 0x00010000
 	{
@@ -50,23 +51,6 @@ namespace Server.Mobiles
 		DisplayChampionTitle = 0x00001000,
 		HasStatReward = 0x00002000,
 		RefuseTrades = 0x00004000
-	}
-
-	public enum NpcGuild
-	{
-		None,
-		MagesGuild,
-		WarriorsGuild,
-		ThievesGuild,
-		RangersGuild,
-		HealersGuild,
-		MinersGuild,
-		MerchantsGuild,
-		TinkersGuild,
-		TailorsGuild,
-		FishermensGuild,
-		BardsGuild,
-		BlacksmithsGuild
 	}
 
 	public enum SolenFriendship
@@ -520,6 +504,16 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public TimeSpan NpcGuildGameTime
+		{
+			get => m_NpcGuildGameTime;
+			set => m_NpcGuildGameTime = value;
+		}
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime NextBODTurnInTime
 		{
 			get => m_NextBODTurnInTime;
@@ -535,13 +529,6 @@ namespace Server.Mobiles
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public long LastMoved => LastMoveTime;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public TimeSpan NpcGuildGameTime
-		{
-			get => m_NpcGuildGameTime;
-			set => m_NpcGuildGameTime = value;
-		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime PromoGiftLast
@@ -790,6 +777,174 @@ namespace Server.Mobiles
 			get => m_AcceleratedSkill;
 			set => m_AcceleratedSkill = value;
 		}
+		#endregion
+
+		#region Home Town
+
+		public static bool HomeTownsEnabled { get; set; } = true;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Town HomeTown { get; set; }
+
+		public void CheckHomeTown(bool requestChange)
+		{
+			if (HomeTownsEnabled && NetState?.Running == true && (HomeTown == null || requestChange))
+			{
+				SendGump(new HomeTownGump(this, 0, Town.Towns));
+			}
+		}
+
+		public string ApplyTownSuffix(string suffix)
+		{
+			if (HomeTownsEnabled && HomeTown != null)
+			{
+				suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+			}
+
+			return suffix;
+		}
+
+		public sealed class HomeTownGump : BaseGridGump
+		{
+			private const int EntriesPerPage = 10;
+
+			private readonly PlayerMobile m_Player;
+
+			private readonly int m_Page;
+
+			private readonly List<Town> m_Towns;
+
+			public override int BorderSize => 10;
+			public override int OffsetSize => 1;
+
+			public override int EntryHeight => 20;
+
+			public override int OffsetGumpID => 0x2430;
+			public override int HeaderGumpID => 0x243A;
+			public override int EntryGumpID => 0x2458;
+			public override int BackGumpID => 0x2486;
+
+			public override int TextHue => 0;
+			public override int TextOffsetX => 2;
+			
+			public const int PageLeftID1 = 0x25EA;
+			public const int PageLeftID2 = 0x25EB;
+			public const int PageLeftWidth = 16;
+			public const int PageLeftHeight = 16;
+
+			public const int PageRightID1 = 0x25E6;
+			public const int PageRightID2 = 0x25E7;
+			public const int PageRightWidth = 16;
+			public const int PageRightHeight = 16;
+			
+			public HomeTownGump(PlayerMobile player, int page, List<Town> towns) 
+				: base(100, 100)
+			{
+				m_Player = player;
+				m_Page = page;
+				m_Towns = towns;
+
+				Closable = false;
+				Disposable = false;
+				Dragable = false;
+				Resizable = false;
+
+				AddNewPage();
+
+				if (m_Page > 0)
+				{
+					AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
+				}
+				else
+				{
+					AddEntryHeader(20);
+				}
+
+				AddEntryHtml(160, Center($"Page {m_Page + 1} of {(m_Towns.Count + EntriesPerPage - 1) / EntriesPerPage}"));
+
+				if ((m_Page + 1) * EntriesPerPage < m_Towns.Count)
+				{
+					AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
+				}
+				else
+				{
+					AddEntryHeader(20);
+				}
+
+				for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_Towns.Count; ++i, ++line)
+				{
+					AddNewLine();
+
+					AddEntryHtml(20 + OffsetSize + 160, m_Towns[i].Definition.FriendlyName);
+
+					AddEntryButton(20, PageRightID1, PageRightID2, 3 + i, PageRightWidth, PageRightHeight);
+				}
+
+				FinishPage();
+			}
+
+			public override void OnResponse(NetState sender, RelayInfo info)
+			{
+				switch (info.ButtonID)
+				{
+					case 0:
+						{
+							m_Player.CloseGump(typeof(HomeTownGump));
+
+							return;
+						}
+					case 1:
+						{
+							if (m_Page > 0)
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page - 1, m_Towns));
+							}
+							else
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+							}
+
+							return;
+						}
+					case 2:
+						{
+							if ((m_Page + 1) * EntriesPerPage < m_Towns.Count)
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page + 1, m_Towns));
+							}
+							else
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+							}
+
+							return;
+						}
+				}
+
+				var v = info.ButtonID - 3;
+
+				if (v >= 0 && v < m_Towns.Count)
+				{
+					var town = m_Towns[v];
+
+					if (m_Player.HomeTown != town)
+					{
+						m_Player.HomeTown = town;
+
+						m_Player.SendMessage($"You declare {town.Definition.FriendlyName} as your home town.");
+					}
+					else
+					{
+						m_Player.SendMessage($"{town.Definition.FriendlyName} is your home town.");
+					}
+				}
+				else
+				{
+					m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+				}
+			}
+		}
+
 		#endregion
 
 		public static Direction GetDirection4(Point3D from, Point3D to)
@@ -1199,9 +1354,10 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (from is PlayerMobile)
+			if (from is PlayerMobile player)
 			{
-				((PlayerMobile)from).ClaimAutoStabledPets();
+				player.ClaimAutoStabledPets();
+				player.CheckHomeTown(false);
 			}
 		}
 
@@ -3990,6 +4146,11 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 32:
+					{
+						HomeTown = Town.ReadReference(reader);
+						goto case 31;
+					}
 				case 31:
 					{
 						m_PromoGiftLast = reader.ReadDateTime();
@@ -4350,7 +4511,9 @@ namespace Server.Mobiles
 
 			base.Serialize(writer);
 
-			writer.Write(31); // version
+			writer.Write(32); // version
+
+			Town.WriteReference(writer, HomeTown);
 
 			writer.Write(m_PromoGiftLast);
 
@@ -5229,6 +5392,8 @@ namespace Server.Mobiles
 
 		public override string ApplyNameSuffix(string suffix)
 		{
+			suffix = ApplyTownSuffix(suffix);
+
 			if (Young)
 			{
 				if (suffix.Length == 0)
