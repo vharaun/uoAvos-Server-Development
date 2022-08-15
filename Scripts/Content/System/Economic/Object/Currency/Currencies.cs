@@ -193,7 +193,7 @@ namespace Server.Items
 						item.Amount = Math.Min(60000, remaining);
 					}
 
-					items.Add(item);
+					_ = items.Add(item);
 
 					if (cont.CheckHold(m, item, false, true))
 					{
@@ -325,29 +325,26 @@ namespace Server.Items
 
 			AddNewLine();
 
-			AddEntryHtml(20 + OffsetSize + 100, "Currency");
-			AddEntryHtml(60, "<div align=right>GP %</div>");
+			AddEntryHtml(20 + OffsetSize + 160, "Currency<div align=right>GP %</div>");
 
 			AddEntryHeader(20);
 
-			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_Currencies.Count + 1; ++i, ++line)
+			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i <= m_Currencies.Count; ++i, ++line)
 			{
 				AddNewLine();
 
 				if (i == 0)
 				{
-					AddEntryHtml(20 + OffsetSize + 100, Utility.FriendlyName(Currencies.GoldType));
-					AddEntryHtml(60, $"<div align=right>{1.0:P}</div>");
-
-					AddEntryButton(20, PageRightID1, PageRightID2, 3, PageRightWidth, PageRightHeight);
+					AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(Currencies.GoldType)}<div align=right>{1.0:P}</div>");
 				}
 				else
 				{
-					AddEntryHtml(20 + OffsetSize + 100, Utility.FriendlyName(m_Currencies[i].Type));
-					AddEntryHtml(60, $"<div align=right>{m_Currencies[i].Amount / 100.0:P}</div>");
+					var entry = m_Currencies[i - 1];
 
-					AddEntryButton(20, PageRightID1, PageRightID2, 4 + i, PageRightWidth, PageRightHeight);
+					AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(entry.Type)}<div align=right>{entry.Amount / 100.0:P}</div>");
 				}
+
+				AddEntryButton(20, PageRightID1, PageRightID2, 3 + i, PageRightWidth, PageRightHeight);
 			}
 
 			FinishPage();
@@ -359,7 +356,7 @@ namespace Server.Items
 			{
 				case 0:
 					{
-						m_Player.CloseGump(typeof(SelectCurrencyGump));
+						_ = m_Player.CloseGump(typeof(SelectCurrencyGump));
 
 						return;
 					}
@@ -367,11 +364,11 @@ namespace Server.Items
 					{
 						if (m_Page > 0)
 						{
-							m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page - 1, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page - 1, m_Currencies, m_Callback));
 						}
 						else
 						{
-							m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
 						}
 
 						return;
@@ -380,11 +377,11 @@ namespace Server.Items
 					{
 						if ((m_Page + 1) * EntriesPerPage < m_Currencies.Count)
 						{
-							m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page + 1, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page + 1, m_Currencies, m_Callback));
 						}
 						else
 						{
-							m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
 						}
 
 						return;
@@ -397,11 +394,11 @@ namespace Server.Items
 					}
 			}
 
-			var v = info.ButtonID - 4;
+			var v = info.ButtonID - 3;
 
-			if (v >= 0 && v < m_Currencies.Count)
+			if (v >= 0 && v <= m_Currencies.Count)
 			{
-				m_Callback?.Invoke(m_Player, m_Currencies, m_Currencies[v]);
+				m_Callback?.Invoke(m_Player, m_Currencies, v == 0 ? Currencies.GoldType : m_Currencies[v - 1]);
 			}
 		}
 	}
