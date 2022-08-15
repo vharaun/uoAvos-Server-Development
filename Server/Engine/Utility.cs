@@ -7,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace Server
@@ -68,6 +69,74 @@ namespace Server
 		public static void Intern(ref string str)
 		{
 			str = Intern(str);
+		}
+
+		private static readonly Dictionary<Type, string> m_FriendlyNames = new();
+
+		public static string FriendlyName(Type type)
+		{
+			if (!m_FriendlyNames.TryGetValue(type, out var name))
+			{
+				if (type.IsAssignableTo(typeof(Item)) && Activator.CreateInstance(type) is Item item)
+				{
+					name = item.Name;
+
+					if (String.IsNullOrWhiteSpace(name))
+					{
+						name = StringList.Localization.GetString(item.LabelNumber);
+					}
+
+					item.Delete();
+				}
+
+				if (String.IsNullOrWhiteSpace(name))
+				{
+					name = Regex.Replace(type.Name, @"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))", " $0");
+				}
+
+				if (!String.IsNullOrWhiteSpace(name))
+				{
+					m_FriendlyNames[type] = name;
+				}
+			}
+
+			return name;
+		}
+
+		private static readonly Dictionary<Type, int> m_ItemIDs = new();
+
+		public static int GetDefaultAssetID(Type type)
+		{
+			if (!m_ItemIDs.TryGetValue(type, out var assetID))
+			{
+				assetID = -1;
+
+				if (type.IsAssignableTo(typeof(Item)))
+				{
+					if (Activator.CreateInstance(type) is Item item)
+					{
+						assetID = item.ItemID;
+
+						item.Delete();
+					}
+				}
+				else if (type.IsAssignableTo(typeof(Mobile)))
+				{
+					if (Activator.CreateInstance(type) is Mobile mobile)
+					{
+						assetID = mobile.Body;
+
+						mobile.Delete();
+					}
+				}
+
+				if (assetID >= 0)
+				{
+					m_ItemIDs[type] = assetID;
+				}
+			}
+
+			return assetID;
 		}
 
 		private static Dictionary<IPAddress, IPAddress> _ipAddressTable;

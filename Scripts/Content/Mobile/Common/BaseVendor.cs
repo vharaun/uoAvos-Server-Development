@@ -11,6 +11,7 @@ using Server.Regions;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Server
 {
@@ -314,6 +315,8 @@ namespace Server.Mobiles
 		public BaseVendor(string title)
 			: base(AIType.AI_Vendor, FightMode.None, 2, 1, 0.5, 2)
 		{
+			Currencies = new();
+
 			LoadSBInfo();
 
 			Title = title;
@@ -344,6 +347,12 @@ namespace Server.Mobiles
 		{
 		}
 
+		private Dictionary<Mobile, Type> m_SelectedCurrencies = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Currencies Currencies { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public DateTime LastRestock
 		{
 			get => m_LastRestock;
@@ -714,21 +723,60 @@ namespace Server.Mobiles
 
 		private static readonly TimeSpan InventoryDecayTime = TimeSpan.FromHours(1.0);
 
-		public virtual void VendorBuy(Mobile from)
+		public virtual bool AllowBuy(Mobile from, bool message)
 		{
 			if (!IsActiveSeller)
 			{
-				return;
+				return false;
 			}
 
-			if (!from.CheckAlive())
+			if (!from.CheckAlive(message))
 			{
-				return;
+				return false;
 			}
 
 			if (!CheckVendorAccess(from))
 			{
-				Say(501522); // I shall not treat with scum like thee!
+				if (message)
+				{
+					Say(501522); // I shall not treat with scum like thee!
+				}
+
+				return false;
+			}
+
+			return true;
+		}
+
+		public void VendorBuy(Mobile from)
+		{
+			if (!AllowBuy(from, true))
+			{
+				return;
+			}
+
+			if (from.Player && Currencies.Count > 0 && Currencies.Any(e => e.IsActive))
+			{
+				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				{
+					m_SelectedCurrencies[from] = t;
+
+					OnVendorBuy(from);
+				});
+
+				if (gump != null)
+				{
+					return;
+				}
+			}
+
+			OnVendorBuy(from);
+		}
+		
+		protected virtual void OnVendorBuy(Mobile from)
+		{
+			if (!AllowBuy(from, true))
+			{
 				return;
 			}
 
@@ -736,6 +784,10 @@ namespace Server.Mobiles
 			{
 				Restock();
 			}
+
+			m_SelectedCurrencies.TryGetValue(from, out var currency);
+
+			currency ??= Currencies.GoldType;
 
 			UpdateBuyInfo(from);
 
@@ -762,7 +814,12 @@ namespace Server.Mobiles
 				var gbi = (GenericBuyInfo)buyItem;
 				var disp = gbi.GetDisplayEntity();
 
-				list.Add(new BuyItemState(buyItem.Name, cont.Serial, disp == null ? 0x7FC0FFEE : disp.Serial, buyItem.Price, buyItem.Amount, buyItem.ItemID, buyItem.Hue));
+				if (!Currencies.ConvertGoldToCurrency(buyItem.Price, currency, out var price))
+				{
+					price = buyItem.Price;
+				}
+
+				list.Add(new BuyItemState(buyItem.Name, cont.Serial, disp == null ? 0x7FC0FFEE : disp.Serial, price, buyItem.Amount, buyItem.ItemID, buyItem.Hue));
 				count++;
 
 				if (opls == null)
@@ -816,6 +873,13 @@ namespace Server.Mobiles
 
 				if (name != null && list.Count < 250)
 				{
+					var oldPrice = price;
+
+					if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out price))
+					{
+						price = oldPrice;
+					}
+
 					list.Add(new BuyItemState(name, cont.Serial, item.Serial, price, item.Amount, item.ItemID, item.Hue));
 					count++;
 
@@ -917,23 +981,66 @@ namespace Server.Mobiles
 			from.Send(new EquipUpdate(pack));
 		}
 
-		public virtual void VendorSell(Mobile from)
+		public virtual bool AllowSell(Mobile from, bool message)
 		{
 			if (!IsActiveBuyer)
 			{
-				return;
+				return false;
 			}
 
-			if (!from.CheckAlive())
+			if (!from.CheckAlive(message))
 			{
-				return;
+				return false;
 			}
 
 			if (!CheckVendorAccess(from))
 			{
-				Say(501522); // I shall not treat with scum like thee!
+				if (message)
+				{
+					Say(501522); // I shall not treat with scum like thee!
+				}
+
+				return false;
+			}
+
+			return true;
+		}
+
+		public virtual void VendorSell(Mobile from)
+		{
+			if (!AllowSell(from, true))
+			{
 				return;
 			}
+
+			if (from.Player && Currencies.Count > 0 && Currencies.Any(e => e.IsActive))
+			{
+				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				{
+					m_SelectedCurrencies[from] = t;
+
+					OnVendorSell(from);
+				});
+
+				if (gump != null)
+				{
+					return;
+				}
+			}
+
+			OnVendorSell(from);
+		}
+
+		protected virtual void OnVendorSell(Mobile from)
+		{
+			if (!AllowSell(from, true))
+			{
+				return;
+			}
+
+			m_SelectedCurrencies.TryGetValue(from, out var currency);
+
+			currency ??= Currencies.GoldType;
 
 			var pack = from.Backpack;
 
@@ -963,7 +1070,14 @@ namespace Server.Mobiles
 
 						if (item.IsStandardLoot() && item.Movable && ssi.IsSellable(item))
 						{
-							table.Add(new SellItemState(item, ssi.GetSellPriceFor(item), ssi.GetNameFor(item)));
+							var oldPrice = ssi.GetSellPriceFor(item);
+
+							if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
+							{
+								price = oldPrice;
+							}
+
+							table.Add(new SellItemState(item, price, ssi.GetNameFor(item)));
 						}
 					}
 				}
@@ -1187,25 +1301,21 @@ namespace Server.Mobiles
 
 		public virtual bool OnBuyItems(Mobile buyer, List<BuyItemResponse> list)
 		{
-			if (!IsActiveSeller)
+			if (m_SelectedCurrencies.TryGetValue(buyer, out var currency))
 			{
-				return false;
+				m_SelectedCurrencies.Remove(buyer);
 			}
 
-			if (!buyer.CheckAlive())
-			{
-				return false;
-			}
+			currency ??= Currencies.GoldType;
 
-			if (!CheckVendorAccess(buyer))
+			if (!AllowBuy(buyer, true))
 			{
-				Say(501522); // I shall not treat with scum like thee!
 				return false;
 			}
 
 			UpdateBuyInfo(buyer);
 
-			var buyInfo = GetBuyInfo();
+			//var buyInfo = GetBuyInfo();
 			var info = GetSellInfo();
 			var totalCost = 0;
 			var validBuy = new List<BuyItemResponse>(list.Count);
@@ -1253,7 +1363,14 @@ namespace Server.Mobiles
 							{
 								if (ssi.IsResellable(item))
 								{
-									totalCost += ssi.GetBuyPriceFor(item) * amount;
+									var oldPrice = ssi.GetBuyPriceFor(item);
+
+									if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
+									{
+										price = oldPrice;
+									}
+
+									totalCost += price * amount;
 									validBuy.Add(buy);
 									break;
 								}
@@ -1293,12 +1410,12 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			bought = (buyer.AccessLevel >= AccessLevel.GameMaster);
-
+			bought = buyer.AccessLevel >= AccessLevel.GameMaster;
 			cont = buyer.Backpack;
+
 			if (!bought && cont != null)
 			{
-				if (cont.ConsumeTotal(typeof(Gold), totalCost))
+				if (cont.ConsumeTotal(currency, totalCost))
 				{
 					bought = true;
 				}
@@ -1310,8 +1427,7 @@ namespace Server.Mobiles
 
 			if (!bought && totalCost >= 2000)
 			{
-				cont = buyer.FindBankNoCreate();
-				if (cont != null && cont.ConsumeTotal(typeof(Gold), totalCost))
+				if (Currencies.Withdraw(buyer, currency, totalCost, false))
 				{
 					bought = true;
 					fromBank = true;
@@ -1419,34 +1535,36 @@ namespace Server.Mobiles
 				}
 			}//foreach
 
+			var charged = $"{totalCost:N0} {Utility.FriendlyName(currency)}";
+
 			if (fullPurchase)
 			{
 				if (buyer.AccessLevel >= AccessLevel.GameMaster)
 				{
-					SayTo(buyer, true, "I would not presume to charge thee anything.  Here are the goods you requested.");
+					SayTo(buyer, true, $"I would not presume to charge thee anything, master {buyer.RawName}.  Here are the goods you requested.");
 				}
 				else if (fromBank)
 				{
-					SayTo(buyer, 1151638, totalCost.ToString());//The total of your purchase is ~1_val~ gold, which has been drawn from your bank account.  My thanks for the patronage.
+					SayTo(buyer, true, $"The total of your purchase is {charged}, which has been drawn from your bank account.  My thanks for the patronage.");
 				}
 				else
 				{
-					SayTo(buyer, 1151639, totalCost.ToString());//The total of your purchase is ~1_val~ gold.  My thanks for the patronage.
+					SayTo(buyer, true, $"The total of your purchase is {charged}.  My thanks for the patronage.");
 				}
 			}
 			else
 			{
 				if (buyer.AccessLevel >= AccessLevel.GameMaster)
 				{
-					SayTo(buyer, true, "I would not presume to charge thee anything.  Unfortunately, I could not sell you all the goods you requested.");
+					SayTo(buyer, true, $"I would not presume to charge thee anything, master {buyer.RawName}.  Unfortunately, I could not sell you all the goods you requested.");
 				}
 				else if (fromBank)
 				{
-					SayTo(buyer, true, "The total of thy purchase is {0} gold, which has been withdrawn from your bank account.  My thanks for the patronage.  Unfortunately, I could not sell you all the goods you requested.", totalCost);
+					SayTo(buyer, true, $"The total of thy purchase is {charged}, which has been withdrawn from your bank account.  My thanks for the patronage.  Unfortunately, I could not sell you all the goods you requested.");
 				}
 				else
 				{
-					SayTo(buyer, true, "The total of thy purchase is {0} gold.  My thanks for the patronage.  Unfortunately, I could not sell you all the goods you requested.", totalCost);
+					SayTo(buyer, true, $"The total of thy purchase is {charged}.  My thanks for the patronage.  Unfortunately, I could not sell you all the goods you requested.");
 				}
 			}
 
@@ -1493,19 +1611,15 @@ namespace Server.Mobiles
 
 		public virtual bool OnSellItems(Mobile seller, List<SellItemResponse> list)
 		{
-			if (!IsActiveBuyer)
+			if (m_SelectedCurrencies.TryGetValue(seller, out var currency))
 			{
-				return false;
+				m_SelectedCurrencies.Remove(seller);
 			}
 
-			if (!seller.CheckAlive())
-			{
-				return false;
-			}
+			currency ??= Currencies.GoldType;
 
-			if (!CheckVendorAccess(seller))
+			if (!AllowSell(seller, true))
 			{
-				Say(501522); // I shall not treat with scum like thee!
 				return false;
 			}
 
@@ -1513,13 +1627,13 @@ namespace Server.Mobiles
 
 			var info = GetSellInfo();
 			var buyInfo = GetBuyInfo();
-			var GiveGold = 0;
-			var Sold = 0;
+			var give = 0;
+			var sold = 0;
 			Container cont;
 
 			foreach (var resp in list)
 			{
-				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.IsStandardLoot() || !resp.Item.Movable || (resp.Item is Container && ((Container)resp.Item).Items.Count != 0))
+				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.IsStandardLoot() || !resp.Item.Movable || (resp.Item is Container c && c.Items.Count != 0))
 				{
 					continue;
 				}
@@ -1528,25 +1642,26 @@ namespace Server.Mobiles
 				{
 					if (ssi.IsSellable(resp.Item))
 					{
-						Sold++;
+						sold++;
 						break;
 					}
 				}
 			}
 
-			if (Sold > MaxSell)
+			if (sold > MaxSell)
 			{
-				SayTo(seller, true, "You may only sell {0} items at a time!", MaxSell);
+				SayTo(seller, true, $"You may only sell {MaxSell:N0} items at a time!");
 				return false;
 			}
-			else if (Sold == 0)
+			
+			if (sold == 0)
 			{
 				return true;
 			}
 
 			foreach (var resp in list)
 			{
-				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.IsStandardLoot() || !resp.Item.Movable || (resp.Item is Container && ((Container)resp.Item).Items.Count != 0))
+				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.IsStandardLoot() || !resp.Item.Movable || (resp.Item is Container c && c.Items.Count != 0))
 				{
 					continue;
 				}
@@ -1583,7 +1698,7 @@ namespace Server.Mobiles
 
 								if (amount < resp.Item.Amount)
 								{
-									var item = Mobile.LiftItemDupe(resp.Item, resp.Item.Amount - amount);
+									var item = LiftItemDupe(resp.Item, resp.Item.Amount - amount);
 
 									if (item != null)
 									{
@@ -1615,23 +1730,24 @@ namespace Server.Mobiles
 							}
 						}
 
-						GiveGold += ssi.GetSellPriceFor(resp.Item) * amount;
+						var oldPrice = ssi.GetSellPriceFor(resp.Item);
+
+						if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
+						{
+							price = oldPrice;
+						}
+
+						give += price * amount;
 						break;
 					}
 				}
 			}
 
-			if (GiveGold > 0)
+			if (give > 0)
 			{
-				while (GiveGold > 60000)
-				{
-					seller.AddToBackpack(new Gold(60000));
-					GiveGold -= 60000;
-				}
+				Currencies.Deposit(seller, currency, give, true);
 
-				seller.AddToBackpack(new Gold(GiveGold));
-
-				seller.PlaySound(0x0037);//Gold dropping sound
+				seller.PlaySound(0x0037); //Gold dropping sound
 
 				if (SupportsBulkOrders(seller))
 				{
@@ -1655,7 +1771,9 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(2); // version
+			writer.Write(3); // version
+
+			Currencies.Serialize(writer);
 
 			writer.Write((int)VendorAccessLevel);
 
@@ -1706,6 +1824,11 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 3:
+					{
+						Currencies.Deserialize(reader);
+						goto case 2;
+					}
 				case 2:
 					{
 						m_VendorAccessLevel = (AccessLevel)reader.ReadInt();

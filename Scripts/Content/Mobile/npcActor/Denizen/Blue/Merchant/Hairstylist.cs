@@ -92,7 +92,7 @@ namespace Server.Mobiles
 					{ From, Vendor, Price, false, true, ChangeHairHueEntry.BrightEntries } )
 			};
 
-		public override void VendorBuy(Mobile from)
+		protected override void OnVendorBuy(Mobile from)
 		{
 			from.SendGump(new HairstylistBuyGump(from, this, m_SellList));
 		}
