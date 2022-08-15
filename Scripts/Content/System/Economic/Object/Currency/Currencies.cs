@@ -5,6 +5,7 @@ using Server.Network;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Server.Items
 {
@@ -18,8 +19,19 @@ namespace Server.Items
 	{
 		public static readonly Type GoldType = typeof(Gold);
 
+		/// <summary>
+		/// Defaults be used when constructing a new <see cref="Currencies"/> collection using the default constructor. 
+		/// </summary>
+		public static readonly Currencies DefaultEntries = new();
+
+		/// <summary>
+		/// Limits the maximum value for the exchange rate of any given currency entry in a <see cref="Currencies"/> collection.
+		/// </summary>
+		public const int MaxExchangeRate = 1000;
+
 		public Currencies()
 		{
+			DefaultEntries.CopyTo(this);
 		}
 
 		public Currencies(params TypeAmount[] entries)
@@ -54,10 +66,7 @@ namespace Server.Items
 
 		public override bool Set(Type type, int amount)
 		{
-			if (IsValidType(type) && IndexOf(type) < 0)
-			{
-				amount = 100;
-			}
+			amount = Math.Clamp(amount, 0, MaxExchangeRate);
 
 			return base.Set(type, amount);
 		}
@@ -169,9 +178,16 @@ namespace Server.Items
 
 			if (type == GoldType)
 			{
-				Banker.Deposit(cont, amount);
+				if (m.Player && cont == m.BankBox)
+				{
+					success = Banker.Deposit(m, amount);
+				}
+				else
+				{
+					Banker.Deposit(cont, amount);
 
-				success = true;
+					success = true;
+				}
 			}
 			else if (IndexOf(type) >= 0)
 			{
@@ -265,6 +281,8 @@ namespace Server.Items
 
 		private readonly SelectCurrencyCallback m_Callback;
 
+		private Dictionary<int, Action> m_Handlers;
+
 		public override int BorderSize => 10;
 		public override int OffsetSize => 1;
 
@@ -324,27 +342,27 @@ namespace Server.Items
 			}
 
 			AddNewLine();
-
 			AddEntryHtml(20 + OffsetSize + 160, "Currency<div align=right>GP %</div>");
-
 			AddEntryHeader(20);
 
-			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i <= m_Currencies.Count; ++i, ++line)
+			AddNewLine();
+			AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(Currencies.GoldType)}<div align=right>{1.0:P}</div>");
+			AddEntryButton(20, PageRightID1, PageRightID2, 3, PageRightWidth, PageRightHeight);
+
+			var index = m_Page * EntriesPerPage;
+
+			foreach (var entry in m_Currencies.Where(e => e.IsActive).OrderBy(e => e.Type.Name).Skip(index).Take(EntriesPerPage))
 			{
+				var bid = 4 + index++;
+				var type = entry.Type;
+				var rate = entry.Amount / 100.0;
+
 				AddNewLine();
+				AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(type)}<div align=right>{rate:P}</div>");
+				AddEntryButton(20, PageRightID1, PageRightID2, bid, PageRightWidth, PageRightHeight);
 
-				if (i == 0)
-				{
-					AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(Currencies.GoldType)}<div align=right>{1.0:P}</div>");
-				}
-				else
-				{
-					var entry = m_Currencies[i - 1];
-
-					AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(entry.Type)}<div align=right>{entry.Amount / 100.0:P}</div>");
-				}
-
-				AddEntryButton(20, PageRightID1, PageRightID2, 3 + i, PageRightWidth, PageRightHeight);
+				m_Handlers ??= new();
+				m_Handlers[bid] = () => m_Callback?.Invoke(m_Player, m_Currencies, type);
 			}
 
 			FinishPage();
@@ -394,11 +412,17 @@ namespace Server.Items
 					}
 			}
 
-			var v = info.ButtonID - 3;
-
-			if (v >= 0 && v <= m_Currencies.Count)
+			if (m_Handlers != null)
 			{
-				m_Callback?.Invoke(m_Player, m_Currencies, v == 0 ? Currencies.GoldType : m_Currencies[v - 1]);
+				if (m_Handlers.TryGetValue(info.ButtonID - 4, out var handler))
+				{
+					handler?.Invoke();
+				}
+
+				m_Handlers.Clear();
+				m_Handlers.TrimExcess();
+
+				m_Handlers = null;
 			}
 		}
 	}
