@@ -136,6 +136,10 @@ namespace Server.Items
 					success = bank.ConsumeTotal(type, amount);
 				}
 			}
+			else
+			{
+				return success;
+			}
 
 			if (message)
 			{
@@ -235,6 +239,10 @@ namespace Server.Items
 
 				items.Clear();
 				items.TrimExcess();
+			}
+			else
+			{
+				return success;
 			}
 
 			if (message)

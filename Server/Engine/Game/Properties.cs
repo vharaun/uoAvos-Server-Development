@@ -183,7 +183,13 @@ namespace Server
 
 		public int Count => _Entries.Count;
 
-		[CommandProperty(AccessLevel.GameMaster)]
+		public int ValidCount => _Entries.Count(e => e.IsValid);
+		public int ActiveCount => _Entries.Count(e => e.IsActive);
+
+        public bool HasAnyValid => _Entries.Any(e => e.IsValid);
+        public bool HasAnyActive => _Entries.Any(e => e.IsActive);
+
+        [CommandProperty(AccessLevel.GameMaster)]
 		public virtual string AddTypeByName
 		{
 			get => String.Empty;
@@ -637,6 +643,9 @@ namespace Server
 		public IEnumerable<bool> States => _Entries.Select(e => e.State);
 
 		public int Count => _Entries.Count;
+
+		public int ValidCount => _Entries.Count(e => e.IsValid);
+		public int ActiveCount => _Entries.Count(e => e.IsActive);
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public virtual string AddTypeByName
