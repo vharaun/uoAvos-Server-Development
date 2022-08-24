@@ -448,7 +448,7 @@ namespace Server
 			}
 		}
 
-		//[CommandProperty(AccessLevel.Counselor)]
+		[CommandProperty(AccessLevel.Counselor)]
 		public HashSet<Region> Children { get; private set; }
 
 		[CommandProperty(AccessLevel.Counselor, true)]
@@ -474,6 +474,9 @@ namespace Server
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public MusicName Music { get; set; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public AccessLevel LockdownLevel { get; set; }
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public bool IsDefault => Map?.DefaultRegion == this;
@@ -599,7 +602,7 @@ namespace Server
 
 		public virtual void Serialize(GenericWriter writer)
 		{
-			writer.Write(0);
+			writer.Write(1);
 
 			writer.Write(IsDefault);
 			writer.Write(Registered);
@@ -629,44 +632,54 @@ namespace Server
 			}
 
 			writer.Write(Children);
+
+			writer.Write(LockdownLevel);
 		}
 
 		public virtual void Deserialize(GenericReader reader)
 		{
-			reader.ReadInt();
+			var v = reader.ReadInt();
 
-			var isDefault = reader.ReadBool();
-			var isRegistered = reader.ReadBool();
-
-			m_Name = reader.ReadString();
-
-			Map = reader.ReadMap();
-
-			m_Parent = reader.ReadRegion();
-
-			Dynamic = reader.ReadBool();
-			m_Priority = reader.ReadInt();
-			Music = reader.ReadEnum<MusicName>();
-
-			var count = reader.ReadInt();
-
-			if (count > 0)
+			if (v >= 0)
 			{
-				m_Area = new Poly3D[count];
+				var isDefault = reader.ReadBool();
+				var isRegistered = reader.ReadBool();
 
-				for (var i = 0; i < count; i++)
+				m_Name = reader.ReadString();
+
+				Map = reader.ReadMap();
+
+				m_Parent = reader.ReadRegion();
+
+				Dynamic = reader.ReadBool();
+				m_Priority = reader.ReadInt();
+				Music = reader.ReadEnum<MusicName>();
+
+				var count = reader.ReadInt();
+
+				if (count > 0)
 				{
-					m_Area[i] = reader.ReadPoly3D();
+					m_Area = new Poly3D[count];
+
+					for (var i = 0; i < count; i++)
+					{
+						m_Area[i] = reader.ReadPoly3D();
+					}
+				}
+
+				Children = reader.ReadRegionSet();
+
+				m_RequiresRegistration = Registered = isRegistered;
+
+				if (isDefault && Map != null)
+				{
+					Map.DefaultRegion = this;
 				}
 			}
 
-			Children = reader.ReadRegionSet();
-
-			m_RequiresRegistration = Registered = isRegistered;
-
-			if (isDefault && Map != null)
+			if (v >= 1)
 			{
-				Map.DefaultRegion = this;
+				LockdownLevel = reader.ReadEnum<AccessLevel>();
 			}
 		}
 
@@ -1223,6 +1236,11 @@ namespace Server
 			if (Parent != null)
 			{
 				return Parent.CanEnter(m);
+			}
+
+			if (LockdownLevel > AccessLevel.Player && m.AccessLevel < LockdownLevel)
+			{
+				return false;
 			}
 
 			return true;
