@@ -5026,6 +5026,28 @@ namespace Server.Mobiles
 			return bonus;
 		}
 
+		public Mobile GetRootMaster()
+		{
+			return GetRootMaster<Mobile>();
+		}
+
+		public T GetRootMaster<T>()
+		{
+			var mobile = GetMaster();
+
+			if (mobile is T player)
+			{
+				return player;
+			}
+
+			if (mobile is BaseCreature creature)
+			{
+				return creature.GetRootMaster<T>();
+			}
+
+			return default;
+		}
+
 		public Mobile GetMaster()
 		{
 			if (Controlled && ControlMaster != null)

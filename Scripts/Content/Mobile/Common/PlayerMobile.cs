@@ -3669,6 +3669,11 @@ namespace Server.Mobiles
 				Faction.HandleDeath(this, killer);
 			}
 
+			if (killer is PlayerMobile pk)
+			{
+				Reputation.HandleDeath(this, pk);
+			}
+
 			Server.Guilds.Guild.HandleDeath(this, killer);
 
 			ChainQuestSystem.HandleDeath(this);
@@ -4763,12 +4768,9 @@ namespace Server.Mobiles
 		{
 			base.OnAfterDelete();
 
-			var faction = Faction.Find(this);
+			Faction.HandleDeletion(this);
 
-			if (faction != null)
-			{
-				faction.RemoveMember(this);
-			}
+			Reputation.HandleDeletion(this);
 
 			ChainQuestSystem.HandleDeletion(this);
 

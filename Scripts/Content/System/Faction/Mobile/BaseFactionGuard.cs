@@ -1,4 +1,5 @@
 ﻿using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.Network;
 using Server.Spells;
@@ -16,60 +17,177 @@ using System.Collections.Generic;
 
 namespace Server.Factions
 {
-	public abstract class BaseFactionGuard : BaseCreature
+	public abstract class BaseFactionGuard : BaseGuard
 	{
+		private const int ListenRange = 12;
+
+		private static readonly Type[] m_StrongPotions = new Type[]
+		{
+			typeof( GreaterHealPotion ), typeof( GreaterHealPotion ), typeof( GreaterHealPotion ),
+			typeof( GreaterCurePotion ), typeof( GreaterCurePotion ), typeof( GreaterCurePotion ),
+			typeof( GreaterStrengthPotion ), typeof( GreaterStrengthPotion ),
+			typeof( GreaterAgilityPotion ), typeof( GreaterAgilityPotion ),
+			typeof( TotalRefreshPotion ), typeof( TotalRefreshPotion ),
+			typeof( GreaterExplosionPotion )
+		};
+
+		private static readonly Type[] m_WeakPotions = new Type[]
+		{
+			typeof( HealPotion ), typeof( HealPotion ), typeof( HealPotion ),
+			typeof( CurePotion ), typeof( CurePotion ), typeof( CurePotion ),
+			typeof( StrengthPotion ), typeof( StrengthPotion ),
+			typeof( AgilityPotion ), typeof( AgilityPotion ),
+			typeof( RefreshPotion ), typeof( RefreshPotion ),
+			typeof( ExplosionPotion )
+		};
+
+		public static Item Immovable(Item item)
+		{
+			item.Movable = false;
+
+			return item;
+		}
+
+		public static Item Newbied(Item item)
+		{
+			item.LootType = LootType.Newbied;
+
+			return item;
+		}
+
+		public static Item Rehued(Item item, int hue)
+		{
+			item.Hue = hue;
+
+			return item;
+		}
+
+		public static Item Layered(Item item, Layer layer)
+		{
+			item.Layer = layer;
+
+			return item;
+		}
+
+		public static Item Resourced(BaseWeapon weapon, CraftResource resource)
+		{
+			weapon.Resource = resource;
+
+			return weapon;
+		}
+
+		public static Item Resourced(BaseArmor armor, CraftResource resource)
+		{
+			armor.Resource = resource;
+
+			return armor;
+		}
+
 		private Faction m_Faction;
-		private Town m_Town;
-		private Orders m_Orders;
 
-		public override bool BardImmune => true;
-
-		[CommandProperty(AccessLevel.GameMaster, AccessLevel.Administrator)]
+		[CommandProperty(AccessLevel.GameMaster)]
 		public Faction Faction
 		{
 			get => m_Faction;
-			set { Unregister(); m_Faction = value; Register(); }
-		}
-
-		public Orders Orders => m_Orders;
-
-		[CommandProperty(AccessLevel.GameMaster, AccessLevel.Administrator)]
-		public Town Town
-		{
-			get => m_Town;
-			set { Unregister(); m_Town = value; Register(); }
-		}
-
-		public void Register()
-		{
-			if (m_Town != null && m_Faction != null)
+			set
 			{
-				m_Town.RegisterGuard(this);
+				if (m_Faction != value && OnFactionChanging(value))
+				{
+					var old = m_Faction;
+
+					m_Faction = value;
+
+					OnFactionChanged(old);
+				}
 			}
 		}
 
-		public void Unregister()
-		{
-			if (m_Town != null)
-			{
-				m_Town.UnregisterGuard(this);
-			}
-		}
+		private DateTime m_OrdersEnd;
 
-		public abstract GuardAI GuardAI { get; }
+		public Orders Orders { get; private set; }
+
+		public abstract FactionGuardAIType GuardAI { get; }
 
 		protected override BaseAI ForcedAI => new FactionGuardAI(this);
 
 		public override TimeSpan ReacquireDelay => TimeSpan.FromSeconds(2.0);
 
+		public override bool ClickTitle => false;
+
+		public override bool BardImmune => true;
+
+		public BaseFactionGuard(string title)
+			: base(AIType.AI_Melee, FightMode.Closest, 10, 1, 0.2, 0.4)
+		{
+			Orders = new Orders(this);
+
+			Title = title;
+
+			RangeHome = 6;
+		}
+
+		public BaseFactionGuard(Serial serial)
+			: base(serial)
+		{
+		}
+
+		protected virtual bool OnFactionChanging(Faction newFaction)
+		{
+			return true;
+		}
+
+		protected virtual void OnFactionChanged(Faction oldFaction)
+		{
+			if (Town != null)
+			{
+				Town.UnregisterGuard(this);
+			}
+
+			if (Town != null && Faction != null)
+			{
+				Town.RegisterGuard(this);
+			}
+		}
+
+		protected override void OnTownChanged(Town oldTown)
+		{
+			base.OnTownChanged(oldTown);
+
+			if (oldTown != null)
+			{
+				oldTown.UnregisterGuard(this);
+			}
+
+			if (Town != null && Faction != null)
+			{
+				Town.RegisterGuard(this);
+			}
+		}
+
+		public void Register()
+		{
+			if (Town != null && Faction != null)
+			{
+				Town.RegisterGuard(this);
+			}
+		}
+
+		public void Unregister()
+		{
+			if (Town != null)
+			{
+				Town.UnregisterGuard(this);
+			}
+		}
+
 		public override bool IsEnemy(Mobile m)
 		{
-			var ourFaction = m_Faction;
+			var ourFaction = Faction;
 			var theirFaction = Faction.Find(m);
 
-			if (theirFaction == null && m is BaseFactionGuard)
+			if (theirFaction == null && m is BaseFactionGuard fg)
 			{
-				theirFaction = ((BaseFactionGuard)m).Faction;
+				theirFaction = fg.Faction;
 			}
 
 			if (ourFaction != null && theirFaction != null && ourFaction != theirFaction)
@@ -89,25 +207,20 @@ namespace Server.Factions
 					{
 						var ai = list[i];
 
-						if (ai.Defender is BaseFactionGuard)
+						if (ai.Defender is BaseFactionGuard bf && bf.Faction == ourFaction)
 						{
-							var bf = (BaseFactionGuard)ai.Defender;
-
-							if (bf.Faction == ourFaction)
-							{
-								return true;
-							}
+							return true;
 						}
 					}
 				}
 			}
 
-			return false;
+			return base.IsEnemy(m);
 		}
 
 		public override void OnMovement(Mobile m, Point3D oldLocation)
 		{
-			if (m.Player && m.Alive && InRange(m, 10) && !InRange(oldLocation, 10) && InLOS(m) && m_Orders.GetReaction(Faction.Find(m)).Type == ReactionType.Warn)
+			if (m.Player && m.Alive && InRange(m, 10) && !InRange(oldLocation, 10) && InLOS(m) && Orders.GetReaction(Faction.Find(m)).Type == ReactionType.Warn)
 			{
 				Direction = GetDirectionTo(m);
 
@@ -129,8 +242,6 @@ namespace Server.Factions
 			}
 		}
 
-		private const int ListenRange = 12;
-
 		public override bool HandlesOnSpeech(Mobile from)
 		{
 			if (InRange(from, ListenRange))
@@ -140,8 +251,6 @@ namespace Server.Factions
 
 			return base.HandlesOnSpeech(from);
 		}
-
-		private DateTime m_OrdersEnd;
 
 		private void ChangeReaction(Faction faction, ReactionType type)
 		{
@@ -175,7 +284,7 @@ namespace Server.Factions
 				}
 			}
 
-			m_Orders.SetReaction(faction, type);
+			Orders.SetReaction(faction, type);
 		}
 
 		private bool WasNamed(string speech)
@@ -195,11 +304,11 @@ namespace Server.Factions
 			{
 				if (e.HasKeyword(0xE6) && (Insensitive.Equals(e.Speech, "orders") || WasNamed(e.Speech))) // *orders*
 				{
-					if (m_Town == null || !m_Town.IsSheriff(from))
+					if (Town == null || !Town.IsSheriff(from))
 					{
 						Say(1042189); // I don't work for you!
 					}
-					else if (Town.FromRegion(Region) == m_Town)
+					else if (Town.FromRegion(Region) == Town)
 					{
 						Say(1042180); // Your orders, sire?
 						m_OrdersEnd = DateTime.UtcNow + TimeSpan.FromSeconds(10.0);
@@ -207,12 +316,12 @@ namespace Server.Factions
 				}
 				else if (DateTime.UtcNow < m_OrdersEnd)
 				{
-					if (m_Town != null && m_Town.IsSheriff(from) && Town.FromRegion(Region) == m_Town)
+					if (Town != null && Town.IsSheriff(from) && Town.FromRegion(Region) == Town)
 					{
 						m_OrdersEnd = DateTime.UtcNow + TimeSpan.FromSeconds(10.0);
 
 						var understood = true;
-						ReactionType newType = 0;
+						var newType = ReactionType.Ignore;
 
 						if (Insensitive.Contains(e.Speech, "attack"))
 						{
@@ -238,6 +347,7 @@ namespace Server.Factions
 							if (Insensitive.Contains(e.Speech, "civil"))
 							{
 								ChangeReaction(null, newType);
+
 								understood = true;
 							}
 
@@ -250,6 +360,7 @@ namespace Server.Factions
 								if (faction != m_Faction && Insensitive.Contains(e.Speech, faction.Definition.Keyword))
 								{
 									ChangeReaction(faction, newType);
+
 									understood = true;
 								}
 							}
@@ -259,8 +370,11 @@ namespace Server.Factions
 							Home = Location;
 							RangeHome = 6;
 							Combatant = null;
-							m_Orders.Movement = MovementType.Patrol;
+
+							Orders.Movement = MovementType.Patrol;
+
 							Say(1005146); // This spot looks like it needs protection!  I shall guard it with my life.
+
 							understood = true;
 						}
 						else if (Insensitive.Contains(e.Speech, "follow"))
@@ -268,9 +382,12 @@ namespace Server.Factions
 							Home = Location;
 							RangeHome = 6;
 							Combatant = null;
-							m_Orders.Follow = from;
-							m_Orders.Movement = MovementType.Follow;
+
+							Orders.Follow = from;
+							Orders.Movement = MovementType.Follow;
+
 							Say(1005144); // Yes, Sire.
+
 							understood = true;
 						}
 
@@ -313,26 +430,6 @@ namespace Server.Factions
 			Utility.AssignRandomFacialHair(this, HairHue);
 		}
 
-		private static readonly Type[] m_StrongPotions = new Type[]
-		{
-			typeof( GreaterHealPotion ), typeof( GreaterHealPotion ), typeof( GreaterHealPotion ),
-			typeof( GreaterCurePotion ), typeof( GreaterCurePotion ), typeof( GreaterCurePotion ),
-			typeof( GreaterStrengthPotion ), typeof( GreaterStrengthPotion ),
-			typeof( GreaterAgilityPotion ), typeof( GreaterAgilityPotion ),
-			typeof( TotalRefreshPotion ), typeof( TotalRefreshPotion ),
-			typeof( GreaterExplosionPotion )
-		};
-
-		private static readonly Type[] m_WeakPotions = new Type[]
-		{
-			typeof( HealPotion ), typeof( HealPotion ), typeof( HealPotion ),
-			typeof( CurePotion ), typeof( CurePotion ), typeof( CurePotion ),
-			typeof( StrengthPotion ), typeof( StrengthPotion ),
-			typeof( AgilityPotion ), typeof( AgilityPotion ),
-			typeof( RefreshPotion ), typeof( RefreshPotion ),
-			typeof( ExplosionPotion )
-		};
-
 		public void PackStrongPotions(int min, int max)
 		{
 			PackStrongPotions(Utility.RandomMinMax(min, max));
@@ -369,45 +466,10 @@ namespace Server.Factions
 			PackItem(Loot.Construct(m_WeakPotions));
 		}
 
-		public Item Immovable(Item item)
-		{
-			item.Movable = false;
-			return item;
-		}
-
-		public Item Newbied(Item item)
-		{
-			item.LootType = LootType.Newbied;
-			return item;
-		}
-
-		public Item Rehued(Item item, int hue)
-		{
-			item.Hue = hue;
-			return item;
-		}
-
-		public Item Layered(Item item, Layer layer)
-		{
-			item.Layer = layer;
-			return item;
-		}
-
-		public Item Resourced(BaseWeapon weapon, CraftResource resource)
-		{
-			weapon.Resource = resource;
-			return weapon;
-		}
-
-		public Item Resourced(BaseArmor armor, CraftResource resource)
-		{
-			armor.Resource = resource;
-			return armor;
-		}
-
 		public override void OnAfterDelete()
 		{
 			base.OnAfterDelete();
+
 			Unregister();
 		}
 
@@ -441,20 +503,6 @@ namespace Server.Factions
 			}
 		}
 
-		public override bool ClickTitle => false;
-
-		public BaseFactionGuard(string title) : base(AIType.AI_Melee, FightMode.Closest, 10, 1, 0.2, 0.4)
-		{
-			m_Orders = new Orders(this);
-			Title = title;
-
-			RangeHome = 6;
-		}
-
-		public BaseFactionGuard(Serial serial) : base(serial)
-		{
-		}
-
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);
@@ -462,9 +510,8 @@ namespace Server.Factions
 			writer.Write(0); // version
 
 			Faction.WriteReference(writer, m_Faction);
-			Town.WriteReference(writer, m_Town);
 
-			m_Orders.Serialize(writer);
+			Orders.Serialize(writer);
 		}
 
 		public override void Deserialize(GenericReader reader)
@@ -474,10 +521,10 @@ namespace Server.Factions
 			var version = reader.ReadInt();
 
 			m_Faction = Faction.ReadReference(reader);
-			m_Town = Town.ReadReference(reader);
-			m_Orders = new Orders(this, reader);
 
-			Timer.DelayCall(TimeSpan.Zero, Register);
+			Orders = new Orders(this, reader);
+
+			Timer.DelayCall(Register);
 		}
 	}
 
@@ -505,6 +552,7 @@ namespace Server.Factions
 	public class VirtualMountItem : Item, IMountItem
 	{
 		private Mobile m_Rider;
+
 		private readonly VirtualMount m_Mount;
 
 		public Mobile Rider => m_Rider;
@@ -519,7 +567,8 @@ namespace Server.Factions
 
 		public IMount Mount => m_Mount;
 
-		public VirtualMountItem(Serial serial) : base(serial)
+		public VirtualMountItem(Serial serial) 
+			: base(serial)
 		{
 			m_Mount = new VirtualMount(this);
 		}
@@ -541,7 +590,7 @@ namespace Server.Factions
 
 			m_Rider = reader.ReadMobile();
 
-			if (m_Rider == null)
+			if (m_Rider == null || m_Rider.Deleted)
 			{
 				Delete();
 			}
@@ -549,7 +598,7 @@ namespace Server.Factions
 	}
 
 	/// Faction Mob AI
-	public enum GuardAI
+	public enum FactionGuardAIType
 	{
 		Bless = 0x01, // heal, cure, +stats
 		Curse = 0x02, // poison, -stats
@@ -568,11 +617,13 @@ namespace Server.Factions
 		public TimeSpan Hold => m_Hold;
 		public int Chance => m_Chance;
 
-		public ComboEntry(Type spell) : this(spell, 100, TimeSpan.Zero)
+		public ComboEntry(Type spell) 
+			: this(spell, 100, TimeSpan.Zero)
 		{
 		}
 
-		public ComboEntry(Type spell, int chance) : this(spell, chance, TimeSpan.Zero)
+		public ComboEntry(Type spell, int chance) 
+			: this(spell, chance, TimeSpan.Zero)
 		{
 		}
 
@@ -586,33 +637,25 @@ namespace Server.Factions
 
 	public class SpellCombo
 	{
-		private readonly int m_Mana;
-		private readonly ComboEntry[] m_Entries;
-
-		public int Mana => m_Mana;
-		public ComboEntry[] Entries => m_Entries;
-
-		public SpellCombo(int mana, params ComboEntry[] entries)
-		{
-			m_Mana = mana;
-			m_Entries = entries;
-		}
-
-		public static readonly SpellCombo Simple = new SpellCombo(50,
-			new ComboEntry(typeof(ParalyzeSpell), 20),
-			new ComboEntry(typeof(ExplosionSpell), 100, TimeSpan.FromSeconds(2.8)),
-			new ComboEntry(typeof(PoisonSpell), 30),
-			new ComboEntry(typeof(EnergyBoltSpell))
+		public static readonly SpellCombo Simple = new
+		(
+			50,
+			new(typeof(ParalyzeSpell), 20),
+			new(typeof(ExplosionSpell), 100, TimeSpan.FromSeconds(2.8)),
+			new(typeof(PoisonSpell), 30),
+			new(typeof(EnergyBoltSpell))
 		);
 
-		public static readonly SpellCombo Strong = new SpellCombo(90,
-			new ComboEntry(typeof(ParalyzeSpell), 20),
-			new ComboEntry(typeof(ExplosionSpell), 50, TimeSpan.FromSeconds(2.8)),
-			new ComboEntry(typeof(PoisonSpell), 30),
-			new ComboEntry(typeof(ExplosionSpell), 100, TimeSpan.FromSeconds(2.8)),
-			new ComboEntry(typeof(EnergyBoltSpell)),
-			new ComboEntry(typeof(PoisonSpell), 30),
-			new ComboEntry(typeof(EnergyBoltSpell))
+		public static readonly SpellCombo Strong = new
+		(
+			90,
+			new(typeof(ParalyzeSpell), 20),
+			new(typeof(ExplosionSpell), 50, TimeSpan.FromSeconds(2.8)),
+			new(typeof(PoisonSpell), 30),
+			new(typeof(ExplosionSpell), 100, TimeSpan.FromSeconds(2.8)),
+			new(typeof(EnergyBoltSpell)),
+			new(typeof(PoisonSpell), 30),
+			new(typeof(EnergyBoltSpell))
 		);
 
 		public static Spell Process(Mobile mob, Mobile targ, ref SpellCombo combo, ref int index, ref DateTime releaseTime)
@@ -629,13 +672,27 @@ namespace Server.Factions
 				if (entry.Chance > Utility.Random(100))
 				{
 					releaseTime = DateTime.UtcNow + entry.Hold;
-					return (Spell)Activator.CreateInstance(entry.Spell, new object[] { mob, null });
+
+					return (Spell)Activator.CreateInstance(entry.Spell, mob, null);
 				}
 			}
 
 			combo = null;
 			index = -1;
+
 			return null;
+		}
+
+		private readonly int m_Mana;
+		private readonly ComboEntry[] m_Entries;
+
+		public int Mana => m_Mana;
+		public ComboEntry[] Entries => m_Entries;
+
+		public SpellCombo(int mana, params ComboEntry[] entries)
+		{
+			m_Mana = mana;
+			m_Entries = entries;
 		}
 	}
 
@@ -652,7 +709,7 @@ namespace Server.Factions
 
 		private const int ManaReserve = 30;
 
-		public bool IsAllowed(GuardAI flag)
+		public bool IsAllowed(FactionGuardAIType flag)
 		{
 			return ((m_Guard.GuardAI & flag) == flag);
 		}
@@ -1195,7 +1252,7 @@ namespace Server.Factions
 
 					if (p != Poison.Lesser || ts == TimeSpan.MaxValue || TimeUntilBandage < TimeSpan.FromSeconds(1.5) || (m_Guard.HitsMax - m_Guard.Hits) > Utility.Random(250))
 					{
-						if (IsAllowed(GuardAI.Bless))
+						if (IsAllowed(FactionGuardAIType.Bless))
 						{
 							spell = new CureSpell(m_Guard, null);
 						}
@@ -1207,11 +1264,11 @@ namespace Server.Factions
 				}
 				else if (IsDamaged && (m_Guard.HitsMax - m_Guard.Hits) > Utility.Random(200))
 				{
-					if (IsAllowed(GuardAI.Magic) && ((m_Guard.Hits * 100) / Math.Max(m_Guard.HitsMax, 1)) < 10 && m_Guard.Home != Point3D.Zero && !Utility.InRange(m_Guard.Location, m_Guard.Home, 15) && m_Guard.Mana >= 11)
+					if (IsAllowed(FactionGuardAIType.Magic) && ((m_Guard.Hits * 100) / Math.Max(m_Guard.HitsMax, 1)) < 10 && m_Guard.Home != Point3D.Zero && !Utility.InRange(m_Guard.Location, m_Guard.Home, 15) && m_Guard.Mana >= 11)
 					{
 						spell = new RecallSpell(m_Guard, null, new RunebookEntry(m_Guard.Home, m_Guard.Map, "Guard's Home", null), null);
 					}
-					else if (IsAllowed(GuardAI.Bless))
+					else if (IsAllowed(FactionGuardAIType.Bless))
 					{
 						if (m_Guard.Mana >= 11 && (m_Guard.Hits + 30) < m_Guard.HitsMax)
 						{
@@ -1227,7 +1284,7 @@ namespace Server.Factions
 						UseItemByType(typeof(BaseHealPotion));
 					}
 				}
-				else if (dispelTarget != null && (IsAllowed(GuardAI.Magic) || IsAllowed(GuardAI.Bless) || IsAllowed(GuardAI.Curse)))
+				else if (dispelTarget != null && (IsAllowed(FactionGuardAIType.Magic) || IsAllowed(FactionGuardAIType.Bless) || IsAllowed(FactionGuardAIType.Curse)))
 				{
 					if (!dispelTarget.Paralyzed && m_Guard.Mana > (ManaReserve + 20) && 40 > Utility.Random(100))
 					{
@@ -1253,11 +1310,11 @@ namespace Server.Factions
 							m_ComboIndex = -1;
 						}
 					}
-					else if (20 > Utility.Random(100) && IsAllowed(GuardAI.Magic))
+					else if (20 > Utility.Random(100) && IsAllowed(FactionGuardAIType.Magic))
 					{
 						if (80 > Utility.Random(100))
 						{
-							m_Combo = (IsAllowed(GuardAI.Smart) ? SpellCombo.Simple : SpellCombo.Strong);
+							m_Combo = (IsAllowed(FactionGuardAIType.Smart) ? SpellCombo.Simple : SpellCombo.Strong);
 							m_ComboIndex = -1;
 
 							if (m_Guard.Mana >= (ManaReserve + m_Combo.Mana))
@@ -1293,17 +1350,17 @@ namespace Server.Factions
 							types.Add(typeof(StrengthSpell));
 						}
 
-						if (dexMod <= 0 && IsAllowed(GuardAI.Melee))
+						if (dexMod <= 0 && IsAllowed(FactionGuardAIType.Melee))
 						{
 							types.Add(typeof(AgilitySpell));
 						}
 
-						if (intMod <= 0 && IsAllowed(GuardAI.Magic))
+						if (intMod <= 0 && IsAllowed(FactionGuardAIType.Magic))
 						{
 							types.Add(typeof(CunningSpell));
 						}
 
-						if (IsAllowed(GuardAI.Bless))
+						if (IsAllowed(FactionGuardAIType.Bless))
 						{
 							if (types.Count > 1)
 							{
@@ -1327,7 +1384,7 @@ namespace Server.Factions
 						}
 					}
 
-					if (spell == null && 2 > Utility.Random(100) && m_Guard.Mana >= (ManaReserve + 10) && IsAllowed(GuardAI.Curse))
+					if (spell == null && 2 > Utility.Random(100) && m_Guard.Mana >= (ManaReserve + 10) && IsAllowed(FactionGuardAIType.Curse))
 					{
 						if (!combatant.Poisoned && 40 > Utility.Random(100))
 						{
@@ -1346,12 +1403,12 @@ namespace Server.Factions
 								types.Add(typeof(WeakenSpell));
 							}
 
-							if (dexMod >= 0 && IsAllowed(GuardAI.Melee))
+							if (dexMod >= 0 && IsAllowed(FactionGuardAIType.Melee))
 							{
 								types.Add(typeof(ClumsySpell));
 							}
 
-							if (intMod >= 0 && IsAllowed(GuardAI.Magic))
+							if (intMod >= 0 && IsAllowed(FactionGuardAIType.Magic))
 							{
 								types.Add(typeof(FeeblemindSpell));
 							}
@@ -1409,7 +1466,7 @@ namespace Server.Factions
 						}
 					}
 				}
-				else if (spell == null && m_Guard.Stam < (m_Guard.StamMax / 3) && IsAllowed(GuardAI.Melee))
+				else if (spell == null && m_Guard.Stam < (m_Guard.StamMax / 3) && IsAllowed(FactionGuardAIType.Melee))
 				{
 					UseItemByType(typeof(BaseRefreshPotion));
 				}

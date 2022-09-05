@@ -216,7 +216,22 @@ namespace Server.Mobiles
 		{
 		}
 
+		private Town m_HomeTown;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Town HomeTown
+		{
+			get => m_HomeTown ?? Town.FromRegion(Region);
+			set
+			{
+				m_HomeTown = value;
+
+				InvalidateProperties();
+			}
+		}
+
 		#region Faction
+
 		public virtual int GetPriceScalar(Mobile buyer)
 		{
 			var scalar = 100;
@@ -226,7 +241,7 @@ namespace Server.Mobiles
 				scalar -= NpcGuildInfo.VendorDiscount;
 			}
 
-			var town = Town.FromRegion(Region);
+			var town = HomeTown;
 
 			if (town != null)
 			{
@@ -1553,11 +1568,13 @@ namespace Server.Mobiles
 			if (from.AccessLevel < m_VendorAccessLevel)
 			{
 				from.SendMessage("You can't trade with this vendor");
+
 				SayTo(from, true, "My apologies, I cannot sell to you at this time");
+
 				return false;
 			}
 
-			var reg = (GuardedRegion)Region.GetRegion(typeof(GuardedRegion));
+			var reg = Region.GetRegion<GuardedRegion>();
 
 			if (reg != null && !reg.CheckVendorAccess(this, from))
 			{
@@ -1566,12 +1583,18 @@ namespace Server.Mobiles
 
 			if (Region != from.Region)
 			{
-				reg = (GuardedRegion)from.Region.GetRegion(typeof(GuardedRegion));
+				reg = from.Region.GetRegion<GuardedRegion>();
 
 				if (reg != null && !reg.CheckVendorAccess(this, from))
 				{
 					return false;
 				}
+			}
+
+			var town = HomeTown;
+
+			if (town != null)
+			{
 			}
 
 			return true;
@@ -1759,7 +1782,9 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(3); // version
+			writer.Write(4); // version
+
+			Town.WriteReference(writer, m_HomeTown);
 
 			Currencies.Serialize(writer);
 
@@ -1812,6 +1837,11 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 4:
+					{
+						m_HomeTown = Town.ReadReference(reader);
+						goto case 3;
+					}
 				case 3:
 					{
 						Currencies.Deserialize(reader);

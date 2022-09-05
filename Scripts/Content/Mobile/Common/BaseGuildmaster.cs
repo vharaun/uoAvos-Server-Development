@@ -1,6 +1,8 @@
 ﻿using Server.Commands;
 using Server.Commands.Generic;
+using Server.Factions;
 using Server.Items;
+using Server.Misc;
 using Server.Network;
 
 using System;
@@ -298,6 +300,16 @@ namespace Server.Mobiles
 			return None;
 		}
 
+		public static void WriteReference(GenericWriter writer, NpcGuildInfo guild)
+		{
+			writer.Write(guild?.Guild ?? NpcGuild.None);
+		}
+
+		public static NpcGuildInfo ReadReference(GenericReader reader)
+		{
+			return Find(reader.ReadEnum<NpcGuild>());
+		}
+
 		private static void OnSave(WorldSaveEventArgs e)
 		{
 			Persistence.Serialize(FilePath, OnSerialize);
@@ -359,6 +371,8 @@ namespace Server.Mobiles
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public int VendorDiscount { get => m_VendorDiscount; set => m_VendorDiscount = Math.Clamp(value, 0, 100); }
 
+		public NpcGuildReputationDefinition Reputation { get; }
+
 		private NpcGuildInfo(NpcGuild guild)
 		{
 			Guild = guild;
@@ -367,6 +381,8 @@ namespace Server.Mobiles
 			{
 				m_VendorDiscount = 10;
 			}
+
+			Reputation = new(this, Name); 
 		}
 
 		public override string ToString()
@@ -387,6 +403,13 @@ namespace Server.Mobiles
 
 			m_VendorDiscount = reader.ReadEncodedInt();
 		}
+	}
+
+	public class NpcGuildReputationDefinition : ReputationDefinition<NpcGuildInfo>
+	{
+		public NpcGuildReputationDefinition(NpcGuildInfo owner, string name, params int[] levels)
+			: base(owner, ReputationCategory.Vendors, name, levels)
+		{ }
 	}
 
 	#endregion

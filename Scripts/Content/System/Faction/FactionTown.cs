@@ -1,4 +1,6 @@
-﻿namespace Server.Factions
+﻿using System;
+
+namespace Server.Factions
 {
 	public class Britain : Town
 	{
@@ -17,8 +19,10 @@
 					new TextDefinition(1041413, "Faction Town Stone of Britain"),
 					new TextDefinition(1041395, "Faction Town Sigil of Britain"),
 					new TextDefinition(1041386, "Corrupted Faction Town Sigil of Britain"),
-					new Point3D(1592, 1680, 10),    // Town Sigil Location
-					new Point3D(1588, 1676, 10));   // Town Stone Location
+					new Point3D(1592, 1680, 10), // Town Sigil Location
+					new Point3D(1588, 1676, 10), // Town Stone Location
+					new TownReputationDefinition(this, "Britain Township")
+				);
 		}
 	}
 
@@ -39,8 +43,10 @@
 					new TextDefinition(1041420, "Faction Town Stone of Magincia"),
 					new TextDefinition(1041402, "Faction Town Sigil of Magincia"),
 					new TextDefinition(1041393, "Corrupted Faction Town Sigil of Magincia"),
-					new Point3D(3714, 2235, 20),    // Town Sigil Location
-					new Point3D(3712, 2230, 20));   // Town Stone Location
+					new Point3D(3714, 2235, 20), // Town Sigil Location
+					new Point3D(3712, 2230, 20), // Town Stone Location
+					new TownReputationDefinition(this, "Magincia Township")
+				);
 		}
 	}
 
@@ -61,8 +67,10 @@
 					new TextDefinition(1041415, "Faction Town Stone of Minoc"),
 					new TextDefinition(1041397, "Faction Town Sigil of Minoc"),
 					new TextDefinition(1041388, "Corrupted Faction Town Sigil of Minoc"),
-					new Point3D(2471, 439, 15),     // Town Sigil Location
-					new Point3D(2469, 445, 15));    // Town Stone Location
+					new Point3D(2471, 439, 15), // Town Sigil Location
+					new Point3D(2469, 445, 15), // Town Stone Location
+					new TownReputationDefinition(this, "Minoc Township")
+				);
 		}
 	}
 
@@ -83,8 +91,10 @@
 					new TextDefinition(1041416, "Faction Town Stone of Moonglow"),
 					new TextDefinition(1041398, "Faction Town Sigil of Moonglow"),
 					new TextDefinition(1041389, "Corrupted Faction Town Sigil of Moonglow"),
-					new Point3D(4436, 1083, 0),     // Town Sigil Location
-					new Point3D(4432, 1086, 0));    // Town Stone Location
+					new Point3D(4436, 1083, 0), // Town Sigil Location
+					new Point3D(4432, 1086, 0), // Town Stone Location
+					new TownReputationDefinition(this, "Moonglow Township")
+				);
 		}
 	}
 
@@ -105,8 +115,10 @@
 					new TextDefinition(1041419, "Faction Town Stone of Skara Brae"),
 					new TextDefinition(1041401, "Faction Town Sigil of Skara Brae"),
 					new TextDefinition(1041392, "Corrupted Faction Town Sigil of Skara Brae"),
-					new Point3D(576, 2200, 0),      // Town Sigil Location
-					new Point3D(572, 2196, 0));     // Town Stone Location
+					new Point3D(576, 2200, 0), // Town Sigil Location
+					new Point3D(572, 2196, 0), // Town Stone Location
+					new TownReputationDefinition(this, "Skara Brae Township")
+				);
 		}
 	}
 
@@ -127,8 +139,10 @@
 					new TextDefinition(1041414, "Faction Town Stone of Trinsic"),
 					new TextDefinition(1041396, "Faction Town Sigil of Trinsic"),
 					new TextDefinition(1041387, "Corrupted Faction Town Sigil of Trinsic"),
-					new Point3D(1914, 2717, 20),    // Town Sigil Location
-					new Point3D(1909, 2720, 20));   // Town Stone Location
+					new Point3D(1914, 2717, 20), // Town Sigil Location
+					new Point3D(1909, 2720, 20), // Town Stone Location
+					new TownReputationDefinition(this, "Trinsic Township")
+				);
 		}
 	}
 
@@ -149,8 +163,10 @@
 					new TextDefinition(1041418, "Faction Town Stone of Vesper"),
 					new TextDefinition(1041400, "Faction Town Sigil of Vesper"),
 					new TextDefinition(1041391, "Corrupted Faction Town Sigil of Vesper"),
-					new Point3D(2982, 818, 0),      // Town Sigil Location
-					new Point3D(2985, 821, 0));     // Town Stone Location
+					new Point3D(2982, 818, 0), // Town Sigil Location
+					new Point3D(2985, 821, 0), // Town Stone Location
+					new TownReputationDefinition(this, "Vesper Township")
+				);
 		}
 	}
 
@@ -171,8 +187,10 @@
 					new TextDefinition(1041417, "Faction Town Stone of Yew"),
 					new TextDefinition(1041399, "Faction Town Sigil of Yew"),
 					new TextDefinition(1041390, "Corrupted Faction Town Sigil of Yew"),
-					new Point3D(548, 979, 0),       // Town Sigil Location
-					new Point3D(542, 980, 0));      // Town Stone Location
+					new Point3D(548, 979, 0), // Town Sigil Location
+					new Point3D(542, 980, 0), // Town Stone Location
+					new TownReputationDefinition(this, "Yew Township")
+				);
 		}
 	}
 }
