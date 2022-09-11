@@ -16,6 +16,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 
 namespace Server.Misc
 {
@@ -875,6 +876,18 @@ namespace Server.Misc
 			}
 		}
 
+		public static int DeltaPoints(PlayerMobile player, Mobile target, int delta, bool message)
+		{
+			var points = 0;
+
+			foreach (var definition in GetDefinitions(target))
+			{
+				points += Reputation.DeltaPoints(player, definition, delta, message);
+			}
+
+			return points;
+		}
+
 		public static int DeltaPoints(PlayerMobile player, ReputationDefinition definition, int delta, bool message)
 		{
 			return definition?.DeltaPoints(player, delta, message) ?? 0;
@@ -976,14 +989,14 @@ namespace Server.Misc
 			{
 				if (creature.ControlMaster != null)
 				{
-					foreach (var def in GetDefinitions<T>(creature.ControlMaster))
+					foreach (var def in InternalGetDefinitions<T>(creature.ControlMaster))
 					{
 						yield return def;
 					}
 				}
 				else if (creature.SummonMaster != null)
 				{
-					foreach (var def in GetDefinitions<T>(creature.SummonMaster))
+					foreach (var def in InternalGetDefinitions<T>(creature.SummonMaster))
 					{
 						yield return def;
 					}
@@ -1076,6 +1089,11 @@ namespace Server.Misc
 			return ComputeNotoriety(source, target) == Notoriety.Ally;
 		}
 
+		public static bool IsNeutral(Mobile source, Mobile target)
+		{
+			return ComputeNotoriety(source, target) <= 0;
+		}
+
 		public static int ComputeNotoriety(Mobile source, Mobile target)
 		{
 			var enemies = 0;
@@ -1093,6 +1111,18 @@ namespace Server.Misc
 				}
 			}
 
+			foreach (var rep in Reputation.GetDefinitions(target))
+			{
+				if (rep.IsEnemy(source))
+				{
+					++enemies;
+				}
+				else if (rep.IsAlly(source))
+				{
+					++allies;
+				}
+			}
+
 			if (enemies > allies)
 			{
 				return Notoriety.Enemy;
@@ -1104,6 +1134,28 @@ namespace Server.Misc
 			}
 
 			return -1;
+		}
+
+		public static void AddProperties(Mobile source, ObjectPropertyList list)
+		{
+			StringBuilder sb = null;
+
+			foreach (var rep in GetDefinitions(source))
+			{
+				var title = rep.Name;
+
+				if (!String.IsNullOrWhiteSpace(title))
+				{
+					sb ??= new();
+
+					sb.AppendLine(title);
+				}
+			}
+
+			if (sb?.Length > 0)
+			{
+				list.Add(1114057, sb.ToString()); // ~1_val~
+			}
 		}
 
 		public static void WriteReference(GenericWriter writer, ReputationDefinition definition)

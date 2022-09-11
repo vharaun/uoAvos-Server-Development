@@ -4816,6 +4816,8 @@ namespace Server.Mobiles
 				}
 			}
 
+			Reputation.AddProperties(this, list);
+
 			if (Core.ML)
 			{
 				for (var i = AllFollowers.Count - 1; i >= 0; i--)

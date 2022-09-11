@@ -10,15 +10,9 @@ namespace Server.Mobiles
 		public WarriorGuard()
 			: base(AIType.AI_Melee, FightMode.Weakest, 18, 1, 0.1, 0.2)
 		{
-			InitStats(1000, 1000, 1000);
+			InitStats(125, 100, 25);
 
-			Skills[SkillName.Anatomy].Base = 120.0;
-			Skills[SkillName.Tactics].Base = 120.0;
 			Skills[SkillName.Swords].Base = 120.0;
-			Skills[SkillName.MagicResist].Base = 120.0;
-			Skills[SkillName.DetectHidden].Base = 100.0;
-
-			NextCombatTime = Core.TickCount + 500;
 
 			if (Female)
 			{
@@ -51,21 +45,20 @@ namespace Server.Mobiles
 				}
 			}
 
-			AddItem(new Halberd
+			if (Utility.RandomBool())
 			{
-				Movable = false,
-				Crafter = this,
-				Quality = WeaponQuality.Exceptional
-			});
-
-			var pack = new Backpack 
+				AddItem(new Halberd
+				{
+					Quality = WeaponQuality.Exceptional
+				});
+			}
+			else
 			{
-				Movable = false
-			};
-
-			pack.DropItem(new Gold(10, 25));
-
-			AddItem(pack);
+				AddItem(new Bardiche
+				{
+					Quality = WeaponQuality.Exceptional
+				});
+			}
 		}
 
 		public WarriorGuard(Serial serial) 

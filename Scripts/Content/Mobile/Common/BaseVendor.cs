@@ -230,8 +230,6 @@ namespace Server.Mobiles
 			}
 		}
 
-		#region Faction
-
 		public virtual int GetPriceScalar(Mobile buyer)
 		{
 			var scalar = 100;
@@ -265,7 +263,6 @@ namespace Server.Mobiles
 				}
 			}
 		}
-		#endregion
 
 		private class BulkOrderInfoEntry : ContextMenuEntry
 		{

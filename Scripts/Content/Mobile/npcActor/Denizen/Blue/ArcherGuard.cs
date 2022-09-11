@@ -12,15 +12,7 @@ namespace Server.Mobiles
 		{
 			InitStats(100, 125, 25);
 
-			Skills[SkillName.Anatomy].Base = 120.0;
-			Skills[SkillName.Tactics].Base = 120.0;
 			Skills[SkillName.Archery].Base = 120.0;
-			Skills[SkillName.MagicResist].Base = 120.0;
-			Skills[SkillName.DetectHidden].Base = 100.0;
-
-			NextCombatTime = Core.TickCount + 500;
-
-			new Horse().Rider = this;
 
 			AddItem(new StuddedChest());
 			AddItem(new StuddedArms());
@@ -30,24 +22,35 @@ namespace Server.Mobiles
 			AddItem(new Boots());
 			AddItem(new SkullCap());
 
-			AddItem(new Bow 
-			{
-				Movable = false,
-				Crafter = this,
-				Quality = WeaponQuality.Exceptional
-			});
-
-			var pack = new Backpack 
+			var pack = Backpack ?? new Backpack 
 			{
 				Movable = false
 			};
 
-			pack.DropItem(new Arrow(250) 
+			if (Utility.RandomBool())
 			{
-				LootType = LootType.Newbied
-			});
+				AddItem(new Bow
+				{
+					Quality = WeaponQuality.Exceptional
+				});
 
-			pack.DropItem(new Gold(10, 25));
+				pack.DropItem(new Arrow(250)
+				{
+					LootType = LootType.Blessed
+				});
+			}
+			else
+			{
+				AddItem(new Crossbow
+				{
+					Quality = WeaponQuality.Exceptional
+				});
+
+				pack.DropItem(new Bolt(250)
+				{
+					LootType = LootType.Blessed
+				});
+			}
 
 			AddItem(pack);
 		}

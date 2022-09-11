@@ -1264,14 +1264,6 @@ namespace Server
 		{
 		}
 
-		public virtual void MakeGuard(Mobile focus)
-		{
-			if (Parent != null)
-			{
-				Parent.MakeGuard(focus);
-			}
-		}
-
 		public virtual Type GetResource(Type type)
 		{
 			if (Parent != null)

@@ -209,7 +209,7 @@ namespace Server.Mobiles
 		private AIType m_CurrentAI;             // The current AI
 		private AIType m_DefaultAI;             // The default AI
 
-		private Mobile m_FocusMob;              // Use focus mob instead of combatant, maybe we don't whan to fight
+		protected Mobile m_FocusMob;              // Use focus mob instead of combatant, maybe we don't whan to fight
 		private FightMode m_FightMode;          // The style the mob uses
 
 		private int m_iRangePerception;         // The view area
@@ -2727,7 +2727,7 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public Mobile FocusMob
+		public virtual Mobile FocusMob
 		{
 			get => m_FocusMob;
 			set => m_FocusMob = value;
@@ -4844,6 +4844,13 @@ namespace Server.Mobiles
 		public override void AddNameProperties(ObjectPropertyList list)
 		{
 			base.AddNameProperties(list);
+
+			Reputation.AddProperties(this, list);
+		}
+
+		public override void GetProperties(ObjectPropertyList list)
+		{
+			base.GetProperties(list);
 
 			if (ChainQuestSystem.Enabled && CanGiveChainQuest)
 			{

@@ -74,11 +74,10 @@ namespace Server.Mobiles
 				}
 			}
 
-			var result = new List<ChainQuest> {
+			return new List<ChainQuest> 
+			{
 				m_ChainQuest
 			};
-
-			return result;
 		}
 
 		public override bool CanShout => (!Controlled && !IsBeingDeleted);
@@ -109,8 +108,12 @@ namespace Server.Mobiles
 		[CommandProperty(AccessLevel.GameMaster)]
 		public string Destination
 		{
-			get => m_Destination == null ? null : m_Destination.Name;
-			set { m_DestinationString = value; m_Destination = EDI.Find(value); }
+			get => m_Destination?.Name;
+			set
+			{
+				m_DestinationString = value;
+				m_Destination = EDI.Find(value);
+			}
 		}
 
 		// Classic list
@@ -226,11 +229,14 @@ namespace Server.Mobiles
 			if (escorter == null)
 			{
 				Say("I am looking to go to {0}, will you take me?", (dest.Name == "Ocllo" && m.Map == Map.Trammel) ? "Haven" : dest.Name);
+				
 				return true;
 			}
-			else if (escorter == m)
+			
+			if (escorter == m)
 			{
 				Say("Lead on! Payment will be made when we arrive in {0}.", (dest.Name == "Ocllo" && m.Map == Map.Trammel) ? "Haven" : dest.Name);
+				
 				return true;
 			}
 
@@ -262,27 +268,34 @@ namespace Server.Mobiles
 			if (escortable != null && !escortable.Deleted && escortable.GetEscorter() == m)
 			{
 				Say("I see you already have an escort.");
+				
 				return false;
 			}
-			else if (m is PlayerMobile && (((PlayerMobile)m).LastEscortTime + EscortDelay) >= DateTime.UtcNow)
+			
+			if (m is PlayerMobile pm && pm.LastEscortTime + EscortDelay >= DateTime.UtcNow)
 			{
-				var minutes = (int)Math.Ceiling(((((PlayerMobile)m).LastEscortTime + EscortDelay) - DateTime.UtcNow).TotalMinutes);
+				var minutes = (int)Math.Ceiling(((pm.LastEscortTime + EscortDelay) - DateTime.UtcNow).TotalMinutes);
 
 				Say("You must rest {0} minute{1} before we set out on this journey.", minutes, minutes == 1 ? "" : "s");
+				
 				return false;
 			}
-			else if (SetControlMaster(m))
+			
+			if (SetControlMaster(m))
 			{
 				m_LastSeenEscorter = DateTime.UtcNow;
 
-				if (m is PlayerMobile pm)
+				if (m is PlayerMobile p)
 				{
-					pm.LastEscortTime = DateTime.UtcNow;
+					p.LastEscortTime = DateTime.UtcNow;
 				}
 
 				Say("Lead on! Payment will be made when we arrive in {0}.", (dest.Name == "Ocllo" && m.Map == Map.Trammel) ? "Haven" : dest.Name);
+				
 				m_EscortTable[m] = this;
+				
 				StartFollow();
+				
 				return true;
 			}
 
@@ -377,6 +390,7 @@ namespace Server.Mobiles
 			{
 				CantWalk = false;
 			}
+
 			CurrentSpeed = 0.1;
 		}
 
@@ -482,12 +496,7 @@ namespace Server.Mobiles
 				m_Destination = null;
 				m_DestinationString = null;
 
-				var cont = escorter.Backpack;
-
-				if (cont == null)
-				{
-					cont = escorter.BankBox;
-				}
+				var cont = escorter.Backpack ?? escorter.BankBox;				
 
 				var gold = new Gold(500, 1000);
 
@@ -498,7 +507,9 @@ namespace Server.Mobiles
 
 				StopFollow();
 				SetControlMaster(null);
+
 				m_EscortTable.Remove(escorter);
+
 				BeginDelete();
 
 				Misc.Titles.AwardFame(escorter, 10, true);
@@ -507,6 +518,8 @@ namespace Server.Mobiles
 
 				if (escorter is PlayerMobile pm)
 				{
+					Misc.Reputation.DeltaPoints(pm, this, 10, true);
+
 					if (pm.CompassionGains > 0 && DateTime.UtcNow > pm.NextCompassionDay)
 					{
 						pm.NextCompassionDay = DateTime.MinValue;
@@ -529,9 +542,8 @@ namespace Server.Mobiles
 						}
 
 						pm.NextCompassionDay = DateTime.UtcNow + TimeSpan.FromDays(1.0); // in one day CompassionGains gets reset to 0
-						++pm.CompassionGains;
 
-						if (pm.CompassionGains >= 5)
+						if (++pm.CompassionGains >= 5)
 						{
 							pm.SendLocalizedMessage(1053004); // You must wait about a day before you can gain in compassion again.
 						}
@@ -616,7 +628,7 @@ namespace Server.Mobiles
 
 		public override bool CanBeRenamedBy(Mobile from)
 		{
-			return (from.AccessLevel >= AccessLevel.GameMaster);
+			return from.AccessLevel >= AccessLevel.GameMaster;
 		}
 
 		public override void AddCustomContextEntries(Mobile from, List<ContextMenuEntry> list)
@@ -653,10 +665,8 @@ namespace Server.Mobiles
 			{
 				return m_TownNames;
 			}
-			else
-			{
-				return m_MLTownNames;
-			}
+			
+			return m_MLTownNames;
 		}
 
 		public virtual string PickRandomDestination()
@@ -667,11 +677,13 @@ namespace Server.Mobiles
 			}
 
 			var possible = GetPossibleDestinations();
+
 			string picked = null;
 
 			while (picked == null)
 			{
 				picked = possible[Utility.Random(possible.Length)];
+
 				var test = EDI.Find(picked);
 
 				if (test != null && test.Contains(Location))
@@ -702,10 +714,10 @@ namespace Server.Mobiles
 
 			if (Map.Felucca.Regions.Count > 0)
 			{
-				return (m_Destination = EDI.Find(m_DestinationString));
+				return m_Destination = EDI.Find(m_DestinationString);
 			}
 
-			return (m_Destination = null);
+			return m_Destination = null;
 		}
 
 		private class DeleteTimer : Timer
@@ -734,13 +746,8 @@ namespace Server.Mobiles
 		//private Rectangle2D[] m_Bounds;
 
 		public string Name => m_Name;
-
 		public Region Region => m_Region;
-
-		/*public Rectangle2D[] Bounds
-		{
-			get{ return m_Bounds; }
-		}*/
+		//public Rectangle2D[] Bounds => m_Bounds;
 
 		public bool Contains(Point3D p)
 		{

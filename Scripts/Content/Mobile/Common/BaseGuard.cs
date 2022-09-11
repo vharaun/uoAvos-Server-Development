@@ -1,6 +1,8 @@
 ﻿using Server.Factions;
 using Server.Guilds;
 using Server.Items;
+using Server.Regions;
+using Server.Targeting;
 
 using System;
 
@@ -25,22 +27,34 @@ namespace Server.Mobiles
 			{
 				if (m is BaseGuard g)
 				{
-					if (g.Focus == null) // idling
+					if (g.FocusMob == null) // idling
 					{
-						g.Focus = target;
+						g.FocusMob = target;
 
 						--amount;
 					}
-					else if (g.Focus == target && !onlyAdditional)
+					else if (g.FocusMob == target && !onlyAdditional)
 					{
 						--amount;
 					}
 				}
 			}
 
+			if (amount <= 0)
+			{
+				return;
+			}
+
+			var gr = caller.Region.GetRegion<GuardedRegion>();
+
 			while (--amount >= 0)
 			{
-				caller.Region.MakeGuard(target);
+				var guard = gr.MakeGuard(target.Location);
+
+				if (guard?.Deleted == false)
+				{
+					guard.Attack(target, true);
+				}
 			}
 		}
 
@@ -63,13 +77,10 @@ namespace Server.Mobiles
 			}
 		}
 
-		protected Mobile m_Focus;
-
-		public virtual Mobile Focus { get => m_Focus; set => m_Focus = value; }
-
 		public BaseGuard(AIType ai, FightMode mode, int iRangePerception, int iRangeFight, double dActiveSpeed, double dPassiveSpeed) 
 			: base(ai, mode, iRangePerception, iRangeFight, dActiveSpeed, dPassiveSpeed)
 		{
+			InitStats(100, 100, 100);
 		}
 
 		public BaseGuard(Serial serial) 
@@ -138,17 +149,21 @@ namespace Server.Mobiles
 				}
 				else
 				{
+					Effects.SendLocationParticles(this, 0x3728, 10, 10, 5023);
+
 					MoveToWorld(p, target.Map);
 				}
 
 				Effects.SendLocationParticles(this, 0x3728, 10, 10, 5023);
 			}
 
+			AggressiveAction(target);
+
 			Attack(target);
 
 			if (Combatant == target)
 			{
-				Focus = target;
+				FocusMob = target;
 			}
 		}
 
@@ -169,7 +184,7 @@ namespace Server.Mobiles
 
 			writer.Write(0); // version
 
-			writer.Write(m_Focus);
+			writer.Write(m_FocusMob);
 
 			Town.WriteReference(writer, m_Town);
 		}
@@ -182,19 +197,74 @@ namespace Server.Mobiles
 
 			m_Town = Town.ReadReference(reader);
 
-			m_Focus = reader.ReadMobile();
+			m_FocusMob = reader.ReadMobile();
 		}
 	}
 
 	public abstract class BaseTownGuard : BaseGuard
 	{
-		protected AttackTimer m_AttackTimer;
 		protected IdleTimer m_IdleTimer;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public override Mobile FocusMob
+		{
+			get => m_FocusMob;
+			set
+			{
+				if (Deleted || value?.Deleted == true)
+				{
+					return;
+				}
+
+				var oldFocus = m_FocusMob;
+
+				if (oldFocus != value)
+				{
+					m_FocusMob = value;
+
+					if (oldFocus?.Alive == false)
+					{
+						Say("Thou hast suffered thy punishment, scoundrel.");
+					}
+
+					if (value != null)
+					{
+						Say(500131); // Thou wilt regret thine actions, swine!
+					}
+
+					if (m_IdleTimer != null)
+					{
+						m_IdleTimer.Stop();
+						m_IdleTimer = null;
+					}
+
+					if (m_FocusMob?.Deleted == false)
+					{
+						Attack(m_FocusMob, true);
+					}
+					else
+					{
+						m_IdleTimer = new IdleTimer(this);
+						m_IdleTimer.Start();
+					}
+				}
+				else if (oldFocus?.Deleted != false && m_IdleTimer == null)
+				{
+					m_IdleTimer = new IdleTimer(this);
+					m_IdleTimer.Start();
+				}
+			}
+		}
 
 		public BaseTownGuard(AIType ai, FightMode mode, int iRangePerception, int iRangeFight, double dActiveSpeed, double dPassiveSpeed)
 			: base(ai, mode, iRangePerception, iRangeFight, dActiveSpeed, dPassiveSpeed)
 		{
-			InitStats(1000, 1000, 1000);
+			SetSkill(SkillName.Anatomy, 120.0);
+			SetSkill(SkillName.Tactics, 120.0);
+			SetSkill(SkillName.MagicResist, 120.0);
+			SetSkill(SkillName.DetectHidden, 100.0);
+
+			NextCombatTime = Core.TickCount + 500;
 
 			Title = "the guard";
 
@@ -220,16 +290,7 @@ namespace Server.Mobiles
 				Utility.AssignRandomFacialHair(this, HairHue);
 			}
 
-			var weapon = new Halberd
-			{
-				Movable = false,
-				Crafter = this,
-				Quality = WeaponQuality.Exceptional
-			};
-
-			AddItem(weapon);
-
-			Container pack = new Backpack
+			var pack = Backpack ?? new Backpack
 			{
 				Movable = false
 			};
@@ -238,92 +299,29 @@ namespace Server.Mobiles
 
 			AddItem(pack);
 
-			Skills[SkillName.Anatomy].Base = 120.0;
-			Skills[SkillName.Tactics].Base = 120.0;
-			Skills[SkillName.Swords].Base = 120.0;
-			Skills[SkillName.MagicResist].Base = 120.0;
-			Skills[SkillName.DetectHidden].Base = 100.0;
-
-			NextCombatTime = Core.TickCount + 500;
-		}
-
-		public BaseTownGuard(Serial serial) : base(serial)
-		{
-		}
-
-		public override bool OnBeforeDeath()
-		{
-			if (m_Focus != null && m_Focus.Alive)
+			if (!Mounted && Utility.RandomBool())
 			{
-				new AvengeTimer(m_Focus).Start(); // If a guard dies, three more guards will spawn
+				var horse = new Horse();
+
+				horse.SetControlMaster(this);
+
+				horse.Rider = this;
 			}
-
-			return base.OnBeforeDeath();
 		}
 
-		[CommandProperty(AccessLevel.GameMaster)]
-		public override Mobile Focus
+		public BaseTownGuard(Serial serial) 
+			: base(serial)
 		{
-			get => m_Focus;
-			set
+		}
+
+		public override void OnAfterDelete()
+		{
+			base.OnAfterDelete();
+
+			if (m_IdleTimer != null)
 			{
-				if (Deleted)
-				{
-					return;
-				}
-
-				var oldFocus = m_Focus;
-
-				if (oldFocus != value)
-				{
-					m_Focus = value;
-
-					if (value != null)
-					{
-						AggressiveAction(value);
-					}
-
-					Combatant = value;
-
-					if (oldFocus != null && !oldFocus.Alive)
-					{
-						Say("Thou hast suffered thy punishment, scoundrel.");
-					}
-
-					if (value != null)
-					{
-						Say(500131); // Thou wilt regret thine actions, swine!
-					}
-
-					if (m_AttackTimer != null)
-					{
-						m_AttackTimer.Stop();
-						m_AttackTimer = null;
-					}
-
-					if (m_IdleTimer != null)
-					{
-						m_IdleTimer.Stop();
-						m_IdleTimer = null;
-					}
-
-					if (m_Focus != null)
-					{
-						m_AttackTimer = new AttackTimer(this);
-						m_AttackTimer.Start();
-						m_AttackTimer.DoOnTick();
-					}
-					else
-					{
-						m_IdleTimer = new IdleTimer(this);
-						m_IdleTimer.Start();
-					}
-				}
-				else if (m_Focus == null && m_IdleTimer == null)
-				{
-					m_IdleTimer = new IdleTimer(this);
-					m_IdleTimer.Start();
-				}
+				m_IdleTimer.Stop();
+				m_IdleTimer = null;
 			}
 		}
 
@@ -342,161 +340,15 @@ namespace Server.Mobiles
 
 			if (version >= 0)
 			{
-				if (m_Focus != null)
+				if (m_FocusMob != null)
 				{
-					m_AttackTimer = new AttackTimer(this);
-					m_AttackTimer.Start();
+					Timer.DelayCall(Attack, m_FocusMob, true);
 				}
 				else
 				{
 					m_IdleTimer = new IdleTimer(this);
 					m_IdleTimer.Start();
 				}
-			}
-		}
-
-		public override void OnAfterDelete()
-		{
-			if (m_AttackTimer != null)
-			{
-				m_AttackTimer.Stop();
-				m_AttackTimer = null;
-			}
-
-			if (m_IdleTimer != null)
-			{
-				m_IdleTimer.Stop();
-				m_IdleTimer = null;
-			}
-
-			base.OnAfterDelete();
-		}
-
-		protected class AvengeTimer : Timer
-		{
-			private readonly Mobile m_Focus;
-
-			public AvengeTimer(Mobile focus) : base(TimeSpan.FromSeconds(2.5), TimeSpan.FromSeconds(1.0), 3)
-			{
-				m_Focus = focus;
-			}
-
-			protected override void OnTick()
-			{
-				BaseGuard.Spawn(m_Focus, m_Focus, 1, true);
-			}
-		}
-
-		protected class AttackTimer : Timer
-		{
-			private readonly BaseTownGuard m_Owner;
-
-			public AttackTimer(BaseTownGuard owner) : base(TimeSpan.FromSeconds(0.25), TimeSpan.FromSeconds(0.1))
-			{
-				m_Owner = owner;
-			}
-
-			public void DoOnTick()
-			{
-				OnTick();
-			}
-
-			protected override void OnTick()
-			{
-				if (m_Owner.Deleted)
-				{
-					Stop();
-
-					return;
-				}
-
-				m_Owner.Criminal = false;
-				m_Owner.Kills = 0;
-				m_Owner.Stam = m_Owner.StamMax;
-
-				var target = m_Owner.Focus;
-
-				if (target != null && (target.Deleted || !target.Alive || !m_Owner.CanBeHarmful(target)))
-				{
-					m_Owner.Focus = null;
-
-					Stop();
-
-					return;
-				}
-				
-				if (m_Owner.Weapon is Fists)
-				{
-					m_Owner.Kill();
-
-					Stop();
-
-					return;
-				}
-
-				if (target != null && m_Owner.Combatant != target)
-				{
-					m_Owner.Combatant = target;
-				}
-
-				if (target == null)
-				{
-					Stop();
-				}
-				else
-				{// <instakill>
-					TeleportTo(target);
-
-					target.BoltEffect(0);
-
-					if (target is BaseCreature bc)
-					{
-						bc.NoKillAwards = true;
-					}
-
-					target.Damage(target.HitsMax, m_Owner);
-					target.Kill(); // just in case, maybe Damage is overriden on some shard
-
-					if (target.Corpse != null && !target.Player)
-					{
-						target.Corpse.Delete();
-					}
-
-					m_Owner.Focus = null;
-
-					Stop();
-				}// </instakill>
-				/*else if (!m_Owner.InRange(target, 20))
-				{
-					m_Owner.Focus = null;
-				}
-				else if (!m_Owner.InRange(target, 10) || !m_Owner.InLOS(target))
-				{
-					TeleportTo(target);
-				}
-				else if (!m_Owner.InRange(target, 1))
-				{
-					if (!m_Owner.Move(m_Owner.GetDirectionTo(target) | Direction.Running))
-						TeleportTo(target);
-				}
-				else if (!m_Owner.CanSee(target))
-				{
-					if (!m_Owner.UseSkill(SkillName.DetectHidden) && Utility.Random(50) == 0)
-						m_Owner.Say("Reveal!");
-				}*/
-			}
-
-			private void TeleportTo(Mobile target)
-			{
-				var from = m_Owner.Location;
-				var to = target.Location;
-
-				m_Owner.Location = to;
-
-				Effects.SendLocationParticles(EffectItem.Create(from, m_Owner.Map, EffectItem.DefaultDuration), 0x3728, 10, 10, 2023);
-				Effects.SendLocationParticles(EffectItem.Create(to, m_Owner.Map, EffectItem.DefaultDuration), 0x3728, 10, 10, 5023);
-
-				m_Owner.PlaySound(0x1FE);
 			}
 		}
 
@@ -517,6 +369,7 @@ namespace Server.Mobiles
 				if (m_Owner.Deleted)
 				{
 					Stop();
+
 					return;
 				}
 
@@ -527,7 +380,8 @@ namespace Server.Mobiles
 
 				if (m_Stage > 16)
 				{
-					Effects.SendLocationParticles(EffectItem.Create(m_Owner.Location, m_Owner.Map, EffectItem.DefaultDuration), 0x3728, 10, 10, 2023);
+					Effects.SendLocationParticles(m_Owner, 0x3728, 10, 10, 2023);
+
 					m_Owner.PlaySound(0x1FE);
 
 					m_Owner.Delete();

@@ -400,9 +400,9 @@ namespace Server.Factions
 			}
 		}
 
-		public override void GetProperties(ObjectPropertyList list)
+		public override void AddNameProperties(ObjectPropertyList list)
 		{
-			base.GetProperties(list);
+			base.AddNameProperties(list);
 
 			if (m_Faction != null && Map == Faction.Facet)
 			{
