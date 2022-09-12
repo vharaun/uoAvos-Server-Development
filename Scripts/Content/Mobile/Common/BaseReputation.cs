@@ -1184,13 +1184,13 @@ namespace Server.Misc
 
 			switch (sub)
 			{
-				case 0:
+				case 1:
 					{
 						var town = Town.ReadReference(reader);
 
 						return town?.Definition.Reputation;
 					}
-				case 1:
+				case 2:
 					{
 						var npcGuild = NpcGuildInfo.ReadReference(reader);
 
