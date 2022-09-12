@@ -128,8 +128,6 @@ namespace Server.Mobiles
 		private readonly ArrayList m_ArmorBuyInfo = new ArrayList();
 		private readonly ArrayList m_ArmorSellInfo = new ArrayList();
 
-		private DateTime m_LastRestock;
-
 		#region Holiday Season Events
 
 		/// Christmas
@@ -351,7 +349,7 @@ namespace Server.Mobiles
 			};
 			AddItem(pack);
 
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 		}
 
 		public BaseVendor(Serial serial)
@@ -359,17 +357,55 @@ namespace Server.Mobiles
 		{
 		}
 
-		private Dictionary<Mobile, Type> m_SelectedCurrencies = new();
+		#region Currencies
+
+		private readonly Dictionary<Mobile, TypeAmount> m_SelectedCurrencies = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Currencies Currencies { get; private set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public DateTime LastRestock
+		public bool CurrenciesLocal { get; set; } = true;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CurrenciesInherit { get; set; } = true;
+
+		public IEnumerable<TypeAmount> CurrenciesSupported
 		{
-			get => m_LastRestock;
-			set => m_LastRestock = value;
+			get
+			{
+				if (CurrenciesLocal)
+				{
+					foreach (var entry in Currencies.ActiveEntries)
+					{
+						yield return entry;
+					}
+				}
+
+				if (CurrenciesInherit)
+				{
+					var reg = Region;
+
+					while (reg != null)
+					{
+						if (reg is BaseRegion br && br.Currencies?.Count > 0)
+						{
+							foreach (var entry in br.Currencies.ActiveEntries)
+							{
+								yield return entry;
+							}
+						}
+
+						reg = reg.Parent;
+					}
+				}
+			}
 		}
+
+		#endregion
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public DateTime LastRestock { get; set; }
 
 		public virtual TimeSpan RestockDelay => TimeSpan.FromHours(1);
 
@@ -398,7 +434,7 @@ namespace Server.Mobiles
 
 		protected void LoadSBInfo()
 		{
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 
 			for (var i = 0; i < m_ArmorBuyInfo.Count; ++i)
 			{
@@ -576,6 +612,13 @@ namespace Server.Mobiles
 			CheckMorph();
 		}
 
+		public override void OnAfterDelete()
+		{
+			base.OnAfterDelete();
+
+			m_SelectedCurrencies.Clear();
+		}
+
 		protected override void OnMapChange(Map oldMap)
 		{
 			base.OnMapChange(oldMap);
@@ -723,7 +766,7 @@ namespace Server.Mobiles
 
 		public virtual void Restock()
 		{
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 
 			var buyInfo = GetBuyInfo();
 
@@ -767,9 +810,9 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (from.Player && Currencies.HasAnyActive)
+			if (from.Player)
 			{
-				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				var gump = CurrencyUtility.BeginSelectCurrency(from, true, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
@@ -793,11 +836,12 @@ namespace Server.Mobiles
 				return;
 			}
 
-			m_SelectedCurrencies.TryGetValue(from, out var currency);
+			if (!m_SelectedCurrencies.TryGetValue(from, out var currency))
+			{
+				currency = Currencies.GoldEntry;
+			}
 
-			currency ??= Currencies.GoldType;
-
-			if (DateTime.UtcNow - m_LastRestock > RestockDelay)
+			if (DateTime.UtcNow - LastRestock > RestockDelay)
 			{
 				Restock();
 			}
@@ -827,7 +871,7 @@ namespace Server.Mobiles
 				var gbi = (GenericBuyInfo)buyItem;
 				var disp = gbi.GetDisplayEntity();
 
-				if (!Currencies.ConvertGoldToCurrency(buyItem.Price, currency, out var price))
+				if (!CurrencyUtility.ConvertGoldToCurrency(buyItem.Price, currency, out var price))
 				{
 					continue;
 				}
@@ -886,7 +930,7 @@ namespace Server.Mobiles
 
 				if (name != null && list.Count < 250)
 				{
-					if (!Currencies.ConvertGoldToCurrency(price, currency, out price))
+					if (!CurrencyUtility.ConvertGoldToCurrency(price, currency, out price))
 					{
 						continue;
 					}
@@ -1024,9 +1068,9 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (from.Player && Currencies.HasAnyActive)
+			if (from.Player)
 			{
-				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				var gump = CurrencyUtility.BeginSelectCurrency(from, true, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
@@ -1050,9 +1094,10 @@ namespace Server.Mobiles
 				return;
 			}
 
-			m_SelectedCurrencies.TryGetValue(from, out var currency);
-
-			currency ??= Currencies.GoldType;
+			if (!m_SelectedCurrencies.TryGetValue(from, out var currency))
+			{
+				currency = Currencies.GoldEntry;
+			}
 
 			var pack = from.Backpack;
 
@@ -1080,7 +1125,7 @@ namespace Server.Mobiles
 
 						if (item.Movable && item.IsStandardLoot() && ssi.IsSellable(item))
 						{
-							if (Currencies.ConvertGoldToCurrency(ssi.GetSellPriceFor(item), currency, out var price))
+							if (CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(item), currency, out var price))
 							{
 								table.Add(new SellItemState(item, price, ssi.GetNameFor(item)));
 							}
@@ -1304,8 +1349,10 @@ namespace Server.Mobiles
 			{
 				m_SelectedCurrencies.Remove(buyer);
 			}
-
-			currency ??= Currencies.GoldType;
+			else
+			{
+				currency = Currencies.GoldEntry;
+			}
 
 			if (!AllowBuyer(buyer, true))
 			{
@@ -1360,7 +1407,7 @@ namespace Server.Mobiles
 						{
 							if (ssi.IsSellable(item) && ssi.IsResellable(item))
 							{
-								if (Currencies.ConvertGoldToCurrency(ssi.GetBuyPriceFor(item), currency, out var price))
+								if (CurrencyUtility.ConvertGoldToCurrency(ssi.GetBuyPriceFor(item), currency, out var price))
 								{
 									totalCost += price * amount;
 									validBuy.Add(buy);
@@ -1411,11 +1458,11 @@ namespace Server.Mobiles
 				bought = cont.ConsumeTotal(currency, totalCost);
 			}
 
-			if (!bought && Currencies.ConvertGoldToCurrency(2000, currency, out var petty) && totalCost > petty)
+			if (!bought && CurrencyUtility.ConvertGoldToCurrency(2000, currency, out var petty) && totalCost > petty)
 			{
 				fromBank = true;
 
-				bought = Currencies.Withdraw(buyer, currency, totalCost, false);
+				bought = CurrencyUtility.WithdrawFromBank(buyer, currency, totalCost, false);
 			}
 
 			if (!bought)
@@ -1603,8 +1650,10 @@ namespace Server.Mobiles
 			{
 				m_SelectedCurrencies.Remove(seller);
 			}
-
-			currency ??= Currencies.GoldType;
+			else
+			{
+				currency = Currencies.GoldEntry;
+			}
 
 			if (!AllowSeller(seller, true))
 			{
@@ -1628,16 +1677,25 @@ namespace Server.Mobiles
 
 				foreach (var ssi in info)
 				{
-					if (ssi.IsSellable(resp.Item))
+					if (!ssi.IsSellable(resp.Item))
 					{
-						if (!Currencies.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out _))
-						{
-							continue;
-						}
-
-						sold++;
-						break;
+						continue;
 					}
+
+					var amount = Math.Min(resp.Amount, resp.Item.Amount);
+
+					if (amount <= 0)
+					{
+						continue;
+					}
+
+					if (!CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out _))
+					{
+						continue;
+					}
+
+					sold++;
+					break;
 				}
 			}
 
@@ -1685,7 +1743,7 @@ namespace Server.Mobiles
 						continue;
 					}
 
-					if (!Currencies.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out var worth))
+					if (!CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out var worth))
 					{
 						list.RemoveAt(index);
 						continue;
@@ -1696,7 +1754,7 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (give > 0 && Currencies.Deposit(seller, currency, give, true))
+			if (give > 0 && CurrencyUtility.DepositToBank(seller, currency, give, true))
 			{
 				seller.PlaySound(0x0037); //Gold dropping sound
 
@@ -1779,11 +1837,14 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(4); // version
+			writer.Write(5); // version
 
 			Town.WriteReference(writer, m_HomeTown);
 
 			Currencies.Serialize(writer);
+
+			writer.Write(CurrenciesLocal);
+			writer.Write(CurrenciesInherit);
 
 			writer.Write((int)VendorAccessLevel);
 
@@ -1834,6 +1895,7 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 5:
 				case 4:
 					{
 						m_HomeTown = Town.ReadReference(reader);
@@ -1842,6 +1904,13 @@ namespace Server.Mobiles
 				case 3:
 					{
 						Currencies.Deserialize(reader);
+
+						if (version >= 5)
+						{
+							CurrenciesLocal = reader.ReadBool();
+							CurrenciesInherit = reader.ReadBool();
+						}
+						
 						goto case 2;
 					}
 				case 2:

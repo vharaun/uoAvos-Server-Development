@@ -93,7 +93,7 @@ namespace Server
 
 		public override int GetHashCode()
 		{
-			return Type?.GetHashCode() ?? base.GetHashCode();
+			return _Type?.GetHashCode() ?? 0;
 		}
 
 		public override bool Equals(object o)
@@ -174,7 +174,7 @@ namespace Server
 
 		bool ICollection<TypeAmount>.IsReadOnly => ((ICollection<TypeAmount>)_Entries).IsReadOnly;
 
-		public TypeAmount this[int index] => index >=0 && index < _Entries.Count ? _Entries[index] : TypeAmount.Empty;
+		public TypeAmount this[int index] => index >= 0 && index < _Entries.Count ? _Entries[index] : TypeAmount.Empty;
 
 		public int this[Type type] { get => _Entries.Find(t => t.Type == type); set => Set(type, value); }
 
@@ -182,6 +182,9 @@ namespace Server
 		public IEnumerable<int> Amounts => _Entries.Select(e => e.Amount);
 
 		public int Count => _Entries.Count;
+
+		public IEnumerable<TypeAmount> ValidEntries => _Entries.Where(e => e.IsValid);
+		public IEnumerable<TypeAmount> ActiveEntries => _Entries.Where(e => e.IsActive);
 
 		public int ValidCount => _Entries.Count(e => e.IsValid);
 		public int ActiveCount => _Entries.Count(e => e.IsActive);
@@ -458,9 +461,9 @@ namespace Server
 
 		public virtual void Serialize(GenericWriter writer)
 		{
-			writer.Write(0);
+			writer.WriteEncodedInt(0);
 
-			writer.Write(_Entries.Count);
+			writer.WriteEncodedInt(_Entries.Count);
 
 			foreach (var e in _Entries)
 			{
@@ -470,9 +473,9 @@ namespace Server
 
 		public virtual void Deserialize(GenericReader reader)
 		{
-			reader.ReadInt();
+			reader.ReadEncodedInt();
 
-			var count = reader.ReadInt();
+			var count = reader.ReadEncodedInt();
 
 			while (--count >= 0)
 			{
@@ -554,7 +557,7 @@ namespace Server
 
 		public override int GetHashCode()
 		{
-			return Type?.GetHashCode() ?? base.GetHashCode();
+			return _Type?.GetHashCode() ?? 0;
 		}
 
 		public override bool Equals(object o)
@@ -643,6 +646,9 @@ namespace Server
 		public IEnumerable<bool> States => _Entries.Select(e => e.State);
 
 		public int Count => _Entries.Count;
+
+		public IEnumerable<TypeEntry> ValidEntries => _Entries.Where(e => e.IsValid);
+		public IEnumerable<TypeEntry> ActiveEntries => _Entries.Where(e => e.IsActive);
 
 		public int ValidCount => _Entries.Count(e => e.IsValid);
 		public int ActiveCount => _Entries.Count(e => e.IsActive);
@@ -916,9 +922,9 @@ namespace Server
 
 		public virtual void Serialize(GenericWriter writer)
 		{
-			writer.Write(0);
+			writer.WriteEncodedInt(0);
 
-			writer.Write(_Entries.Count);
+			writer.WriteEncodedInt(_Entries.Count);
 
 			foreach (var e in _Entries)
 			{
@@ -928,9 +934,9 @@ namespace Server
 
 		public virtual void Deserialize(GenericReader reader)
 		{
-			reader.ReadInt();
+			reader.ReadEncodedInt();
 
-			var count = reader.ReadInt();
+			var count = reader.ReadEncodedInt();
 
 			while (--count >= 0)
 			{

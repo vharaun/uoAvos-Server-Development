@@ -1,4 +1,5 @@
 ﻿
+using Server.ContextMenus;
 using Server.Gumps;
 using Server.Mobiles;
 using Server.Network;
@@ -7,79 +8,45 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using static Server.Items.NinjaWeapon;
+
 namespace Server.Items
 {
-	/// <summary>
-	/// <para>A collection of currency type definitions and their exchange rates relative to <see cref="Gold"/>.</para>
-	/// <para>Only non-abstract <see cref="Item"/> types are supported as currencies.</para>
-	/// <para>The <see cref="Gold"/> type cannot be added to this collection.</para>
-	/// <para>The amount specified by each entry represents an exchange rate.</para>
-	/// </summary>
-	public class Currencies : TypeAmounts
+	public static class CurrencyUtility
 	{
-		public static readonly Type GoldType = typeof(Gold);
-
-		/// <summary>
-		/// Defaults be used when constructing a new <see cref="Currencies"/> collection using the default constructor. 
-		/// </summary>
-		public static readonly Currencies DefaultEntries = new();
-
-		/// <summary>
-		/// Limits the maximum value for the exchange rate of any given currency entry in a <see cref="Currencies"/> collection.
-		/// </summary>
-		public const int MaxExchangeRate = 1000;
-
-		public Currencies()
-		{
-			DefaultEntries.CopyTo(this);
-		}
-
-		public Currencies(params TypeAmount[] entries)
-			: base(entries)
-		{ }
-
-		public Currencies(IEnumerable<TypeAmount> entries)
-			: base(entries)
-		{ }
-
-		public SelectCurrencyGump BeginSelectCurrency(Mobile player, SelectCurrencyCallback callback)
+		public static SelectCurrencyGump BeginSelectCurrency(Mobile player, bool insertGold, IEnumerable<TypeAmount> currencies, SelectCurrencyCallback callback)
 		{
 			if (player?.Deleted != false || !player.Player)
 			{
 				return null;
 			}
 
-			var gump = new SelectCurrencyGump(player, 0, this, callback);
+			var gump = new SelectCurrencyGump(player, insertGold, currencies, callback);
 
-			if (player.SendGump(gump, false))
+			if (gump.EntryCount > 0)
 			{
-				return gump;
+				if (gump.EntryCount == 1 && insertGold)
+				{
+					callback?.Invoke(player, Currencies.GoldEntry);
+				}
+				else if (player.SendGump(gump, false))
+				{
+					return gump;
+				}
 			}
 
 			return null;
 		}
 
-		public override bool IsValidType(Type type)
+		public static bool ConvertCurrencyToGold(TypeAmount sourceCurrency, int sourceAmount, out int goldAmount)
 		{
-			return base.IsValidType(type) && !type.IsAbstract && type.IsAssignableTo(typeof(Item)) && !type.IsAssignableTo(GoldType);
-		}
-
-		public override bool Set(Type type, int amount)
-		{
-			amount = Math.Clamp(amount, 0, MaxExchangeRate);
-
-			return base.Set(type, amount);
-		}
-
-		public bool ConvertCurrencyToGold(Type sourceCurrency, int sourceAmount, out int goldAmount)
-		{
-			if (sourceCurrency == GoldType)
+			if (sourceCurrency == Currencies.GoldEntry)
 			{
 				goldAmount = sourceAmount;
 			}
-			else if (TryGetAmount(sourceCurrency, out var rate))
+			else if (sourceCurrency.Amount > 0)
 			{
-				goldAmount = (int)(sourceAmount / (rate / 100.0));
+				goldAmount = (int)(sourceAmount / (sourceCurrency.Amount / 100.0));
 			}
 			else
 			{
@@ -89,15 +56,15 @@ namespace Server.Items
 			return goldAmount > 0;
 		}
 
-		public bool ConvertGoldToCurrency(int goldAmount, Type destCurrency, out int destAmount)
+		public static bool ConvertGoldToCurrency(int goldAmount, TypeAmount destCurrency, out int destAmount)
 		{
-			if (destCurrency == GoldType)
+			if (destCurrency == Currencies.GoldEntry)
 			{
 				destAmount = goldAmount;
 			}
-			else if (TryGetAmount(destCurrency, out var rate))
+			else if (destCurrency.Amount > 0)
 			{
-				destAmount = (int)(goldAmount * (rate / 100.0));
+				destAmount = (int)(goldAmount * (destCurrency.Amount / 100.0));
 			}
 			else
 			{
@@ -107,7 +74,7 @@ namespace Server.Items
 			return destAmount > 0;
 		}
 
-		public bool ConvertCurrency(Type sourceCurrency, int sourceAmount, Type destCurrency, out int destAmount)
+		public static bool ConvertCurrency(TypeAmount sourceCurrency, int sourceAmount, TypeAmount destCurrency, out int destAmount)
 		{
 			if (ConvertCurrencyToGold(sourceCurrency, sourceAmount, out var goldAmount))
 			{
@@ -119,15 +86,15 @@ namespace Server.Items
 			return false;
 		}
 
-		public bool Withdraw(Mobile m, Type type, int amount, bool message)
+		public static bool WithdrawFromBank(Mobile m, Type type, int amount, bool message)
 		{
 			var success = false;
 
-			if (type == GoldType)
+			if (type == Currencies.GoldType)
 			{
 				success = Banker.Withdraw(m, amount);
 			}
-			else if (IndexOf(type) >= 0)
+			else if (type?.IsAssignableTo(typeof(Item)) == true)
 			{
 				var bank = m.FindBankNoCreate();
 
@@ -156,12 +123,12 @@ namespace Server.Items
 			return success;
 		}
 
-		public bool Deposit(Mobile m, Type type, int amount, bool message)
+		public static bool DepositToBank(Mobile m, Type type, int amount, bool message)
 		{
-			return Deposit(m, null, type, amount, message);
+			return DepositToBank(m, null, type, amount, message);
 		}
 
-		public bool Deposit(Mobile m, Container cont, Type type, int amount, bool message)
+		public static bool DepositToBank(Mobile m, Container cont, Type type, int amount, bool message)
 		{
 			if (cont?.Deleted != false)
 			{
@@ -180,7 +147,7 @@ namespace Server.Items
 
 			var success = false;
 
-			if (type == GoldType)
+			if (type == Currencies.GoldType)
 			{
 				if (m.Player && cont == m.BankBox)
 				{
@@ -193,7 +160,7 @@ namespace Server.Items
 					success = true;
 				}
 			}
-			else if (IndexOf(type) >= 0)
+			else if (type?.IsAssignableTo(typeof(Item)) == true)
 			{
 				var items = new HashSet<Item>();
 
@@ -275,7 +242,130 @@ namespace Server.Items
 		}
 	}
 
-	public delegate void SelectCurrencyCallback(Mobile player, Currencies currencies, Type currency);
+	/// <summary>
+	/// <para>A collection of currency type definitions and their exchange rates relative to <see cref="Gold"/>.</para>
+	/// <para>Only non-abstract <see cref="Item"/> types are supported as currencies.</para>
+	/// <para>The <see cref="Gold"/> type cannot be added to this collection.</para>
+	/// <para>The amount specified by each entry represents an exchange rate.</para>
+	/// </summary>
+	public class Currencies : TypeAmounts
+	{
+		public static readonly Type GoldType = typeof(Gold);
+
+		public static readonly TypeAmount GoldEntry = new(GoldType, 100);
+
+		public static readonly TypeAmount EmptyEntry = TypeAmount.Empty;
+
+		/// <summary>
+		/// Defaults be used when constructing a new <see cref="Currencies"/> collection using the default constructor. 
+		/// </summary>
+		public static readonly Currencies DefaultEntries = new();
+
+		/// <summary>
+		/// Limits the maximum value for the exchange rate of any given currency entry in a <see cref="Currencies"/> collection.
+		/// </summary>
+		public const int MaxExchangeRate = 1000;
+
+		public Currencies()
+		{
+			DefaultEntries.CopyTo(this);
+		}
+
+		public Currencies(params TypeAmount[] entries)
+			: base(entries)
+		{ }
+
+		public Currencies(IEnumerable<TypeAmount> entries)
+			: base(entries)
+		{ }
+
+		public override bool IsValidType(Type type)
+		{
+			return base.IsValidType(type) && !type.IsAbstract && type.IsAssignableTo(typeof(Item)) && !type.IsAssignableTo(GoldType);
+		}
+
+		public override bool Set(Type type, int amount)
+		{
+			amount = Math.Clamp(amount, 0, MaxExchangeRate);
+
+			return base.Set(type, amount);
+		}
+
+		public bool ConvertCurrencyToGold(Type sourceCurrency, int sourceAmount, out int goldAmount)
+		{
+			if (sourceCurrency == GoldType)
+			{
+				goldAmount = sourceAmount;
+			}
+			else if (TryGetAmount(sourceCurrency, out var rate))
+			{
+				goldAmount = (int)(sourceAmount / (rate / 100.0));
+			}
+			else
+			{
+				goldAmount = 0;
+			}
+
+			return goldAmount > 0;
+		}
+
+		public bool ConvertGoldToCurrency(int goldAmount, Type destCurrency, out int destAmount)
+		{
+			if (destCurrency == GoldType)
+			{
+				destAmount = goldAmount;
+			}
+			else if (TryGetAmount(destCurrency, out var rate))
+			{
+				destAmount = (int)(goldAmount * (rate / 100.0));
+			}
+			else
+			{
+				destAmount = 0;
+			}
+
+			return destAmount > 0;
+		}
+
+		public bool ConvertCurrency(Type sourceCurrency, int sourceAmount, Type destCurrency, out int destAmount)
+		{
+			if (ConvertCurrencyToGold(sourceCurrency, sourceAmount, out var goldAmount))
+			{
+				return ConvertGoldToCurrency(goldAmount, destCurrency, out destAmount);
+			}
+
+			destAmount = 0;
+
+			return false;
+		}
+
+		public bool Withdraw(Mobile m, Type type, int amount, bool message)
+		{
+			if (type == GoldType || IndexOf(type) >= 0)
+			{
+				return CurrencyUtility.WithdrawFromBank(m, type, amount, message);
+			}
+
+			return false;
+		}
+
+		public bool Deposit(Mobile m, Type type, int amount, bool message)
+		{
+			return Deposit(m, null, type, amount, message);
+		}
+
+		public bool Deposit(Mobile m, Container cont, Type type, int amount, bool message)
+		{
+			if (type == GoldType || IndexOf(type) >= 0)
+			{
+				return CurrencyUtility.DepositToBank(m, cont, type, amount, message);
+			}
+
+			return false;
+		}
+	}
+
+	public delegate void SelectCurrencyCallback(Mobile player, TypeAmount currency);
 
 	public sealed class SelectCurrencyGump : BaseGridGump
 	{
@@ -285,7 +375,11 @@ namespace Server.Items
 
 		private readonly int m_Page;
 
-		private readonly Currencies m_Currencies;
+		private readonly bool m_InsertGold;
+
+		private readonly HashSet<TypeAmount> m_Currencies;
+
+		public int EntryCount => m_Currencies.Count + (m_InsertGold ? 1 : 0);
 
 		private readonly SelectCurrencyCallback m_Callback;
 
@@ -314,13 +408,21 @@ namespace Server.Items
 		public const int PageRightWidth = 16;
 		public const int PageRightHeight = 16;
 
-		public SelectCurrencyGump(Mobile player, int page, Currencies currencies, SelectCurrencyCallback callback)
+		public SelectCurrencyGump(Mobile player, bool insertGold, IEnumerable<TypeAmount> currencies, SelectCurrencyCallback callback)
+			: this(player, 0, insertGold, new(currencies), callback)
+		{ }
+
+		private SelectCurrencyGump(Mobile player, int page, bool insertGold, HashSet<TypeAmount> currencies, SelectCurrencyCallback callback)
 			: base(100, 100)
 		{
 			m_Player = player;
 			m_Page = page;
+			m_InsertGold = insertGold;
 			m_Currencies = currencies;
 			m_Callback = callback;
+
+			m_Currencies.Remove(Currencies.EmptyEntry);
+			m_Currencies.Remove(Currencies.GoldEntry);
 
 			Closable = false;
 			Disposable = false;
@@ -353,13 +455,16 @@ namespace Server.Items
 			AddEntryHtml(20 + OffsetSize + 160, "Currency<div align=right>GP %</div>");
 			AddEntryHeader(20);
 
-			AddNewLine();
-			AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(Currencies.GoldType)}<div align=right>{1.0:P}</div>");
-			AddEntryButton(20, PageRightID1, PageRightID2, 3, PageRightWidth, PageRightHeight);
+			if (m_InsertGold)
+			{
+				AddNewLine();
+				AddEntryHtml(20 + OffsetSize + 160, $"{Utility.FriendlyName(Currencies.GoldType)}<div align=right>{1.0:P}</div>");
+				AddEntryButton(20, PageRightID1, PageRightID2, 3, PageRightWidth, PageRightHeight);
+			}
 
 			var index = m_Page * EntriesPerPage;
 
-			foreach (var entry in m_Currencies.Where(e => e.IsActive).OrderBy(e => e.Type.Name).Skip(index).Take(EntriesPerPage))
+			foreach (var entry in m_Currencies.Skip(index).Take(EntriesPerPage))
 			{
 				var bid = 4 + index++;
 				var type = entry.Type;
@@ -370,7 +475,7 @@ namespace Server.Items
 				AddEntryButton(20, PageRightID1, PageRightID2, bid, PageRightWidth, PageRightHeight);
 
 				m_Handlers ??= new();
-				m_Handlers[bid] = () => m_Callback?.Invoke(m_Player, m_Currencies, type);
+				m_Handlers[bid] = () => m_Callback?.Invoke(m_Player, entry);
 			}
 
 			FinishPage();
@@ -390,11 +495,11 @@ namespace Server.Items
 					{
 						if (m_Page > 0)
 						{
-							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page - 1, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page - 1, m_InsertGold, m_Currencies, m_Callback));
 						}
 						else
 						{
-							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_InsertGold, m_Currencies, m_Callback));
 						}
 
 						return;
@@ -403,18 +508,21 @@ namespace Server.Items
 					{
 						if ((m_Page + 1) * EntriesPerPage < m_Currencies.Count)
 						{
-							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page + 1, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page + 1, m_InsertGold, m_Currencies, m_Callback));
 						}
 						else
 						{
-							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_Currencies, m_Callback));
+							_ = m_Player.SendGump(new SelectCurrencyGump(m_Player, m_Page, m_InsertGold, m_Currencies, m_Callback));
 						}
 
 						return;
 					}
 				case 3:
 					{
-						m_Callback?.Invoke(m_Player, m_Currencies, Currencies.GoldType);
+						if (m_InsertGold)
+						{
+							m_Callback?.Invoke(m_Player, Currencies.GoldEntry);
+						}
 
 						return;
 					}

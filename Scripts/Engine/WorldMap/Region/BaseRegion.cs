@@ -890,6 +890,9 @@ namespace Server.Regions
 		public string RuneName { get; set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Currencies Currencies { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public SkillPermissions SkillPermissions { get; private set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
@@ -1687,6 +1690,7 @@ namespace Server.Regions
 				var lt = map.Tiles.GetLandTile(x, y);
 
 				int ltLowZ = 0, ltAvgZ = 0, ltTopZ = 0;
+
 				map.GetAverageZ(x, y, ref ltLowZ, ref ltAvgZ, ref ltTopZ);
 
 				var ltFlags = TileData.LandTable[lt.ID & TileData.MaxLandValue].Flags;
@@ -1731,7 +1735,6 @@ namespace Server.Regions
 					}
 				}
 
-
 				var sector = map.GetSector(x, y);
 
 				for (var j = 0; j < sector.Items.Count; j++)
@@ -1764,7 +1767,6 @@ namespace Server.Regions
 						}
 					}
 				}
-
 
 				if (m_SpawnBuffer1.Count == 0)
 				{
@@ -1901,7 +1903,7 @@ namespace Server.Regions
 		{
 			base.Serialize(writer);
 
-			writer.Write(3);
+			writer.Write(4);
 
 			writer.Write(RuneName);
 
@@ -1921,6 +1923,17 @@ namespace Server.Regions
 			else
 			{
 				writer.Write(0);
+			}
+
+			if (Currencies != null)
+			{
+				writer.Write(true);
+
+				Currencies.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
 			}
 
 			if (SkillPermissions != null)
@@ -1962,7 +1975,7 @@ namespace Server.Regions
 			base.Deserialize(reader);
 
 			var v = reader.ReadInt();
-			
+
 			RuneName = reader.ReadString();
 
 			if (v >= 2)
@@ -2008,6 +2021,11 @@ namespace Server.Regions
 				}
 				
 				spawns.TrimExcess();
+			}
+
+			if (v >= 4 && reader.ReadBool())
+			{
+				Currencies.Deserialize(reader);
 			}
 
 			if (v >= 3)

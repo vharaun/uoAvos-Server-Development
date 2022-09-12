@@ -881,7 +881,7 @@ namespace Server.Mobiles
 			{
 				return false;
 			}
-
+			
 			if (CheckFlee())
 			{
 				return true;
