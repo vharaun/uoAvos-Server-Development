@@ -7,210 +7,23 @@ using Server.Multis;
 using System;
 using System.Collections.Generic;
 
-namespace Server
-{
-    /* CUSTOM MAP/FACET TEMPLATE */
+using System.Linq;
 
-    // 1) Create a new class for the Map which includes a List of Paths that includes each Path you want the mobile to select from when it's spawned.
-    // 2) Create a list of points for each path you plot.
-    // 3) Scroll down to private void SetPath() and create a new for loop for the same Map/Facet 
+/// Description:
+/// this mobile will harvest resources just as if they were real players on your server. They will appear
+/// to place a camp, work (harvest their designated resource), move to the next waypoint, and then when
+/// their work is done they will return to their camp (or home location) and drop off their harvest into a
+/// crate which will self-delete (with its contents) after a duration; players can loot these crates and
+/// obtain free resources should they stumble upon these mobiles.
 
-    /*
+/// the path they follow will be auto-generated after spawning and will be re-generated with each loop after
+/// returnting to their home location and waiting for a predefined amount of time.
+/// the list will first be created via a hashset to prevent duplicating locations, it will then be 
+/// converted to a List so an indexer can be used to move the waypoint to each "point" in the List.
 
-    #region Paths_<MAP NAME>
-    public class ActionAI_MinerPaths_<MAP NAME>  
-    {
-        #region List of Points
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE 
-            = new List<Tuple<Point3D, Direction>>
-        {
-            // add each point of the path here
-        };
-        #endregion
-
-        // NOTE: List of paths MUST be after all possible path lists
-
-        #region ListOfPaths_<MAP NAME>
-        public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >> Miner_ListOfPaths 
-            = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >>
-        {
-            // add each path you want the list to choose from here
-        };
-        #endregion
-
-    }
-    #endregion
-
-    */
-
-    #region Paths_Trammel
-    public class ActionAI_MinerPaths_Trammel
-    {
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE
-            = new List<Tuple<Point3D, Direction>>
-        {
-            (new Tuple<Point3D, Direction> (new Point3D(3510, 2755, 7), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3512, 2761, 4), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3516, 2770, 9), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3517, 2765, 14), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3513, 2757, 9), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3511, 2753, 7), Direction.North)),
-        };
-
-        public static List<Tuple<Point3D, Direction>> path_miner_TWO
-            = new List<Tuple<Point3D, Direction>>
-        {
-            (new Tuple<Point3D, Direction> (new Point3D(3432, 2789, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3441, 2788, 9), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3449, 2790, 12), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3456, 2792, 14), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3463, 2793, 20), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3471, 2791, 22), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3476, 2790, 7), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3484, 2785, 1), Direction.Down)),
-            (new Tuple<Point3D, Direction> (new Point3D(3493, 2777, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3492, 2772, 3), Direction.Down))
-        };
-
-
-        #region ListOfPaths_Trammel
-        public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> ListOfPaths
-            = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>>
-        {
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_ONE[0].Item1), path_miner_ONE)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_TWO[0].Item1), path_miner_TWO))
-        };
-        #endregion
-    }
-    #endregion
-
-
-    #region Paths_Fel
-    public class ActionAI_MinerPaths_Felucca
-    {
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE
-            = new List<Tuple<Point3D, Direction>>
-        {
-            (new Tuple<Point3D, Direction> (new Point3D(3510, 2755, 7), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3512, 2761, 4), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3516, 2770, 9), Direction.West)),
-            (new Tuple<Point3D, Direction> (new Point3D(3517, 2765, 14), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3513, 2757, 9), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3511, 2753, 7), Direction.North)),
-        };
-
-        public static List<Tuple<Point3D, Direction>> path_miner_TWO
-            = new List<Tuple<Point3D, Direction>>
-        {
-            (new Tuple<Point3D, Direction> (new Point3D(3432, 2789, 0), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3441, 2788, 9), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3449, 2790, 12), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3456, 2792, 14), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3463, 2793, 20), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3471, 2791, 22), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3476, 2790, 7), Direction.South)),
-            (new Tuple<Point3D, Direction> (new Point3D(3484, 2785, 1), Direction.Down)),
-            (new Tuple<Point3D, Direction> (new Point3D(3493, 2777, 0), Direction.East)),
-            (new Tuple<Point3D, Direction> (new Point3D(3492, 2772, 3), Direction.Down))
-        };
-
-
-        #region ListOfPaths_Felucca
-        public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> ListOfPaths
-            = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>>
-        {
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_ONE[0].Item1), path_miner_ONE)),
-            (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_TWO[0].Item1), path_miner_TWO))
-        };
-        #endregion
-
-    }
-    #endregion
-
-
-    #region Paths_Ilshenar
-    public class ActionAI_MinerPaths_Ilshenar
-    {
-        //
-        // REMOVE MAP FROM BLOCK COMMENT ON SETPATH() IF YOU ADD PATHS HERE
-        //
-
-        /*  
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE 
-             = new List<Tuple<Point3D, Direction>>
-         {
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.South)),
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.Left))
-         };
-
-
-         #region ListOfPaths_Ilshenar
-         public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >> ListOfPaths 
-             = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >>
-         {
-             (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_ONE[0].Item1), path_miner_ONE))
-         };
-         #endregion 
-         */
-    }
-    #endregion
-
-
-    #region Paths_Malas
-    public class ActionAI_MinerPaths_Malas
-    {
-        //
-        // REMOVE MAP FROM BLOCK COMMENT ON SETPATH() IF YOU ADD PATHS HERE
-        //
-
-        /*  
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE 
-             = new List<Tuple<Point3D, Direction>>
-         {
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.South)),
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.Left))
-         };
-
-
-         #region ListOfPaths_Ilshenar
-         public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >> ListOfPaths 
-             = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >>
-         {
-             (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_ONE[0].Item1), path_miner_ONE))
-         };
-         #endregion 
-         */
-    }
-    #endregion
-
-
-    #region Paths_Tokuno
-    public class ActionAI_MinerPaths_Tokuno
-    {
-        //
-        // REMOVE MAP FROM BLOCK COMMENT ON SETPATH() IF YOU ADD PATHS HERE
-        //
-
-        /*  
-        public static List<Tuple<Point3D, Direction>> path_miner_ONE 
-             = new List<Tuple<Point3D, Direction>>
-         {
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.South)),
-             (new Tuple<Point3D, Direction> (new Point3D(0, 0, 0), Direction.Left))
-         };
-
-
-         #region ListOfPaths_Ilshenar
-         public static List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >> ListOfPaths 
-             = new List<Tuple<Point3D, List<Tuple<Point3D, Direction>> >>
-         {
-             (new Tuple<Point3D, List<Tuple<Point3D, Direction>> > (new Point3D(path_miner_ONE[0].Item1), path_miner_ONE))
-         };
-         #endregion 
-         */
-    }
-    #endregion
-}
+/*
+    STILL TODO: LOS CHECK FOR MOVING WAYPOINT
+*/
 
 namespace Server.Mobiles
 {
@@ -221,6 +34,9 @@ namespace Server.Mobiles
         private int m_Index;
         private WayPoint m_waypointFirst;
         private List<Tuple<Point3D, Direction>> m_MobilePath;
+
+        private HashSet<Point3D> points;
+        private List<Point3D> pointsList;
 
         public override HarvestDefinition harvestDefinition { get { return Mining.System.OreAndStone; } }
         public override HarvestSystem harvestSystem { get { return Mining.System; } }
@@ -295,141 +111,53 @@ namespace Server.Mobiles
 
         private void SetPath()
         {
-            /* Custom Map/Facet for loop */
-
-            // Please read instructions above before making edits here.
-            // If we try to set a path that doesn't exist or a list that doesn't have any points it will cause issues or potentially crash the server.
-
-            /*
-
-            #region Felucca
-            if(this.Map == Map.<MAP NAME>) // check for the name of the map the player is on
+            if (!Alive && Deleted && (Map == Map.Internal))
             {
-                List<Tuple<Point3D,List<Tuple<Point3D,Direction>>>> MapPaths = ActionAI_MinerPaths_<MAP NAME>.Miner_ListOfPaths; // set the listofpaths for the map here
-
-
-                for( int i = 0; i < MapPaths.Count; i++)
-                {
-                    if( Utility.InRange( this.Home, MapPaths[i].Item1, 25 ) )
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                        continue;
-                    
-                }
+                return;
             }
-            #endregion
 
-            */
+            int range = 10;
+			Map map = this.Map;
+			// use a hashset as an easy way to prevent duplicates
+			points = new HashSet<Point3D>();
+			HashSet<Point3D> obstacles = new HashSet<Point3D>();
 
-            #region Felucca
-            if (this.Map == Map.Felucca)
+			for (var xx = this.X - range; xx <= this.X + range; xx++) 
             {
-                List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> MapPaths = ActionAI_MinerPaths_Felucca.ListOfPaths;
-
-
-                for (int i = 0; i < MapPaths.Count; i++)
+                for (var yy = this.Y - range; yy <= this.Y + range; yy++)
                 {
-                    if (Utility.InRange(this.Home, MapPaths[i].Item1, 25))
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
+                    StaticTile[] tiles = map.Tiles.GetStaticTiles(xx, yy, true);
+
+                    if(tiles.Length == 0)
+                        continue; 
                     else
-                        continue;
-
-                }
-            }
-            #endregion
-
-            #region Trammel
-            else if (this.Map == Map.Trammel)
-            {
-                List<Tuple<Point3D, List<Tuple<Point3D, Direction>>>> MapPaths = ActionAI_MinerPaths_Trammel.ListOfPaths;
-
-
-                for (int i = 0; i < MapPaths.Count; i++)
-                {
-                    if (Utility.InRange(this.Home, MapPaths[i].Item1, 25))
                     {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
+						if (m_Obstacles.Contains(tiles[0].ID))
+							continue;
+
+						else if (m_MiningTiles.Contains(tiles[0].ID))
+                        { 
+                            points.Add(new Point3D(xx, yy, tiles[0].Z ));
+                        }
                     }
-                    else
-                        continue;
-
-                }
+                } 
             }
-            #endregion
 
-            /* 
-            // THIS SECTION IS BLOCKED OUT UNTIL LISTS ARE FILLED OUT ABOVE
+            // convert hashset to list so we can use an indexer
+            pointsList = points.ToList();
 
-            #region Ilshenar
-            if(this.Map == Map.Ilshenar)
-            {
-                List<Tuple<Point3D,List<Tuple<Point3D,Direction>>>> MapPaths = ActionAI_MinerPaths_Ilshenar.Miner_ListOfPaths;
+			// remove every other entry point so mobile is going through each tile 1 by 1
+			for (int i = (pointsList.Count - 1); i > 0; i--)
+			{
+				if (i % 2 == 0)
+					pointsList.RemoveAt(i);
+			}
 
+			// cause... 1 isn't divisible by 2, is it?
+			// plus this will keep the "order" the mob's movement looking more uniform, like a real player using a macro
+			pointsList.RemoveAt(1);
 
-                for( int i = 0; i < MapPaths.Count; i++)
-                {
-                    if( Utility.InRange( this.Home, MapPaths[i].Item1, 25 ) )
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                        continue;
-                    
-                }
-            }
-            #endregion
-
-            #region Malas
-            if(this.Map == Map.Malas)
-            {
-                List<Tuple<Point3D,List<Tuple<Point3D,Direction>>>> MapPaths = ActionAI_MinerPaths_Malas.Miner_ListOfPaths;
-
-
-                for( int i = 0; i < MapPaths.Count; i++)
-                {
-                    if( Utility.InRange( this.Home, MapPaths[i].Item1, 25 ) )
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                        continue;
-                    
-                }
-            }
-            #endregion
-
-            #region Tokuno
-            if(this.Map == Map.Tokuno)
-            {
-                List<Tuple<Point3D,List<Tuple<Point3D,Direction>>>> MapPaths = ActionAI_MinerPaths_Tokuno.Miner_ListOfPaths;
-
-
-                for( int i = 0; i < MapPaths.Count; i++)
-                {
-                    if( Utility.InRange( this.Home, MapPaths[i].Item1, 25 ) )
-                    {
-                        m_MobilePath = MapPaths[i].Item2;
-                        break;
-                    }
-                    else
-                        continue;
-                    
-                }
-            }
-            #endregion
-
-            */
-
-            Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+			Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
         }
 
         public void CreateCamp()
@@ -441,44 +169,70 @@ namespace Server.Mobiles
 
             Home = this.Location;
 
-            SetPath();
-
             MinerCamp camp = new MinerCamp();
-
             camp.MoveToWorld(this.Location, this.Map);
-
             m_Camp = camp;
 
             if (Backpack == null)
+            {
                 AddItem(new Backpack());
+            }
 
-            if (m_MobilePath == null)
+            SetPath();
+
+            //if (m_MobilePath == null)
+            if (pointsList == null)
             {
                 return;
             }
 
             // Create the first Waypoint
             m_waypointFirst = new WayPoint();
-            m_waypointFirst.MoveToWorld(m_MobilePath[0].Item1, Map);
+            //m_waypointFirst.MoveToWorld(m_MobilePath[0].Item1, Map);
+            m_waypointFirst.MoveToWorld(pointsList[0], Map);
 
             CurrentWayPoint = m_waypointFirst;
             Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
         }
 
+        private static readonly int[] m_MiningTiles = new int[]
+        {
+            1339, 
+            1340, 1341, 1342, 1343, 1344, 1345, 1346, 1347, 1348, 1349,
+            /*1350, 1351, 1352, 1353, 1354, 1355, 1356, 1357, 1358, 1359, */
+            /*1361, 1362, 1363,*/
+            1386
+        };
 
-        public override void OnThink()
+		private static readonly int[] m_Obstacles = new int[]
+		{
+			/* stalagtites, mites, SilverEtchedMace */
+			2272, 2273, 2274, 2275, 2276, 2277, 2278, 2279, 2280, 2281, 2282, 
+
+			/* anvil and forge */
+			4015, 4016, 4017,
+		};
+
+
+		public override void OnThink()
         {
             if (!Alive && Deleted)
             {
                 return;
             }
 
-            if (m_MobilePath == null || m_waypointFirst == null)
+            //if (m_MobilePath == null || m_waypointFirst == null)
+            if (pointsList == null || m_waypointFirst == null)
             {
                 return;
             }
 
-            if (Alive && !Deleted && m_waypointFirst != null && m_MobilePath != null)
+            if (pointsList == null || m_waypointFirst == null)
+            {
+                return;
+            }
+
+            if (Alive && !Deleted /* && m_waypointFirst != null && m_MobilePath != null */)
             {
                 if (m_waypointFirst.Location == Home)
                 {
@@ -492,9 +246,12 @@ namespace Server.Mobiles
                     CantWalk = true;
                     CurrentSpeed = 2.0;
 
-                    Direction = m_MobilePath[m_Index].Item2;
+                     /*********
+                    TODO: MAKE MOBILE FACE TREE BASED ON CALCULATION OF POINTS
+                    **********/
+                    //Direction = m_MobilePath[m_Index].Item2;
+                    
                     Animate(11, 5, 1, true, false, 0);
-
                     PlaySound(Utility.RandomList(harvestDefinition.EffectSounds));
                 }
                 else
@@ -518,11 +275,12 @@ namespace Server.Mobiles
                 {
                     CantWalk = false;
 
-                    if ((m_Index + 1) < m_MobilePath.Count)
+                    //if ((m_Index + 1) < m_MobilePath.Count)
+                    if ( (m_Index + 1) < pointsList.Count )
                     {
                         m_Index++;
-
-                        waypointFirst.Location = m_MobilePath[m_Index].Item1;
+						//waypointFirst.Location = m_MobilePath[m_Index].Item1;
+						waypointFirst.Location = pointsList[m_Index];
                         CurrentWayPoint = waypointFirst;
                         Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
                     }
@@ -548,7 +306,8 @@ namespace Server.Mobiles
             {
                 SetPath();
 
-                if (m_MobilePath == null)
+                //if (m_MobilePath == null)
+                if (pointsList == null)
                 {
                     return;
                 }
@@ -559,11 +318,13 @@ namespace Server.Mobiles
                 {
                     CantWalk = false;
 
-                    if ((m_Index + 1) < m_MobilePath.Count)
+                    //if ((m_Index + 1) < m_MobilePath.Count)
+                    if ((m_Index + 1) < pointsList.Count)
                     {
                         m_Index++;
 
-                        waypointFirst.Location = m_MobilePath[m_Index].Item1;
+                        //waypointFirst.Location = m_MobilePath[m_Index].Item1;
+						waypointFirst.Location = pointsList[m_Index];
                         CurrentWayPoint = waypointFirst;
                         Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
                     }
