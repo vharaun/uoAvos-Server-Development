@@ -947,6 +947,7 @@ namespace Server.Mobiles
 		public virtual OppositionGroup OppositionGroup => null;
 
 		#region Friends
+
 		public List<Mobile> Friends => m_Friends;
 
 		public virtual bool AllowNewPetFriend => (m_Friends == null || m_Friends.Count < 5);
@@ -972,30 +973,6 @@ namespace Server.Mobiles
 			{
 				m_Friends.Remove(m);
 			}
-		}
-
-		public virtual bool IsFriend(Mobile m)
-		{
-			var g = OppositionGroup;
-
-			if (g != null && g.IsEnemy(this, m))
-			{
-				return false;
-			}
-
-			if (!m.Player && Formation?.IsMember(m) == true)
-			{
-				return true;
-			}
-
-			if (!(m is BaseCreature))
-			{
-				return false;
-			}
-
-			var c = (BaseCreature)m;
-
-			return (m_iTeam == c.m_iTeam && ((m_bSummoned || m_bControlled) == (c.m_bSummoned || c.m_bControlled))/* && c.Combatant != this */);
 		}
 
 		#endregion
@@ -1046,6 +1023,72 @@ namespace Server.Mobiles
 
 		#endregion
 
+		public virtual bool IsAlly(Mobile m)
+		{
+			var g = OppositionGroup;
+
+			if (g != null && g.IsEnemy(this, m))
+			{
+				return false;
+			}
+
+			if (!m.Player && Formation?.IsMember(m) == true)
+			{
+				return true;
+			}
+
+			Allegiance a;
+
+			if ((a = GetFactionAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Ally;
+			}
+
+			var pm = m as PlayerMobile ?? (m as BaseCreature)?.GetRootMaster<PlayerMobile>();
+
+			if (pm != null)
+			{
+				var ourEthic = EthicAllegiance;
+				var pl = Ethics.Player.Find(pm);
+
+				if (pl?.Ethic != null && ourEthic != null && pl.Ethic != ourEthic)
+				{
+					return false;
+				}
+			}
+			else if ((a = GetEthicAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Ally;
+			}
+
+			if (m is not BaseCreature c)
+			{
+				return false;
+			}
+
+			if (FightMode == FightMode.Evil && c.Karma < 0)
+			{
+				return false;
+			}
+
+			if (c.FightMode == FightMode.Evil && Karma < 0)
+			{
+				return false;
+			}
+
+			if (m_iTeam != 0 && c.m_iTeam != 0)
+			{
+				return m_iTeam == c.m_iTeam;
+			}
+
+			if ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		public virtual bool IsEnemy(Mobile m)
 		{
 			var g = OppositionGroup;
@@ -1060,47 +1103,66 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			if (m is BaseGuard)
+			Allegiance a;
+
+			if ((a = GetFactionAllegiance(m)) != Allegiance.None)
 			{
-				return false;
+				return a == Allegiance.Enemy;
 			}
 
-			if (GetFactionAllegiance(m) == Allegiance.Ally)
+			var pm = m as PlayerMobile ?? (m as BaseCreature)?.GetRootMaster<PlayerMobile>();
+
+			if (pm != null)
 			{
-				return false;
+				var ourEthic = EthicAllegiance;
+				var pl = Ethics.Player.Find(pm);
+
+				if (pl?.IsShielded == true && (ourEthic == null || ourEthic == pl.Ethic))
+				{
+					return false;
+				}
+			}
+			else if ((a = GetEthicAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Enemy;
 			}
 
-			var ourEthic = EthicAllegiance;
-			var pl = Ethics.Player.Find(m, true);
-
-			if (pl != null && pl.IsShielded && (ourEthic == null || ourEthic == pl.Ethic))
-			{
-				return false;
-			}
-
-			if (!(m is BaseCreature) || m is Server.Engines.Quests.Mobiles.MilitiaFighter)
-			{
-				return true;
-			}
-
-			if (TransformationSpellHelper.UnderTransformation(m, typeof(EtherealVoyageSpell)))
-			{
-				return false;
-			}
-
-			if (m is PlayerMobile && ((PlayerMobile)m).HonorActive)
-			{
-				return false;
-			}
-
-			var c = (BaseCreature)m;
-
-			if ((FightMode == FightMode.Evil && m.Karma < 0) || (c.FightMode == FightMode.Evil && Karma < 0))
+			if (m is not BaseCreature c || c is Server.Engines.Quests.Mobiles.MilitiaFighter)
 			{
 				return true;
 			}
 
-			return (m_iTeam != c.m_iTeam || ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))/* || c.Combatant == this*/ );
+			if (TransformationSpellHelper.UnderTransformation(c, typeof(EtherealVoyageSpell)))
+			{
+				return false;
+			}
+
+			if (pm != null && pm.HonorActive)
+			{
+				return false;
+			}
+
+			if (FightMode == FightMode.Evil && c.Karma < 0)
+			{
+				return true;
+			}
+
+			if (c.FightMode == FightMode.Evil && Karma < 0)
+			{
+				return true;
+			}
+
+			if (m_iTeam != 0 && c.m_iTeam != 0)
+			{
+				return m_iTeam != c.m_iTeam;
+			}
+
+			if ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))
+			{
+				return true;
+			}
+
+			return false;
 		}
 
 		public override string ApplyNameSuffix(string suffix)

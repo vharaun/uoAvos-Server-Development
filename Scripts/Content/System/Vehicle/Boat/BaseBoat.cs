@@ -1781,21 +1781,32 @@ namespace Server.Multis
 
 			for (var i = 1; i <= speed; ++i)
 			{
-				if (!CanFit(new Point3D(X + (i * rx), Y + (i * ry), Z), Map, ItemID))
-				{
-					if (i == 1)
-					{
-						if (message && m_TillerMan != null)
-						{
-							m_TillerMan.Say(501424); // Ar, we've stopped sir.
-						}
+				var loc = new Point3D(X + (i * rx), Y + (i * ry), Z);
 
-						return false;
+				if (CanFit(loc, Map, ItemID))
+				{
+					continue;
+				}
+
+				var reg = Region.Find(loc, Map);
+
+				if (reg != null && reg.AllowVehicles(m_Owner, loc))
+				{
+					continue;
+				}
+
+				if (i == 1)
+				{
+					if (message && m_TillerMan != null)
+					{
+						m_TillerMan.Say(501424); // Ar, we've stopped sir.
 					}
 
-					speed = i - 1;
-					break;
+					return false;
 				}
+
+				speed = i - 1;
+				break;
 			}
 
 			var xOffset = speed * rx;
@@ -1832,15 +1843,26 @@ namespace Server.Multis
 
 					for (var j = 1; j <= speed; ++j)
 					{
-						if (!CanFit(new Point3D(newX + (j * rx), newY + (j * ry), Z), Map, ItemID))
-						{
-							if (message && m_TillerMan != null)
-							{
-								m_TillerMan.Say(501424); // Ar, we've stopped sir.
-							}
+						var loc = new Point3D(newX + (j * rx), newY + (j * ry), Z);
 
-							return false;
+						if (CanFit(loc, Map, ItemID))
+						{
+							continue;
 						}
+
+						var reg = Region.Find(loc, Map);
+
+						if (reg != null && reg.AllowVehicles(m_Owner, loc))
+						{
+							continue;
+						}
+
+						if (message && m_TillerMan != null)
+						{
+							m_TillerMan.Say(501424); // Ar, we've stopped sir.
+						}
+
+						return false;
 					}
 
 					xOffset = newX - X;
@@ -2477,7 +2499,7 @@ namespace Server.Multis
 					return;
 				}
 
-				if (from.Region.IsPartOf(typeof(HouseRegion)) || BaseBoat.FindBoatAt(from, from.Map) != null)
+				if (from.Region.IsPartOf<HouseRegion>() || BaseBoat.FindBoatAt(from, from.Map) != null)
 				{
 					from.SendLocalizedMessage(1010568, null, 0x25); // You may not place a ship while on another ship or inside a house.
 					return;
@@ -2492,7 +2514,13 @@ namespace Server.Multis
 
 				p = new Point3D(p.X - m_Offset.X, p.Y - m_Offset.Y, p.Z - m_Offset.Z);
 
-				if (BaseBoat.IsValidLocation(p, map) && boat.CanFit(p, map, boat.ItemID))
+				var reg = Region.Find(p, Map);
+
+				if (!reg.AllowVehicles(from, p))
+				{
+					boat.Delete();
+				}
+				else if (BaseBoat.IsValidLocation(p, map) && boat.CanFit(p, map, boat.ItemID))
 				{
 					Delete();
 
@@ -2545,15 +2573,7 @@ namespace Server.Multis
 
 					var region = Region.Find(p, from.Map);
 
-					if (region.IsPartOf(typeof(DungeonRegion)))
-					{
-						from.SendLocalizedMessage(502488); // You can not place a ship inside a dungeon.
-					}
-					else if (region.IsPartOf(typeof(HouseRegion)) || region.IsPartOf(typeof(ChampionSpawnRegion)))
-					{
-						from.SendLocalizedMessage(1042549); // A boat may not be placed in this area.
-					}
-					else
+					if (region.AllowVehicles(from, p))
 					{
 						m_Deed.OnPlacement(from, p);
 					}

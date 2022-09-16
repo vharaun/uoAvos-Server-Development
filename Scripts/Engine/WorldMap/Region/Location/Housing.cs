@@ -67,6 +67,7 @@ namespace Server.Regions
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override bool AllowHousing(Mobile from, Point3D p)
@@ -554,6 +555,7 @@ namespace Server.Regions
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override void Serialize(GenericWriter writer)

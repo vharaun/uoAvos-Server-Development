@@ -359,7 +359,7 @@ namespace Server.Mobiles
 
 		#region Currencies
 
-		private readonly Dictionary<Mobile, TypeAmount> m_SelectedCurrencies = new();
+		protected readonly Dictionary<Mobile, TypeAmount> m_SelectedCurrencies = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Currencies Currencies { get; private set; } = new();
@@ -1635,13 +1635,17 @@ namespace Server.Mobiles
 				}
 			}
 
-			var town = HomeTown;
-
-			if (town != null)
+			if (Reputation.IsEnemy(this, from))
 			{
+				return false;
 			}
 
 			return true;
+		}
+
+		public override bool IsEnemy(Mobile m)
+		{
+			return base.IsEnemy(m);
 		}
 
 		public virtual bool OnSellItems(Mobile seller, List<SellItemResponse> list)

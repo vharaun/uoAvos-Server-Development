@@ -1346,6 +1346,16 @@ namespace Server
 			return true;
 		}
 
+		public virtual bool AllowVehicles(Mobile from, Point3D p)
+		{
+			if (Parent != null)
+			{
+				return Parent.AllowVehicles(from, p);
+			}
+
+			return true;
+		}
+
 		public virtual bool SendInaccessibleMessage(Item item, Mobile from)
 		{
 			if (Parent != null)

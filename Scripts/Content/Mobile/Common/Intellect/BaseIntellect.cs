@@ -2840,7 +2840,7 @@ namespace Server.Mobiles
 					}
 
 					// If we only want faction friends, make sure it's one.
-					if (bFacFriend && !m_Mobile.IsFriend(m))
+					if (bFacFriend && !m_Mobile.IsAlly(m))
 					{
 						continue;
 					}
