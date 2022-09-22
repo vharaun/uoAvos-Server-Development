@@ -1,4 +1,5 @@
-﻿using Server.Engines.ConPVP;
+﻿using Server.Commands;
+using Server.Engines.ConPVP;
 using Server.Engines.PartySystem;
 using Server.Factions;
 using Server.Guilds;
@@ -910,6 +911,14 @@ namespace Server.Misc
 		[CallPriority(Int32.MinValue + 20)]
 		public static void Configure()
 		{
+			CommandSystem.Register("Reputation", AccessLevel.Player, e =>
+			{
+				if (e.Mobile is PlayerMobile player)
+				{
+					ReputationGump.DisplayTo(player);
+				}
+			});
+
 			EventSink.WorldSave += OnSave;
 			EventSink.WorldLoad += OnLoad;
 		}
