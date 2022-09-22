@@ -1,22 +1,26 @@
 ﻿using Server.Engines.ConPVP;
 using Server.Engines.PartySystem;
-using Server.Ethics;
 using Server.Factions;
 using Server.Guilds;
+using Server.Gumps;
 using Server.Items;
 using Server.Mobiles;
 using Server.Multis;
+using Server.Network;
 using Server.SkillHandlers;
 using Server.Spells.Seventh;
+using Server.Targeting;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text;
+
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Server.Misc
 {
@@ -377,14 +381,12 @@ namespace Server.Misc
 			}
 
 			var srcPlayer = source as PlayerMobile;
-			var trgPlayer = target.Owner as PlayerMobile;
 
 			var srcCreature = source as BaseCreature;
-			var trgCreature = target.Owner as BaseCreature;
 
 			var body = (Body)target.Amount;
 
-			if (trgCreature != null)
+			if (target.Owner is BaseCreature trgCreature)
 			{
 				var sourceGuild = GetGuildFor(source.Guild as Guild, source);
 				var targetGuild = GetGuildFor(target.Guild, trgCreature);
@@ -395,7 +397,7 @@ namespace Server.Misc
 					{
 						return Notoriety.Ally;
 					}
-					
+
 					if (sourceGuild.IsEnemy(targetGuild))
 					{
 						return Notoriety.Enemy;
@@ -485,7 +487,7 @@ namespace Server.Misc
 					{
 						return Notoriety.Ally;
 					}
-					
+
 					if (sourceGuild.IsEnemy(targetGuild))
 					{
 						return Notoriety.Enemy;
@@ -525,7 +527,7 @@ namespace Server.Misc
 					return Notoriety.CanBeAttacked;
 				}
 
-				if (trgPlayer == null)
+				if (target.Owner is not PlayerMobile)
 				{
 					return Notoriety.CanBeAttacked;
 				}
@@ -540,7 +542,7 @@ namespace Server.Misc
 					}
 				}
 			}
-			
+
 			return Notoriety.Innocent;
 		}
 
@@ -564,7 +566,7 @@ namespace Server.Misc
 					return Notoriety.Invulnerable;
 				}
 
-				if (target is PlayerVendor || target is TownCrier)
+				if (target is PlayerVendor or TownCrier)
 				{
 					return Notoriety.Invulnerable;
 				}
@@ -583,7 +585,7 @@ namespace Server.Misc
 					{
 						return Notoriety.Ally;
 					}
-					
+
 					return Notoriety.Enemy;
 				}
 			}
@@ -634,7 +636,7 @@ namespace Server.Misc
 
 			if (target.Body.IsMonster && IsSummoned(trgCreature))
 			{
-				if (target is not BaseFamiliar && target is not ArcaneFey && target is not Golem)
+				if (target is not BaseFamiliar and not ArcaneFey and not Golem)
 				{
 					return Notoriety.Murderer;
 				}
@@ -659,7 +661,7 @@ namespace Server.Misc
 				{
 					return Notoriety.Ally;
 				}
-				
+
 				if (sourceGuild.IsEnemy(targetGuild))
 				{
 					return Notoriety.Enemy;
@@ -832,7 +834,6 @@ namespace Server.Misc
 
 	public enum ReputationCategory
 	{
-		None,
 		Townships,
 		Vendors,
 	}
@@ -841,16 +842,69 @@ namespace Server.Misc
 	{
 		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "Reputation", "Reputation.bin");
 
-		public static ReputationLevel[] Levels { get; } = Enum.GetValues<ReputationLevel>();
+		public static ImmutableList<ReputationCategory> Categories { get; }
 
-		public static Dictionary<ReputationCategory, HashSet<ReputationDefinition>> Definitions { get; } = new();
+		public static ImmutableList<ReputationLevel> Levels { get; }
+
+		public static ImmutableDictionary<ReputationLevel, Color> LevelColors { get; }
+
+		public static ImmutableDictionary<ReputationCategory, ImmutableHashSet<ReputationDefinition>> Definitions { get; }
 
 		public static Dictionary<PlayerMobile, ReputationState> PlayerStates { get; } = new();
 
 		static Reputation()
 		{
-			Definitions[ReputationCategory.Townships] = new(Town.Towns.Select(t => t.Definition.Reputation));
-			Definitions[ReputationCategory.Vendors] = new(NpcGuildInfo.Guilds.Select(g => g.Reputation));
+			Categories = ImmutableList.Create(Enum.GetValues<ReputationCategory>());
+
+			Levels = ImmutableList.Create(Enum.GetValues<ReputationLevel>());
+
+			static Color getColor(Color cmin, Color cmax, float p)
+			{
+				var r = (byte)(cmin.R + (cmax.R - cmin.R) * p);
+				var g = (byte)(cmin.G + (cmax.G - cmin.G) * p);
+				var b = (byte)(cmin.B + (cmax.B - cmin.B) * p);
+
+				return Color.FromArgb(Byte.MaxValue, r, g, b);
+			};
+
+			var colors = ImmutableDictionary.CreateBuilder<ReputationLevel, Color>();
+
+			var index = 0;
+
+			var cmin = Color.OrangeRed;
+			var cmax = Color.Goldenrod;
+
+			var eidx = Levels.IndexOf(ReputationLevel.Neutral);
+			var lcap = (float)(eidx - 1);
+
+			while (index < eidx)
+			{
+				colors[Levels[index]] = getColor(cmin, cmax, index / lcap);
+
+				++index;
+			}
+
+			cmin = Color.Goldenrod;
+			cmax = Color.LawnGreen;
+
+			eidx = Levels.Count;
+			lcap = (float)(eidx - 1);
+
+			while (index < eidx)
+			{
+				colors[Levels[index]] = getColor(cmin, cmax, index / lcap);
+
+				++index;
+			}
+
+			LevelColors = colors.ToImmutable();
+
+			var definitions = ImmutableDictionary.CreateBuilder<ReputationCategory, ImmutableHashSet<ReputationDefinition>>();
+
+			definitions[ReputationCategory.Townships] = ImmutableHashSet.CreateRange(Town.Towns.Select(t => t.Reputation).Cast<ReputationDefinition>());
+			definitions[ReputationCategory.Vendors] = ImmutableHashSet.CreateRange(NpcGuilds.Guilds.Select(g => g.Reputation).Cast<ReputationDefinition>());
+
+			Definitions = definitions.ToImmutable();
 		}
 
 		[CallPriority(Int32.MinValue + 20)]
@@ -864,7 +918,7 @@ namespace Server.Misc
 		{
 			if (mob is PlayerMobile p)
 			{
-				PlayerStates.Remove(p);
+				_ = PlayerStates.Remove(p);
 			}
 		}
 
@@ -904,7 +958,7 @@ namespace Server.Misc
 			}
 			else if (player.Deleted)
 			{
-				PlayerStates.Remove(player);
+				_ = PlayerStates.Remove(player);
 
 				state = null;
 			}
@@ -1148,7 +1202,7 @@ namespace Server.Misc
 				{
 					sb ??= new();
 
-					sb.AppendLine(title);
+					_ = sb.AppendLine(title);
 				}
 			}
 
@@ -1170,7 +1224,7 @@ namespace Server.Misc
 			{
 				writer.WriteEncodedInt(2);
 
-				NpcGuildInfo.WriteReference(writer, npcGuildDef.Owner);
+				NpcGuilds.WriteReference(writer, npcGuildDef.Owner);
 			}
 			else
 			{
@@ -1192,7 +1246,7 @@ namespace Server.Misc
 					}
 				case 2:
 					{
-						var npcGuild = NpcGuildInfo.ReadReference(reader);
+						var npcGuild = NpcGuilds.ReadReference(reader);
 
 						return npcGuild?.Reputation;
 					}
@@ -1225,7 +1279,7 @@ namespace Server.Misc
 
 		private static void OnDeserialize(GenericReader reader)
 		{
-			reader.ReadInt();
+			_ = reader.ReadInt();
 
 			var count = reader.ReadInt();
 
@@ -1245,8 +1299,8 @@ namespace Server.Misc
 	{
 		public T Owner { get; }
 
-		public ReputationDefinition(T owner, ReputationCategory category, string name, params int[] levels) 
-			: base(category, name, levels)
+		public ReputationDefinition(T owner, ReputationCategory category, string name, string description, params int[] levels)
+			: base(category, name, description, levels)
 		{
 			Owner = owner;
 		}
@@ -1263,7 +1317,7 @@ namespace Server.Misc
 
 			static Empty()
 			{
-				var count = Reputation.Levels.Length;
+				var count = Reputation.Levels.Count;
 
 				var values = new int[count];
 
@@ -1276,7 +1330,7 @@ namespace Server.Misc
 			}
 
 			private Empty(int[] levels)
-				: base(ReputationCategory.None, String.Empty, levels)
+				: base((ReputationCategory)(-1), String.Empty, String.Empty, levels)
 			{ }
 		}
 
@@ -1326,11 +1380,13 @@ namespace Server.Misc
 		public ReputationCategory Category { get; }
 
 		public string Name { get; }
+		public string Description { get; }
 
-		public ReputationDefinition(ReputationCategory cat, string name, params int[] levels)
+		public ReputationDefinition(ReputationCategory cat, string name, string description, params int[] levels)
 		{
 			Category = cat;
 			Name = name;
+			Description = description;
 
 			m_Levels = Default.m_Levels.ToArray();
 
@@ -1358,6 +1414,15 @@ namespace Server.Misc
 			}
 
 			return (ReputationLevel)index;
+		}
+
+		public Color ComputeLevelColor(int points)
+		{
+			var level = ComputeLevel(points);
+
+			Reputation.LevelColors.TryGetValue(level, out var color);
+
+			return color;
 		}
 
 		public virtual bool IsEnemy(Mobile mobile)
@@ -1424,11 +1489,11 @@ namespace Server.Misc
 				}
 				else if (victimLevel >= ReputationLevel.Honored)
 				{
-					points *= 1 + (int)(ReputationLevel.Exalted - victimLevel);
+					points *= 1 + (ReputationLevel.Exalted - victimLevel);
 				}
 			}
 
-			DeltaPoints(killer, points, true);
+			_ = DeltaPoints(killer, points, true);
 		}
 
 		public virtual int DeltaPoints(PlayerMobile player, int delta, bool message)
@@ -1530,7 +1595,7 @@ namespace Server.Misc
 
 			var add = new ReputationEntry(definition);
 
-			Entries.Add(add);
+			_ = Entries.Add(add);
 
 			PropertyNotifier.Notify(this, Entries);
 
@@ -1600,7 +1665,7 @@ namespace Server.Misc
 
 		public void Deserialize(GenericReader reader)
 		{
-			reader.ReadEncodedInt();
+			_ = reader.ReadEncodedInt();
 
 			Owner = reader.ReadMobile<PlayerMobile>();
 
@@ -1612,7 +1677,7 @@ namespace Server.Misc
 
 				if (entry.Definition != null)
 				{
-					Entries.Add(entry);
+					_ = Entries.Add(entry);
 				}
 			}
 		}
@@ -1621,21 +1686,94 @@ namespace Server.Misc
 	[PropertyObject]
 	public class ReputationEntry
 	{
-		private ReputationDefinition m_Definition;
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public ReputationDefinition Definition { get; private set; }
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public string Name => Definition.Name;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public string Description => Definition.Description;
+
 		private int m_Points;
 
-		[CommandProperty(AccessLevel.Counselor, true)]
-		public ReputationDefinition Definition => m_Definition;
-
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public int Points { get => m_Points; set => m_Points = Math.Clamp(value, Definition.PointsMin, Definition.PointsMax); }
+		public int Points
+		{
+			get => m_Points;
+			set
+			{
+				value = Math.Clamp(value, PointsMin, PointsMax);
+
+				if (m_Points != value)
+				{
+					m_Points = value;
+					m_Level = null;
+					m_LevelColor = null;
+				}
+			}
+		}
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public ReputationLevel Level => Definition.ComputeLevel(Points);
+		public int PointsPrev
+		{
+			get
+			{
+				var level = Level - 1;
+
+				if (Enum.IsDefined(level))
+				{
+					return Definition[level];
+				}
+
+				return PointsMin;
+			}
+		}
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsPrevReq => Points - PointsPrev;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsNext
+		{
+			get
+			{
+				var level = Level + 1;
+
+				if (Enum.IsDefined(level))
+				{
+					return Definition[level];
+				}
+
+				return PointsMax;
+			}
+		}
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsNextReq => PointsNext - Points;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsMin => Definition.PointsMin;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsMax => Definition.PointsMax;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int PointsDef => Definition.PointsDef;
+
+		private ReputationLevel? m_Level = null;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public ReputationLevel Level => m_Level ??= Definition.ComputeLevel(Points);
+
+		private Color? m_LevelColor = null;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public Color LevelColor => m_LevelColor ??= Definition.ComputeLevelColor(Points);
 
 		public ReputationEntry(ReputationDefinition definition)
 		{
-			m_Definition = definition;
+			Definition = definition;
 		}
 
 		public ReputationEntry(GenericReader reader)
@@ -1647,18 +1785,246 @@ namespace Server.Misc
 		{
 			writer.WriteEncodedInt(0);
 
-			Reputation.WriteReference(writer, m_Definition);
+			Reputation.WriteReference(writer, Definition);
 
 			writer.WriteEncodedInt(m_Points);
 		}
 
 		public void Deserialize(GenericReader reader)
 		{
-			reader.ReadEncodedInt();
+			_ = reader.ReadEncodedInt();
 
-			m_Definition = Reputation.ReadReference(reader);
+			Definition = Reputation.ReadReference(reader);
 
 			m_Points = reader.ReadEncodedInt();
+		}
+	}
+
+	public class ReputationGump : BaseGridGump
+	{
+		private const int EntriesPerPage = 10;
+
+		private static readonly ImmutableList<ReputationEntry> m_Empty = ImmutableList.Create<ReputationEntry>();
+
+		public static ReputationGump DisplayTo(PlayerMobile player)
+		{
+			var gump = new ReputationGump(player);
+
+			_ = player.SendGump(gump, false);
+
+			return gump;
+		}
+
+		private readonly PlayerMobile m_Player;
+
+		private readonly ReputationCategory m_Category;
+
+		private readonly int m_Page, m_PageCount;
+
+		private readonly ImmutableList<ReputationEntry> m_View = m_Empty;
+
+		public override int BorderSize => 10;
+		public override int OffsetSize => 1;
+
+		public override int EntryHeight => 20;
+
+		public override int OffsetGumpID => 0x2430;
+		public override int HeaderGumpID => 0x243A;
+		public override int EntryGumpID => 0x2458;
+		public override int BackGumpID => 0x2486;
+
+		public override int TextHue => 0;
+		public override int TextOffsetX => 2;
+
+		public virtual int PageLeftID1 => 0x25EA;
+		public virtual int PageLeftID2 => 0x25EB;
+		public virtual int PageLeftWidth => 16;
+		public virtual int PageLeftHeight => 16;
+
+		public virtual int PageRightID1 => 0x25E6;
+		public virtual int PageRightID2 => 0x25E7;
+		public virtual int PageRightWidth => 16;
+		public virtual int PageRightHeight => 16;
+
+		public virtual int EntryInfoID1 => 0x5689;
+		public virtual int EntryInfoID2 => 0x568B;
+		public virtual int EntryInfoWidth => 16;
+		public virtual int EntryInfoHeight => 16;
+
+		public ReputationGump(PlayerMobile player)
+			: this(player, default)
+		{ }
+
+		public ReputationGump(PlayerMobile player, ReputationCategory category)
+			: this(player, category, 0)
+		{ }
+
+		public ReputationGump(PlayerMobile player, ReputationCategory category, int page)
+			: this(player, category, page, null)
+		{ }
+
+		private ReputationGump(PlayerMobile player, ReputationCategory category, int page, ImmutableList<ReputationEntry> view)
+			: base(100, 100)
+		{
+			m_Player = player;
+			m_Category = category;
+
+			if (view != null)
+			{
+				m_View = view;
+				m_Page = page;
+			}
+			else if (Reputation.Definitions.TryGetValue(m_Category, out var defs))
+			{
+				var state = Reputation.GetState(m_Player);
+
+				if (state != null)
+				{
+					m_View = ImmutableList.CreateRange(defs.Select(state.GetEntry));
+					m_Page = page;
+				}
+			}
+
+			m_PageCount = (m_View.Count + EntriesPerPage - 1) / EntriesPerPage;
+
+			Closable = false;
+			Disposable = false;
+			Dragable = false;
+			Resizable = false;
+
+			var nameWidth = 160;
+			var progWidth = 160;
+
+			AddNewPage();
+
+			if (m_Page > 0)
+			{
+				AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
+			}
+			else
+			{
+				AddEntryHeader(20);
+			}
+
+			AddEntryHtml(OffsetSize + nameWidth + OffsetSize + progWidth, SetCenter($"{m_Category} - Page {m_Page + 1} of {m_PageCount}"));
+
+			if ((m_Page + 1) * EntriesPerPage < m_View.Count)
+			{
+				AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
+			}
+			else
+			{
+				AddEntryHeader(20);
+			}
+
+			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_View.Count; ++i, ++line)
+			{
+				AddNewLine();
+
+				AddEntryProgress(20, OffsetSize, nameWidth, progWidth, m_View[i]);
+
+				AddEntryButton(20, EntryInfoID1, EntryInfoID2, 5 + i, EntryInfoWidth, EntryInfoHeight);
+			}
+
+			FinishPage();
+		}
+
+		public void AddEntryProgress(int padding, int spacing, int nameWidth, int progWidth, ReputationEntry entry)
+		{
+			AddEntryHtml(padding + spacing + nameWidth, SetRight(entry.Name));
+
+			IncreaseX(spacing);
+
+			AddImageTiled(CurrentX, CurrentY, progWidth, EntryHeight, 2624);
+
+			var pointsDelta = entry.Points - entry.PointsPrev;
+			var pointsLimit = entry.PointsNext - entry.PointsPrev;
+
+			var fillWidth = (int)((progWidth - 2) * (pointsDelta / (float)pointsLimit));
+
+			AddHtml(CurrentX + 1, CurrentY + 1, fillWidth, EntryHeight - 2, SetBGColor(entry.LevelColor), false, false);
+
+			var text = $"{entry.Level} [{entry.Points:N0} / {entry.PointsNext:N0}]";
+
+			AddHtml(CurrentX + TextOffsetX, CurrentY, progWidth - TextOffsetX, EntryHeight, SetCenter(SetColor(text, Color.White)), false, false);
+
+			IncreaseX(progWidth);
+		}
+
+		public override void OnResponse(NetState sender, RelayInfo info)
+		{
+			switch (info.ButtonID)
+			{
+				case 0:
+					{
+						_ = m_Player.CloseGump(typeof(ReputationGump));
+
+						return;
+					}
+				case 1:
+					{
+						if (m_Page > 0)
+						{
+							_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page - 1, m_View));
+						}
+						else
+						{
+							var cat = m_Category - 1;
+
+							if (!Enum.IsDefined(cat))
+							{
+								cat = Reputation.Categories[^1];
+							}
+
+							var page = 0;
+
+							if (Reputation.Definitions.TryGetValue(cat, out var defs))
+							{
+								page = (defs.Count + EntriesPerPage - 1) / EntriesPerPage;
+							}
+
+							_ = m_Player.SendGump(new ReputationGump(m_Player, cat, page));
+						}
+
+						return;
+					}
+				case 2:
+					{
+						if ((m_Page + 1) * EntriesPerPage < m_View.Count)
+						{
+							_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page + 1, m_View));
+						}
+						else
+						{
+							var cat = m_Category + 1;
+
+							if (!Enum.IsDefined(cat))
+							{
+								cat = Reputation.Categories[0];
+							}
+
+							_ = m_Player.SendGump(new ReputationGump(m_Player, cat));
+						}
+
+						return;
+					}
+			}
+			
+			var v = info.ButtonID - 5;
+
+			if (v >= 0 && v < m_View.Count)
+			{
+				var entry = m_View[v];
+
+				_ = m_Player.SendGump(new NoticeGump<ReputationEntry>(entry.Name, 0xFFFFFF, entry.Description, 0xFFFFFF, 420, 420, (_, _) =>
+				{
+					_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
+				}, entry));
+			}
+			else
+			{
+				_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
+			}
 		}
 	}
 

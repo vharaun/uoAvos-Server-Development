@@ -267,7 +267,7 @@ namespace Server.Commands
 
 			/* Header */
 			AddEntryHeader(20);
-			AddEntryHtml(180, Center("Batch Commands"));
+			AddEntryHtml(180, SetCenter("Batch Commands"));
 			AddEntryHeader(20);
 			AddNewLine();
 
@@ -280,7 +280,7 @@ namespace Server.Commands
 
 			/* Scope */
 			AddEntryHeader(20);
-			AddEntryHtml(180, Center("Scope"));
+			AddEntryHtml(180, SetCenter("Scope"));
 			AddEntryHeader(20);
 			AddNewLine();
 
@@ -293,7 +293,7 @@ namespace Server.Commands
 
 			/* Condition */
 			AddEntryHeader(20);
-			AddEntryHtml(180, Center("Condition"));
+			AddEntryHtml(180, SetCenter("Condition"));
 			AddEntryHeader(20);
 			AddNewLine();
 
@@ -306,7 +306,7 @@ namespace Server.Commands
 
 			/* Commands */
 			AddEntryHeader(20);
-			AddEntryHtml(180, Center("Commands"));
+			AddEntryHtml(180, SetCenter("Commands"));
 			AddEntryHeader(20);
 
 			for (var i = 0; i < m_Batch.BatchCommands.Count; ++i)
@@ -429,7 +429,7 @@ namespace Server.Commands
 
 			/* Header */
 			AddEntryHeader(20);
-			AddEntryHtml(140, Center("Change Scope"));
+			AddEntryHtml(140, SetCenter("Change Scope"));
 			AddEntryHeader(20);
 
 			/* Options */

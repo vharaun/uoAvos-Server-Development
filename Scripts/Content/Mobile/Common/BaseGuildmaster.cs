@@ -7,8 +7,11 @@ using Server.Network;
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Server.Mobiles
 {
@@ -186,59 +189,233 @@ namespace Server.Mobiles
 	public enum NpcGuild
 	{
 		None,
+
+		[Aliases("Guild of Arcane Arts"), Description("Alchemists and Mages")]
 		MagesGuild,
+
+		[Aliases("Warriors' Guild"), Description("Mercenaries, Warriors, Weapon Trainers, Weaponsmiths, Soldiers, Guards, and Paladins")]
 		WarriorsGuild,
+
+		[Aliases("Society of Thieves"), Description("Beggars, Thieves, Assassins, and Brigands")]
 		ThievesGuild,
+
+		[Aliases("League of Rangers"), Description("Bowyers, Animal Trainers, and Rangers")]
 		RangersGuild,
+
+		[Aliases("Guild of Healers"), Description("Healers")]
 		HealersGuild,
+
+		[Aliases("Mining Cooperative"), Description("Miners")]
 		MinersGuild,
+
+		[Aliases("Merchants' Association"), Description("Merchants, Innkeepers, Tavernkeepers, Jewelers, and Provisioners")]
 		MerchantsGuild,
+
+		[Aliases("Order of Engineers"), Description("Tinkers and Engineers")]
 		TinkersGuild,
+
+		[Aliases("Society of Clothiers"), Description("Tailors and Weavers")]
 		TailorsGuild,
+
+		[Aliases("Maritime Guild"), Description("Fishers, Sailors, Mapmakers, and Shipwrights")]
 		FishermensGuild,
+
+		[Aliases("Bardic Collegium"), Description("Bards, Musicians, Storytellers, and Performers")]
 		BardsGuild,
-		BlacksmithsGuild
+
+		[Aliases("Society of Smiths"), Description("Blacksmiths and Weaponsmiths")]
+		BlacksmithsGuild,
+	}
+
+	public static class NpcGuilds
+	{
+		private static readonly Dictionary<NpcGuild, (string, string)> m_Info = new();
+
+		public static ImmutableList<NpcGuildInfo> Guilds => NpcGuildInfo.Instances;
+
+		public static void Initialize()
+		{
+			CommandSystem.Register("NpcGuilds", AccessLevel.Administrator, e =>
+			{
+				e.Mobile.SendGump(new InterfaceGump(e.Mobile, Guilds.Skip(1)));
+			});
+		}
+
+		public static string GetName(this NpcGuild guild)
+		{
+			var entry = GetNameAndDescription(guild);
+
+			return entry.Name ?? String.Empty;
+		}
+
+		public static string GetDescription(this NpcGuild guild)
+		{
+			var entry = GetNameAndDescription(guild);
+
+			return entry.Description ?? String.Empty;
+		}
+
+		public static (string Name, string Description) GetNameAndDescription(this NpcGuild guild)
+		{
+			if (m_Info.TryGetValue(guild, out var entry))
+			{
+				return entry;
+			}
+
+			var info = typeof(NpcGuild).GetMember(guild.ToString());
+
+			if (info?.Length > 0 && info[0] != null)
+			{
+				var attributes = info[0].GetCustomAttributes(false);
+
+				foreach (var attr in attributes)
+				{
+					if (attr is NameAttribute na)
+					{
+						entry.Item1 = na.Name.Trim();
+					}
+					else if (attr is DescriptionAttribute da)
+					{
+						entry.Item2 = da.Description.Trim();
+					}
+
+					if (entry.Item1 != null && entry.Item2 != null)
+					{
+						break;
+					}
+				}
+			}
+
+			entry.Item1 ??= String.Empty;
+			entry.Item2 ??= String.Empty;
+
+			return m_Info[guild] = entry;
+		}
+
+		public static NpcGuildInfo Find(BaseVendor vendor)
+		{
+			if (vendor?.Deleted == false)
+			{
+				return Find(vendor.NpcGuild);
+			}
+
+			return NpcGuildInfo.None;
+		}
+
+		public static NpcGuildInfo Find(PlayerMobile player)
+		{
+			if (player?.Deleted == false)
+			{
+				return Find(player.NpcGuild);
+			}
+
+			return NpcGuildInfo.None;
+		}
+
+		public static NpcGuildInfo Find(NpcGuild guild)
+		{
+			if (Enum.IsDefined(guild))
+			{
+				return Find(Convert.ToInt32(guild));
+			}
+
+			return NpcGuildInfo.None;
+		}
+
+		public static NpcGuildInfo Find(int id)
+		{
+			if (id >= 0 && id < Guilds.Count)
+			{
+				return Guilds[id];
+			}
+
+			return NpcGuildInfo.None;
+		}
+
+		public static void WriteReference(GenericWriter writer, NpcGuildInfo guild)
+		{
+			writer.Write(guild?.Guild ?? NpcGuild.None);
+		}
+
+		public static NpcGuildInfo ReadReference(GenericReader reader)
+		{
+			return Find(reader.ReadEnum<NpcGuild>());
+		}
 	}
 
 	[Parsable, PropertyObject]
 	public sealed record NpcGuildInfo
 	{
-		private static readonly NpcGuild[] m_Values = Enum.GetValues<NpcGuild>();
-
-		public static readonly string[] Names = new string[m_Values.Length];
-
-		public static readonly NpcGuildInfo[] Guilds = new NpcGuildInfo[m_Values.Length];
-
 		public static readonly NpcGuildInfo None = new(0);
+
+		public static ImmutableList<NpcGuildInfo> Instances { get; }
 
 		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "NpcGuilds", "NpcGuildInfo.bin");
 
 		static NpcGuildInfo()
 		{
-			Guilds[0] = None;
-			Names[0] = None.Name;
+			var instances = ImmutableList.CreateBuilder<NpcGuildInfo>();
 
-			for (var i = 1; i < Guilds.Length; i++)
+			foreach (var guild in Enum.GetValues<NpcGuild>())
 			{
-				var info = new NpcGuildInfo(m_Values[i]);
-
-				Guilds[i] = info;
-				Names[i] = info.Name;
+				instances.Add(new NpcGuildInfo(guild));
 			}
+
+			Instances = instances.ToImmutable();
 		}
 
 		[CallPriority(Int32.MinValue + 10)]
 		public static void Configure()
 		{
-			CommandSystem.Register("NpcGuilds", AccessLevel.Administrator, e =>
-			{
-				var guilds = Guilds.Skip(1);
-
-				e.Mobile.SendGump(new InterfaceGump(e.Mobile, guilds));
-			});
-
 			EventSink.WorldSave += OnSave;
 			EventSink.WorldLoad += OnLoad;
+		}
+
+		private static void OnSave(WorldSaveEventArgs e)
+		{
+			Persistence.Serialize(FilePath, OnSerialize);
+		}
+
+		private static void OnSerialize(GenericWriter writer)
+		{
+			writer.Write(0);
+
+			writer.Write(Instances.Count);
+
+			for (var i = 1; i < Instances.Count; i++)
+			{
+				var info = Instances[i];
+
+				info.Serialize(writer);
+			}
+		}
+
+		private static void OnLoad()
+		{
+			Persistence.Deserialize(FilePath, OnDeserialize);
+		}
+
+		private static void OnDeserialize(GenericReader reader)
+		{
+			reader.ReadInt();
+
+			var count = reader.ReadInt();
+
+			for (var i = 1; i < count; i++)
+			{
+				NpcGuildInfo info;
+
+				if (i < Instances.Count)
+				{
+					info = Instances[i];
+				}
+				else
+				{
+					info = new NpcGuildInfo();
+				}
+
+				info.Deserialize(reader);
+			}
 		}
 
 		public static bool TryParse(string input, out NpcGuildInfo value)
@@ -257,114 +434,17 @@ namespace Server.Mobiles
 
 		public static NpcGuildInfo Parse(string input)
 		{
-			return Guilds.Single(info => Insensitive.Equals(info.Name, input));
-		}
-
-		public static NpcGuildInfo Find(BaseVendor vendor)
-		{
-			if (vendor?.Deleted == false)
-			{
-				return Find(vendor.NpcGuild);
-			}
-
-			return None;
-		}
-
-		public static NpcGuildInfo Find(PlayerMobile player)
-		{
-			if (player?.Deleted == false)
-			{
-				return Find(player.NpcGuild);
-			}
-
-			return None;
-		}
-
-		public static NpcGuildInfo Find(NpcGuild guild)
-		{
-			if (Enum.IsDefined(guild))
-			{
-				return Find(Convert.ToInt32(guild));
-			}
-
-			return None;
-		}
-
-		public static NpcGuildInfo Find(int id)
-		{
-			if (id >= 0 && id < Guilds.Length)
-			{
-				return Guilds[id];
-			}
-
-			return None;
-		}
-
-		public static void WriteReference(GenericWriter writer, NpcGuildInfo guild)
-		{
-			writer.Write(guild?.Guild ?? NpcGuild.None);
-		}
-
-		public static NpcGuildInfo ReadReference(GenericReader reader)
-		{
-			return Find(reader.ReadEnum<NpcGuild>());
-		}
-
-		private static void OnSave(WorldSaveEventArgs e)
-		{
-			Persistence.Serialize(FilePath, OnSerialize);
-		}
-
-		private static void OnSerialize(GenericWriter writer)
-		{
-			writer.Write(0);
-
-			writer.Write(Guilds.Length);
-
-			for (var i = 0; i < Guilds.Length; i++)
-			{
-				if (i == 0)
-				{
-					continue;
-				}
-
-				var info = Guilds[i];
-
-				info.Serialize(writer);
-			}
-		}
-
-		private static void OnLoad()
-		{
-			Persistence.Deserialize(FilePath, OnDeserialize);
-		}
-
-		private static void OnDeserialize(GenericReader reader)
-		{
-			reader.ReadInt();
-
-			var count = reader.ReadInt();
-
-			for (var i = 0; i < count; i++)
-			{
-				if (i == 0)
-				{
-					continue;
-				}
-
-				var info = i < Guilds.Length ? Guilds[i] : new NpcGuildInfo(0);
-
-				info.Deserialize(reader);
-			}
+			return NpcGuilds.Guilds.Single(info => Insensitive.Equals(info.Name, input));
 		}
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public NpcGuild Guild { get; init; }
 
-		private string m_Name;
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public string Name => Reputation.Name;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public string Name => m_Name ??= $"{Guild}".Replace("Guild", " Guild");
+		public string Description => Reputation.Description;
 
 		private int m_VendorDiscount;
 
@@ -372,6 +452,10 @@ namespace Server.Mobiles
 		public int VendorDiscount { get => m_VendorDiscount; set => m_VendorDiscount = Math.Clamp(value, 0, 100); }
 
 		public NpcGuildReputationDefinition Reputation { get; }
+
+		private NpcGuildInfo()
+			: this(NpcGuild.None)
+		{ }
 
 		private NpcGuildInfo(NpcGuild guild)
 		{
@@ -382,7 +466,9 @@ namespace Server.Mobiles
 				m_VendorDiscount = 10;
 			}
 
-			Reputation = new(this, Name); 
+			var entry = guild.GetNameAndDescription();
+
+			Reputation = new(this, entry.Name, entry.Description);
 		}
 
 		public override string ToString()
@@ -407,8 +493,8 @@ namespace Server.Mobiles
 
 	public class NpcGuildReputationDefinition : ReputationDefinition<NpcGuildInfo>
 	{
-		public NpcGuildReputationDefinition(NpcGuildInfo owner, string name, params int[] levels)
-			: base(owner, ReputationCategory.Vendors, name, levels)
+		public NpcGuildReputationDefinition(NpcGuildInfo owner, string name, string description, params int[] levels)
+			: base(owner, ReputationCategory.Vendors, name, description, levels)
 		{ }
 	}
 

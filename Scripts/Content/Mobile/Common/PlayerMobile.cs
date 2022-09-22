@@ -511,7 +511,7 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster, true)]
-		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+		public NpcGuildInfo NpcGuildInfo => NpcGuilds.Find(this);
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime NextBODTurnInTime
@@ -860,7 +860,7 @@ namespace Server.Mobiles
 					AddEntryHeader(20);
 				}
 
-				AddEntryHtml(160, Center($"Page {m_Page + 1} of {(m_Towns.Count + EntriesPerPage - 1) / EntriesPerPage}"));
+				AddEntryHtml(160, SetCenter($"Page {m_Page + 1} of {(m_Towns.Count + EntriesPerPage - 1) / EntriesPerPage}"));
 
 				if ((m_Page + 1) * EntriesPerPage < m_Towns.Count)
 				{

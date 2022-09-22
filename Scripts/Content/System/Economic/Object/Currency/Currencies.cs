@@ -440,7 +440,7 @@ namespace Server.Items
 				AddEntryHeader(20);
 			}
 
-			AddEntryHtml(160, Center($"Page {m_Page + 1} of {(m_Currencies.Count + EntriesPerPage - 1) / EntriesPerPage}"));
+			AddEntryHtml(160, SetCenter($"Page {m_Page + 1} of {(m_Currencies.Count + EntriesPerPage - 1) / EntriesPerPage}"));
 
 			if ((m_Page + 1) * EntriesPerPage < m_Currencies.Count)
 			{

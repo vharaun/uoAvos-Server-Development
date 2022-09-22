@@ -3391,8 +3391,8 @@ namespace Server.Factions
 
 	public class TownReputationDefinition : ReputationDefinition<Town>
 	{
-		public TownReputationDefinition(Town owner, string name, params int[] levels)
-			: base(owner, ReputationCategory.Townships, name, levels)
+		public TownReputationDefinition(Town owner, string name, string description, params int[] levels)
+			: base(owner, ReputationCategory.Townships, name, description, levels)
 		{ }
 	}
 
@@ -3510,6 +3510,8 @@ namespace Server.Factions
 			get => m_State.LastTaxChange;
 			set => m_State.LastTaxChange = value;
 		}
+
+		public TownReputationDefinition Reputation => m_Definition?.Reputation;
 
 		public static readonly TimeSpan TaxChangePeriod = TimeSpan.FromHours(12.0);
 		public static readonly TimeSpan IncomePeriod = TimeSpan.FromDays(1.0);

@@ -160,7 +160,7 @@ namespace Server.Commands.Generic
 				AddEntryHeader(20);
 			}
 
-			AddEntryHtml(40 + (m_Columns.Length * 130) - 20 + ((m_Columns.Length - 2) * OffsetSize), Center(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
+			AddEntryHtml(40 + (m_Columns.Length * 130) - 20 + ((m_Columns.Length - 2) * OffsetSize), SetCenter(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
 
 			if ((m_Page + 1) * EntriesPerPage < m_List.Count)
 			{

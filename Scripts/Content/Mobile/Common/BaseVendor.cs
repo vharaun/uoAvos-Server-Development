@@ -162,7 +162,7 @@ namespace Server.Mobiles
 
 		public virtual NpcGuild NpcGuild => NpcGuild.None;
 
-		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+		public NpcGuildInfo NpcGuildInfo => NpcGuilds.Find(this);
 
 		public override bool IsInvulnerable => true;
 
