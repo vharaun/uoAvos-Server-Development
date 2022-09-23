@@ -38,9 +38,9 @@ namespace Server.Factions
 		{
 		}
 
-		public override bool AllowBuy(Mobile from, bool message)
+		public override bool AllowBuyer(Mobile from, bool message)
 		{
-			if (!base.AllowBuy(from, message))
+			if (!base.AllowBuyer(from, message))
 			{
 				return false;
 			}
@@ -70,7 +70,7 @@ namespace Server.Factions
 
 		protected override void OnVendorBuy(Mobile from)
 		{
-			if (!AllowBuy(from, true))
+			if (!AllowBuyer(from, true))
 			{
 				return;
 			}
@@ -81,7 +81,7 @@ namespace Server.Factions
 			}
 		}
 
-		public override void VendorSell(Mobile from)
+		protected override void OnVendorSell(Mobile from)
 		{
 		}
 

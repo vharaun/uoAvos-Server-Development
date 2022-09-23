@@ -128,8 +128,6 @@ namespace Server.Mobiles
 		private readonly ArrayList m_ArmorBuyInfo = new ArrayList();
 		private readonly ArrayList m_ArmorSellInfo = new ArrayList();
 
-		private DateTime m_LastRestock;
-
 		#region Holiday Season Events
 
 		/// Christmas
@@ -164,7 +162,7 @@ namespace Server.Mobiles
 
 		public virtual NpcGuild NpcGuild => NpcGuild.None;
 
-		public NpcGuildInfo NpcGuildInfo => NpcGuildInfo.Find(this);
+		public NpcGuildInfo NpcGuildInfo => NpcGuilds.Find(this);
 
 		public override bool IsInvulnerable => true;
 
@@ -216,7 +214,20 @@ namespace Server.Mobiles
 		{
 		}
 
-		#region Faction
+		private Town m_HomeTown;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Town HomeTown
+		{
+			get => m_HomeTown ?? Town.FromRegion(Region);
+			set
+			{
+				m_HomeTown = value;
+
+				InvalidateProperties();
+			}
+		}
+
 		public virtual int GetPriceScalar(Mobile buyer)
 		{
 			var scalar = 100;
@@ -226,7 +237,7 @@ namespace Server.Mobiles
 				scalar -= NpcGuildInfo.VendorDiscount;
 			}
 
-			var town = Town.FromRegion(Region);
+			var town = HomeTown;
 
 			if (town != null)
 			{
@@ -250,7 +261,6 @@ namespace Server.Mobiles
 				}
 			}
 		}
-		#endregion
 
 		private class BulkOrderInfoEntry : ContextMenuEntry
 		{
@@ -339,7 +349,7 @@ namespace Server.Mobiles
 			};
 			AddItem(pack);
 
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 		}
 
 		public BaseVendor(Serial serial)
@@ -347,17 +357,55 @@ namespace Server.Mobiles
 		{
 		}
 
-		private Dictionary<Mobile, Type> m_SelectedCurrencies = new();
+		#region Currencies
+
+		protected readonly Dictionary<Mobile, TypeAmount> m_SelectedCurrencies = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Currencies Currencies { get; private set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public DateTime LastRestock
+		public bool CurrenciesLocal { get; set; } = true;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool CurrenciesInherit { get; set; } = true;
+
+		public IEnumerable<TypeAmount> CurrenciesSupported
 		{
-			get => m_LastRestock;
-			set => m_LastRestock = value;
+			get
+			{
+				if (CurrenciesLocal)
+				{
+					foreach (var entry in Currencies.ActiveEntries)
+					{
+						yield return entry;
+					}
+				}
+
+				if (CurrenciesInherit)
+				{
+					var reg = Region;
+
+					while (reg != null)
+					{
+						if (reg is BaseRegion br && br.Currencies?.Count > 0)
+						{
+							foreach (var entry in br.Currencies.ActiveEntries)
+							{
+								yield return entry;
+							}
+						}
+
+						reg = reg.Parent;
+					}
+				}
+			}
 		}
+
+		#endregion
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public DateTime LastRestock { get; set; }
 
 		public virtual TimeSpan RestockDelay => TimeSpan.FromHours(1);
 
@@ -386,7 +434,7 @@ namespace Server.Mobiles
 
 		protected void LoadSBInfo()
 		{
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 
 			for (var i = 0; i < m_ArmorBuyInfo.Count; ++i)
 			{
@@ -564,6 +612,13 @@ namespace Server.Mobiles
 			CheckMorph();
 		}
 
+		public override void OnAfterDelete()
+		{
+			base.OnAfterDelete();
+
+			m_SelectedCurrencies.Clear();
+		}
+
 		protected override void OnMapChange(Map oldMap)
 		{
 			base.OnMapChange(oldMap);
@@ -711,7 +766,7 @@ namespace Server.Mobiles
 
 		public virtual void Restock()
 		{
-			m_LastRestock = DateTime.UtcNow;
+			LastRestock = DateTime.UtcNow;
 
 			var buyInfo = GetBuyInfo();
 
@@ -723,19 +778,19 @@ namespace Server.Mobiles
 
 		private static readonly TimeSpan InventoryDecayTime = TimeSpan.FromHours(1.0);
 
-		public virtual bool AllowBuy(Mobile from, bool message)
+		public virtual bool AllowBuyer(Mobile buyer, bool message)
 		{
 			if (!IsActiveSeller)
 			{
 				return false;
 			}
 
-			if (!from.CheckAlive(message))
+			if (!buyer.CheckAlive(message))
 			{
 				return false;
 			}
 
-			if (!CheckVendorAccess(from))
+			if (!CheckVendorAccess(buyer))
 			{
 				if (message)
 				{
@@ -750,14 +805,14 @@ namespace Server.Mobiles
 
 		public void VendorBuy(Mobile from)
 		{
-			if (!AllowBuy(from, true))
+			if (!AllowBuyer(from, true))
 			{
 				return;
 			}
 
-			if (from.Player && Currencies.Count > 0 && Currencies.Any(e => e.IsActive))
+			if (from.Player)
 			{
-				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				var gump = CurrencyUtility.BeginSelectCurrency(from, true, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
@@ -775,19 +830,21 @@ namespace Server.Mobiles
 		
 		protected virtual void OnVendorBuy(Mobile from)
 		{
-			if (!AllowBuy(from, true))
+			if (!AllowBuyer(from, true))
 			{
+				m_SelectedCurrencies.Remove(from);
 				return;
 			}
 
-			if (DateTime.UtcNow - m_LastRestock > RestockDelay)
+			if (!m_SelectedCurrencies.TryGetValue(from, out var currency))
+			{
+				currency = Currencies.GoldEntry;
+			}
+
+			if (DateTime.UtcNow - LastRestock > RestockDelay)
 			{
 				Restock();
 			}
-
-			m_SelectedCurrencies.TryGetValue(from, out var currency);
-
-			currency ??= Currencies.GoldType;
 
 			UpdateBuyInfo(from);
 
@@ -814,9 +871,9 @@ namespace Server.Mobiles
 				var gbi = (GenericBuyInfo)buyItem;
 				var disp = gbi.GetDisplayEntity();
 
-				if (!Currencies.ConvertGoldToCurrency(buyItem.Price, currency, out var price))
+				if (!CurrencyUtility.ConvertGoldToCurrency(buyItem.Price, currency, out var price))
 				{
-					price = buyItem.Price;
+					continue;
 				}
 
 				list.Add(new BuyItemState(buyItem.Name, cont.Serial, disp == null ? 0x7FC0FFEE : disp.Serial, price, buyItem.Amount, buyItem.ItemID, buyItem.Hue));
@@ -827,13 +884,13 @@ namespace Server.Mobiles
 					opls = new List<ObjectPropertyList>();
 				}
 
-				if (disp is Item)
+				if (disp is Item item)
 				{
-					opls.Add(((Item)disp).PropertyList);
+					opls.Add(item.PropertyList);
 				}
-				else if (disp is Mobile)
+				else if (disp is Mobile mobile)
 				{
-					opls.Add(((Mobile)disp).PropertyList);
+					opls.Add(mobile.PropertyList);
 				}
 			}
 
@@ -848,7 +905,7 @@ namespace Server.Mobiles
 
 				var item = playerItems[i];
 
-				if ((item.LastMoved + InventoryDecayTime) <= DateTime.UtcNow)
+				if (item.LastMoved + InventoryDecayTime <= DateTime.UtcNow)
 				{
 					item.Delete();
 				}
@@ -873,11 +930,9 @@ namespace Server.Mobiles
 
 				if (name != null && list.Count < 250)
 				{
-					var oldPrice = price;
-
-					if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out price))
+					if (!CurrencyUtility.ConvertGoldToCurrency(price, currency, out price))
 					{
-						price = oldPrice;
+						continue;
 					}
 
 					list.Add(new BuyItemState(name, cont.Serial, item.Serial, price, item.Amount, item.ItemID, item.Hue));
@@ -981,19 +1036,19 @@ namespace Server.Mobiles
 			from.Send(new EquipUpdate(pack));
 		}
 
-		public virtual bool AllowSell(Mobile from, bool message)
+		public virtual bool AllowSeller(Mobile seller, bool message)
 		{
 			if (!IsActiveBuyer)
 			{
 				return false;
 			}
 
-			if (!from.CheckAlive(message))
+			if (!seller.CheckAlive(message))
 			{
 				return false;
 			}
 
-			if (!CheckVendorAccess(from))
+			if (!CheckVendorAccess(seller))
 			{
 				if (message)
 				{
@@ -1006,16 +1061,16 @@ namespace Server.Mobiles
 			return true;
 		}
 
-		public virtual void VendorSell(Mobile from)
+		public void VendorSell(Mobile from)
 		{
-			if (!AllowSell(from, true))
+			if (!AllowSeller(from, true))
 			{
 				return;
 			}
 
-			if (from.Player && Currencies.Count > 0 && Currencies.Any(e => e.IsActive))
+			if (from.Player)
 			{
-				var gump = Currencies.BeginSelectCurrency(from, (p, c, t) =>
+				var gump = CurrencyUtility.BeginSelectCurrency(from, true, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
@@ -1033,14 +1088,16 @@ namespace Server.Mobiles
 
 		protected virtual void OnVendorSell(Mobile from)
 		{
-			if (!AllowSell(from, true))
+			if (!AllowSeller(from, true))
 			{
+				m_SelectedCurrencies.Remove(from);
 				return;
 			}
 
-			m_SelectedCurrencies.TryGetValue(from, out var currency);
-
-			currency ??= Currencies.GoldType;
+			if (!m_SelectedCurrencies.TryGetValue(from, out var currency))
+			{
+				currency = Currencies.GoldEntry;
+			}
 
 			var pack = from.Backpack;
 
@@ -1056,28 +1113,22 @@ namespace Server.Mobiles
 
 					foreach (var item in items)
 					{
-						if (item is Container && ((Container)item).Items.Count != 0)
+						if (item is Container c && c.Items.Count != 0)
 						{
 							continue;
 						}
 
-						var parentcon = item.Parent as LockableContainer;
-
-						if (parentcon != null && parentcon.Locked)
+						if (item.Parent is LockableContainer lockable && lockable.Locked)
 						{
 							continue;
 						}
 
-						if (item.IsStandardLoot() && item.Movable && ssi.IsSellable(item))
+						if (item.Movable && item.IsStandardLoot() && ssi.IsSellable(item))
 						{
-							var oldPrice = ssi.GetSellPriceFor(item);
-
-							if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
+							if (CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(item), currency, out var price))
 							{
-								price = oldPrice;
+								table.Add(new SellItemState(item, price, ssi.GetNameFor(item)));
 							}
-
-							table.Add(new SellItemState(item, price, ssi.GetNameFor(item)));
 						}
 					}
 				}
@@ -1113,22 +1164,22 @@ namespace Server.Mobiles
 					SayTo(from, 1045130); // That order is for some other shopkeeper.
 					return false;
 				}
-				else if ((dropped is SmallBOD && !((SmallBOD)dropped).Complete) || (dropped is LargeBOD && !((LargeBOD)dropped).Complete))
+				else if ((dropped is SmallBOD sb && !sb.Complete) || (dropped is LargeBOD lb && !lb.Complete))
 				{
 					SayTo(from, 1045131); // You have not completed the order yet.
 					return false;
 				}
 
-				Item reward;
-				int gold, fame;
+				Item reward = null;
+				int gold = 0, fame = 0;
 
-				if (dropped is SmallBOD)
+				if (dropped is SmallBOD sbod)
 				{
-					((SmallBOD)dropped).GetRewards(out reward, out gold, out fame);
+					sbod.GetRewards(out reward, out gold, out fame);
 				}
-				else
+				else if(dropped is LargeBOD lbod)
 				{
-					((LargeBOD)dropped).GetRewards(out reward, out gold, out fame);
+					lbod.GetRewards(out reward, out gold, out fame);
 				}
 
 				from.SendSound(0x3D);
@@ -1182,7 +1233,7 @@ namespace Server.Mobiles
 			return null;
 		}
 
-		private void ProcessSinglePurchase(BuyItemResponse buy, IBuyItemInfo bii, List<BuyItemResponse> validBuy, ref int controlSlots, ref bool fullPurchase, ref int totalCost)
+		private static void ProcessSinglePurchase(BuyItemResponse buy, IBuyItemInfo bii, List<BuyItemResponse> validBuy, ref int controlSlots, ref bool fullPurchase, ref int totalCost)
 		{
 			var amount = buy.Amount;
 
@@ -1212,7 +1263,7 @@ namespace Server.Mobiles
 			validBuy.Add(buy);
 		}
 
-		private void ProcessValidPurchase(int amount, IBuyItemInfo bii, Mobile buyer, Container cont)
+		private static void ProcessValidPurchase(int amount, IBuyItemInfo bii, Mobile buyer, Container cont)
 		{
 			if (amount > bii.Amount)
 			{
@@ -1228,10 +1279,8 @@ namespace Server.Mobiles
 
 			var o = bii.GetEntity();
 
-			if (o is Item)
+			if (o is Item item)
 			{
-				var item = (Item)o;
-
 				if (item.Stackable)
 				{
 					item.Amount = amount;
@@ -1252,47 +1301,42 @@ namespace Server.Mobiles
 
 					for (var i = 1; i < amount; i++)
 					{
-						item = bii.GetEntity() as Item;
-
-						if (item != null)
+						if (bii.GetEntity() is Item obj)
 						{
-							item.Amount = 1;
+							obj.Amount = 1;
 
-							if (cont == null || !cont.TryDropItem(buyer, item, false))
+							if (cont == null || !cont.TryDropItem(buyer, obj, false))
 							{
-								item.MoveToWorld(buyer.Location, buyer.Map);
+								obj.MoveToWorld(buyer.Location, buyer.Map);
 							}
 						}
 					}
 				}
 			}
-			else if (o is Mobile)
+			else if (o is Mobile mobile)
 			{
-				var m = (Mobile)o;
+				mobile.Direction = (Direction)Utility.Random(8);
+				mobile.MoveToWorld(buyer.Location, buyer.Map);
+				mobile.PlaySound(mobile.GetIdleSound());
 
-				m.Direction = (Direction)Utility.Random(8);
-				m.MoveToWorld(buyer.Location, buyer.Map);
-				m.PlaySound(m.GetIdleSound());
-
-				if (m is BaseCreature)
+				if (mobile is BaseCreature creature)
 				{
-					((BaseCreature)m).SetControlMaster(buyer);
-					((BaseCreature)m).ControlOrder = OrderType.Stop;
+					creature.SetControlMaster(buyer);
+					creature.ControlOrder = OrderType.Stop;
 				}
 
 				for (var i = 1; i < amount; ++i)
 				{
-					m = bii.GetEntity() as Mobile;
-
-					if (m != null)
+					if (bii.GetEntity() is Mobile obj)
 					{
-						m.Direction = (Direction)Utility.Random(8);
-						m.MoveToWorld(buyer.Location, buyer.Map);
+						obj.Direction = (Direction)Utility.Random(8);
+						obj.MoveToWorld(buyer.Location, buyer.Map);
+						obj.PlaySound(obj.GetIdleSound());
 
-						if (m is BaseCreature)
+						if (obj is BaseCreature pet)
 						{
-							((BaseCreature)m).SetControlMaster(buyer);
-							((BaseCreature)m).ControlOrder = OrderType.Stop;
+							pet.SetControlMaster(buyer);
+							pet.ControlOrder = OrderType.Stop;
 						}
 					}
 				}
@@ -1305,10 +1349,12 @@ namespace Server.Mobiles
 			{
 				m_SelectedCurrencies.Remove(buyer);
 			}
+			else
+			{
+				currency = Currencies.GoldEntry;
+			}
 
-			currency ??= Currencies.GoldType;
-
-			if (!AllowBuy(buyer, true))
+			if (!AllowBuyer(buyer, true))
 			{
 				return false;
 			}
@@ -1359,21 +1405,15 @@ namespace Server.Mobiles
 
 						foreach (var ssi in info)
 						{
-							if (ssi.IsSellable(item))
+							if (ssi.IsSellable(item) && ssi.IsResellable(item))
 							{
-								if (ssi.IsResellable(item))
+								if (CurrencyUtility.ConvertGoldToCurrency(ssi.GetBuyPriceFor(item), currency, out var price))
 								{
-									var oldPrice = ssi.GetBuyPriceFor(item);
-
-									if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
-									{
-										price = oldPrice;
-									}
-
 									totalCost += price * amount;
 									validBuy.Add(buy);
-									break;
 								}
+
+								break;
 							}
 						}
 					}
@@ -1415,43 +1455,33 @@ namespace Server.Mobiles
 
 			if (!bought && cont != null)
 			{
-				if (cont.ConsumeTotal(currency, totalCost))
-				{
-					bought = true;
-				}
-				else if (totalCost < 2000)
-				{
-					SayTo(buyer, 500192); // Begging thy pardon, but thou canst not afford that.
-				}
+				bought = cont.ConsumeTotal(currency, totalCost);
 			}
 
-			if (!bought && totalCost >= 2000)
+			if (!bought && CurrencyUtility.ConvertGoldToCurrency(2000, currency, out var petty) && totalCost > petty)
 			{
-				if (Currencies.Withdraw(buyer, currency, totalCost, false))
-				{
-					bought = true;
-					fromBank = true;
-				}
-				else
-				{
-					SayTo(buyer, 500191); //Begging thy pardon, but thy bank account lacks these funds.
-				}
+				fromBank = true;
+
+				bought = CurrencyUtility.WithdrawFromBank(buyer, currency, totalCost, false);
 			}
 
 			if (!bought)
 			{
+				if (fromBank)
+				{
+					SayTo(buyer, 500191); // Begging thy pardon, but thy bank account lacks these funds.
+				}
+				else
+				{
+					SayTo(buyer, 500192); // Begging thy pardon, but thou canst not afford that.
+				}
+
 				return false;
 			}
-			else
-			{
-				buyer.PlaySound(0x32);
-			}
+			
+			buyer.PlaySound(0x32);
 
-			cont = buyer.Backpack;
-			if (cont == null)
-			{
-				cont = buyer.BankBox;
-			}
+			cont = buyer.Backpack ?? buyer.BankBox;
 
 			foreach (var buy in validBuy)
 			{
@@ -1477,43 +1507,40 @@ namespace Server.Mobiles
 					if (gbi != null)
 					{
 						ProcessValidPurchase(amount, gbi, buyer, cont);
+						continue;
 					}
-					else
+
+					if (amount > item.Amount)
 					{
-						if (amount > item.Amount)
-						{
-							amount = item.Amount;
-						}
+						amount = item.Amount;
+					}
 
-						foreach (var ssi in info)
+					foreach (var ssi in info)
+					{
+						if (ssi.IsSellable(item) && ssi.IsResellable(item))
 						{
-							if (ssi.IsSellable(item))
+							Item buyItem;
+
+							if (amount >= item.Amount)
 							{
-								if (ssi.IsResellable(item))
+								buyItem = item;
+							}
+							else
+							{
+								buyItem = LiftItemDupe(item, item.Amount - amount);
+
+								if (buyItem == null)
 								{
-									Item buyItem;
-									if (amount >= item.Amount)
-									{
-										buyItem = item;
-									}
-									else
-									{
-										buyItem = Mobile.LiftItemDupe(item, item.Amount - amount);
-
-										if (buyItem == null)
-										{
-											buyItem = item;
-										}
-									}
-
-									if (cont == null || !cont.TryDropItem(buyer, buyItem, false))
-									{
-										buyItem.MoveToWorld(buyer.Location, buyer.Map);
-									}
-
-									break;
+									buyItem = item;
 								}
 							}
+
+							if (cont == null || !cont.TryDropItem(buyer, buyItem, false))
+							{
+								buyItem.MoveToWorld(buyer.Location, buyer.Map);
+							}
+
+							break;
 						}
 					}
 				}
@@ -1585,11 +1612,13 @@ namespace Server.Mobiles
 			if (from.AccessLevel < m_VendorAccessLevel)
 			{
 				from.SendMessage("You can't trade with this vendor");
+
 				SayTo(from, true, "My apologies, I cannot sell to you at this time");
+
 				return false;
 			}
 
-			var reg = (GuardedRegion)Region.GetRegion(typeof(GuardedRegion));
+			var reg = Region.GetRegion<GuardedRegion>();
 
 			if (reg != null && !reg.CheckVendorAccess(this, from))
 			{
@@ -1598,7 +1627,7 @@ namespace Server.Mobiles
 
 			if (Region != from.Region)
 			{
-				reg = (GuardedRegion)from.Region.GetRegion(typeof(GuardedRegion));
+				reg = from.Region.GetRegion<GuardedRegion>();
 
 				if (reg != null && !reg.CheckVendorAccess(this, from))
 				{
@@ -1606,7 +1635,17 @@ namespace Server.Mobiles
 				}
 			}
 
+			if (Reputation.IsEnemy(this, from))
+			{
+				return false;
+			}
+
 			return true;
+		}
+
+		public override bool IsEnemy(Mobile m)
+		{
+			return base.IsEnemy(m);
 		}
 
 		public virtual bool OnSellItems(Mobile seller, List<SellItemResponse> list)
@@ -1615,10 +1654,12 @@ namespace Server.Mobiles
 			{
 				m_SelectedCurrencies.Remove(seller);
 			}
+			else
+			{
+				currency = Currencies.GoldEntry;
+			}
 
-			currency ??= Currencies.GoldType;
-
-			if (!AllowSell(seller, true))
+			if (!AllowSeller(seller, true))
 			{
 				return false;
 			}
@@ -1640,11 +1681,25 @@ namespace Server.Mobiles
 
 				foreach (var ssi in info)
 				{
-					if (ssi.IsSellable(resp.Item))
+					if (!ssi.IsSellable(resp.Item))
 					{
-						sold++;
-						break;
+						continue;
 					}
+
+					var amount = Math.Min(resp.Amount, resp.Item.Amount);
+
+					if (amount <= 0)
+					{
+						continue;
+					}
+
+					if (!CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out _))
+					{
+						continue;
+					}
+
+					sold++;
+					break;
 				}
 			}
 
@@ -1653,29 +1708,65 @@ namespace Server.Mobiles
 				SayTo(seller, true, $"You may only sell {MaxSell:N0} items at a time!");
 				return false;
 			}
-			
+
 			if (sold == 0)
 			{
 				return true;
 			}
 
-			foreach (var resp in list)
+			var index = list.Count;
+
+			while (--index >= 0)
 			{
-				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.IsStandardLoot() || !resp.Item.Movable || (resp.Item is Container c && c.Items.Count != 0))
+				if (index >= list.Count)
 				{
+					continue;
+				}
+
+				var resp = list[index];
+
+				if (resp.Item.RootParent != seller || resp.Amount <= 0 || !resp.Item.Movable || !resp.Item.IsStandardLoot() || (resp.Item is Container c && c.Items.Count != 0))
+				{
+					list.RemoveAt(index);
 					continue;
 				}
 
 				foreach (var ssi in info)
 				{
-					if (ssi.IsSellable(resp.Item))
+					if (!ssi.IsSellable(resp.Item))
 					{
-						var amount = resp.Amount;
+						list.RemoveAt(index);
+						continue;
+					}
 
-						if (amount > resp.Item.Amount)
-						{
-							amount = resp.Item.Amount;
-						}
+					var amount = Math.Min(resp.Amount, resp.Item.Amount);
+
+					if (amount <= 0)
+					{
+						list.RemoveAt(index);
+						continue;
+					}
+
+					if (!CurrencyUtility.ConvertGoldToCurrency(ssi.GetSellPriceFor(resp.Item), currency, out var worth))
+					{
+						list.RemoveAt(index);
+						continue;
+					}
+
+					give += worth * amount;
+					break;
+				}
+			}
+
+			if (give > 0 && CurrencyUtility.DepositToBank(seller, currency, give, true))
+			{
+				seller.PlaySound(0x0037); //Gold dropping sound
+
+				foreach (var resp in list)
+				{
+					foreach (var ssi in info)
+					{
+						var amount = Math.Min(resp.Amount, resp.Item.Amount);
 
 						if (ssi.IsResellable(resp.Item))
 						{
@@ -1686,6 +1777,7 @@ namespace Server.Mobiles
 								if (bii.Restock(resp.Item, amount))
 								{
 									resp.Item.Consume(amount);
+
 									found = true;
 
 									break;
@@ -1720,46 +1812,24 @@ namespace Server.Mobiles
 						}
 						else
 						{
-							if (amount < resp.Item.Amount)
-							{
-								resp.Item.Amount -= amount;
-							}
-							else
-							{
-								resp.Item.Delete();
-							}
+							resp.Item.Consume(amount);
 						}
 
-						var oldPrice = ssi.GetSellPriceFor(resp.Item);
-
-						if (!Currencies.ConvertGoldToCurrency(oldPrice, currency, out var price))
-						{
-							price = oldPrice;
-						}
-
-						give += price * amount;
 						break;
 					}
 				}
-			}
-
-			if (give > 0)
-			{
-				Currencies.Deposit(seller, currency, give, true);
-
-				seller.PlaySound(0x0037); //Gold dropping sound
 
 				if (SupportsBulkOrders(seller))
 				{
 					var bulkOrder = CreateBulkOrder(seller, false);
 
-					if (bulkOrder is LargeBOD)
+					if (bulkOrder is LargeBOD lbod)
 					{
-						seller.SendGump(new LargeBODAcceptGump(seller, (LargeBOD)bulkOrder));
+						seller.SendGump(new LargeBODAcceptGump(seller, lbod));
 					}
-					else if (bulkOrder is SmallBOD)
+					else if (bulkOrder is SmallBOD sbod)
 					{
-						seller.SendGump(new SmallBODAcceptGump(seller, (SmallBOD)bulkOrder));
+						seller.SendGump(new SmallBODAcceptGump(seller, sbod));
 					}
 				}
 			}
@@ -1771,9 +1841,14 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(3); // version
+			writer.Write(5); // version
+
+			Town.WriteReference(writer, m_HomeTown);
 
 			Currencies.Serialize(writer);
+
+			writer.Write(CurrenciesLocal);
+			writer.Write(CurrenciesInherit);
 
 			writer.Write((int)VendorAccessLevel);
 
@@ -1824,9 +1899,22 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 5:
+				case 4:
+					{
+						m_HomeTown = Town.ReadReference(reader);
+						goto case 3;
+					}
 				case 3:
 					{
 						Currencies.Deserialize(reader);
+
+						if (version >= 5)
+						{
+							CurrenciesLocal = reader.ReadBool();
+							CurrenciesInherit = reader.ReadBool();
+						}
+						
 						goto case 2;
 					}
 				case 2:

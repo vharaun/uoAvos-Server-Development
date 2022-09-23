@@ -55,6 +55,7 @@
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 			Rules.AllowYoungAggro = true;
 		}
 

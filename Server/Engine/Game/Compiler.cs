@@ -649,11 +649,6 @@ namespace Server
 
 		private int GenerateHash(string key)
 		{
-			if (String.IsNullOrWhiteSpace(key))
-			{
-				return 0;
-			}
-
 			var hash = GetHash(key);
 
 			if (hash != 0)
@@ -665,9 +660,11 @@ namespace Server
 
 			unchecked
 			{
-				for (var i = 0; i < key.Length; i++)
+				var span = key.AsSpan();
+
+				for (var i = 0; i < span.Length; i++)
 				{
-					hash = (hash * 397) ^ Convert.ToInt32(key[i]);
+					hash = (hash * 397) ^ Convert.ToInt32(span[i]);
 				}
 			}
 

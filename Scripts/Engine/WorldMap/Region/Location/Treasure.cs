@@ -25,6 +25,7 @@ namespace Server
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override void Serialize(GenericWriter writer)

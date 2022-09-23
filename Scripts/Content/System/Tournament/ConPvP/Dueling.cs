@@ -619,6 +619,7 @@ namespace Server.Engines.ConPVP
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override bool OnMoveInto(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation)

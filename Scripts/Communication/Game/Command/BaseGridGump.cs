@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Drawing;
 
 namespace Server.Gumps
 {
@@ -44,22 +45,92 @@ namespace Server.Gumps
 		public const int ArrowRightWidth = 16;
 		public const int ArrowRightHeight = 16;
 
-		public string Center(string text)
+		public static string SetCenter()
 		{
-			return String.Format("<CENTER>{0}</CENTER>", text);
+			return SetCenter(String.Empty);
 		}
 
-		public string Color(string text, int color)
+		public static string SetCenter(string text)
 		{
-			return String.Format("<BASEFONT COLOR=#{0:X6}>{1}</BASEFONT>", color, text);
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<CENTER>";
+			}
+
+			return $"<CENTER>{text}</CENTER>";
 		}
 
-		public int GetButtonID(int typeCount, int type, int index)
+		public static string SetRight()
+		{
+			return SetRight(String.Empty);
+		}
+
+		public static string SetRight(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<DIV ALIGN=RIGHT>";
+			}
+
+			return $"<DIV ALIGN=RIGHT>{text}</DIV>";
+		}
+
+		public static string SetColor(Color color)
+		{
+			return SetColor(String.Empty, color);
+		}
+
+		public static string SetColor(int color)
+		{
+			return SetColor(String.Empty, color);
+		}
+
+		public static string SetColor(string text, Color color)
+		{
+			return SetColor(text, color.ToArgb());
+		}
+
+		public static string SetColor(string text, int color)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>";
+			}
+
+			return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>{text}</BASEFONT>";
+		}
+
+		public static string SetBGColor(Color color)
+		{
+			return SetBGColor(String.Empty, color);
+		}
+
+		public static string SetBGColor(int color)
+		{
+			return SetBGColor(String.Empty, color);
+		}
+
+		public static string SetBGColor(string text, Color color)
+		{
+			return SetBGColor(text, color.ToArgb());
+		}
+
+		public static string SetBGColor(string text, int color)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BODYBGCOLOR=#{color & 0xFFFFFF:X6}>";
+			}
+
+			return $"<BODYBGCOLOR=#{color & 0xFFFFFF:X6}>{text}</BODYBGCOLOR>";
+		}
+
+		public static int GetButtonID(int typeCount, int type, int index)
 		{
 			return 1 + (index * typeCount) + type;
 		}
 
-		public bool SplitButtonID(int buttonID, int typeCount, out int type, out int index)
+		public static bool SplitButtonID(int buttonID, int typeCount, out int type, out int index)
 		{
 			if (buttonID < 1)
 			{
@@ -132,13 +203,18 @@ namespace Server.Gumps
 
 		public void AddEntryLabel(int width, string text)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
-			AddLabelCropped(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, TextHue, text);
+			AddEntryLabel(width, text, TextHue);
+        }
 
-			IncreaseX(width);
-		}
+        public void AddEntryLabel(int width, string text, int textHue)
+        {
+            AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
+            AddLabelCropped(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, textHue, text);
 
-		public void AddEntryHtml(int width, string text)
+            IncreaseX(width);
+        }
+
+        public void AddEntryHtml(int width, string text)
 		{
 			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
 			AddHtml(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, text, false, false);

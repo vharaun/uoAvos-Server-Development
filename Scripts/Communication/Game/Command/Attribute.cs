@@ -3,6 +3,7 @@ using System;
 
 namespace Server
 {
+	[AttributeUsage(AttributeTargets.All, AllowMultiple = false, Inherited = false)]
 	public class UsageAttribute : Attribute
 	{
 		private readonly string m_Usage;
@@ -15,6 +16,20 @@ namespace Server
 		}
 	}
 
+	[AttributeUsage(AttributeTargets.All, AllowMultiple = false, Inherited = false)]
+	public class NameAttribute : Attribute
+	{
+		private readonly string m_Name;
+
+		public string Name => m_Name;
+
+		public NameAttribute(string name)
+		{
+			m_Name = name;
+		}
+	}
+
+	[AttributeUsage(AttributeTargets.All, AllowMultiple = false, Inherited = false)]
 	public class DescriptionAttribute : Attribute
 	{
 		private readonly string m_Description;
@@ -27,6 +42,7 @@ namespace Server
 		}
 	}
 
+	[AttributeUsage(AttributeTargets.All, AllowMultiple = false, Inherited = false)]
 	public class AliasesAttribute : Attribute
 	{
 		private readonly string[] m_Aliases;

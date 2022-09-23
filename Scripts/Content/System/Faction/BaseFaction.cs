@@ -2,9 +2,11 @@
 using Server.Commands;
 using Server.Commands.Generic;
 using Server.Engines.Craft;
+using Server.Ethics;
 using Server.Guilds;
 using Server.Gumps;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.Multis;
 using Server.Network;
@@ -15,6 +17,7 @@ using Server.Targeting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace Server.Factions
@@ -1579,6 +1582,16 @@ namespace Server.Factions
 			}
 
 			return null;
+		}
+
+		public static void HandleDeletion(Mobile mob)
+		{
+			var faction = Faction.Find(mob);
+
+			if (faction != null)
+			{
+				faction.RemoveMember(mob);
+			}
 		}
 
 		public static Faction Find(Mobile mob)
@@ -3376,6 +3389,12 @@ namespace Server.Factions
 		}
 	}
 
+	public class TownReputationDefinition : ReputationDefinition<Town>
+	{
+		public TownReputationDefinition(Town owner, string name, string description, params int[] levels)
+			: base(owner, ReputationCategory.Townships, name, description, levels)
+		{ }
+	}
 
 	/// Faction Town
 	public class TownDefinition
@@ -3395,8 +3414,10 @@ namespace Server.Factions
 		private readonly TextDefinition m_SigilName;
 		private readonly TextDefinition m_CorruptedSigilName;
 
-		private Point3D m_Monolith;
-		private Point3D m_TownStone;
+		private readonly Point3D m_Monolith;
+		private readonly Point3D m_TownStone;
+
+		private readonly TownReputationDefinition m_Reputation;
 
 		public int Sort => m_Sort;
 		public int SigilID => m_SigilID;
@@ -3415,7 +3436,9 @@ namespace Server.Factions
 		public Point3D Monolith => m_Monolith;
 		public Point3D TownStone => m_TownStone;
 
-		public TownDefinition(int sort, int sigilID, string region, string friendlyName, TextDefinition townName, TextDefinition townStoneHeader, TextDefinition strongholdMonolithName, TextDefinition townMonolithName, TextDefinition townStoneName, TextDefinition sigilName, TextDefinition corruptedSigilName, Point3D monolith, Point3D townStone)
+		public TownReputationDefinition Reputation => m_Reputation;
+
+		public TownDefinition(int sort, int sigilID, string region, string friendlyName, TextDefinition townName, TextDefinition townStoneHeader, TextDefinition strongholdMonolithName, TextDefinition townMonolithName, TextDefinition townStoneName, TextDefinition sigilName, TextDefinition corruptedSigilName, Point3D monolith, Point3D townStone, TownReputationDefinition reputation)
 		{
 			m_Sort = sort;
 			m_SigilID = sigilID;
@@ -3430,11 +3453,12 @@ namespace Server.Factions
 			m_CorruptedSigilName = corruptedSigilName;
 			m_Monolith = monolith;
 			m_TownStone = townStone;
+			m_Reputation = reputation;
 		}
 	}
 
 	[CustomEnum(new string[] { "Britain", "Magincia", "Minoc", "Moonglow", "Skara Brae", "Trinsic", "Vesper", "Yew" })]
-	public abstract class Town : IComparable
+	public abstract class Town : IComparable, IComparable<Town>
 	{
 		private TownDefinition m_Definition;
 		private TownState m_State;
@@ -3486,6 +3510,8 @@ namespace Server.Factions
 			get => m_State.LastTaxChange;
 			set => m_State.LastTaxChange = value;
 		}
+
+		public TownReputationDefinition Reputation => m_Definition?.Reputation;
 
 		public static readonly TimeSpan TaxChangePeriod = TimeSpan.FromHours(12.0);
 		public static readonly TimeSpan IncomePeriod = TimeSpan.FromDays(1.0);
@@ -3957,9 +3983,11 @@ namespace Server.Factions
 				var guardList = guardLists[i];
 				var guards = guardList.Guards;
 
-				for (var j = guards.Count - 1; j >= 0; --j)
+				foreach (var g in guards.ToArray())
 				{
-					guards[j].Delete();
+					g.Delete();
+
+					guards.Remove(g);
 				}
 			}
 
@@ -3968,7 +3996,17 @@ namespace Server.Factions
 
 		public int CompareTo(object obj)
 		{
-			return m_Definition.Sort - ((Town)obj).m_Definition.Sort;
+			if (obj is Town town)
+			{
+				return CompareTo(town);
+			}
+
+			return -1;
+		}
+
+		public int CompareTo(Town town)
+		{
+			return m_Definition.Sort - town.m_Definition.Sort;
 		}
 
 		public override string ToString()
@@ -4405,10 +4443,10 @@ namespace Server.Factions
 	public class GuardList
 	{
 		private readonly GuardDefinition m_Definition;
-		private readonly List<BaseFactionGuard> m_Guards;
+		private readonly HashSet<BaseFactionGuard> m_Guards;
 
 		public GuardDefinition Definition => m_Definition;
-		public List<BaseFactionGuard> Guards => m_Guards;
+		public HashSet<BaseFactionGuard> Guards => m_Guards;
 
 		public BaseFactionGuard Construct()
 		{
@@ -4419,7 +4457,7 @@ namespace Server.Factions
 		public GuardList(GuardDefinition definition)
 		{
 			m_Definition = definition;
-			m_Guards = new List<BaseFactionGuard>();
+			m_Guards = new HashSet<BaseFactionGuard>();
 		}
 	}
 

@@ -2,6 +2,7 @@
 using Server.Engines.Quests.Definitions;
 using Server.Gumps;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.Network;
 using Server.Regions;
@@ -967,6 +968,13 @@ namespace Server.Engines.Quests
 
 	public abstract class BaseQuester : BaseVendor
 	{
+		protected static Item SetHue(Item item, int hue)
+		{
+			item.Hue = hue;
+
+			return item;
+		}
+
 		protected List<SBInfo> m_SBInfos = new List<SBInfo>();
 		protected override List<SBInfo> SBInfos => m_SBInfos;
 
@@ -998,6 +1006,11 @@ namespace Server.Engines.Quests
 
 		public virtual bool CanTalkTo(PlayerMobile to)
 		{
+			if (Reputation.IsEnemy(this, to))
+			{
+				return false;
+			}
+
 			return true;
 		}
 
@@ -1011,17 +1024,11 @@ namespace Server.Engines.Quests
 			return false;
 		}
 
-		protected Item SetHue(Item item, int hue)
-		{
-			item.Hue = hue;
-			return item;
-		}
-
 		public override void AddCustomContextEntries(Mobile from, List<ContextMenuEntry> list)
 		{
 			base.AddCustomContextEntries(from, list);
 
-			if (from.Alive && from is PlayerMobile && TalkNumber > 0 && CanTalkTo((PlayerMobile)from))
+			if (from.Alive && from is PlayerMobile pm && TalkNumber > 0 && CanTalkTo(pm))
 			{
 				list.Add(new TalkEntry(this));
 			}
@@ -1029,10 +1036,8 @@ namespace Server.Engines.Quests
 
 		public override void OnMovement(Mobile m, Point3D oldLocation)
 		{
-			if (m.Alive && m is PlayerMobile)
+			if (m.Alive && m is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)m;
-
 				var range = GetAutoTalkRange(pm);
 
 				if (m.Alive && range >= 0 && InRange(m, range) && !InRange(oldLocation, range) && CanTalkTo(pm))
@@ -1049,10 +1054,10 @@ namespace Server.Engines.Quests
 
 		public static Container GetNewContainer()
 		{
-			var bag = new Bag {
+			return new Bag 
+			{
 				Hue = QuestSystem.RandomBrightHue()
 			};
-			return bag;
 		}
 
 		public override void Serialize(GenericWriter writer)

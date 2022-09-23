@@ -9,8 +9,6 @@ namespace Server.Regions
 {
 	public class GuardedRegion : BaseRegion
 	{
-		private static readonly object[] m_GuardParams = new object[1];
-
 		public static void Initialize()
 		{
 			CommandSystem.Register("CheckGuarded", AccessLevel.GameMaster, new CommandEventHandler(CheckGuarded_OnCommand));
@@ -23,7 +21,7 @@ namespace Server.Regions
 		private static void CheckGuarded_OnCommand(CommandEventArgs e)
 		{
 			var from = e.Mobile;
-			var reg = (GuardedRegion)from.Region.GetRegion(typeof(GuardedRegion));
+			var reg = from.Region.GetRegion<GuardedRegion>();
 
 			if (reg == null)
 			{
@@ -47,7 +45,7 @@ namespace Server.Regions
 
 			if (e.Length == 1)
 			{
-				var reg = (GuardedRegion)from.Region.GetRegion(typeof(GuardedRegion));
+				var reg = from.Region.GetRegion<GuardedRegion>();
 
 				if (reg == null)
 				{
@@ -78,7 +76,7 @@ namespace Server.Regions
 		private static void ToggleGuarded_OnCommand(CommandEventArgs e)
 		{
 			var from = e.Mobile;
-			var reg = (GuardedRegion)from.Region.GetRegion(typeof(GuardedRegion));
+			var reg = from.Region.GetRegion<GuardedRegion>();
 
 			if (reg == null)
 			{
@@ -166,7 +164,7 @@ namespace Server.Regions
 		{
 			base.DefaultInit();
 
-			GuardType = DefaultGuardType;
+			GuardType = null;
 			Disabled = false;
 			AllowReds = Core.AOS;
 		}
@@ -183,7 +181,7 @@ namespace Server.Regions
 				return true;
 			}
 
-			return from.Kills < 5;
+			return from.Kills < 5 || AllowReds;
 		}
 
 		public override bool OnBeginSpellCast(Mobile m, ISpell s)
@@ -202,15 +200,15 @@ namespace Server.Regions
 			return false;
 		}
 
-		public override void MakeGuard(Mobile focus)
+		public virtual BaseGuard MakeGuard(Point3D location)
 		{
 			BaseGuard useGuard = null;
 
-			var eable = focus.GetMobilesInRange(8);
+			var eable = Map.GetMobilesInRange(location, 8);
 
 			foreach (var m in eable)
 			{
-				if (m is BaseGuard g && g.Focus == null)
+				if (m is BaseGuard g && g.FocusMob?.Deleted != false)
 				{
 					useGuard = g;
 					break;
@@ -219,22 +217,33 @@ namespace Server.Regions
 
 			eable.Free();
 
-			if (useGuard == null)
+			if (useGuard?.Deleted != false)
 			{
-				try
-				{
-					m_GuardParams[0] = focus;
+				useGuard = null;
 
-					Activator.CreateInstance(GuardType, m_GuardParams);
-				}
-				catch
+				var type = GuardType ?? DefaultGuardType;
+
+				if (type != null && !type.IsAbstract && type.IsSubclassOf(typeof(BaseGuard)))
 				{
+					try
+					{
+						useGuard = (BaseGuard)Activator.CreateInstance(type);
+					}
+					catch
+					{
+						if (GuardType != null)
+						{
+							GuardType = null;
+						}
+					}
+				}
+				else if (GuardType != null)
+				{
+					GuardType = null;
 				}
 			}
-			else
-			{
-				useGuard.Focus = focus;
-			}
+
+			return useGuard;
 		}
 
 		public override void OnEnter(Mobile m)
@@ -360,7 +369,12 @@ namespace Server.Regions
 						{
 							fakeCall.Say(Utility.RandomList(1007037, 501603, 1013037, 1013038, 1013039, 1013041, 1013042, 1013043, 1013052));
 							
-							MakeGuard(m);
+							var g = MakeGuard(m.Location);
+
+							if (g?.Deleted == false)
+							{
+								g.Attack(m, true);
+							}
 
 							timer.Stop();
 
@@ -400,7 +414,12 @@ namespace Server.Regions
 						m_GuardCandidates.Remove(m);
 					}
 
-					MakeGuard(m);
+					var g = MakeGuard(m.Location);
+
+					if (g?.Deleted == false)
+					{
+						g.Attack(m, true);
+					}
 
 					m.SendLocalizedMessage(502276); // Guards can no longer be called on you.
 
@@ -448,7 +467,8 @@ namespace Server.Regions
 			private readonly Mobile m_Mobile;
 			private readonly Dictionary<Mobile, GuardTimer> m_Table;
 
-			public GuardTimer(Mobile m, Dictionary<Mobile, GuardTimer> table) : base(TimeSpan.FromSeconds(15.0))
+			public GuardTimer(Mobile m, Dictionary<Mobile, GuardTimer> table) 
+				: base(TimeSpan.FromSeconds(15.0))
 			{
 				Priority = TimerPriority.TwoFiftyMS;
 
