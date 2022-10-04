@@ -1318,29 +1318,26 @@ namespace Server.Misc
 	[Parsable]
 	public abstract class ReputationDefinition
 	{
-		public static readonly ReputationDefinition Default = Empty.Instance;
-
 		private sealed class Empty : ReputationDefinition
 		{
-			public static readonly Empty Instance;
-
-			static Empty()
-			{
-				var count = Reputation.Levels.Count;
-
-				var values = new int[count];
-
-				for (var i = 1; i < count; i++)
-				{
-					values[i] = (int)Math.Pow(2, i);
-				}
-
-				Instance = new(values);
-			}
-
-			private Empty(int[] levels)
+			public Empty(int[] levels)
 				: base((ReputationCategory)(-1), String.Empty, String.Empty, levels)
 			{ }
+		}
+
+		public static readonly ReputationDefinition Default;
+
+		static ReputationDefinition()
+		{
+			var values = Enum.GetValues<ReputationLevel>();
+			var levels = new int[values.Length];
+
+			for (var i = 1; i < levels.Length; i++)
+			{
+				levels[i] = (int)Math.Pow(2, i);
+			}
+
+			Default = new Empty(levels);
 		}
 
 		public static bool TryParse(string input, out ReputationDefinition value)
@@ -1397,11 +1394,18 @@ namespace Server.Misc
 			Name = name;
 			Description = description;
 
-			m_Levels = Default.m_Levels.ToArray();
-
-			if (levels?.Length > 0)
+			if (this is Empty)
 			{
-				Array.Copy(levels, m_Levels, Math.Min(levels.Length, m_Levels.Length));
+				m_Levels = levels;
+			}
+			else
+			{
+				m_Levels = Default.m_Levels.ToArray();
+
+				if (levels?.Length > 0)
+				{
+					Array.Copy(levels, m_Levels, Math.Min(levels.Length, m_Levels.Length));
+				}
 			}
 		}
 

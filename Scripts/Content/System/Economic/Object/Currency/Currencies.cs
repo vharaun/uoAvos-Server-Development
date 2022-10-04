@@ -259,7 +259,7 @@ namespace Server.Items
 		/// <summary>
 		/// Defaults be used when constructing a new <see cref="Currencies"/> collection using the default constructor. 
 		/// </summary>
-		public static readonly Currencies DefaultEntries = new();
+		public static readonly Currencies DefaultEntries = new(Enumerable.Empty<TypeAmount>());
 
 		/// <summary>
 		/// Limits the maximum value for the exchange rate of any given currency entry in a <see cref="Currencies"/> collection.
