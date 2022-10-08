@@ -94,7 +94,7 @@ namespace Server.Items
 		public virtual void CheckGate(Mobile m, int range)
 		{
 			#region Mondain's Legacy
-			if (m.Hidden && m.AccessLevel == AccessLevel.Player && Core.ML)
+			if (m.Hidden && m.AccessLevel < AccessLevel.Counselor && Core.ML)
 			{
 				m.RevealingAction();
 			}
@@ -127,13 +127,17 @@ namespace Server.Items
 			{
 				m.SendLocalizedMessage(1049616); // You are too busy to do that at the moment.
 			}
+			else if (!Region.CanTransition(m, m_Target, m_TargetMap))
+			{
+				m.SendLocalizedMessage(1019004); // You are not allowed to travel there.
+			}
 			else if (m_TargetMap != null && m_TargetMap != Map.Internal)
 			{
 				BaseCreature.TeleportPets(m, m_Target, m_TargetMap);
 
 				m.MoveToWorld(m_Target, m_TargetMap);
 
-				if (m.AccessLevel == AccessLevel.Player || !m.Hidden)
+				if (m.AccessLevel < AccessLevel.Counselor || !m.Hidden)
 				{
 					m.PlaySound(0x1FE);
 				}

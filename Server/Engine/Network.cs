@@ -2174,6 +2174,7 @@ namespace Server.Network
 									var tiles = map.Tiles.GetStaticTiles(x, y, !t.DisallowMultis);
 
 									var valid = false;
+									var hue = 0;
 
 									if (state.HighSeas)
 									{
@@ -2189,6 +2190,7 @@ namespace Server.Network
 										if (tiles[i].Z == z && tiles[i].ID == graphic)
 										{
 											valid = true;
+											hue = tiles[i].Hue;
 										}
 									}
 
@@ -2199,7 +2201,7 @@ namespace Server.Network
 									}
 									else
 									{
-										toTarget = new StaticTarget(new Point3D(x, y, z), graphic);
+										toTarget = new StaticTarget(new Point3D(x, y, z), graphic, hue);
 									}
 								}
 							}

@@ -671,20 +671,30 @@ namespace Server.Spells
 				return false;
 			}
 
-			if (caster != null && caster.AccessLevel == AccessLevel.Player && caster.Region.IsPartOf(typeof(Regions.Jail)))
+			if (caster != null)
 			{
-				caster.SendLocalizedMessage(1114345); // You'll need a better jailbreak plan than that!
-				return false;
-			}
-
-			// Always allow monsters to teleport
-			if (caster is BaseCreature && (type == TravelCheckType.TeleportTo || type == TravelCheckType.TeleportFrom))
-			{
-				var bc = (BaseCreature)caster;
-
-				if (!bc.Controlled && !bc.Summoned)
+				if (caster.AccessLevel < AccessLevel.Counselor && caster.Region.IsPartOf<Jail>())
 				{
-					return true;
+					caster.SendLocalizedMessage(1114345); // You'll need a better jailbreak plan than that!
+					return false;
+				}
+
+				if (type == TravelCheckType.RecallFrom || type == TravelCheckType.RecallTo || type == TravelCheckType.TeleportFrom || type == TravelCheckType.TeleportTo)
+				{
+					if (!Region.CanTransition(caster, loc, map))
+					{
+						SendInvalidMessage(caster, type);
+						return false;
+					}
+				}
+
+				// Always allow monsters to teleport
+				if (caster is BaseCreature bc && (type == TravelCheckType.TeleportTo || type == TravelCheckType.TeleportFrom))
+				{
+					if (!bc.Controlled && !bc.Summoned)
+					{
+						return true;
+					}
 				}
 			}
 

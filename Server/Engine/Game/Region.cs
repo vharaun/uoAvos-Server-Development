@@ -1612,6 +1612,34 @@ namespace Server
 			return true;
 		}
 
+		public static bool CanTransition(Mobile m, Point3D location, Map map)
+		{
+			var oldRegion = m.Region;
+			var newRegion = Find(location, map);
+
+			while (oldRegion != newRegion)
+			{
+				if (!oldRegion.CanExit(m))
+				{
+					return false;
+				}
+
+				if (!newRegion.CanEnter(m))
+				{
+					return false;
+				}
+
+				if (newRegion.Parent == null)
+				{
+					return true;
+				}
+
+				newRegion = newRegion.Parent;
+			}
+
+			return true;
+		}
+
 		internal static bool CanMove(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation, Map map)
 		{
 			var oldRegion = m.Region;

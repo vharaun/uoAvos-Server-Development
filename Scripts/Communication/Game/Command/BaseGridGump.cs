@@ -75,6 +75,36 @@ namespace Server.Gumps
 			return $"<DIV ALIGN=RIGHT>{text}</DIV>";
 		}
 
+		public static string SetSmall()
+		{
+			return SetSmall(String.Empty);
+		}
+
+		public static string SetSmall(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<SMALL>";
+			}
+
+			return $"<SMALL>{text}</SMALL>";
+		}
+
+		public static string SetBig()
+		{
+			return SetBig(String.Empty);
+		}
+
+		public static string SetBig(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BIG>";
+			}
+
+			return $"<BIG>{text}</BIG>";
+		}
+
 		public static string SetColor(Color color)
 		{
 			return SetColor(String.Empty, color);
@@ -97,7 +127,7 @@ namespace Server.Gumps
 				return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>";
 			}
 
-			return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>{text}</BASEFONT>";
+			return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>{text}";
 		}
 
 		public static string SetBGColor(Color color)

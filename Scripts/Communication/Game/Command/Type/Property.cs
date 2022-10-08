@@ -1,4 +1,5 @@
-﻿using Server.Commands;
+﻿using Server.Accounting;
+using Server.Commands;
 using Server.Commands.Generic;
 using Server.Gumps;
 using Server.HuePickers;
@@ -1169,10 +1170,10 @@ namespace Server.Gumps
 		private static readonly int NextLabelOffsetX = -29;
 		private static readonly int NextLabelOffsetY = 0;
 
-		private static readonly int NameWidth = 107;
-		private static readonly int ValueWidth = 128;
+		private static readonly int NameWidth = 150;
+		private static readonly int ValueWidth = 150;
 
-		private static readonly int EntryCount = 15;
+		private static readonly int EntryCount = 25;
 
 		private static readonly int TypeWidth = NameWidth + OffsetSize + ValueWidth;
 
@@ -1312,7 +1313,7 @@ namespace Server.Gumps
 
 			if (TypeLabel && m_Type != null)
 			{
-				AddHtml(x, y, emptyWidth, EntryHeight, $"<BASEFONT COLOR=#FAFAFA><CENTER>{m_Type.Name}</CENTER></BASEFONT>", false, false);
+				AddHtml(x, y, emptyWidth, EntryHeight, $"<BASEFONT COLOR=#FAFAFA><CENTER>{m_Type.Name}</CENTER>", false, false);
 			}
 
 			x += emptyWidth + OffsetSize;
@@ -1359,8 +1360,16 @@ namespace Server.Gumps
 					AddImageTiled(x, y, NameWidth, EntryHeight, EntryGumpID);
 					AddLabelCropped(x + TextOffsetX, y, NameWidth - TextOffsetX, EntryHeight, TextHue, prop.Name);
 					x += NameWidth + OffsetSize;
+
+					var value = ValueToString(prop);
+
+					if (value.Length * 6 >= ValueWidth - TextOffsetX)
+					{
+						value = $"{value[..((ValueWidth - TextOffsetX) / 6)]}";
+					}
+
 					AddImageTiled(x, y, ValueWidth, EntryHeight, EntryGumpID);
-					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, ValueToString(prop));
+					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, value);
 					x += ValueWidth + OffsetSize;
 
 					if (SetGumpID != 0)
@@ -1457,6 +1466,7 @@ namespace Server.Gumps
 							}
 							else if (IsType(type, m_TypeOfType))
 							{
+								from.SendMessage($"Target an object to use its type reference for {prop.Name}...");
 								from.Target = new SetObjectTarget(prop, from, m_Object, m_Stack, type, m_Page, m_List);
 							}
 							else if (IsType(type, m_TypeOfPoint3D))
@@ -1523,7 +1533,7 @@ namespace Server.Gumps
 
 								if (IsType(type, m_TypeOfICollection))
 								{
-									if (prop.GetValue(m_Object, null) is ICollection col && col.Count > 0)
+									if (obj is ICollection col && col.Count > 0)
 									{
 										_ = from.SendGump(new InterfaceGump(from, col));
 									}
@@ -1701,6 +1711,21 @@ namespace Server.Gumps
 				return def.Format(true);
 			}
 
+			if (o is Color color)
+			{
+				if (color.IsEmpty)
+				{
+					return "---";
+				}
+
+				if (color.IsNamedColor)
+				{
+					return color.Name;
+				}
+
+				return $"{color.ToArgb() & 0x00FFFFFF:X6}";
+			}
+
 			if (o is Array arr)
 			{
 				return $"{GetRealTypeName(arr)}";
@@ -1832,11 +1857,9 @@ namespace Server.Gumps
 
 		private static CommandPropertyAttribute GetCPA(PropertyInfo prop)
 		{
-			var attrs = prop.GetCustomAttributes(m_TypeOfCPA, false);
-
-			if (attrs.Length > 0)
+			foreach (var attr in prop.GetCustomAttributes<CommandPropertyAttribute>(false))
 			{
-				return attrs[0] as CommandPropertyAttribute;
+				return attr;
 			}
 
 			return null;
@@ -1903,7 +1926,7 @@ namespace Server.Gumps
 				return s;
 			}
 
-			if (t == typeof(byte) || t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) || t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong))
+			if (t == typeof(sbyte) || t == typeof(byte) || t == typeof(short) || t == typeof(ushort) || t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong))
 			{
 				if (s.StartsWith("0x"))
 				{
@@ -1923,14 +1946,59 @@ namespace Server.Gumps
 				return Convert.ChangeType(s, t);
 			}
 
+			if (t == typeof(IAccount) || t == typeof(Account))
+			{
+				return Accounts.GetAccount(s);
+			}
+
+			if (t == typeof(Color))
+			{
+				if (String.IsNullOrWhiteSpace(s) || s == "---")
+				{
+					return Color.Empty;
+				}
+
+				if (Insensitive.Equals(s, "None") || Insensitive.Equals(s, "Empty"))
+				{
+					return Color.Empty;
+				}
+
+				if (Insensitive.StartsWith(s, "0x"))
+				{
+					return Color.FromArgb(Convert.ToInt32(s.Substring(2), 16));
+				}
+
+				if (Insensitive.StartsWith(s, "#"))
+				{
+					return Color.FromArgb(Convert.ToInt32(s.Substring(1), 16));
+				}
+
+				if (Int32.TryParse(s, out var val))
+				{
+					return Color.FromArgb(val);
+				}
+
+				var rgb = s.Split(',');
+
+				if (rgb.Length >= 3)
+				{
+					if (Byte.TryParse(rgb[0], out var r) && Byte.TryParse(rgb[1], out var g) && Byte.TryParse(rgb[2], out var b))
+					{
+						return Color.FromArgb(r, g, b);
+					}
+				}
+
+				return Color.FromName(s);
+			}
+
 			if (t.IsDefined(typeof(ParsableAttribute), false))
 			{
-				var parseMethod = t.GetMethod("Parse", new Type[] { typeof(string) });
+				var parseMethod = t.GetMethod("Parse", new[] { typeof(string) });
 
 				return parseMethod.Invoke(null, new object[] { s });
 			}
 
-			throw new FormatException("bad object string format");
+			throw new FormatException();
 		}
 
 		private class PropertySorter : IComparer
@@ -3235,17 +3303,28 @@ namespace Server.Gumps
 					targeted = ac.Addon;
 				}
 
-				if (m_Type.IsAssignableFrom(targeted.GetType()))
+				var type = targeted.GetType();
+
+				if (m_Type.IsAssignableFrom(type))
 				{
-					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, targeted.ToString());
+					var state = TypeFilterAttribute.CheckState(m_Property, type);
 
-					m_Property.SetValue(m_Object, targeted, null);
+					if (state == TypeFilterResult.NoFilter || state == TypeFilterResult.Allowed)
+					{
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, targeted.ToString());
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						m_Property.SetValue(m_Object, targeted, null);
+
+						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					}
+					else
+					{
+						m_Mobile.SendMessage("That is not a valid type for this property.");
+					}
 				}
 				else
 				{
-					m_Mobile.SendMessage("That cannot be assigned to a property of type : {0}", m_Type.Name);
+					m_Mobile.SendMessage($"That cannot be assigned to a property of type : {m_Type.Name}");
 				}
 			}
 			catch

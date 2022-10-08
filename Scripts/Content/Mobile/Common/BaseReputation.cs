@@ -1334,7 +1334,7 @@ namespace Server.Misc
 
 			for (var i = 1; i < levels.Length; i++)
 			{
-				levels[i] = (int)Math.Pow(2, i);
+				levels[i] = (1 << (i - 1)) * 1000;
 			}
 
 			Default = new Empty(levels);
@@ -1744,7 +1744,7 @@ namespace Server.Misc
 		}
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int PointsPrevReq => Points - PointsPrev;
+		public int PointsPrevReq => PointsPrev - Points;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public int PointsNext
@@ -1787,6 +1787,8 @@ namespace Server.Misc
 		public ReputationEntry(ReputationDefinition definition)
 		{
 			Definition = definition;
+
+			m_Points = PointsDef;
 		}
 
 		public ReputationEntry(GenericReader reader)
@@ -1815,7 +1817,7 @@ namespace Server.Misc
 
 	public class ReputationGump : BaseGridGump
 	{
-		private const int EntriesPerPage = 10;
+		private const int EntriesPerPage = 15;
 
 		private static readonly ImmutableList<ReputationEntry> m_Empty = ImmutableList.Create<ReputationEntry>();
 
@@ -1823,6 +1825,7 @@ namespace Server.Misc
 		{
 			var gump = new ReputationGump(player);
 
+			_ = player.CloseGump(gump.GetType());
 			_ = player.SendGump(gump, false);
 
 			return gump;
@@ -1833,6 +1836,8 @@ namespace Server.Misc
 		private readonly ReputationCategory m_Category;
 
 		private readonly int m_Page, m_PageCount;
+
+		private readonly bool m_Staff;
 
 		private readonly ImmutableList<ReputationEntry> m_View = m_Empty;
 
@@ -1877,7 +1882,7 @@ namespace Server.Misc
 		{ }
 
 		private ReputationGump(PlayerMobile player, ReputationCategory category, int page, ImmutableList<ReputationEntry> view)
-			: base(100, 100)
+			: base(50, 50)
 		{
 			m_Player = player;
 			m_Category = category;
@@ -1900,66 +1905,75 @@ namespace Server.Misc
 
 			m_PageCount = (m_View.Count + EntriesPerPage - 1) / EntriesPerPage;
 
-			Closable = false;
-			Disposable = false;
-			Dragable = false;
-			Resizable = false;
+			m_Staff = m_Player.AccessLevel >= AccessLevel.GameMaster;
+
+			Closable = true;
+			Disposable = true;
+			Dragable = true;
+			Resizable = true;
 
 			var nameWidth = 160;
-			var progWidth = 160;
+			var progWidth = 180;
 
 			AddNewPage();
 
-			if (m_Page > 0)
-			{
-				AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
-			}
-			else
-			{
-				AddEntryHeader(20);
-			}
+			AddEntryHtml(20 + nameWidth + progWidth + 20 + (m_Staff ? 20 : 0) + (OffsetSize * (m_Staff ? 3 : 2)), SetCenter($"{m_Category}"));
 
-			AddEntryHtml(OffsetSize + nameWidth + OffsetSize + progWidth, SetCenter($"{m_Category} - Page {m_Page + 1} of {m_PageCount}"));
+			AddNewLine();
 
-			if ((m_Page + 1) * EntriesPerPage < m_View.Count)
-			{
-				AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
-			}
-			else
-			{
-				AddEntryHeader(20);
-			}
+			AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
 
-			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_View.Count; ++i, ++line)
+			AddEntryHtml(OffsetSize + nameWidth + progWidth + (m_Staff ? 20 : 0), SetCenter($"Page {m_Page + 1} of {m_PageCount}"));
+
+			AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
+
+			for (int i = m_Page * EntriesPerPage, line = 0, bid = 5 + i; line < EntriesPerPage && i < m_View.Count; ++i, ++line)
 			{
 				AddNewLine();
 
-				AddEntryProgress(20, OffsetSize, nameWidth, progWidth, m_View[i]);
+				AddEntryProgress(20, nameWidth, progWidth, m_View[i]);
 
-				AddEntryButton(20, EntryInfoID1, EntryInfoID2, 5 + i, EntryInfoWidth, EntryInfoHeight);
+				AddEntryButton(20, EntryInfoID1, EntryInfoID2, bid++, EntryInfoWidth, EntryInfoHeight);
+
+				if (m_Staff)
+				{
+					AddEntryButton(20, PageRightID1, PageRightID2, bid++, PageRightWidth, PageRightHeight);
+				}
 			}
 
 			FinishPage();
 		}
 
-		public void AddEntryProgress(int padding, int spacing, int nameWidth, int progWidth, ReputationEntry entry)
+		public void AddEntryProgress(int padding, int nameWidth, int progWidth, ReputationEntry entry)
 		{
-			AddEntryHtml(padding + spacing + nameWidth, SetRight(entry.Name));
-
-			IncreaseX(spacing);
+			AddEntryHtml(padding + nameWidth, entry.Name);
 
 			AddImageTiled(CurrentX, CurrentY, progWidth, EntryHeight, 2624);
 
 			var pointsDelta = entry.Points - entry.PointsPrev;
 			var pointsLimit = entry.PointsNext - entry.PointsPrev;
 
-			var fillWidth = (int)((progWidth - 2) * (pointsDelta / (float)pointsLimit));
+			var fillWidth = (int)(progWidth * (pointsDelta / (float)pointsLimit));
 
-			AddHtml(CurrentX + 1, CurrentY + 1, fillWidth, EntryHeight - 2, SetBGColor(entry.LevelColor), false, false);
+			if (fillWidth <= 0)
+			{
+				fillWidth = progWidth;
+			}
 
-			var text = $"{entry.Level} [{entry.Points:N0} / {entry.PointsNext:N0}]";
+			AddHtml(CurrentX, CurrentY, fillWidth, EntryHeight, SetBGColor(entry.LevelColor), false, false);
 
-			AddHtml(CurrentX + TextOffsetX, CurrentY, progWidth - TextOffsetX, EntryHeight, SetCenter(SetColor(text, Color.White)), false, false);
+			if (fillWidth < progWidth && entry.Level > 0)
+			{
+				var levelColor = Reputation.LevelColors[entry.Level - 1];
+
+				AddHtml(CurrentX + fillWidth, CurrentY, progWidth - fillWidth, EntryHeight, SetBGColor(levelColor), false, false);
+			}
+
+			var text = $"{entry.Level} [{pointsDelta:N0} / {pointsLimit:N0}]";
+
+			text = SetSmall(SetCenter(SetColor(text, Color.White)));
+
+			AddHtml(CurrentX + TextOffsetX, CurrentY, progWidth - TextOffsetX, EntryHeight, text, false, false);
 
 			IncreaseX(progWidth);
 		}
@@ -1993,7 +2007,7 @@ namespace Server.Misc
 
 							if (Reputation.Definitions.TryGetValue(cat, out var defs))
 							{
-								page = (defs.Count + EntriesPerPage - 1) / EntriesPerPage;
+								page = Math.Max(0, ((defs.Count + EntriesPerPage - 1) / EntriesPerPage) - 1);
 							}
 
 							_ = m_Player.SendGump(new ReputationGump(m_Player, cat, page));
@@ -2023,16 +2037,32 @@ namespace Server.Misc
 					}
 			}
 			
-			var v = info.ButtonID - 5;
+			var bid = info.ButtonID - 5;
+			var num = m_Staff ? 2 : 1;
 
-			if (v >= 0 && v < m_View.Count)
+			if (bid >= 0 && bid < m_View.Count * num)
 			{
+				var v = bid / num;
+				var n = bid % num;
+
 				var entry = m_View[v];
 
-				_ = m_Player.SendGump(new NoticeGump<ReputationEntry>(entry.Name, 0xFFFFFF, entry.Description, 0xFFFFFF, 420, 420, (_, _) =>
+				if (m_Staff && n != 0)
 				{
 					_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
-				}, entry));
+
+					if (n == 1)
+					{
+						_ = m_Player.SendGump(new PropertiesGump(m_Player, entry));
+					}
+				}
+				else
+				{
+					_ = m_Player.SendGump(new NoticeGump<ReputationEntry>(entry.Name, 0xFFFFFF, entry.Description, 0xFFFFFF, 420, 420, (_, _) =>
+					{
+						_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
+					}, entry));
+				}
 			}
 			else
 			{

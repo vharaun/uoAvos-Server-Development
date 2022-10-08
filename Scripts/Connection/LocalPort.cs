@@ -19,7 +19,7 @@ namespace Server
             
             #endregion
 					
-			new IPEndPoint( IPAddress.Any, 0000 ), // Replace '2593' with your desired port number
+			new IPEndPoint( IPAddress.Any, 2593 ), // Replace '2593' with your desired port number
 		};
 
 		public static void Initialize()

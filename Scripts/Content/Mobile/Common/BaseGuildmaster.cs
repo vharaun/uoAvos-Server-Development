@@ -190,40 +190,40 @@ namespace Server.Mobiles
 	{
 		None,
 
-		[Aliases("Guild of Arcane Arts"), Description("Alchemists and Mages")]
+		[Name("Guild of Arcane Arts"), Description("Alchemists, Mages")]
 		MagesGuild,
 
-		[Aliases("Warriors' Guild"), Description("Mercenaries, Warriors, Weapon Trainers, Weaponsmiths, Soldiers, Guards, and Paladins")]
+		[Name("Warriors Guild"), Description("Mercenaries, Warriors, Weapon Trainers, Weaponsmiths, Soldiers, Guards, Paladins")]
 		WarriorsGuild,
 
-		[Aliases("Society of Thieves"), Description("Beggars, Thieves, Assassins, and Brigands")]
+		[Name("Society of Thieves"), Description("Beggars, Thieves, Assassins, Brigands")]
 		ThievesGuild,
 
-		[Aliases("League of Rangers"), Description("Bowyers, Animal Trainers, and Rangers")]
+		[Name("League of Rangers"), Description("Bowyers, Animal Trainers, Rangers")]
 		RangersGuild,
 
-		[Aliases("Guild of Healers"), Description("Healers")]
+		[Name("Guild of Healers"), Description("Healers")]
 		HealersGuild,
 
-		[Aliases("Mining Cooperative"), Description("Miners")]
+		[Name("Mining Cooperative"), Description("Miners")]
 		MinersGuild,
 
-		[Aliases("Merchants' Association"), Description("Merchants, Innkeepers, Tavernkeepers, Jewelers, and Provisioners")]
+		[Name("Merchants Association"), Description("Merchants, Innkeepers, Tavernkeepers, Jewelers, Provisioners")]
 		MerchantsGuild,
 
-		[Aliases("Order of Engineers"), Description("Tinkers and Engineers")]
+		[Name("Order of Engineers"), Description("Tinkers and Engineers")]
 		TinkersGuild,
 
-		[Aliases("Society of Clothiers"), Description("Tailors and Weavers")]
+		[Name("Society of Clothiers"), Description("Tailors, Weavers")]
 		TailorsGuild,
 
-		[Aliases("Maritime Guild"), Description("Fishers, Sailors, Mapmakers, and Shipwrights")]
+		[Name("Maritime Guild"), Description("Fishers, Sailors, Mapmakers, Shipwrights")]
 		FishermensGuild,
 
-		[Aliases("Bardic Collegium"), Description("Bards, Musicians, Storytellers, and Performers")]
+		[Name("Bardic Collegium"), Description("Bards, Musicians, Storytellers, Performers")]
 		BardsGuild,
 
-		[Aliases("Society of Smiths"), Description("Blacksmiths and Weaponsmiths")]
+		[Name("Society of Smiths"), Description("Blacksmiths, Weaponsmiths")]
 		BlacksmithsGuild,
 	}
 
@@ -237,22 +237,22 @@ namespace Server.Mobiles
 		{
 			CommandSystem.Register("NpcGuilds", AccessLevel.Administrator, e =>
 			{
-				e.Mobile.SendGump(new InterfaceGump(e.Mobile, Guilds.Skip(1)));
+				e.Mobile.SendGump(new InterfaceGump(e.Mobile, Guilds));
 			});
 		}
 
 		public static string GetName(this NpcGuild guild)
 		{
-			var entry = GetNameAndDescription(guild);
+			var (name, _) = GetNameAndDescription(guild);
 
-			return entry.Name ?? String.Empty;
+			return name ?? String.Empty;
 		}
 
 		public static string GetDescription(this NpcGuild guild)
 		{
-			var entry = GetNameAndDescription(guild);
+			var (_, description) = GetNameAndDescription(guild);
 
-			return entry.Description ?? String.Empty;
+			return description ?? String.Empty;
 		}
 
 		public static (string Name, string Description) GetNameAndDescription(this NpcGuild guild)
@@ -358,7 +358,10 @@ namespace Server.Mobiles
 
 			foreach (var guild in Enum.GetValues<NpcGuild>())
 			{
-				instances.Add(new NpcGuildInfo(guild));
+				if (guild != NpcGuild.None)
+				{
+					instances.Add(new NpcGuildInfo(guild));
+				}
 			}
 
 			Instances = instances.ToImmutable();
@@ -382,7 +385,7 @@ namespace Server.Mobiles
 
 			writer.Write(Instances.Count);
 
-			for (var i = 1; i < Instances.Count; i++)
+			for (var i = 0; i < Instances.Count; i++)
 			{
 				var info = Instances[i];
 
@@ -401,7 +404,7 @@ namespace Server.Mobiles
 
 			var count = reader.ReadInt();
 
-			for (var i = 1; i < count; i++)
+			for (var i = 0; i < count; i++)
 			{
 				NpcGuildInfo info;
 

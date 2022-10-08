@@ -348,6 +348,11 @@ namespace Server.Regions
 				Flags &= ~flags;
 			}
 		}
+
+		public override string ToString()
+		{
+			return Flags.ToString();
+		}
 	}
 
 	public class BaseRegion : Region
@@ -1215,45 +1220,45 @@ namespace Server.Regions
 
 				switch (rule)
 				{
-					case RegionFlags.AllowLogout: message = "You cannot log-out in this area."; break;
-					case RegionFlags.AllowHouses: message = "You cannot place houses in this area."; break;
-					case RegionFlags.AllowVehicles: message = "You cannot place vehicles in this area."; break;
-					case RegionFlags.AllowSpawning: message = "You cannot spawn in this area."; break;
-					case RegionFlags.AllowFollowers: message = "You cannot bring followers to this area."; break;
-					case RegionFlags.AllowEthereal: message = "You cannot ride ethereal mounts in this area."; break;
-					case RegionFlags.AllowMount: message = "You cannot ride mounts in this area."; break;
-					case RegionFlags.AllowMagic: message = "You cannot use magic in this area."; break;
-					case RegionFlags.AllowMelee: message = "You cannot use melee weapons in this area."; break;
-					case RegionFlags.AllowRanged: message = "You cannot use ranged weapons in this area."; break;
-					case RegionFlags.AllowSkills: message = "You cannot directly use skills this area."; break;
+					case RegionFlags.AllowLogout: message = "You cannot log-out in this region."; break;
+					case RegionFlags.AllowHouses: message = "You cannot place houses in this region."; break;
+					case RegionFlags.AllowVehicles: message = "You cannot place vehicles in this region."; break;
+					case RegionFlags.AllowSpawning: message = "You cannot spawn in this region."; break;
+					case RegionFlags.AllowFollowers: message = "You cannot bring followers to this region."; break;
+					case RegionFlags.AllowEthereal: message = "You cannot ride ethereal mounts in this region."; break;
+					case RegionFlags.AllowMount: message = "You cannot ride mounts in this region."; break;
+					case RegionFlags.AllowMagic: message = "You cannot use magic in this region."; break;
+					case RegionFlags.AllowMelee: message = "You cannot use melee weapons in this region."; break;
+					case RegionFlags.AllowRanged: message = "You cannot use ranged weapons in this region."; break;
+					case RegionFlags.AllowSkills: message = "You cannot directly use skills this region."; break;
 
-					case RegionFlags.AllowPlayerDeath: message = "You cannot kill players this area."; break;
-					case RegionFlags.AllowPlayerRes: message = "You cannot resurrect players this area."; break;
-					case RegionFlags.AllowPlayerHeal: message = "You cannot heal players this area."; break;
-					case RegionFlags.AllowPlayerHarm: message = "You cannot harm players this area."; break;
-					case RegionFlags.AllowPlayerLooting: message = "You cannot loot players this area."; break;
+					case RegionFlags.AllowPlayerDeath: message = "You cannot kill players this region."; break;
+					case RegionFlags.AllowPlayerRes: message = "You cannot resurrect players this region."; break;
+					case RegionFlags.AllowPlayerHeal: message = "You cannot heal players this region."; break;
+					case RegionFlags.AllowPlayerHarm: message = "You cannot harm players this region."; break;
+					case RegionFlags.AllowPlayerLooting: message = "You cannot loot players this region."; break;
 
-					case RegionFlags.AllowCreatureDeath: message = "You cannot kill creatures in this area."; break;
-					case RegionFlags.AllowCreatureRes: message = "You cannot resurrect creatures in this area."; break;
-					case RegionFlags.AllowCreatureHeal: message = "You cannot heal creatures in this area."; break;
-					case RegionFlags.AllowCreatureHarm: message = "You cannot harm creatures in this area."; break;
-					case RegionFlags.AllowCreatureLooting: message = "You cannot loot creatures this area."; break;
+					case RegionFlags.AllowCreatureDeath: message = "You cannot kill creatures in this region."; break;
+					case RegionFlags.AllowCreatureRes: message = "You cannot resurrect creatures in this region."; break;
+					case RegionFlags.AllowCreatureHeal: message = "You cannot heal creatures in this region."; break;
+					case RegionFlags.AllowCreatureHarm: message = "You cannot harm creatures in this region."; break;
+					case RegionFlags.AllowCreatureLooting: message = "You cannot loot creatures this region."; break;
 
-					case RegionFlags.CanEnter: message = "You cannot enter this area."; break;
-					case RegionFlags.CanEnterAlive: message = "You cannot enter this area while alive."; break;
-					case RegionFlags.CanEnterDead: message = "You cannot enter this area while dead."; break;
-					case RegionFlags.CanEnterYoung: message = "You cannot enter this area while young."; break;
-					case RegionFlags.CanEnterInnocent: message = "You cannot enter this area while innocent."; break;
-					case RegionFlags.CanEnterCriminal: message = "You cannot enter this area while criminal."; break;
-					case RegionFlags.CanEnterMurderer: message = "You cannot enter this area while murderer."; break;
+					case RegionFlags.CanEnter: message = "You cannot enter that area."; break;
+					case RegionFlags.CanEnterAlive: message = "You cannot enter that region while alive."; break;
+					case RegionFlags.CanEnterDead: message = "You cannot enter that region while dead."; break;
+					case RegionFlags.CanEnterYoung: message = "You cannot enter that region while young."; break;
+					case RegionFlags.CanEnterInnocent: message = "You cannot enter that region while innocent."; break;
+					case RegionFlags.CanEnterCriminal: message = "You cannot enter that region while criminal."; break;
+					case RegionFlags.CanEnterMurderer: message = "You cannot enter that region while murderer."; break;
 
-					case RegionFlags.CanExit: message = "You cannot leave this area."; break;
-					case RegionFlags.CanExitAlive: message = "You cannot leave this area while alive."; break;
-					case RegionFlags.CanExitDead: message = "You cannot leave this area while dead."; break;
-					case RegionFlags.CanExitYoung: message = "You cannot leave this area while young."; break;
-					case RegionFlags.CanExitInnocent: message = "You cannot leave this area while innocent."; break;
-					case RegionFlags.CanExitCriminal: message = "You cannot leave this area while criminal."; break;
-					case RegionFlags.CanExitMurderer: message = "You cannot leave this area while murderer."; break;
+					case RegionFlags.CanExit: message = "You cannot leave this region."; break;
+					case RegionFlags.CanExitAlive: message = "You cannot leave this region while alive."; break;
+					case RegionFlags.CanExitDead: message = "You cannot leave this region while dead."; break;
+					case RegionFlags.CanExitYoung: message = "You cannot leave this region while young."; break;
+					case RegionFlags.CanExitInnocent: message = "You cannot leave this region while innocent."; break;
+					case RegionFlags.CanExitCriminal: message = "You cannot leave this region while criminal."; break;
+					case RegionFlags.CanExitMurderer: message = "You cannot leave this region while murderer."; break;
 				}
 
 				if (!String.IsNullOrWhiteSpace(message))

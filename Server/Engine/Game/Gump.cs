@@ -209,10 +209,10 @@ namespace Server.Gumps
 		{
 			Add(new GumpTooltip(1042971, text));
 		}
-
+        
 		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar)
 		{
-			if (!scrollbar && height < 40)
+			if (!scrollbar && !background && height < 40 && !Insensitive.Contains(text, "BODYBGCOLOR"))
 			{
 				height = 40;
 			}
@@ -222,7 +222,7 @@ namespace Server.Gumps
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, bool background, bool scrollbar)
 		{
-			if (!scrollbar && height < 40)
+			if (!scrollbar && !background && height < 40)
 			{
 				height = 40;
 			}
@@ -232,7 +232,7 @@ namespace Server.Gumps
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, int color, bool background, bool scrollbar)
 		{
-			if (!scrollbar && height < 40)
+			if (!scrollbar && !background && height < 40)
 			{
 				height = 40;
 			}
@@ -242,7 +242,7 @@ namespace Server.Gumps
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, string args, int color, bool background, bool scrollbar)
 		{
-			if (!scrollbar && height < 40)
+			if (!scrollbar && !background && height < 40)
 			{
 				height = 40;
 			}

@@ -851,6 +851,10 @@ namespace Server.Mobiles
 
 				AddNewPage();
 
+				AddEntryHtml(20 + OffsetSize + 160 + 20, SetCenter("Home Town Declaration"));
+
+				AddNewLine();
+
 				if (m_Page > 0)
 				{
 					AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
