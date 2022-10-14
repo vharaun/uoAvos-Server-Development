@@ -6,12 +6,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -28,7 +25,7 @@ namespace Server.Tools
 		[CallPriority(Int32.MaxValue)]
 		public static void Configure()
 		{
-			CommandSystem.Register("[ExternalRegionEditor", AccessLevel.Administrator, e =>
+			CommandSystem.Register("ExternalRegionEditor", AccessLevel.Administrator, e =>
 			{
 				if (e.Arguments?.Length > 0)
 				{
