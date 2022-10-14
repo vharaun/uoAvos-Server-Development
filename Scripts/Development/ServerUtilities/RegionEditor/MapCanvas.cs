@@ -163,7 +163,7 @@ namespace Server.Tools.Controls
 
 		private void OnCreateRegion(object sender, EventArgs e)
 		{
-			if (sender is ToolStripButton b && b.OwnerItem == MenuCreateRegion)
+			if (sender is ToolStripMenuItem b && b.OwnerItem == MenuCreateRegion)
 			{
 				var type = (Type)b.Tag;
 
