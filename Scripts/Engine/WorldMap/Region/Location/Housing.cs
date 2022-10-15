@@ -70,11 +70,6 @@ namespace Server.Regions
 			Rules.AllowVehicles = false;
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
-		{
-			return false;
-		}
-
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);
