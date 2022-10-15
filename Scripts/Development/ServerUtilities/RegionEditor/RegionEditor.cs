@@ -90,6 +90,7 @@ namespace Server.Tools
 					Name = "Region Editor"
 				};
 
+				// required for drag/drop api interaction
 				m_Thread.SetApartmentState(ApartmentState.STA);
 
 				m_Thread.Start();
@@ -109,22 +110,23 @@ namespace Server.Tools
 
 		public static bool? CloseEditor()
 		{
+			try
+			{
+				m_Instance?.Invoke(m_Instance.Close);
+				m_Instance?.Invoke(m_Instance.Dispose);
+			}
+			catch
+			{ }
+			finally
+			{
+				m_Instance = null;
+			}
+
 			if (m_Thread?.IsAlive == true)
 			{
 				try
 				{
-					m_Instance?.Close();
-				}
-				catch (ObjectDisposedException)
-				{
-					m_Instance = null;
-				}
-				catch
-				{ }
-
-				try
-				{
-					m_Thread.Join();
+					m_Thread.Join(0);
 				}
 				catch
 				{
@@ -208,8 +210,8 @@ namespace Server.Tools
 				Map.RegionRemoved -= OnMapRegionRemoved;
 			}
 		}
-
-		private void Invoke(Action action)
+		/*
+		private new void Invoke(Action action)
 		{
 			if (action == null)
 			{
@@ -225,7 +227,7 @@ namespace Server.Tools
 				action();
 			}
 		}
-
+		*/
 		private void InvokeAsync(Action action)
 		{
 			if (action != null)

@@ -3049,6 +3049,7 @@ namespace Server
 			return GetMapImage(x, y, width, height, land, statics, true);
 		}
 
+		[MethodImpl(MethodImplOptions.Synchronized)]
 		public unsafe Bitmap GetMapImage(int x, int y, int width, int height, bool land, bool statics, bool useCache)
 		{
 			try
@@ -3109,6 +3110,7 @@ namespace Server
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.Synchronized)]
 		private int[] GetRenderedBlock(int x, int y, bool land, bool statics, bool useCache)
 		{
 			var matrix = Tiles;
