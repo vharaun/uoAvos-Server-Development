@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public ArcaneCircleScroll(int amount)
-			: base(600, 0x2D51, amount)
+		public ArcaneCircleScroll(int amount) : base(SpellName.ArcaneCircle, 0x2D51, amount)
 		{
 			Hue = 0x8FD;
 		}

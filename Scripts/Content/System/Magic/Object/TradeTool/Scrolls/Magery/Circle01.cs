@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public ClumsyScroll(int amount) : base(0, 0x1F2E, amount)
+		public ClumsyScroll(int amount) : base(SpellName.Clumsy, 0x1F2E, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public CreateFoodScroll(int amount) : base(1, 0x1F2F, amount)
+		public CreateFoodScroll(int amount) : base(SpellName.CreateFood, 0x1F2F, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public FeeblemindScroll(int amount) : base(2, 0x1F30, amount)
+		public FeeblemindScroll(int amount) : base(SpellName.Feeblemind, 0x1F30, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public HealScroll(int amount) : base(3, 0x1F31, amount)
+		public HealScroll(int amount) : base(SpellName.Heal, 0x1F31, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public MagicArrowScroll(int amount) : base(4, 0x1F32, amount)
+		public MagicArrowScroll(int amount) : base(SpellName.MagicArrow, 0x1F32, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public NightSightScroll(int amount) : base(5, 0x1F33, amount)
+		public NightSightScroll(int amount) : base(SpellName.NightSight, 0x1F33, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public ReactiveArmorScroll(int amount) : base(6, 0x1F2D, amount)
+		public ReactiveArmorScroll(int amount) : base(SpellName.ReactiveArmor, 0x1F2D, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public WeakenScroll(int amount) : base(7, 0x1F34, amount)
+		public WeakenScroll(int amount) : base(SpellName.Weaken, 0x1F34, amount)
 		{
 		}
 

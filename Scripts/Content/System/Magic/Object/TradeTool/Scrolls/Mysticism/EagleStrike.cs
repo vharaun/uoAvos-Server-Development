@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public EagleStrikeScroll(int amount)
-			: base(682, 0x2DA3, amount)
+		public EagleStrikeScroll(int amount) : base(SpellName.EagleStrike, 0x2DA3, amount)
 		{
 		}
 

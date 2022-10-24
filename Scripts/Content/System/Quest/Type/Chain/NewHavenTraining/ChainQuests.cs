@@ -922,7 +922,7 @@ namespace Server.Engines.ChainQuests.Definitions
 		private class InternalReward : ItemReward
 		{
 			public InternalReward()
-				: base(1078052, typeof(NecromancerSpellbook)) // Complete Necromancer Spellbook
+				: base(1078052, typeof(BookOfNecromancy)) // Complete Necromancer Spellbook
 			{
 			}
 

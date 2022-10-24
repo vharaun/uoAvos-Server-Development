@@ -1,57 +1,94 @@
 ﻿using Server.Items;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Server
 {
 	public partial class Loot
 	{
-		public static Type[] SpellScrolls => m_SpellScrolls;
+		private static readonly Dictionary<SpellSchool, Type[]> m_ScrollTypes = new();
+		private static readonly Dictionary<SpellName, Type> m_ScrollTypesByID = new();
 
-		#region Backward Compatibility
+		#region Standard
 
-		public static Type[] RegularScrollTypes => m_SpellScrolls;
-		public static Type[] NecromancyScrollTypes => m_SpellScrolls;
-		public static Type[] SENecromancyScrollTypes => m_SpellScrolls;
-		public static Type[] PaladinScrollTypes => m_SpellScrolls;
-		public static Type[] ArcanistScrollTypes => m_SpellScrolls;
+		public static Type[] SpellScrolls => GetScrollTypes(SpellSchool.Invalid);
+		public static Type[] MageryScrollTypes => GetScrollTypes(SpellSchool.Magery);
+		public static Type[] NecromancyScrollTypes => GetScrollTypes(SpellSchool.Magery);
+		public static Type[] ChivalryScrolls => GetScrollTypes(SpellSchool.Magery);
+		public static Type[] SpellweavingScrolls => GetScrollTypes(SpellSchool.Spellweaving);
+		public static Type[] MysticismScrolls => GetScrollTypes(SpellSchool.Mysticism);
 
 		#endregion
 
-		private static readonly Type[] m_SpellScrolls = new Type[]
+		#region Custom
+
+		public static Type[] AvatarScrolls => GetScrollTypes(SpellSchool.Avatar);
+		public static Type[] ClericScrolls => GetScrollTypes(SpellSchool.Cleric);
+		public static Type[] DruidScrolls => GetScrollTypes(SpellSchool.Druid);
+		public static Type[] RangerScrolls => GetScrollTypes(SpellSchool.Ranger);
+		public static Type[] RogueScrolls => GetScrollTypes(SpellSchool.Rogue);
+
+		#endregion
+
+		public static Type[] GetScrollTypes(SpellSchool school)
 		{
-			typeof( ReactiveArmorScroll ),  typeof( ClumsyScroll ),         typeof( CreateFoodScroll ),     typeof( FeeblemindScroll ),
-			typeof( HealScroll ),           typeof( MagicArrowScroll ),     typeof( NightSightScroll ),     typeof( WeakenScroll ),
-			typeof( AgilityScroll ),        typeof( CunningScroll ),        typeof( CureScroll ),           typeof( HarmScroll ),
-			typeof( MagicTrapScroll ),      typeof( MagicUnTrapScroll ),    typeof( ProtectionScroll ),     typeof( StrengthScroll ),
-			typeof( BlessScroll ),          typeof( FireballScroll ),       typeof( MagicLockScroll ),      typeof( PoisonScroll ),
-			typeof( TelekinisisScroll ),    typeof( TeleportScroll ),       typeof( UnlockScroll ),         typeof( WallOfStoneScroll ),
-			typeof( ArchCureScroll ),       typeof( ArchProtectionScroll ), typeof( CurseScroll ),          typeof( FireFieldScroll ),
-			typeof( GreaterHealScroll ),    typeof( LightningScroll ),      typeof( ManaDrainScroll ),      typeof( RecallScroll ),
-			typeof( BladeSpiritsScroll ),   typeof( DispelFieldScroll ),    typeof( IncognitoScroll ),      typeof( MagicReflectScroll ),
-			typeof( MindBlastScroll ),      typeof( ParalyzeScroll ),       typeof( PoisonFieldScroll ),    typeof( SummonCreatureScroll ),
-			typeof( DispelScroll ),         typeof( EnergyBoltScroll ),     typeof( ExplosionScroll ),      typeof( InvisibilityScroll ),
-			typeof( MarkScroll ),           typeof( MassCurseScroll ),      typeof( ParalyzeFieldScroll ),  typeof( RevealScroll ),
-			typeof( ChainLightningScroll ), typeof( EnergyFieldScroll ),    typeof( FlamestrikeScroll ),    typeof( GateTravelScroll ),
-			typeof( ManaVampireScroll ),    typeof( MassDispelScroll ),     typeof( MeteorSwarmScroll ),    typeof( PolymorphScroll ),
-			typeof( EarthquakeScroll ),     typeof( EnergyVortexScroll ),   typeof( ResurrectionScroll ),   typeof( SummonAirElementalScroll ),
-			typeof( SummonDaemonScroll ),   typeof( SummonEarthElementalScroll ),   typeof( SummonFireElementalScroll ),    typeof( SummonWaterElementalScroll ),
+			if (m_ScrollTypes.TryGetValue(school, out var types))
+			{
+				return types;
+			}
 
-			typeof( AnimateDeadScroll ),        typeof( BloodOathScroll ),      typeof( CorpseSkinScroll ), typeof( CurseWeaponScroll ),
-			typeof( EvilOmenScroll ),           typeof( HorrificBeastScroll ),  typeof( LichFormScroll ),   typeof( MindRotScroll ),
-			typeof( PainSpikeScroll ),          typeof( PoisonStrikeScroll ),   typeof( StrangleScroll ),   typeof( SummonFamiliarScroll ),
-			typeof( VampiricEmbraceScroll ),    typeof( VengefulSpiritScroll ), typeof( WitherScroll ),     typeof( WraithFormScroll ),
+			var scrollType = typeof(SpellScroll);
 
-			typeof( AnimateDeadScroll ),        typeof( BloodOathScroll ),      typeof( CorpseSkinScroll ), typeof( CurseWeaponScroll ),
-			typeof( EvilOmenScroll ),           typeof( HorrificBeastScroll ),  typeof( LichFormScroll ),   typeof( MindRotScroll ),
-			typeof( PainSpikeScroll ),          typeof( PoisonStrikeScroll ),   typeof( StrangleScroll ),   typeof( SummonFamiliarScroll ),
-			typeof( VampiricEmbraceScroll ),    typeof( VengefulSpiritScroll ), typeof( WitherScroll ),     typeof( WraithFormScroll ),
-			typeof( ExorcismScroll ),
+			var list = new HashSet<Type>();
 
-			typeof( ArcaneCircleScroll ),   typeof( GiftOfRenewalScroll ),  typeof( ImmolatingWeaponScroll ),   typeof( AttuneWeaponScroll ),
-			typeof( ThunderstormScroll ),   typeof( NatureFuryScroll ),		/*typeof( SummonFeyScroll ),			typeof( SummonFiendScroll ),*/
-               typeof( ReaperFormScroll ),     typeof( WildfireScroll ),       typeof( EssenceOfWindScroll ),      typeof( DryadAllureScroll ),
-			typeof( EtherealVoyageScroll ), typeof( WordOfDeathScroll ),    typeof( GiftOfLifeScroll ),         typeof( ArcaneEmpowermentScroll )
-		};
+			if (school == SpellSchool.Invalid)
+			{
+				foreach (var ss in SpellRegistry.Schools)
+				{
+					foreach (var type in GetScrollTypes(ss))
+					{
+						list.Add(type);
+					}
+				}
+			}
+			else
+			{
+				foreach (var asm in ScriptCompiler.Assemblies)
+				{
+					foreach (var type in asm.DefinedTypes)
+					{
+						if (type.IsSubclassOf(scrollType))
+						{
+							try
+							{
+								var scroll = (SpellScroll)Activator.CreateInstance(type);
+
+								if (school == SpellSchool.Invalid || school == SpellRegistry.GetSchool(scroll.SpellID))
+								{
+									if (list.Add(type))
+									{
+										m_ScrollTypesByID[scroll.SpellID] = type;
+									}
+								}
+
+								scroll.Delete();
+							}
+							catch
+							{
+							}
+						}
+					}
+				}
+			}
+
+			var arr = list.ToArray();
+
+			list.Clear();
+			list.TrimExcess();
+
+			return m_ScrollTypes[school] = arr;
+		}
 	}
 }

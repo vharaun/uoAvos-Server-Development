@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public ChainLightningScroll(int amount) : base(48, 0x1F5D, amount)
+		public ChainLightningScroll(int amount) : base(SpellName.ChainLightning, 0x1F5D, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public EnergyFieldScroll(int amount) : base(49, 0x1F5E, amount)
+		public EnergyFieldScroll(int amount) : base(SpellName.EnergyField, 0x1F5E, amount)
 		{
 		}
 
@@ -62,19 +62,19 @@
 		}
 	}
 
-	public class FlamestrikeScroll : SpellScroll
+	public class FlameStrikeScroll : SpellScroll
 	{
 		[Constructable]
-		public FlamestrikeScroll() : this(1)
+		public FlameStrikeScroll() : this(1)
 		{
 		}
 
 		[Constructable]
-		public FlamestrikeScroll(int amount) : base(50, 0x1F5F, amount)
+		public FlameStrikeScroll(int amount) : base(SpellName.FlameStrike, 0x1F5F, amount)
 		{
 		}
 
-		public FlamestrikeScroll(Serial serial) : base(serial)
+		public FlameStrikeScroll(Serial serial) : base(serial)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public GateTravelScroll(int amount) : base(51, 0x1F60, amount)
+		public GateTravelScroll(int amount) : base(SpellName.GateTravel, 0x1F60, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public ManaVampireScroll(int amount) : base(52, 0x1F61, amount)
+		public ManaVampireScroll(int amount) : base(SpellName.ManaVampire, 0x1F61, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public MassDispelScroll(int amount) : base(53, 0x1F62, amount)
+		public MassDispelScroll(int amount) : base(SpellName.MassDispel, 0x1F62, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public MeteorSwarmScroll(int amount) : base(54, 0x1F63, amount)
+		public MeteorSwarmScroll(int amount) : base(SpellName.MeteorSwarm, 0x1F63, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public PolymorphScroll(int amount) : base(55, 0x1F64, amount)
+		public PolymorphScroll(int amount) : base(SpellName.Polymorph, 0x1F64, amount)
 		{
 		}
 

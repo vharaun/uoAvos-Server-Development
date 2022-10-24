@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public NetherCycloneScroll(int amount)
-			: base(691, 0x2DAC, amount)
+		public NetherCycloneScroll(int amount) : base(SpellName.NetherCyclone, 0x2DAC, amount)
 		{
 		}
 

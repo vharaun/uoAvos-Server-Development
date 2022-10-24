@@ -1,6 +1,6 @@
 ﻿namespace Server.Items
 {
-	public class OssianGrimoire : NecromancerSpellbook, ITokunoDyable
+	public class OssianGrimoire : BookOfNecromancy, ITokunoDyable
 	{
 		public override int LabelNumber => 1078148;  // Ossian Grimoire
 

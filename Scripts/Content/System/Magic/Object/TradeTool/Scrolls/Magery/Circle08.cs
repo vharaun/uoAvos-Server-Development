@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public SummonAirElementalScroll(int amount) : base(59, 0x1F68, amount)
+		public SummonAirElementalScroll(int amount) : base(SpellName.AirElemental, 0x1F68, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public SummonEarthElementalScroll(int amount) : base(61, 0x1F6A, amount)
+		public SummonEarthElementalScroll(int amount) : base(SpellName.EarthElemental, 0x1F6A, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public EarthquakeScroll(int amount) : base(56, 0x1F65, amount)
+		public EarthquakeScroll(int amount) : base(SpellName.Earthquake, 0x1F65, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public EnergyVortexScroll(int amount) : base(57, 0x1F66, amount)
+		public EnergyVortexScroll(int amount) : base(SpellName.EnergyVortex, 0x1F66, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public SummonFireElementalScroll(int amount) : base(62, 0x1F6B, amount)
+		public SummonFireElementalScroll(int amount) : base(SpellName.FireElemental, 0x1F6B, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public ResurrectionScroll(int amount) : base(58, 0x1F67, amount)
+		public ResurrectionScroll(int amount) : base(SpellName.Resurrection, 0x1F67, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public SummonDaemonScroll(int amount) : base(60, 0x1F69, amount)
+		public SummonDaemonScroll(int amount) : base(SpellName.SummonDaemon, 0x1F69, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public SummonWaterElementalScroll(int amount) : base(63, 0x1F6C, amount)
+		public SummonWaterElementalScroll(int amount) : base(SpellName.WaterElemental, 0x1F6C, amount)
 		{
 		}
 

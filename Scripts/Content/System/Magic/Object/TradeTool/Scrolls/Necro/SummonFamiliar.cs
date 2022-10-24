@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public SummonFamiliarScroll(int amount) : base(111, 0x226B, amount)
+		public SummonFamiliarScroll(int amount) : base(SpellName.SummonFamiliar, 0x226B, amount)
 		{
 		}
 

@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public NetherBoltScroll(int amount)
-			: base(677, 0x2D9E, amount)
+		public NetherBoltScroll(int amount) : base(SpellName.NetherBolt, 0x2D9E, amount)
 		{
 		}
 

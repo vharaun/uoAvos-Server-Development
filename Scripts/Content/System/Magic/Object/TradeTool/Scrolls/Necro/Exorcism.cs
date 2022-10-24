@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public ExorcismScroll(int amount) : base(116, 0x2270, amount)
+		public ExorcismScroll(int amount) : base(SpellName.Exorcism, 0x2270, amount)
 		{
 		}
 

@@ -1,4 +1,6 @@
 ﻿
+using Server.Engines.Craft;
+
 using System;
 
 namespace Server.Commands.Generic
@@ -10,7 +12,7 @@ namespace Server.Commands.Generic
 			AccessLevel = AccessLevel.Counselor;
 			Supports = CommandSupport.All;
 			Commands = new string[] { "Set" };
-			ObjectTypes = ObjectTypes.Both;
+			ObjectTypes = ObjectTypes.All;
 			Usage = "Set <propertyName> <value> [...]";
 			Description = "Sets one or more property values by name of a targeted object.";
 		}

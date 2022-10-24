@@ -7,30 +7,31 @@ namespace Server.Items
 {
 	public class SpellScroll : Item, ICommodity
 	{
-		private int m_SpellID;
-
-		public int SpellID => m_SpellID;
+		public SpellName SpellID { get; private set; }
 
 		int ICommodity.DescriptionNumber => LabelNumber;
-		bool ICommodity.IsDeedable => (Core.ML);
+		bool ICommodity.IsDeedable => Core.ML;
 
-		public SpellScroll(Serial serial) : base(serial)
+		[Constructable]
+		public SpellScroll(SpellName spellID, int itemID) 
+			: this(spellID, itemID, 1)
 		{
 		}
 
 		[Constructable]
-		public SpellScroll(int spellID, int itemID) : this(spellID, itemID, 1)
-		{
-		}
-
-		[Constructable]
-		public SpellScroll(int spellID, int itemID, int amount) : base(itemID)
+		public SpellScroll(SpellName spellID, int itemID, int amount) 
+			: base(itemID)
 		{
 			Stackable = true;
 			Weight = 1.0;
 			Amount = amount;
 
-			m_SpellID = spellID;
+			SpellID = spellID;
+		}
+
+		public SpellScroll(Serial serial) 
+			: base(serial)
+		{
 		}
 
 		public override void Serialize(GenericWriter writer)
@@ -39,24 +40,16 @@ namespace Server.Items
 
 			writer.Write(0); // version
 
-			writer.Write(m_SpellID);
+			writer.Write(SpellID);
 		}
 
 		public override void Deserialize(GenericReader reader)
 		{
 			base.Deserialize(reader);
 
-			var version = reader.ReadInt();
+			_ = reader.ReadInt();
 
-			switch (version)
-			{
-				case 0:
-					{
-						m_SpellID = reader.ReadInt();
-
-						break;
-					}
-			}
+			SpellID = reader.ReadEnum<SpellName>();
 		}
 
 		public override void GetContextMenuEntries(Mobile from, List<ContextMenuEntry> list)
@@ -82,7 +75,7 @@ namespace Server.Items
 				return;
 			}
 
-			var spell = SpellRegistry.NewSpell(m_SpellID, from, this);
+			var spell = SpellRegistry.NewSpell(SpellID, from, this);
 
 			if (spell != null)
 			{

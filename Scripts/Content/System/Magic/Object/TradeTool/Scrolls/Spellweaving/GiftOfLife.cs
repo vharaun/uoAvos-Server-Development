@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public GiftOfLifeScroll(int amount)
-			: base(614, 0x2D5F, amount)
+		public GiftOfLifeScroll(int amount) : base(SpellName.GiftOfLife, 0x2D5F, amount)
 		{
 			Hue = 0x8FD;
 		}

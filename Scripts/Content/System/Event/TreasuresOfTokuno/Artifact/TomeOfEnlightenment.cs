@@ -2,7 +2,7 @@
 
 namespace Server.Engines.Events
 {
-	public class TomeOfEnlightenment : Spellbook
+	public class TomeOfEnlightenment : BookOfMagery
 	{
 		public override int LabelNumber => 1070934;  // Tome of Enlightenment
 

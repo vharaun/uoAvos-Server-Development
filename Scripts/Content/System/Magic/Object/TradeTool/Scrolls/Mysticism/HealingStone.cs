@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public HealingStoneScroll(int amount)
-			: base(678, 0x2D9F, amount)
+		public HealingStoneScroll(int amount) : base(SpellName.HealingStone, 0x2D9F, amount)
 		{
 		}
 

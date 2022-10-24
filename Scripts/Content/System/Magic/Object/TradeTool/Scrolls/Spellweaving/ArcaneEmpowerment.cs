@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public ArcaneEmpowermentScroll(int amount)
-			: base(615, 0x2D60, amount)
+		public ArcaneEmpowermentScroll(int amount) : base(SpellName.ArcaneEmpowerment, 0x2D60, amount)
 		{
 			Hue = 0x8FD;
 		}

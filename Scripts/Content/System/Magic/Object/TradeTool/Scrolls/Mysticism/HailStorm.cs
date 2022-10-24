@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public HailStormScroll(int amount)
-			: base(690, 0x2DAB, amount)
+		public HailStormScroll(int amount) : base(SpellName.HailStorm, 0x2DAB, amount)
 		{
 		}
 

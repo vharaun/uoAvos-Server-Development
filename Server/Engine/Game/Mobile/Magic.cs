@@ -1,25 +1,181 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Runtime.CompilerServices;
 
 namespace Server
 {
+	public interface ISpecialMove
+	{
+		SpellInfo Info { get; }
+
+		SpellName ID => Info.ID;
+		SpellSchool School => Info.School;
+
+		string Name => Info.Name;
+		string Mantra => Info.Mantra;
+		string Desc => Info.Desc;
+
+		int BaseMana => Info.Mana;
+
+		double RequiredSkill { get; }
+
+		SkillName MoveSkill { get; }
+
+		bool ValidatesDuringHit { get; }
+		
+		TextDefinition AbilityMessage { get; }
+
+		bool IgnoreArmor(Mobile attacker);
+
+		int GetAccuracyBonus(Mobile attacker);
+
+		double GetPropertyBonus(Mobile attacker);
+		double GetDamageScalar(Mobile attacker, Mobile defender);
+
+		bool OnBeforeDamage(Mobile attacker, Mobile defender);
+		bool OnBeforeSwing(Mobile attacker, Mobile defender);
+
+		void OnHit(Mobile attacker, Mobile defender, int damage);
+		void OnMiss(Mobile attacker, Mobile defender);
+
+		void OnUse(Mobile from);
+
+		void OnClearMove(Mobile from);
+
+		bool Validate(Mobile from);
+	}
+
 	public interface ISpell
 	{
-		int ID { get; }
+		SpellInfo Info { get; }
+
+		SpellName ID => Info.ID;
+		SpellSchool School => Info.School;
+		SpellCircle Circle => Info.Circle;
+
+		string Name => Info.Name;
+		string Mantra => Info.Mantra;
+		string Desc => Info.Desc;
+
+		Mobile Caster => null;
 
 		bool IsCasting { get; }
+
+		SkillName CastSkill { get; }
+		SkillName DamageSkill => CastSkill;
+
+		bool Cast();
+
+		void SayMantra();
 
 		void OnCasterHurt();
 		void OnCasterKilled();
 		void OnConnectionChanged();
+
 		bool OnCasterMoving(Direction d);
 		bool OnCasterEquiping(Item item);
 		bool OnCasterUsingObject(object o);
 		bool OnCastInTown(Region r);
+
+		void GetCastSkills(ref double req, out double min, out double max);
+
+		double GetSkillRequirement();
+		int GetManaRequirement();
+		int GetTitheRequirement();
+
+		void Interrupt(SpellInterrupt type)
+		{
+			Interrupt(type, false);
+		}
+
+		void Interrupt(SpellInterrupt type, bool resistable);
+	}
+
+	public interface ISpellbook
+	{
+		SpellSchool School { get; }
+
+		int BookOffset => SpellbookHelper.GetSchoolOffset(School);
+		int BookCount => SpellbookHelper.GetSchoolCount(School);
+
+		SpellbookTheme Theme => SpellbookTheme.GetTheme(School);
+
+		int SpellCount { get; }
+
+		ulong Content { get; set; }
+
+		void DisplayTo(Mobile to);
+
+		bool HasSpell(SpellName spell);
+		bool AddSpell(SpellName spell);
+
+		void Fill();
+	}
+
+	public enum SpellState
+	{
+		None = 0,
+		Casting = 1,    // We are in the process of casting (that is, waiting GetCastTime() and doing animations). Spell casting may be interupted in this state.
+		Sequencing = 2  // Casting completed, but the full spell sequence isn't. Usually waiting for a target response. Some actions are restricted in this state (using skills for example).
+	}
+
+	public enum SpellInterrupt
+	{
+		Unspecified,
+		EquipRequest,
+		UseRequest,
+		Hurt,
+		Kill,
+		NewCast
+	}
+
+	public enum SpellSchool
+	{
+		Invalid = -1,
+
+		// Base
+		Magery = 0,
+		Necromancy = 100,
+		Chivalry = 200,
+		Bushido = 400,
+		Ninjitsu = 500,
+		Spellweaving = 600,
+		Mysticism = 677,
+
+		// Custom
+		Avatar = 1000,
+		Cleric = 1100,
+		Druid = 1200,
+		Ranger = 1300,
+		Rogue = 1400,
+
+		// Racial
+		Human = 50000,
+		Elf = 50100,
+		Gargoyle = 50200,
+	}
+
+	public enum SpellCircle
+	{
+		Invalid = -1,
+
+		First,
+		Second,
+		Third,
+		Fourth,
+		Fifth,
+		Sixth,
+		Seventh,
+		Eighth
 	}
 
 	public enum SpellName
 	{
+		Invalid = -1,
+
+		#region Magery
+
 		#region First
 
 		Clumsy = 0,
@@ -124,6 +280,8 @@ namespace Server
 
 		#endregion
 
+		#endregion
+
 		#region Necromancy
 
 		AnimateDead = 100,
@@ -180,7 +338,7 @@ namespace Server
 		KiAttack = 503,
 		SurpriseAttack = 504,
 		Backstab = 505,
-		Shadowjump = 506,
+		ShadowJump = 506,
 		MirrorImage = 507,
 
 		#endregion
@@ -190,9 +348,9 @@ namespace Server
 		ArcaneCircle = 600,
 		GiftOfRenewal = 601,
 		ImmolatingWeapon = 602,
-		AttuneWeapon = 603,
+		Attunement = 603,
 		Thunderstorm = 604,
-		NatureFury = 605,
+		NaturesFury = 605,
 		SummonFey = 606,
 		SummonFiend = 607,
 		ReaperForm = 608,
@@ -226,9 +384,114 @@ namespace Server
 		RisingColossus = 692,
 
 		#endregion
+
+		// Custom
+
+		#region Avatar
+
+		DivineLight = 1000,
+		DivineGateway = 1001,
+		MarkOfGods = 1002,
+
+		#endregion
+
+		#region Cleric
+
+		AngelicFaith = 1100,
+		BanishEvil = 1101,
+		DampenSpirit = 1102,
+		DivineFocus = 1103,
+		HammerOfFaith = 1104,
+		Purge = 1105,
+		Restoration = 1106,
+		SacredBoon = 1107,
+		Sacrifice = 1108,
+		Smite = 1109,
+		TouchOfLife = 1110,
+		TrialByFire = 1111,
+
+		#endregion
+
+		#region Druid
+
+		BeastPack = 1200,
+		BlendWithForest = 1201,
+		DruidFamiliar = 1202,
+		EnchantedGrove = 1203,
+		GraspingRoots = 1204,
+		HollowReed = 1205,
+		LeafWhirlwind = 1206,
+		LureStone = 1207,
+		MushroomGateway = 1208,
+		NaturesPassage = 1209,
+		RestorativeSoil = 1210,
+		ShieldOfEarth = 1211,
+		SpringOfLife = 1212,
+		StoneCircle = 1213,
+		SwarmOfInsects = 1214,
+		VolcanicEruption = 1215,
+
+		#endregion
+
+		#region Ranger
+
+		HuntersAim = 1300,
+		PhoenixFlight = 1301,
+		AnimalCompanion = 1302,
+		CallMount = 1303,
+		FireBow = 1304,
+		IceBow = 1305,
+		LightningBow = 1306,
+		NoxBow = 1307,
+
+		#endregion
+
+		#region Rogue
+
+		Intimidation = 1400,
+		ShadowBlend = 1401,
+		SlyFox = 1402,
+
+		#endregion
+
+		// Racial
+
+		#region Human
+
+		StrongBack = 50000,
+		Toughness = 50001,
+		WorkHorse = 50002,
+		JackOfAllTrades = 50003,
+		MasterArtisan = 50004,
+
+		#endregion
+
+		#region Elf
+
+		NightVision = 50100,
+		InfusedWithMagic = 50101,
+		KnowledgeOfNature = 50102,
+		Evasive = 50103,
+		Perceptive = 50104,
+		Wisdom = 50105,
+
+		#endregion
+
+		#region Gargoyle
+
+		Flying = 50200,
+		Berserk = 50201,
+		DeadlyAim = 50202,
+		MysticInsight = 50203,
+
+		#endregion
 	}
 
-	public enum Circle1SpellName
+	#region [School]SpellName
+
+	#region Standard
+
+	public enum MagerySpellName
 	{
 		Clumsy = SpellName.Clumsy,
 		CreateFood = SpellName.CreateFood,
@@ -238,10 +501,7 @@ namespace Server
 		NightSight = SpellName.NightSight,
 		ReactiveArmor = SpellName.ReactiveArmor,
 		Weaken = SpellName.Weaken,
-	}
 
-	public enum Circle2SpellName
-	{
 		Agility = SpellName.Agility,
 		Cunning = SpellName.Cunning,
 		Cure = SpellName.Cure,
@@ -250,10 +510,7 @@ namespace Server
 		RemoveTrap = SpellName.RemoveTrap,
 		Protection = SpellName.Protection,
 		Strength = SpellName.Strength,
-	}
 
-	public enum Circle3SpellName
-	{
 		Bless = SpellName.Bless,
 		Fireball = SpellName.Fireball,
 		MagicLock = SpellName.MagicLock,
@@ -262,10 +519,7 @@ namespace Server
 		Teleport = SpellName.Teleport,
 		Unlock = SpellName.Unlock,
 		WallOfStone = SpellName.WallOfStone,
-	}
 
-	public enum Circle4SpellName
-	{
 		ArchCure = SpellName.ArchCure,
 		ArchProtection = SpellName.ArchProtection,
 		Curse = SpellName.Curse,
@@ -274,10 +528,7 @@ namespace Server
 		Lightning = SpellName.Lightning,
 		ManaDrain = SpellName.ManaDrain,
 		Recall = SpellName.Recall,
-	}
 
-	public enum Circle5SpellName
-	{
 		BladeSpirits = SpellName.BladeSpirits,
 		DispelField = SpellName.DispelField,
 		Incognito = SpellName.Incognito,
@@ -286,10 +537,7 @@ namespace Server
 		Paralyze = SpellName.Paralyze,
 		PoisonField = SpellName.PoisonField,
 		SummonCreature = SpellName.SummonCreature,
-	}
 
-	public enum Circle6SpellName
-	{
 		Dispel = SpellName.Dispel,
 		EnergyBolt = SpellName.EnergyBolt,
 		Explosion = SpellName.Explosion,
@@ -298,10 +546,7 @@ namespace Server
 		MassCurse = SpellName.MassCurse,
 		ParalyzeField = SpellName.ParalyzeField,
 		Reveal = SpellName.Reveal,
-	}
 
-	public enum Circle7SpellName
-	{
 		ChainLightning = SpellName.ChainLightning,
 		EnergyField = SpellName.EnergyField,
 		FlameStrike = SpellName.FlameStrike,
@@ -310,10 +555,7 @@ namespace Server
 		MassDispel = SpellName.MassDispel,
 		MeteorSwarm = SpellName.MeteorSwarm,
 		Polymorph = SpellName.Polymorph,
-	}
 
-	public enum Circle8SpellName
-	{
 		Earthquake = SpellName.Earthquake,
 		EnergyVortex = SpellName.EnergyVortex,
 		Resurrection = SpellName.Resurrection,
@@ -377,7 +619,7 @@ namespace Server
 		KiAttack = SpellName.KiAttack,
 		SurpriseAttack = SpellName.SurpriseAttack,
 		Backstab = SpellName.Backstab,
-		Shadowjump = SpellName.Shadowjump,
+		ShadowJump = SpellName.ShadowJump,
 		MirrorImage = SpellName.MirrorImage,
 	}
 
@@ -386,9 +628,9 @@ namespace Server
 		ArcaneCircle = SpellName.ArcaneCircle,
 		GiftOfRenewal = SpellName.GiftOfRenewal,
 		ImmolatingWeapon = SpellName.ImmolatingWeapon,
-		AttuneWeapon = SpellName.AttuneWeapon,
+		Attunement = SpellName.Attunement,
 		Thunderstorm = SpellName.Thunderstorm,
-		NatureFury = SpellName.NatureFury,
+		NaturesFury = SpellName.NaturesFury,
 		SummonFey = SpellName.SummonFey,
 		SummonFiend = SpellName.SummonFiend,
 		ReaperForm = SpellName.ReaperForm,
@@ -421,97 +663,732 @@ namespace Server
 		RisingColossus = SpellName.RisingColossus,
 	}
 
-	public class SpellInfo
+	#endregion
+
+	#region Custom
+
+	public enum AvatarSpellName
 	{
-		private string m_Name;
-		private string m_Mantra;
-		private Type[] m_Reagents;
-		private int[] m_Amounts;
-		private int m_Action;
-		private bool m_AllowTown;
-		private int m_LeftHandEffect, m_RightHandEffect;
+		DivineLight = SpellName.DivineLight,
+		DivineGateway = SpellName.DivineGateway,
+		MarkOfGods = SpellName.MarkOfGods,
+	}
 
-		public SpellInfo(string name, string mantra, params Type[] regs) : this(name, mantra, 16, 0, 0, true, regs)
+	public enum ClericSpellName
+	{
+		AngelicFaith = SpellName.AngelicFaith,
+		BanishEvil = SpellName.BanishEvil,
+		DampenSpirit = SpellName.DampenSpirit,
+		DivineFocus = SpellName.DivineFocus,
+		HammerOfFaith = SpellName.HammerOfFaith,
+		Purge = SpellName.Purge,
+		Restoration = SpellName.Restoration,
+		SacredBoon = SpellName.SacredBoon,
+		Sacrifice = SpellName.Sacrifice,
+		Smite = SpellName.Smite,
+		TouchOfLife = SpellName.TouchOfLife,
+		TrialByFire = SpellName.TrialByFire,
+	}
+
+	public enum DruidSpellName
+	{
+		BeastPack = SpellName.BeastPack,
+		BlendWithForest = SpellName.BlendWithForest,
+		DruidFamiliar = SpellName.DruidFamiliar,
+		EnchantedGrove = SpellName.EnchantedGrove,
+		GraspingRoots = SpellName.GraspingRoots,
+		HollowReed = SpellName.HollowReed,
+		LeafWhirlwind = SpellName.LeafWhirlwind,
+		LureStone = SpellName.LureStone,
+		MushroomGateway = SpellName.MushroomGateway,
+		NaturesPassage = SpellName.NaturesPassage,
+		RestorativeSoil = SpellName.RestorativeSoil,
+		ShieldOfEarth = SpellName.ShieldOfEarth,
+		SpringOfLife = SpellName.SpringOfLife,
+		StoneCircle = SpellName.StoneCircle,
+		SwarmOfInsects = SpellName.SwarmOfInsects,
+		VolcanicEruption = SpellName.VolcanicEruption,
+	}
+
+	public enum RangerSpellName
+	{
+		HuntersAim = SpellName.HuntersAim,
+		PhoenixFlight = SpellName.PhoenixFlight,
+		AnimalCompanion = SpellName.AnimalCompanion,
+		CallMount = SpellName.CallMount,
+		FireBow = SpellName.FireBow,
+		IceBow = SpellName.IceBow,
+		LightningBow = SpellName.LightningBow,
+		NoxBow = SpellName.NoxBow,
+	}
+
+	public enum RogueSpellName
+	{
+		Intimidation = SpellName.Intimidation,
+		ShadowBlend = SpellName.ShadowBlend,
+		SlyFox = SpellName.SlyFox,
+	}
+
+	#endregion
+
+	#region Racial
+
+	public enum HumanAbilityName
+	{
+		StrongBack = SpellName.StrongBack,
+		Toughness = SpellName.Toughness,
+		WorkHorse = SpellName.WorkHorse,
+		JackOfAllTrades = SpellName.JackOfAllTrades,
+		MasterArtisan = SpellName.MasterArtisan,
+	}
+
+	public enum ElfAbilityName
+	{
+		NightVision = SpellName.NightVision,
+		InfusedWithMagic = SpellName.InfusedWithMagic,
+		KnowledgeOfNature = SpellName.KnowledgeOfNature,
+		Evasive = SpellName.Evasive,
+		Perceptive = SpellName.Perceptive,
+		Wisdom = SpellName.Wisdom,
+	}
+
+	public enum GargoyleAbilityName
+	{
+		Flying = SpellName.Flying,
+		Berserk = SpellName.Berserk,
+		DeadlyAim = SpellName.DeadlyAim,
+		MysticInsight = SpellName.MysticInsight,
+	}
+
+	public enum RacialAbilityName
+	{
+		StrongBack = HumanAbilityName.StrongBack,
+		Toughness = HumanAbilityName.Toughness,
+		WorkHorse = HumanAbilityName.WorkHorse,
+		JackOfAllTrades = HumanAbilityName.JackOfAllTrades,
+		MasterArtisan = HumanAbilityName.MasterArtisan,
+
+		NightVision = ElfAbilityName.NightVision,
+		InfusedWithMagic = ElfAbilityName.InfusedWithMagic,
+		KnowledgeOfNature = ElfAbilityName.KnowledgeOfNature,
+		Evasive = ElfAbilityName.Evasive,
+		Perceptive = ElfAbilityName.Perceptive,
+		Wisdom = ElfAbilityName.Wisdom,
+
+		Flying = GargoyleAbilityName.Flying,
+		Berserk = GargoyleAbilityName.Berserk,
+		DeadlyAim = GargoyleAbilityName.DeadlyAim,
+		MysticInsight = GargoyleAbilityName.MysticInsight,
+	}
+
+	#endregion
+
+	#endregion
+
+	public static class SpellNames
+	{
+		private static SpellName[] m_Instances;
+
+		public static IReadOnlyCollection<SpellName> Instances => InternalGetInstances(ref m_Instances);
+
+		#region Schools
+
+		#region Standard
+
+		private static MagerySpellName[] m_Magery;
+
+		public static IReadOnlyCollection<MagerySpellName> Magery => InternalGetInstances(ref m_Magery);
+
+		private static NecromancySpellName[] m_Necromancy;
+
+		public static IReadOnlyCollection<NecromancySpellName> Necromancy => InternalGetInstances(ref m_Necromancy);
+
+		private static ChivalrySpellName[] m_Chivalry;
+
+		public static IReadOnlyCollection<ChivalrySpellName> Chivalry => InternalGetInstances(ref m_Chivalry);
+
+		private static BushidoSpellName[] m_Bushido;
+
+		public static IReadOnlyCollection<BushidoSpellName> Bushido => InternalGetInstances(ref m_Bushido);
+
+		private static NinjitsuSpellName[] m_Ninjitsu;
+
+		public static IReadOnlyCollection<NinjitsuSpellName> Ninjitsu => InternalGetInstances(ref m_Ninjitsu);
+
+		private static SpellweavingSpellName[] m_Spellweaving;
+
+		public static IReadOnlyCollection<SpellweavingSpellName> Spellweaving => InternalGetInstances(ref m_Spellweaving);
+
+		private static MysticismSpellName[] m_Mysticism;
+
+		public static IReadOnlyCollection<MysticismSpellName> Mysticism => InternalGetInstances(ref m_Mysticism);
+
+		#endregion
+
+		#region Custom
+
+		private static AvatarSpellName[] m_Avatar;
+
+		public static IReadOnlyCollection<AvatarSpellName> Avatar => InternalGetInstances(ref m_Avatar);
+
+		private static ClericSpellName[] m_Cleric;
+
+		public static IReadOnlyCollection<ClericSpellName> Cleric => InternalGetInstances(ref m_Cleric);
+
+		private static DruidSpellName[] m_Druid;
+
+		public static IReadOnlyCollection<DruidSpellName> Druid => InternalGetInstances(ref m_Druid);
+
+		private static RangerSpellName[] m_Ranger;
+
+		public static IReadOnlyCollection<RangerSpellName> Ranger => InternalGetInstances(ref m_Ranger);
+
+		private static RogueSpellName[] m_Rogue;
+
+		public static IReadOnlyCollection<RogueSpellName> Rogue => InternalGetInstances(ref m_Rogue);
+
+		#endregion
+
+		#region Racial
+
+		private static HumanAbilityName[] m_Human;
+
+		public static IReadOnlyCollection<HumanAbilityName> Human => InternalGetInstances(ref m_Human);
+
+		private static ElfAbilityName[] m_Elf;
+
+		public static IReadOnlyCollection<ElfAbilityName> Elf => InternalGetInstances(ref m_Elf);
+
+		private static GargoyleAbilityName[] m_Gargoyle;
+
+		public static IReadOnlyCollection<GargoyleAbilityName> Gargoyle => InternalGetInstances(ref m_Gargoyle);
+
+		#endregion
+
+		#endregion
+
+		[MethodImpl(MethodImplOptions.Synchronized)]
+		private static T[] InternalGetInstances<T>(ref T[] list) where T : struct, Enum
 		{
-		}
-
-		public SpellInfo(string name, string mantra, bool allowTown, params Type[] regs) : this(name, mantra, 16, 0, 0, allowTown, regs)
-		{
-		}
-
-		public SpellInfo(string name, string mantra, int action, params Type[] regs) : this(name, mantra, action, 0, 0, true, regs)
-		{
-		}
-
-		public SpellInfo(string name, string mantra, int action, bool allowTown, params Type[] regs) : this(name, mantra, action, 0, 0, allowTown, regs)
-		{
-		}
-
-		public SpellInfo(string name, string mantra, int action, int handEffect, params Type[] regs) : this(name, mantra, action, handEffect, handEffect, true, regs)
-		{
-		}
-
-		public SpellInfo(string name, string mantra, int action, int handEffect, bool allowTown, params Type[] regs) : this(name, mantra, action, handEffect, handEffect, allowTown, regs)
-		{
-		}
-
-		public SpellInfo(string name, string mantra, int action, int leftHandEffect, int rightHandEffect, bool allowTown, params Type[] regs)
-		{
-			m_Name = name;
-			m_Mantra = mantra;
-			m_Action = action;
-			m_Reagents = regs;
-			m_AllowTown = allowTown;
-
-			m_LeftHandEffect = leftHandEffect;
-			m_RightHandEffect = rightHandEffect;
-
-			m_Amounts = new int[regs.Length];
-
-			for (var i = 0; i < regs.Length; ++i)
+			if (list != null)
 			{
-				m_Amounts[i] = 1;
+				return list;
+			}
+
+			var values = Enum.GetValues<T>();
+
+			list = new T[values.Length - 1];
+
+			Array.Copy(values, 1, list, 0, list.Length);
+
+			return list;
+		}
+	}
+
+	public sealed class SpellInfo
+	{
+		public static SpellInfo CreateInvalid()
+		{
+			return new SpellInfo(typeof(object))
+			{
+				Enabled = false,
+				Action = -1,
+				AllowTown = false,
+			};
+		}
+
+		public Type Type { get; }
+
+		public SpellName ID { get; }
+		public SpellSchool School { get; }
+		public SpellCircle Circle { get; }
+
+		public string Name { get; set; } = String.Empty;
+		public string Mantra { get; set; } = String.Empty;
+		public string Desc { get; set; } = String.Empty;
+
+		public bool Enabled { get; set; } = true;
+
+		public int Icon { get; set; } = 0;
+		public int Back { get; set; } = 0;
+
+		public int Action { get; set; } = 16;
+
+		public int LeftHandEffect { get; set; } = 0;
+		public int RightHandEffect { get; set; } = 0;
+
+		public bool AllowTown { get; set; } = true;
+
+		public int Mana { get; set; } = 0;
+		public int Tithe { get; set; } = 0;
+		public double Skill { get; set; } = 0.0;
+
+		public TypeAmounts Reagents { get; } = new();
+
+		public int ReagentsCount => Reagents.Count;
+
+		public IEnumerable<Type> ReagentTypes => Reagents.Types;
+		public IEnumerable<int> ReagentAmounts => Reagents.Amounts;
+
+		private bool? m_IsValid;
+
+		public bool IsValid => m_IsValid ??= Type != null && ID != SpellName.Invalid && School != SpellSchool.Invalid;
+
+		private bool? m_IsSpecial;
+
+		public bool IsSpecial => m_IsSpecial ??= Type != null && !Type.IsAssignableTo(typeof(ISpell));
+
+		public SpellInfo(Type type)
+			: this(type, SpellName.Invalid, SpellSchool.Invalid)
+		{ }
+
+        public SpellInfo(Type type, SpellName id, SpellSchool school)
+			: this(type, id, school, SpellCircle.Invalid)
+		{ }
+
+		public SpellInfo(Type type, SpellName id, SpellSchool school, SpellCircle circle)
+		{
+			Type = type;
+			ID = id;
+			School = school;
+			Circle = circle;
+		}
+	}
+
+	public readonly record struct SpellbookTheme : IEquatable<SpellbookTheme>
+	{
+		public static readonly SpellbookTheme Invalid = new(SpellSchool.Invalid, Color.Black, 2203, 0, 2362, 2361, "Invalid", "Concepts");
+
+		static SpellbookTheme()
+		{
+			// Base
+			Register(SpellSchool.Magery, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Magery", "Spells");
+			Register(SpellSchool.Necromancy, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Necromancy", "Spells");
+			Register(SpellSchool.Chivalry, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Chivalry", "Spells");
+			Register(SpellSchool.Bushido, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Bushido", "Abilities");
+			Register(SpellSchool.Ninjitsu, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Ninjitsu", "Abilities");
+			Register(SpellSchool.Spellweaving, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Spellweaving", "Spells");
+			Register(SpellSchool.Mysticism, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Mysticism", "Spells");
+
+			// Class
+			Register(SpellSchool.Avatar, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Avatar", "Spells");
+			Register(SpellSchool.Cleric, Color.DarkSlateGray, 11009, 0, 2362, 2361, "Cleric", "Spells");
+			Register(SpellSchool.Druid, Color.DarkSlateGray, 63067, 0, 2224, 2224, "Druid", "Spells");
+			Register(SpellSchool.Ranger, Color.DarkSlateGray, 63068, 0, 2362, 2361, "Ranger", "Abilities");
+			Register(SpellSchool.Rogue, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Rogue", "Abilities");
+
+			// Racial
+			Register(SpellSchool.Human, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Human", "Abilities");
+			Register(SpellSchool.Elf, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Elven", "Abilities");
+			Register(SpellSchool.Gargoyle, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Gargish", "Abilities");
+		}
+
+		public static void Register(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, string name, string summary)
+		{
+			if (school != SpellSchool.Invalid)
+			{
+				_Themes[school] = new(school, textColor, backgroundID, backgroundHue, castButtonID1, castButtonID2, name, summary);
 			}
 		}
 
-		public int Action { get => m_Action; set => m_Action = value; }
-		public bool AllowTown { get => m_AllowTown; set => m_AllowTown = value; }
-		public int[] Amounts { get => m_Amounts; set => m_Amounts = value; }
-		public string Mantra { get => m_Mantra; set => m_Mantra = value; }
-		public string Name { get => m_Name; set => m_Name = value; }
-		public Type[] Reagents { get => m_Reagents; set => m_Reagents = value; }
-		public int LeftHandEffect { get => m_LeftHandEffect; set => m_LeftHandEffect = value; }
-		public int RightHandEffect { get => m_RightHandEffect; set => m_RightHandEffect = value; }
+		private static readonly Dictionary<SpellSchool, SpellbookTheme> _Themes = new()
+		{
+			[SpellSchool.Invalid] = Invalid
+		};
+
+		public static SpellbookTheme GetTheme(SpellSchool school)
+		{
+			if (!_Themes.TryGetValue(school, out var theme))
+			{
+				theme = Invalid;
+			}
+
+			return theme;
+		}
+
+		public readonly SpellSchool School;
+
+		public readonly Color TextColor;
+
+		public readonly int BackgroundID;
+		public readonly int BackgroundHue;
+
+		public readonly int CastButtonID1;
+		public readonly int CastButtonID2;
+
+		public readonly string Name;
+		public readonly string Summary;
+
+		public SpellbookTheme(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, string name, string summary)
+		{
+			School = school;
+
+			TextColor = textColor;
+
+			BackgroundID = backgroundID;
+			BackgroundHue = backgroundHue;
+
+			CastButtonID1 = castButtonID1;
+			CastButtonID2 = castButtonID2;
+
+			Name = name;
+			Summary = summary;
+		}
+
+		public override string ToString()
+		{
+			return $"{Name} {Summary}";
+		}
+	}
+
+	public static class SpellbookHelper
+	{
+		private static readonly Dictionary<Mobile, HashSet<ISpellbook>> m_Table = new();
+
+		public static int GetSpellIndex(SpellName spell)
+		{
+			return (int)spell - GetSchoolOffset(SpellRegistry.GetSchool(spell));
+		}
+
+		public static int GetSchoolOffset(SpellSchool school)
+		{
+			return (int)school;
+		}
+
+		public static int GetSchoolCount(SpellSchool school)
+		{
+			return school switch
+			{
+				// Standard
+				SpellSchool.Magery => SpellNames.Magery.Count,
+				SpellSchool.Necromancy => SpellNames.Necromancy.Count,
+				SpellSchool.Chivalry => SpellNames.Chivalry.Count,
+				SpellSchool.Bushido => SpellNames.Bushido.Count,
+				SpellSchool.Ninjitsu => SpellNames.Ninjitsu.Count,
+				SpellSchool.Spellweaving => SpellNames.Spellweaving.Count,
+				SpellSchool.Mysticism => SpellNames.Mysticism.Count,
+
+				// Custom
+				SpellSchool.Avatar => SpellNames.Avatar.Count,
+				SpellSchool.Cleric => SpellNames.Cleric.Count,
+				SpellSchool.Druid => SpellNames.Druid.Count,
+				SpellSchool.Ranger => SpellNames.Ranger.Count,
+				SpellSchool.Rogue => SpellNames.Rogue.Count,
+
+				// Racial
+				SpellSchool.Human => SpellNames.Human.Count,
+				SpellSchool.Elf => SpellNames.Elf.Count,
+				SpellSchool.Gargoyle => SpellNames.Gargoyle.Count,
+
+				// Default
+				_ => 0,
+			};
+		}
+
+		public static ISpellbook Find(Mobile from, SpellName spell)
+		{
+			return Find(from, spell, SpellRegistry.GetSchool(spell));
+		}
+
+		public static ISpellbook Find(Mobile from, SpellName spell, SpellSchool school)
+		{
+			if (from == null)
+			{
+				return null;
+			}
+
+			if (from.Deleted)
+			{
+				m_Table.Remove(from);
+				return null;
+			}
+
+			var searchAgain = false;
+
+			if (!m_Table.TryGetValue(from, out var list) || list == null)
+			{
+				m_Table[from] = list = FindAllSpellbooks(from);
+			}
+			else
+			{
+				searchAgain = true;
+			}
+
+			var book = FindSpellbookInList(list, from, spell, school);
+
+			if (book == null && searchAgain)
+			{
+				m_Table[from] = list = FindAllSpellbooks(from);
+
+				book = FindSpellbookInList(list, from, spell, school);
+			}
+
+			return book;
+		}
+
+		private static ISpellbook FindSpellbookInList(HashSet<ISpellbook> list, Mobile from, SpellName spell, SpellSchool school)
+		{
+			var pack = from.Backpack;
+
+			list.RemoveWhere(book => book is not Item item || item.Deleted || (item.Parent != from && (pack == null || item.Parent != pack)));
+
+			foreach (var book in list)
+			{
+				if (ValidateSpellbook(book, spell, school))
+				{
+					return book;
+				}
+			}
+
+			return null;
+		}
+
+		private static HashSet<ISpellbook> FindAllSpellbooks(Mobile from)
+		{
+			var list = new HashSet<ISpellbook>();
+
+			var item = from.FindItemOnLayer(Layer.OneHanded);
+
+			if (item is ISpellbook book)
+			{
+				list.Add(book);
+			}
+
+			var pack = from.Backpack;
+
+			if (pack == null)
+			{
+				return list;
+			}
+
+			for (var i = 0; i < pack.Items.Count; ++i)
+			{
+				item = pack.Items[i];
+
+				if (item is ISpellbook sb)
+				{
+					list.Add(sb);
+				}
+			}
+
+			return list;
+		}
+
+		public static ISpellbook FindEquippedSpellbook(Mobile from)
+		{
+			return from.FindItemOnLayer(Layer.OneHanded) as ISpellbook;
+		}
+
+		public static bool ValidateSpellbook(ISpellbook book, SpellName spell, SpellSchool school)
+		{
+			return book.School == school && (spell == SpellName.Invalid || book.HasSpell(spell));
+		}
+	}
+
+	public static class SpellRegistry
+	{
+		private static readonly Dictionary<Type, SpellName> m_Types = new();
+		private static readonly Dictionary<SpellName, SpellInfo> m_Info = new();
+		private static readonly Dictionary<SpellName, ISpecialMove> m_Specials = new();
+		private static readonly Dictionary<SpellSchool, SortedSet<SpellName>> m_Schools = new();
+
+		public static IReadOnlyCollection<Type> Types => m_Types.Keys;
+		public static IReadOnlyCollection<SpellName> IDs => m_Info.Keys;
+		public static IReadOnlyCollection<SpellInfo> Info => m_Info.Values;
+		public static IReadOnlyCollection<SpellSchool> Schools => m_Schools.Keys;
+
+		public static IReadOnlyCollection<SpellName> SpecialIds => m_Specials.Keys;
+		public static IReadOnlyCollection<ISpecialMove> SpecialMoves => m_Specials.Values;
+
+		public static void Register(SpellInfo info)
+		{
+			if (info?.IsValid != true)
+			{
+				return;
+			}
+
+			m_Info[info.ID] = info;
+			m_Types[info.Type] = info.ID;
+
+			if (!m_Schools.TryGetValue(info.School, out var ids))
+			{
+				m_Schools[info.School] = ids = new();
+			}
+
+			ids.Add(info.ID);
+
+			if (info.IsSpecial && !m_Specials.TryGetValue(info.ID, out var spm))
+			{
+				try
+				{
+					spm = (ISpecialMove)Activator.CreateInstance(info.Type);
+				}
+				catch
+				{
+				}
+
+				if (spm != null)
+				{
+					m_Specials[info.ID] = spm;
+				}
+			}
+		}
+
+		public static int CountSpells(this SpellSchool school)
+		{
+			if (m_Schools.TryGetValue(school, out var ids))
+			{
+				return ids.Count;
+			}
+
+			return 0;
+		}
+
+		public static IEnumerable<SpellName> GetSpells(this SpellSchool school)
+		{
+			if (m_Schools.TryGetValue(school, out var ids))
+			{
+				foreach (var id in ids)
+				{
+					yield return id;
+				}
+			}
+		}
+
+		public static IEnumerable<SpellInfo> GetInfo(this SpellSchool school)
+		{
+			foreach (var id in GetSpells(school))
+			{
+				yield return GetInfo(id);
+			}
+		}
+
+		public static SpellInfo GetInfo(SpellName id)
+		{
+			if (m_Info.TryGetValue(id, out var info))
+			{
+				return info;
+			}
+
+			return null;
+		}
+
+		public static SpellInfo GetInfo(Type type)
+		{
+			if (m_Types.TryGetValue(type, out var id))
+			{
+				return GetInfo(id);
+			}
+
+			return null;
+		}
+
+		public static bool IsEnabled(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.Enabled == true;
+		}
+
+		public static Type GetType(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.Type;
+		}
+
+		public static SpellName GetID(Type type)
+		{
+			var info = GetInfo(type);
+
+			return info?.ID ?? SpellName.Invalid;
+		}
+
+		public static SpellSchool GetSchool(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.School ?? SpellSchool.Invalid;
+		}
+
+		public static SpellCircle GetCircle(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.Circle ?? SpellCircle.Invalid;
+		}
+
+		public static SpellName GetID(ISpecialMove s)
+		{
+			return GetID(s?.GetType());
+		}
+
+		public static ISpecialMove GetSpecialMove(Type type)
+		{
+			var info = GetInfo(type);
+
+			if (info?.IsValid == true)
+			{
+				return GetSpecialMove(info.ID);
+			}
+
+			return null;
+		}
+
+		public static ISpecialMove GetSpecialMove(SpellName id)
+		{
+			if (id >= 0 && m_Specials.TryGetValue(id, out var sm))
+			{
+				return sm;
+			}
+
+			return null;
+		}
+
+		public static ISpell NewSpell(SpellName id, Mobile caster, Item scroll)
+		{
+			var info = GetInfo(id);
+
+			if (info?.IsValid == true && !info.IsSpecial && info.Enabled)
+			{
+				try
+				{
+					return (ISpell)Activator.CreateInstance(info.Type, caster, scroll);
+				}
+				catch
+				{
+				}
+			}
+
+			return null;
+		}
+
+		public static ISpell NewSpell(string name, Mobile caster, Item scroll)
+		{
+			if (Enum.TryParse<SpellName>(name, out var id))
+			{
+				return NewSpell(id, caster, scroll);
+			}
+
+			foreach (var spell in m_Info.Values)
+			{
+				if (Insensitive.StartsWith(spell.Name, name))
+				{
+					return NewSpell(spell.ID, caster, scroll);
+				}
+			}
+
+			return null;
+		}
 	}
 
 	[PropertyObject]
 	public class SpellStates<T> : BaseStates<SpellName, T>
 	{
-		#region Circles
+		#region Schools
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle1SpellStates<T> Circle1 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle2SpellStates<T> Circle2 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle3SpellStates<T> Circle3 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle4SpellStates<T> Circle4 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle5SpellStates<T> Circle5 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle6SpellStates<T> Circle6 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle7SpellStates<T> Circle7 { get; private set; } = new();
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Circle8SpellStates<T> Circle8 { get; private set; } = new();
+		public MagerySpellStates<T> Magery { get; private set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public NecromancySpellStates<T> Necromancy { get; private set; } = new();
@@ -531,39 +1408,48 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public MysticismSpellStates<T> Mysticism { get; private set; } = new();
 
+		// Custom
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public AvatarSpellStates<T> Avatar { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public ClericSpellStates<T> Cleric { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public DruidSpellStates<T> Druid { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public RangerSpellStates<T> Ranger { get; private set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public RogueSpellStates<T> Rogue { get; private set; } = new();
+
 		#endregion
 
 		protected IEnumerable<IStates<T>> SubStates
 		{
 			get
 			{
-				yield return Circle1;
-				yield return Circle2;
-				yield return Circle3;
-				yield return Circle4;
-				yield return Circle5;
-				yield return Circle6;
-				yield return Circle7;
-				yield return Circle8;
-
+				yield return Magery;
 				yield return Necromancy;
 				yield return Chivalry;
 				yield return Bushido;
 				yield return Ninjitsu;
 				yield return Spellweaving;
 				yield return Mysticism;
+
+				// Custom
+
+				yield return Avatar;
+				yield return Cleric;
+				yield return Druid;
+				yield return Ranger;
+				yield return Rogue;
 			}
 		}
 
-		public T this[Circle1SpellName spell] { get => Circle1[spell]; set => Circle1[spell] = value; }
-		public T this[Circle2SpellName spell] { get => Circle2[spell]; set => Circle2[spell] = value; }
-		public T this[Circle3SpellName spell] { get => Circle3[spell]; set => Circle3[spell] = value; }
-		public T this[Circle4SpellName spell] { get => Circle4[spell]; set => Circle4[spell] = value; }
-		public T this[Circle5SpellName spell] { get => Circle5[spell]; set => Circle5[spell] = value; }
-		public T this[Circle6SpellName spell] { get => Circle6[spell]; set => Circle6[spell] = value; }
-		public T this[Circle7SpellName spell] { get => Circle7[spell]; set => Circle7[spell] = value; }
-		public T this[Circle8SpellName spell] { get => Circle8[spell]; set => Circle8[spell] = value; }
-
+		public T this[MagerySpellName spell] { get => Magery[spell]; set => Magery[spell] = value; }
 		public T this[NecromancySpellName spell] { get => Necromancy[spell]; set => Necromancy[spell] = value; }
 		public T this[ChivalrySpellName spell] { get => Chivalry[spell]; set => Chivalry[spell] = value; }
 		public T this[BushidoSpellName spell] { get => Bushido[spell]; set => Bushido[spell] = value; }
@@ -571,7 +1457,15 @@ namespace Server
 		public T this[SpellweavingSpellName spell] { get => Spellweaving[spell]; set => Spellweaving[spell] = value; }
 		public T this[MysticismSpellName spell] { get => Mysticism[spell]; set => Mysticism[spell] = value; }
 
-		public T this[int spell] { get => this[(SpellName)spell]; set => this[(SpellName)spell] = value; }
+		// Custom
+
+		public T this[AvatarSpellName spell] { get => Avatar[spell]; set => Avatar[spell] = value; }
+		public T this[ClericSpellName spell] { get => Cleric[spell]; set => Cleric[spell] = value; }
+		public T this[DruidSpellName spell] { get => Druid[spell]; set => Druid[spell] = value; }
+		public T this[RangerSpellName spell] { get => Ranger[spell]; set => Ranger[spell] = value; }
+		public T this[RogueSpellName spell] { get => Rogue[spell]; set => Rogue[spell] = value; }
+
+		//public T this[int spell] { get => this[(SpellName)spell]; set => this[(SpellName)spell] = value; }
 
 		public override sealed int Length { get; } = EnumValues.Length;
 
@@ -661,486 +1555,285 @@ namespace Server
 
 			writer.Write(0);
 
-			Circle1.Serialize(writer);
-			Circle2.Serialize(writer);
-			Circle3.Serialize(writer);
-			Circle4.Serialize(writer);
-			Circle5.Serialize(writer);
-			Circle6.Serialize(writer);
-			Circle7.Serialize(writer);
-			Circle8.Serialize(writer);
-
+			Magery.Serialize(writer);
 			Necromancy.Serialize(writer);
 			Chivalry.Serialize(writer);
 			Bushido.Serialize(writer);
 			Ninjitsu.Serialize(writer);
 			Spellweaving.Serialize(writer);
 			Mysticism.Serialize(writer);
+
+			// Custom
+
+			Avatar.Serialize(writer);
+			Cleric.Serialize(writer);
+			Druid.Serialize(writer);
+			Ranger.Serialize(writer);
+			Rogue.Serialize(writer);
 		}
 
 		public override void Deserialize(GenericReader reader)
 		{
 			base.Deserialize(reader);
 
-			reader.ReadInt();
+			_ = reader.ReadInt();
 
-			Circle1.Deserialize(reader);
-			Circle2.Deserialize(reader);
-			Circle3.Deserialize(reader);
-			Circle4.Deserialize(reader);
-			Circle5.Deserialize(reader);
-			Circle6.Deserialize(reader);
-			Circle7.Deserialize(reader);
-			Circle8.Deserialize(reader);
-
+			Magery.Deserialize(reader);
 			Necromancy.Deserialize(reader);
 			Chivalry.Deserialize(reader);
 			Bushido.Deserialize(reader);
 			Ninjitsu.Deserialize(reader);
 			Spellweaving.Deserialize(reader);
 			Mysticism.Deserialize(reader);
+
+			// Custom
+
+			Avatar.Deserialize(reader);
+			Cleric.Deserialize(reader);
+			Druid.Deserialize(reader);
+			Ranger.Deserialize(reader);
+			Rogue.Deserialize(reader);
 		}
 	}
 
 	[PropertyObject]
-	public class Circle1SpellStates<T> : BaseStates<Circle1SpellName, T>
+	public class MagerySpellStates<T> : BaseStates<MagerySpellName, T>
 	{
+		#region Magery
+
 		#region First
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Clumsy { get => this[Circle1SpellName.Clumsy]; set => this[Circle1SpellName.Clumsy] = value; }
+		public T Clumsy { get => this[MagerySpellName.Clumsy]; set => this[MagerySpellName.Clumsy] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T CreateFood { get => this[Circle1SpellName.CreateFood]; set => this[Circle1SpellName.CreateFood] = value; }
+		public T CreateFood { get => this[MagerySpellName.CreateFood]; set => this[MagerySpellName.CreateFood] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Feeblemind { get => this[Circle1SpellName.Feeblemind]; set => this[Circle1SpellName.Feeblemind] = value; }
+		public T Feeblemind { get => this[MagerySpellName.Feeblemind]; set => this[MagerySpellName.Feeblemind] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Heal { get => this[Circle1SpellName.Heal]; set => this[Circle1SpellName.Heal] = value; }
+		public T Heal { get => this[MagerySpellName.Heal]; set => this[MagerySpellName.Heal] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MagicArrow { get => this[Circle1SpellName.MagicArrow]; set => this[Circle1SpellName.MagicArrow] = value; }
+		public T MagicArrow { get => this[MagerySpellName.MagicArrow]; set => this[MagerySpellName.MagicArrow] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T NightSight { get => this[Circle1SpellName.NightSight]; set => this[Circle1SpellName.NightSight] = value; }
+		public T NightSight { get => this[MagerySpellName.NightSight]; set => this[MagerySpellName.NightSight] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ReactiveArmor { get => this[Circle1SpellName.ReactiveArmor]; set => this[Circle1SpellName.ReactiveArmor] = value; }
+		public T ReactiveArmor { get => this[MagerySpellName.ReactiveArmor]; set => this[MagerySpellName.ReactiveArmor] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Weaken { get => this[Circle1SpellName.Weaken]; set => this[Circle1SpellName.Weaken] = value; }
+		public T Weaken { get => this[MagerySpellName.Weaken]; set => this[MagerySpellName.Weaken] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle1SpellName)spell]; set => this[(Circle1SpellName)spell] = value; }
-
-		public Circle1SpellStates()
-		{
-		}
-
-		public Circle1SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle2SpellStates<T> : BaseStates<Circle2SpellName, T>
-	{
 		#region Second
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Agility { get => this[Circle2SpellName.Agility]; set => this[Circle2SpellName.Agility] = value; }
+		public T Agility { get => this[MagerySpellName.Agility]; set => this[MagerySpellName.Agility] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Cunning { get => this[Circle2SpellName.Cunning]; set => this[Circle2SpellName.Cunning] = value; }
+		public T Cunning { get => this[MagerySpellName.Cunning]; set => this[MagerySpellName.Cunning] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Cure { get => this[Circle2SpellName.Cure]; set => this[Circle2SpellName.Cure] = value; }
+		public T Cure { get => this[MagerySpellName.Cure]; set => this[MagerySpellName.Cure] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Harm { get => this[Circle2SpellName.Harm]; set => this[Circle2SpellName.Harm] = value; }
+		public T Harm { get => this[MagerySpellName.Harm]; set => this[MagerySpellName.Harm] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MagicTrap { get => this[Circle2SpellName.MagicTrap]; set => this[Circle2SpellName.MagicTrap] = value; }
+		public T MagicTrap { get => this[MagerySpellName.MagicTrap]; set => this[MagerySpellName.MagicTrap] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T RemoveTrap { get => this[Circle2SpellName.RemoveTrap]; set => this[Circle2SpellName.RemoveTrap] = value; }
+		public T RemoveTrap { get => this[MagerySpellName.RemoveTrap]; set => this[MagerySpellName.RemoveTrap] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Protection { get => this[Circle2SpellName.Protection]; set => this[Circle2SpellName.Protection] = value; }
+		public T Protection { get => this[MagerySpellName.Protection]; set => this[MagerySpellName.Protection] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Strength { get => this[Circle2SpellName.Strength]; set => this[Circle2SpellName.Strength] = value; }
-
+		public T Strength { get => this[MagerySpellName.Strength]; set => this[MagerySpellName.Strength] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle2SpellName)spell]; set => this[(Circle2SpellName)spell] = value; }
-
-		public Circle2SpellStates()
-		{
-		}
-
-		public Circle2SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle3SpellStates<T> : BaseStates<Circle3SpellName, T>
-	{
 		#region Third
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Bless { get => this[Circle3SpellName.Bless]; set => this[Circle3SpellName.Bless] = value; }
+		public T Bless { get => this[MagerySpellName.Bless]; set => this[MagerySpellName.Bless] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Fireball { get => this[Circle3SpellName.Fireball]; set => this[Circle3SpellName.Fireball] = value; }
+		public T Fireball { get => this[MagerySpellName.Fireball]; set => this[MagerySpellName.Fireball] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MagicLock { get => this[Circle3SpellName.MagicLock]; set => this[Circle3SpellName.MagicLock] = value; }
+		public T MagicLock { get => this[MagerySpellName.MagicLock]; set => this[MagerySpellName.MagicLock] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Poison { get => this[Circle3SpellName.Poison]; set => this[Circle3SpellName.Poison] = value; }
+		public T Poison { get => this[MagerySpellName.Poison]; set => this[MagerySpellName.Poison] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Telekinesis { get => this[Circle3SpellName.Telekinesis]; set => this[Circle3SpellName.Telekinesis] = value; }
+		public T Telekinesis { get => this[MagerySpellName.Telekinesis]; set => this[MagerySpellName.Telekinesis] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Teleport { get => this[Circle3SpellName.Teleport]; set => this[Circle3SpellName.Teleport] = value; }
+		public T Teleport { get => this[MagerySpellName.Teleport]; set => this[MagerySpellName.Teleport] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Unlock { get => this[Circle3SpellName.Unlock]; set => this[Circle3SpellName.Unlock] = value; }
+		public T Unlock { get => this[MagerySpellName.Unlock]; set => this[MagerySpellName.Unlock] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T WallOfStone { get => this[Circle3SpellName.WallOfStone]; set => this[Circle3SpellName.WallOfStone] = value; }
-
+		public T WallOfStone { get => this[MagerySpellName.WallOfStone]; set => this[MagerySpellName.WallOfStone] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle3SpellName)spell]; set => this[(Circle3SpellName)spell] = value; }
-
-		public Circle3SpellStates()
-		{
-		}
-
-		public Circle3SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle4SpellStates<T> : BaseStates<Circle4SpellName, T>
-	{
 		#region Fourth
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ArchCure { get => this[Circle4SpellName.ArchCure]; set => this[Circle4SpellName.ArchCure] = value; }
+		public T ArchCure { get => this[MagerySpellName.ArchCure]; set => this[MagerySpellName.ArchCure] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ArchProtection { get => this[Circle4SpellName.ArchProtection]; set => this[Circle4SpellName.ArchProtection] = value; }
+		public T ArchProtection { get => this[MagerySpellName.ArchProtection]; set => this[MagerySpellName.ArchProtection] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Curse { get => this[Circle4SpellName.Curse]; set => this[Circle4SpellName.Curse] = value; }
+		public T Curse { get => this[MagerySpellName.Curse]; set => this[MagerySpellName.Curse] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T FireField { get => this[Circle4SpellName.FireField]; set => this[Circle4SpellName.FireField] = value; }
+		public T FireField { get => this[MagerySpellName.FireField]; set => this[MagerySpellName.FireField] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T GreaterHeal { get => this[Circle4SpellName.GreaterHeal]; set => this[Circle4SpellName.GreaterHeal] = value; }
+		public T GreaterHeal { get => this[MagerySpellName.GreaterHeal]; set => this[MagerySpellName.GreaterHeal] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Lightning { get => this[Circle4SpellName.Lightning]; set => this[Circle4SpellName.Lightning] = value; }
+		public T Lightning { get => this[MagerySpellName.Lightning]; set => this[MagerySpellName.Lightning] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ManaDrain { get => this[Circle4SpellName.ManaDrain]; set => this[Circle4SpellName.ManaDrain] = value; }
+		public T ManaDrain { get => this[MagerySpellName.ManaDrain]; set => this[MagerySpellName.ManaDrain] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Recall { get => this[Circle4SpellName.Recall]; set => this[Circle4SpellName.Recall] = value; }
+		public T Recall { get => this[MagerySpellName.Recall]; set => this[MagerySpellName.Recall] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle4SpellName)spell]; set => this[(Circle4SpellName)spell] = value; }
-
-		public Circle4SpellStates()
-		{
-		}
-
-		public Circle4SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle5SpellStates<T> : BaseStates<Circle5SpellName, T>
-	{
 		#region Fifth
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T BladeSpirits { get => this[Circle5SpellName.BladeSpirits]; set => this[Circle5SpellName.BladeSpirits] = value; }
+		public T BladeSpirits { get => this[MagerySpellName.BladeSpirits]; set => this[MagerySpellName.BladeSpirits] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T DispelField { get => this[Circle5SpellName.DispelField]; set => this[Circle5SpellName.DispelField] = value; }
+		public T DispelField { get => this[MagerySpellName.DispelField]; set => this[MagerySpellName.DispelField] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Incognito { get => this[Circle5SpellName.Incognito]; set => this[Circle5SpellName.Incognito] = value; }
+		public T Incognito { get => this[MagerySpellName.Incognito]; set => this[MagerySpellName.Incognito] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MagicReflect { get => this[Circle5SpellName.MagicReflect]; set => this[Circle5SpellName.MagicReflect] = value; }
+		public T MagicReflect { get => this[MagerySpellName.MagicReflect]; set => this[MagerySpellName.MagicReflect] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MindBlast { get => this[Circle5SpellName.MindBlast]; set => this[Circle5SpellName.MindBlast] = value; }
+		public T MindBlast { get => this[MagerySpellName.MindBlast]; set => this[MagerySpellName.MindBlast] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Paralyze { get => this[Circle5SpellName.Paralyze]; set => this[Circle5SpellName.Paralyze] = value; }
+		public T Paralyze { get => this[MagerySpellName.Paralyze]; set => this[MagerySpellName.Paralyze] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T PoisonField { get => this[Circle5SpellName.PoisonField]; set => this[Circle5SpellName.PoisonField] = value; }
+		public T PoisonField { get => this[MagerySpellName.PoisonField]; set => this[MagerySpellName.PoisonField] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T SummonCreature { get => this[Circle5SpellName.SummonCreature]; set => this[Circle5SpellName.SummonCreature] = value; }
+		public T SummonCreature { get => this[MagerySpellName.SummonCreature]; set => this[MagerySpellName.SummonCreature] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle5SpellName)spell]; set => this[(Circle5SpellName)spell] = value; }
-
-		public Circle5SpellStates()
-		{
-		}
-
-		public Circle5SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle6SpellStates<T> : BaseStates<Circle6SpellName, T>
-	{
 		#region Sixth
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Dispel { get => this[Circle6SpellName.Dispel]; set => this[Circle6SpellName.Dispel] = value; }
+		public T Dispel { get => this[MagerySpellName.Dispel]; set => this[MagerySpellName.Dispel] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T EnergyBolt { get => this[Circle6SpellName.EnergyBolt]; set => this[Circle6SpellName.EnergyBolt] = value; }
+		public T EnergyBolt { get => this[MagerySpellName.EnergyBolt]; set => this[MagerySpellName.EnergyBolt] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Explosion { get => this[Circle6SpellName.Explosion]; set => this[Circle6SpellName.Explosion] = value; }
+		public T Explosion { get => this[MagerySpellName.Explosion]; set => this[MagerySpellName.Explosion] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Invisibility { get => this[Circle6SpellName.Invisibility]; set => this[Circle6SpellName.Invisibility] = value; }
+		public T Invisibility { get => this[MagerySpellName.Invisibility]; set => this[MagerySpellName.Invisibility] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Mark { get => this[Circle6SpellName.Mark]; set => this[Circle6SpellName.Mark] = value; }
+		public T Mark { get => this[MagerySpellName.Mark]; set => this[MagerySpellName.Mark] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MassCurse { get => this[Circle6SpellName.MassCurse]; set => this[Circle6SpellName.MassCurse] = value; }
+		public T MassCurse { get => this[MagerySpellName.MassCurse]; set => this[MagerySpellName.MassCurse] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ParalyzeField { get => this[Circle6SpellName.ParalyzeField]; set => this[Circle6SpellName.ParalyzeField] = value; }
+		public T ParalyzeField { get => this[MagerySpellName.ParalyzeField]; set => this[MagerySpellName.ParalyzeField] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Reveal { get => this[Circle6SpellName.Reveal]; set => this[Circle6SpellName.Reveal] = value; }
+		public T Reveal { get => this[MagerySpellName.Reveal]; set => this[MagerySpellName.Reveal] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle6SpellName)spell]; set => this[(Circle6SpellName)spell] = value; }
-
-		public Circle6SpellStates()
-		{
-		}
-
-		public Circle6SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle7SpellStates<T> : BaseStates<Circle7SpellName, T>
-	{
 		#region Seventh
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ChainLightning { get => this[Circle7SpellName.ChainLightning]; set => this[Circle7SpellName.ChainLightning] = value; }
+		public T ChainLightning { get => this[MagerySpellName.ChainLightning]; set => this[MagerySpellName.ChainLightning] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T EnergyField { get => this[Circle7SpellName.EnergyField]; set => this[Circle7SpellName.EnergyField] = value; }
+		public T EnergyField { get => this[MagerySpellName.EnergyField]; set => this[MagerySpellName.EnergyField] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T FlameStrike { get => this[Circle7SpellName.FlameStrike]; set => this[Circle7SpellName.FlameStrike] = value; }
+		public T FlameStrike { get => this[MagerySpellName.FlameStrike]; set => this[MagerySpellName.FlameStrike] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T GateTravel { get => this[Circle7SpellName.GateTravel]; set => this[Circle7SpellName.GateTravel] = value; }
+		public T GateTravel { get => this[MagerySpellName.GateTravel]; set => this[MagerySpellName.GateTravel] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T ManaVampire { get => this[Circle7SpellName.ManaVampire]; set => this[Circle7SpellName.ManaVampire] = value; }
+		public T ManaVampire { get => this[MagerySpellName.ManaVampire]; set => this[MagerySpellName.ManaVampire] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MassDispel { get => this[Circle7SpellName.MassDispel]; set => this[Circle7SpellName.MassDispel] = value; }
+		public T MassDispel { get => this[MagerySpellName.MassDispel]; set => this[MagerySpellName.MassDispel] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T MeteorSwarm { get => this[Circle7SpellName.MeteorSwarm]; set => this[Circle7SpellName.MeteorSwarm] = value; }
+		public T MeteorSwarm { get => this[MagerySpellName.MeteorSwarm]; set => this[MagerySpellName.MeteorSwarm] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Polymorph { get => this[Circle7SpellName.Polymorph]; set => this[Circle7SpellName.Polymorph] = value; }
+		public T Polymorph { get => this[MagerySpellName.Polymorph]; set => this[MagerySpellName.Polymorph] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle7SpellName)spell]; set => this[(Circle7SpellName)spell] = value; }
-
-		public Circle7SpellStates()
-		{
-		}
-
-		public Circle7SpellStates(GenericReader reader)
-			: base(reader)
-		{
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(0);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			reader.ReadInt();
-		}
-	}
-
-	[PropertyObject]
-	public class Circle8SpellStates<T> : BaseStates<Circle8SpellName, T>
-	{
 		#region Eighth
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Earthquake { get => this[Circle8SpellName.Earthquake]; set => this[Circle8SpellName.Earthquake] = value; }
+		public T Earthquake { get => this[MagerySpellName.Earthquake]; set => this[MagerySpellName.Earthquake] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T EnergyVortex { get => this[Circle8SpellName.EnergyVortex]; set => this[Circle8SpellName.EnergyVortex] = value; }
+		public T EnergyVortex { get => this[MagerySpellName.EnergyVortex]; set => this[MagerySpellName.EnergyVortex] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Resurrection { get => this[Circle8SpellName.Resurrection]; set => this[Circle8SpellName.Resurrection] = value; }
+		public T Resurrection { get => this[MagerySpellName.Resurrection]; set => this[MagerySpellName.Resurrection] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T AirElemental { get => this[Circle8SpellName.AirElemental]; set => this[Circle8SpellName.AirElemental] = value; }
+		public T AirElemental { get => this[MagerySpellName.AirElemental]; set => this[MagerySpellName.AirElemental] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T SummonDaemon { get => this[Circle8SpellName.SummonDaemon]; set => this[Circle8SpellName.SummonDaemon] = value; }
+		public T SummonDaemon { get => this[MagerySpellName.SummonDaemon]; set => this[MagerySpellName.SummonDaemon] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T EarthElemental { get => this[Circle8SpellName.EarthElemental]; set => this[Circle8SpellName.EarthElemental] = value; }
+		public T EarthElemental { get => this[MagerySpellName.EarthElemental]; set => this[MagerySpellName.EarthElemental] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T FireElemental { get => this[Circle8SpellName.FireElemental]; set => this[Circle8SpellName.FireElemental] = value; }
+		public T FireElemental { get => this[MagerySpellName.FireElemental]; set => this[MagerySpellName.FireElemental] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T WaterElemental { get => this[Circle8SpellName.WaterElemental]; set => this[Circle8SpellName.WaterElemental] = value; }
+		public T WaterElemental { get => this[MagerySpellName.WaterElemental]; set => this[MagerySpellName.WaterElemental] = value; }
 
 		#endregion
 
-		public T this[int spell] { get => this[(Circle8SpellName)spell]; set => this[(Circle8SpellName)spell] = value; }
+		#endregion
 
-		public Circle8SpellStates()
+		public T this[int spell] { get => this[(MagerySpellName)spell]; set => this[(MagerySpellName)spell] = value; }
+
+		public MagerySpellStates()
 		{
 		}
 
-		public Circle8SpellStates(GenericReader reader)
+		public MagerySpellStates(GenericReader reader)
 			: base(reader)
 		{
 		}
@@ -1382,7 +2075,7 @@ namespace Server
 		public T Backstab { get => this[NinjitsuSpellName.Backstab]; set => this[NinjitsuSpellName.Backstab] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T Shadowjump { get => this[NinjitsuSpellName.Shadowjump]; set => this[NinjitsuSpellName.Shadowjump] = value; }
+		public T ShadowJump { get => this[NinjitsuSpellName.ShadowJump]; set => this[NinjitsuSpellName.ShadowJump] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public T MirrorImage { get => this[NinjitsuSpellName.MirrorImage]; set => this[NinjitsuSpellName.MirrorImage] = value; }
@@ -1430,13 +2123,13 @@ namespace Server
 		public T ImmolatingWeapon { get => this[SpellweavingSpellName.ImmolatingWeapon]; set => this[SpellweavingSpellName.ImmolatingWeapon] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T AttuneWeapon { get => this[SpellweavingSpellName.AttuneWeapon]; set => this[SpellweavingSpellName.AttuneWeapon] = value; }
+		public T Attunement { get => this[SpellweavingSpellName.Attunement]; set => this[SpellweavingSpellName.Attunement] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public T Thunderstorm { get => this[SpellweavingSpellName.Thunderstorm]; set => this[SpellweavingSpellName.Thunderstorm] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public T NatureFury { get => this[SpellweavingSpellName.NatureFury]; set => this[SpellweavingSpellName.NatureFury] = value; }
+		public T NaturesFury { get => this[SpellweavingSpellName.NaturesFury]; set => this[SpellweavingSpellName.NaturesFury] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public T SummonFey { get => this[SpellweavingSpellName.SummonFey]; set => this[SpellweavingSpellName.SummonFey] = value; }
@@ -1558,6 +2251,297 @@ namespace Server
 		}
 
 		public MysticismSpellStates(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+	}
+
+	[PropertyObject]
+	public class AvatarSpellStates<T> : BaseStates<AvatarSpellName, T>
+	{
+		#region Avatar
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T DivineLight { get => this[AvatarSpellName.DivineLight]; set => this[AvatarSpellName.DivineLight] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T DivineGateway { get => this[AvatarSpellName.DivineGateway]; set => this[AvatarSpellName.DivineGateway] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T MarkOfGods { get => this[AvatarSpellName.MarkOfGods]; set => this[AvatarSpellName.MarkOfGods] = value; }
+
+		#endregion
+
+		public T this[int spell] { get => this[(AvatarSpellName)spell]; set => this[(AvatarSpellName)spell] = value; }
+
+		public AvatarSpellStates()
+		{
+		}
+
+		public AvatarSpellStates(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+	}
+
+	[PropertyObject]
+	public class ClericSpellStates<T> : BaseStates<ClericSpellName, T>
+	{
+		#region Cleric
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T AngelicFaith { get => this[ClericSpellName.AngelicFaith]; set => this[ClericSpellName.AngelicFaith] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T BanishEvil { get => this[ClericSpellName.BanishEvil]; set => this[ClericSpellName.BanishEvil] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T DampenSpirit { get => this[ClericSpellName.DampenSpirit]; set => this[ClericSpellName.DampenSpirit] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T DivineFocus { get => this[ClericSpellName.DivineFocus]; set => this[ClericSpellName.DivineFocus] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T HammerOfFaith { get => this[ClericSpellName.HammerOfFaith]; set => this[ClericSpellName.HammerOfFaith] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T Purge { get => this[ClericSpellName.Purge]; set => this[ClericSpellName.Purge] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T Restoration { get => this[ClericSpellName.Restoration]; set => this[ClericSpellName.Restoration] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T SacredBoon { get => this[ClericSpellName.SacredBoon]; set => this[ClericSpellName.SacredBoon] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T Sacrifice { get => this[ClericSpellName.Sacrifice]; set => this[ClericSpellName.Sacrifice] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T Smite { get => this[ClericSpellName.Smite]; set => this[ClericSpellName.Smite] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T TouchOfLife { get => this[ClericSpellName.TouchOfLife]; set => this[ClericSpellName.TouchOfLife] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T TiralByFire { get => this[ClericSpellName.TrialByFire]; set => this[ClericSpellName.TrialByFire] = value; }
+
+		#endregion
+
+		public T this[int spell] { get => this[(ClericSpellName)spell]; set => this[(ClericSpellName)spell] = value; }
+
+		public ClericSpellStates()
+		{
+		}
+
+		public ClericSpellStates(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+	}
+
+	[PropertyObject]
+	public class DruidSpellStates<T> : BaseStates<DruidSpellName, T>
+	{
+		#region Druid
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T BeastPack { get => this[DruidSpellName.BeastPack]; set => this[DruidSpellName.BeastPack] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T BlendWithForest { get => this[DruidSpellName.BlendWithForest]; set => this[DruidSpellName.BlendWithForest] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T DruidFamiliar { get => this[DruidSpellName.DruidFamiliar]; set => this[DruidSpellName.DruidFamiliar] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T EnchantedGrove { get => this[DruidSpellName.EnchantedGrove]; set => this[DruidSpellName.EnchantedGrove] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T GraspingRoots { get => this[DruidSpellName.GraspingRoots]; set => this[DruidSpellName.GraspingRoots] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T HollowReed { get => this[DruidSpellName.HollowReed]; set => this[DruidSpellName.HollowReed] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T LeafWhirlwind { get => this[DruidSpellName.LeafWhirlwind]; set => this[DruidSpellName.LeafWhirlwind] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T LureStone { get => this[DruidSpellName.LureStone]; set => this[DruidSpellName.LureStone] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T MushroomGateway { get => this[DruidSpellName.MushroomGateway]; set => this[DruidSpellName.MushroomGateway] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T NaturesPassage { get => this[DruidSpellName.NaturesPassage]; set => this[DruidSpellName.NaturesPassage] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T RestorativeSoil { get => this[DruidSpellName.RestorativeSoil]; set => this[DruidSpellName.RestorativeSoil] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T ShieldOfEarth { get => this[DruidSpellName.ShieldOfEarth]; set => this[DruidSpellName.ShieldOfEarth] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T SpringOfLife { get => this[DruidSpellName.SpringOfLife]; set => this[DruidSpellName.SpringOfLife] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T StoneCircle { get => this[DruidSpellName.StoneCircle]; set => this[DruidSpellName.StoneCircle] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T SwarmOfInsects { get => this[DruidSpellName.SwarmOfInsects]; set => this[DruidSpellName.SwarmOfInsects] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T VolcanicEruption { get => this[DruidSpellName.VolcanicEruption]; set => this[DruidSpellName.VolcanicEruption] = value; }
+
+		#endregion
+
+		public T this[int spell] { get => this[(DruidSpellName)spell]; set => this[(DruidSpellName)spell] = value; }
+
+		public DruidSpellStates()
+		{
+		}
+
+		public DruidSpellStates(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+	}
+
+	[PropertyObject]
+	public class RangerSpellStates<T> : BaseStates<RangerSpellName, T>
+	{
+		#region Ranger
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T HuntersAim { get => this[RangerSpellName.HuntersAim]; set => this[RangerSpellName.HuntersAim] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T PhoenixFlight { get => this[RangerSpellName.PhoenixFlight]; set => this[RangerSpellName.PhoenixFlight] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T AnimalCompanion { get => this[RangerSpellName.AnimalCompanion]; set => this[RangerSpellName.AnimalCompanion] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T CallMount { get => this[RangerSpellName.CallMount]; set => this[RangerSpellName.CallMount] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T FireBow { get => this[RangerSpellName.FireBow]; set => this[RangerSpellName.FireBow] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T IceBow { get => this[RangerSpellName.IceBow]; set => this[RangerSpellName.IceBow] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T LightningBow { get => this[RangerSpellName.LightningBow]; set => this[RangerSpellName.LightningBow] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T NoxBow { get => this[RangerSpellName.NoxBow]; set => this[RangerSpellName.NoxBow] = value; }
+
+		#endregion
+
+		public T this[int spell] { get => this[(RangerSpellName)spell]; set => this[(RangerSpellName)spell] = value; }
+
+		public RangerSpellStates()
+		{
+		}
+
+		public RangerSpellStates(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+	}
+
+	[PropertyObject]
+	public class RogueSpellStates<T> : BaseStates<RogueSpellName, T>
+	{
+		#region Rogue
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T Intimidation { get => this[RogueSpellName.Intimidation]; set => this[RogueSpellName.Intimidation] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T ShadowBlend { get => this[RogueSpellName.ShadowBlend]; set => this[RogueSpellName.ShadowBlend] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public T SlyFox { get => this[RogueSpellName.SlyFox]; set => this[RogueSpellName.SlyFox] = value; }
+
+		#endregion
+
+		public T this[int spell] { get => this[(RogueSpellName)spell]; set => this[(RogueSpellName)spell] = value; }
+
+		public RogueSpellStates()
+		{
+		}
+
+		public RogueSpellStates(GenericReader reader)
 			: base(reader)
 		{
 		}

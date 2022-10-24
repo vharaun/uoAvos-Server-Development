@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public DryadAllureScroll(int amount)
-			: base(611, 0x2D5C, amount)
+		public DryadAllureScroll(int amount) : base(SpellName.DryadAllure, 0x2D5C, amount)
 		{
 			Hue = 0x8FD;
 		}

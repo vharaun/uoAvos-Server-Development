@@ -6,7 +6,7 @@ using System;
 
 namespace Server.SkillHandlers
 {
-	internal class SpiritSpeak
+	public static class SpiritSpeak
 	{
 		public static void Initialize()
 		{
@@ -35,17 +35,13 @@ namespace Server.SkillHandlers
 			{
 				if (!m.CanHearGhosts)
 				{
-					Timer t = new SpiritSpeakTimer(m);
-					var secs = m.Skills[SkillName.SpiritSpeak].Base / 50;
-					secs *= 90;
-					if (secs < 15)
-					{
-						secs = 15;
-					}
-
-					t.Delay = TimeSpan.FromSeconds(secs);//15seconds to 3 minutes
-					t.Start();
 					m.CanHearGhosts = true;
+
+					var secs = Math.Max(15.0, m.Skills[SkillName.SpiritSpeak].Base / 50.0 * 90.0);
+
+					var t = new SpiritSpeakTimer(m, TimeSpan.FromSeconds(secs));
+
+					t.Start();
 				}
 
 				m.PlaySound(0x24A);
@@ -63,44 +59,54 @@ namespace Server.SkillHandlers
 		private class SpiritSpeakTimer : Timer
 		{
 			private readonly Mobile m_Owner;
-			public SpiritSpeakTimer(Mobile m) : base(TimeSpan.FromMinutes(2.0))
+
+			public SpiritSpeakTimer(Mobile m, TimeSpan delay) 
+				: base(delay)
 			{
 				m_Owner = m;
+
 				Priority = TimerPriority.FiveSeconds;
 			}
 
 			protected override void OnTick()
 			{
 				m_Owner.CanHearGhosts = false;
+
 				m_Owner.SendLocalizedMessage(502445);//You feel your contact with the neitherworld fading.
 			}
 		}
 
 		private class SpiritSpeakSpell : Spell
 		{
-			private static readonly SpellInfo m_Info = new SpellInfo("Spirit Speak", "", 269);
+			private static readonly SpellInfo m_Info = new(typeof(SpiritSpeakSpell))
+			{
+				Name = "Spirit Speak",
+				Action = 269,
+			};
 
 			public override bool BlockedByHorrificBeast => false;
-
-			public SpiritSpeakSpell(Mobile caster) : base(caster, null, m_Info)
-			{
-			}
 
 			public override bool ClearHandsOnCast => false;
 
 			public override double CastDelayFastScalar => 0;
+
 			public override TimeSpan CastDelayBase => TimeSpan.FromSeconds(1.0);
 
-			public override int GetMana()
+			public override bool CheckNextSpellTime => false;
+
+			public override SkillName CastSkill => SkillName.SpiritSpeak;
+			public override SkillName DamageSkill => SkillName.SpiritSpeak;
+
+			public SpiritSpeakSpell(Mobile caster) 
+				: base(caster, null, m_Info)
 			{
-				return 0;
 			}
 
 			public override void OnCasterHurt()
 			{
 				if (IsCasting)
 				{
-					Disturb(DisturbType.Hurt, false, true);
+					Interrupt(SpellInterrupt.Hurt, true);
 				}
 			}
 
@@ -114,23 +120,16 @@ namespace Server.SkillHandlers
 				return true;
 			}
 
-			public override bool CheckNextSpellTime => false;
-
-			public override void OnDisturb(DisturbType type, bool message)
+			public override void OnInterrupt(SpellInterrupt type, bool message)
 			{
 				Caster.NextSkillTime = Core.TickCount;
 
-				base.OnDisturb(type, message);
+				base.OnInterrupt(type, message);
 			}
 
-			public override bool CheckDisturb(DisturbType type, bool checkFirst, bool resistable)
+			public override bool CheckInterrupt(SpellInterrupt type, bool resistable)
 			{
-				if (type == DisturbType.EquipRequest || type == DisturbType.UseRequest)
-				{
-					return false;
-				}
-
-				return true;
+				return type != SpellInterrupt.EquipRequest && type != SpellInterrupt.UseRequest;
 			}
 
 			public override void SayMantra()
@@ -144,14 +143,18 @@ namespace Server.SkillHandlers
 			{
 				Corpse toChannel = null;
 
-				foreach (var item in Caster.GetItemsInRange(3))
+				var items = Caster.GetItemsInRange(3);
+
+				foreach (var item in items)
 				{
-					if (item is Corpse && !((Corpse)item).Channeled)
+					if (item is Corpse c && !c.Channeled)
 					{
-						toChannel = (Corpse)item;
+						toChannel = c;
 						break;
 					}
 				}
+				
+				items.Free();
 
 				int max, min, mana, number;
 

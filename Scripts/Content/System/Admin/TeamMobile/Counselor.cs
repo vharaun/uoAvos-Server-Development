@@ -1325,7 +1325,7 @@ namespace Server.Mobiles
 
 							if (pm.AccessLevel == AccessLevel.Player)
 							{
-								if (DateTime.Now >= pm.PromoGiftLast + m_UseDelay)
+								if (DateTime.UtcNow >= pm.PromoGiftLast + m_UseDelay)
 								{
 									from.AddToBackpack(new PromotionalDeed_PR());
 									from.CloseGump(typeof(GameMaster_Talk));
@@ -1336,7 +1336,7 @@ namespace Server.Mobiles
 
 									from.SendMessage("Check Back Every Thirty (30) Days To Obtain New Promotional Offers");
 
-									pm.PromoGiftLast = DateTime.Now;
+									pm.PromoGiftLast = DateTime.UtcNow;
 								}
 								else
 								{

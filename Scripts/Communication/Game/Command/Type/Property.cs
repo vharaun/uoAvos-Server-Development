@@ -907,7 +907,7 @@ namespace Server.Commands
 
 			if (isSerial) // mutate back
 			{
-				toSet = (Serial)(int)toSet;
+				toSet = new Serial((int)toSet);
 			}
 
 			constructed = toSet;

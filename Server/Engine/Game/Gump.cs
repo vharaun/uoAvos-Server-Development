@@ -8,28 +8,11 @@ namespace Server.Gumps
 {
 	public class Gump
 	{
-		private static readonly Dictionary<Type, int> _TypeCodes = new Dictionary<Type, int>(0x100);
+		public static IPersistentHashGenerator HashGenerator { get; set; } = PersistentHash.Default;
 
 		public static int GetTypeID(Type type)
 		{
-			if (!_TypeCodes.TryGetValue(type, out var id))
-			{
-				unchecked
-				{
-					id = 0x1337;
-
-					var name = type.FullName;
-
-					for (var i = 0; i < name.Length; i++)
-					{
-						id = (id * 397) ^ name[i];
-					}
-				}
-
-				_TypeCodes[type] = id;
-			}
-
-			return id;
+			return HashGenerator.Generate(type.FullName, true);
 		}
 
 		private readonly List<GumpEntry> m_Entries;
@@ -40,7 +23,6 @@ namespace Server.Gumps
 		private static int m_NextSerial = 1;
 
 		private int m_Serial;
-		private readonly int m_TypeID;
 		private int m_X, m_Y;
 
 		private bool m_Dragable = true;
@@ -58,19 +40,17 @@ namespace Server.Gumps
 			m_X = x;
 			m_Y = y;
 
-			m_TypeID = GetTypeID(GetType());
+			TypeID = GetTypeID(GetType());
 
-			m_Entries = new List<GumpEntry>();
-			m_Strings = new List<string>();
+			m_Entries = new();
+			m_Strings = new();
 		}
 
-		public void Invalidate()
+		public virtual void Invalidate()
 		{
-			//if ( m_Strings.Count > 0 )
-			//	m_Strings.Clear();
 		}
 
-		public int TypeID => m_TypeID;
+		public int TypeID { get; protected set; }
 
 		public List<GumpEntry> Entries => m_Entries;
 

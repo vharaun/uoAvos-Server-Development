@@ -8,9 +8,8 @@ using Server.Items;
 using Server.Misc;
 using Server.Mobiles;
 using Server.Network;
-using Server.Spells.Fifth;
+using Server.Spells.Magery;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
 
 using System;
 using System.Collections;
@@ -7240,7 +7239,7 @@ namespace Server.Engines.ChainQuests
 			{
 				from.SendLocalizedMessage(1073647); // You may not continue while mounted...
 			}
-			else if (!from.CanBeginAction(typeof(PolymorphSpell)) || DisguiseTimers.IsDisguised(from) || AnimalForm.UnderTransformation(from) || !from.CanBeginAction(typeof(IncognitoSpell)) || from.IsBodyMod) // TODO: Does this cover everything?
+			else if (PolymorphSpell.IsPolymorphed(from) || DisguiseTimers.IsDisguised(from) || AnimalFormSpell.UnderTransformation(from) || IncognitoSpell.IsIncognito(from) || from.IsBodyMod) // TODO: Does this cover everything?
 			{
 				from.SendLocalizedMessage(1073648); // You may only proceed while in your original state...
 			}

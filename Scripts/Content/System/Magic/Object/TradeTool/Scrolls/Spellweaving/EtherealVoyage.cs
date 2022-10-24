@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public EtherealVoyageScroll(int amount)
-			: base(612, 0x2D5D, amount)
+		public EtherealVoyageScroll(int amount) : base(SpellName.EtherealVoyage, 0x2D5D, amount)
 		{
 			Hue = 0x8FD;
 		}

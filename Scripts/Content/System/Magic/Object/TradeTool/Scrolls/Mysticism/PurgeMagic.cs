@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public PurgeMagicScroll(int amount)
-			: base(679, 0x2DA0, amount)
+		public PurgeMagicScroll(int amount) : base(SpellName.PurgeMagic, 0x2DA0, amount)
 		{
 		}
 

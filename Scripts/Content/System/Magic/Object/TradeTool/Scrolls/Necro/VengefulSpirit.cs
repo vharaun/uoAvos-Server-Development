@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public VengefulSpiritScroll(int amount) : base(113, 0x226D, amount)
+		public VengefulSpiritScroll(int amount) : base(SpellName.VengefulSpirit, 0x226D, amount)
 		{
 		}
 

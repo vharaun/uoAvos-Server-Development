@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public ImmolatingWeaponScroll(int amount)
-			: base(602, 0x2D53, amount)
+		public ImmolatingWeaponScroll(int amount) : base(SpellName.ImmolatingWeapon, 0x2D53, amount)
 		{
 			Hue = 0x8FD;
 		}

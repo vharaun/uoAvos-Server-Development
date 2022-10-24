@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public PoisonStrikeScroll(int amount) : base(109, 0x2269, amount)
+		public PoisonStrikeScroll(int amount) : base(SpellName.PoisonStrike, 0x2269, amount)
 		{
 		}
 

@@ -46,7 +46,7 @@ namespace Server.Items
 			{
 				from.SendLocalizedMessage(1040016); // You cannot use this while riding a mount
 			}
-			else if (Server.Spells.Ninjitsu.AnimalForm.UnderTransformation(from))
+			else if (Server.Spells.Ninjitsu.AnimalFormSpell.UnderTransformation(from))
 			{
 				from.SendLocalizedMessage(1070902); // You can't use this while in an animal form!
 			}
@@ -90,7 +90,7 @@ namespace Server.Items
 
 			if (to is PlayerMobile)
 			{
-				if (Server.Spells.Ninjitsu.AnimalForm.UnderTransformation(to))
+				if (Server.Spells.Ninjitsu.AnimalFormSpell.UnderTransformation(to))
 				{
 					to.SendLocalizedMessage(1114066, from.Name); // ~1_NAME~ knocked you out of animal form!
 				}
@@ -186,11 +186,11 @@ namespace Server.Items
 					{
 						from.SendLocalizedMessage(1040016); // You cannot use this while riding a mount
 					}
-					else if (Server.Spells.Ninjitsu.AnimalForm.UnderTransformation(from))
+					else if (Server.Spells.Ninjitsu.AnimalFormSpell.UnderTransformation(from))
 					{
 						from.SendLocalizedMessage(1070902); // You can't use this while in an animal form!
 					}
-					else if (!to.Mounted && !Server.Spells.Ninjitsu.AnimalForm.UnderTransformation(to))
+					else if (!to.Mounted && !Server.Spells.Ninjitsu.AnimalFormSpell.UnderTransformation(to))
 					{
 						from.SendLocalizedMessage(1049628); // You have no reason to throw a bola at that.
 					}

@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public WildfireScroll(int amount)
-			: base(609, 0x2D5A, amount)
+		public WildfireScroll(int amount) : base(SpellName.Wildfire, 0x2D5A, amount)
 		{
 			Hue = 0x8FD;
 		}

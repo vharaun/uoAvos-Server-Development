@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public CorpseSkinScroll(int amount) : base(102, 0x2262, amount)
+		public CorpseSkinScroll(int amount) : base(SpellName.CorpseSkin, 0x2262, amount)
 		{
 		}
 

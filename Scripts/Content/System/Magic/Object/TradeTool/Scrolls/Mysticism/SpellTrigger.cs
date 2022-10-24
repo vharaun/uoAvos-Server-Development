@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public SpellTriggerScroll(int amount)
-			: base(685, 0x2DA6, amount)
+		public SpellTriggerScroll(int amount) : base(SpellName.SpellTrigger, 0x2DA6, amount)
 		{
 		}
 

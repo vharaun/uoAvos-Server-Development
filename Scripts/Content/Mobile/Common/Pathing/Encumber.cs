@@ -71,7 +71,7 @@ namespace Server.Misc
 			if (!from.Player)
 			{
 				// Else it won't work on monsters.
-				Spells.Ninjitsu.DeathStrike.AddStep(from);
+				Spells.Ninjitsu.DeathStrikeAbility.AddStep(from);
 				return;
 			}
 
@@ -113,7 +113,7 @@ namespace Server.Misc
 				}
 			}
 
-			Spells.Ninjitsu.DeathStrike.AddStep(from);
+			Spells.Ninjitsu.DeathStrikeAbility.AddStep(from);
 		}
 
 		public static int GetStamLoss(Mobile from, int overWeight, bool running)

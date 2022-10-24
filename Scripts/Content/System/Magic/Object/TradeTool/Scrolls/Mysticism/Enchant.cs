@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public EnchantScroll(int amount)
-			: base(680, 0x2DA1, amount)
+		public EnchantScroll(int amount) : base(SpellName.Enchant, 0x2DA1, amount)
 		{
 		}
 

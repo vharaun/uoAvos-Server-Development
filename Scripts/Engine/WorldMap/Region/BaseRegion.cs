@@ -1212,7 +1212,7 @@ namespace Server.Regions
 			}
 		}
 
-		protected virtual bool OnRuleEnforced(RegionFlags rule, object src, object trg, bool result)
+		public virtual bool OnRuleEnforced(RegionFlags rule, object src, object trg, bool result)
 		{
 			if (!result && src is Mobile m && m.NetState != null)
 			{

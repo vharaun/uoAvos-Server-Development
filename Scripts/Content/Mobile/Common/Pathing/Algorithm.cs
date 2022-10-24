@@ -53,7 +53,7 @@ namespace Server.PathAlgorithms.FastAStar
 
 	public class FastAStarAlgorithm : PathAlgorithm
 	{
-		public static PathAlgorithm Instance = new FastAStarAlgorithm();
+		public static readonly PathAlgorithm Instance = new FastAStarAlgorithm();
 
 		private const int MaxDepth = 300;
 		private const int AreaSize = 38;

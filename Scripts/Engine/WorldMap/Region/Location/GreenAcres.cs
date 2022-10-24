@@ -1,7 +1,5 @@
 ﻿using Server.Spells.Chivalry;
-using Server.Spells.Fourth;
-using Server.Spells.Seventh;
-using Server.Spells.Sixth;
+using Server.Spells.Magery;
 
 namespace Server.Regions
 {

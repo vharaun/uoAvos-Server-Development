@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public MindRotScroll(int amount) : base(107, 0x2267, amount)
+		public MindRotScroll(int amount) : base(SpellName.MindRot, 0x2267, amount)
 		{
 		}
 

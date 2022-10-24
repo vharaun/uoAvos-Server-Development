@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public ArchCureScroll(int amount) : base(24, 0x1F45, amount)
+		public ArchCureScroll(int amount) : base(SpellName.ArchCure, 0x1F45, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public ArchProtectionScroll(int amount) : base(25, 0x1F46, amount)
+		public ArchProtectionScroll(int amount) : base(SpellName.ArchProtection, 0x1F46, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public CurseScroll(int amount) : base(26, 0x1F47, amount)
+		public CurseScroll(int amount) : base(SpellName.Curse, 0x1F47, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public FireFieldScroll(int amount) : base(27, 0x1F48, amount)
+		public FireFieldScroll(int amount) : base(SpellName.FireField, 0x1F48, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public GreaterHealScroll(int amount) : base(28, 0x1F49, amount)
+		public GreaterHealScroll(int amount) : base(SpellName.GreaterHeal, 0x1F49, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public LightningScroll(int amount) : base(29, 0x1F4A, amount)
+		public LightningScroll(int amount) : base(SpellName.Lightning, 0x1F4A, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public ManaDrainScroll(int amount) : base(30, 0x1F4B, amount)
+		public ManaDrainScroll(int amount) : base(SpellName.ManaDrain, 0x1F4B, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public RecallScroll(int amount) : base(31, 0x1F4C, amount)
+		public RecallScroll(int amount) : base(SpellName.Recall, 0x1F4C, amount)
 		{
 		}
 

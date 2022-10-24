@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public LichFormScroll(int amount) : base(106, 0x2266, amount)
+		public LichFormScroll(int amount) : base(SpellName.LichForm, 0x2266, amount)
 		{
 		}
 

@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public GiftOfRenewalScroll(int amount)
-			: base(601, 0x2D52, amount)
+		public GiftOfRenewalScroll(int amount) : base(SpellName.GiftOfRenewal, 0x2D52, amount)
 		{
 			Hue = 0x8FD;
 		}

@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public WraithFormScroll(int amount) : base(115, 0x226F, amount)
+		public WraithFormScroll(int amount) : base(SpellName.WraithForm, 0x226F, amount)
 		{
 		}
 

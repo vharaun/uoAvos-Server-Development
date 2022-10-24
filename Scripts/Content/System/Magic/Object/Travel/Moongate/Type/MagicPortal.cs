@@ -31,7 +31,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -95,7 +95,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -136,7 +136,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -200,7 +200,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -241,7 +241,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -305,7 +305,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -346,7 +346,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -410,7 +410,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -451,7 +451,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -515,7 +515,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -556,7 +556,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -620,7 +620,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -661,7 +661,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -725,7 +725,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -766,7 +766,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -830,7 +830,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -871,7 +871,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -935,7 +935,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}
@@ -976,7 +976,7 @@ namespace Server.Items
 			if (decays)
 			{
 				m_Decays = true;
-				m_DecayTime = DateTime.Now + TimeSpan.FromSeconds(30);
+				m_DecayTime = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
 				m_Timer = new InternalTimer(this, m_DecayTime);
 				m_Timer.Start();
@@ -1040,7 +1040,7 @@ namespace Server.Items
 		{
 			private readonly Item m_Item;
 
-			public InternalTimer(Item item, DateTime end) : base(end - DateTime.Now)
+			public InternalTimer(Item item, DateTime end) : base(end - DateTime.UtcNow)
 			{
 				m_Item = item;
 			}

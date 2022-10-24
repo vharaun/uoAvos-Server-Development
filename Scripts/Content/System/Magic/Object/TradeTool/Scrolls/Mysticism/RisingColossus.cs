@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public RisingColossusScroll(int amount)
-			: base(692, 0x2DAD, amount)
+		public RisingColossusScroll(int amount) : base(SpellName.RisingColossus, 0x2DAD, amount)
 		{
 		}
 

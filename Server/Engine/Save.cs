@@ -448,7 +448,7 @@ namespace Server
 
 					try
 					{
-						ctorArgs[0] = (Serial)serial;
+						ctorArgs[0] = new Serial(serial);
 
 						m = (Mobile)ctor.Invoke(ctorArgs);
 					}
@@ -506,7 +506,7 @@ namespace Server
 
 					try
 					{
-						ctorArgs[0] = (Serial)serial;
+						ctorArgs[0] = new Serial(serial);
 
 						item = (Item)ctor.Invoke(ctorArgs);
 					}

@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public PainSpikeScroll(int amount) : base(108, 0x2268, amount)
+		public PainSpikeScroll(int amount) : base(SpellName.PainSpike, 0x2268, amount)
 		{
 		}
 

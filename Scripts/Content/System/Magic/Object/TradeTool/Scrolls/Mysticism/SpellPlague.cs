@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public SpellPlagueScroll(int amount)
-			: base(689, 0x2DAA, amount)
+		public SpellPlagueScroll(int amount) : base(SpellName.SpellPlague, 0x2DAA, amount)
 		{
 		}
 

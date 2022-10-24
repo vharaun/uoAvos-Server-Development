@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public CurseWeaponScroll(int amount) : base(103, 0x2263, amount)
+		public CurseWeaponScroll(int amount) : base(SpellName.CurseWeapon, 0x2263, amount)
 		{
 		}
 

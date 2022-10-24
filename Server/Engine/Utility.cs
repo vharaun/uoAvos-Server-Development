@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -16,54 +17,27 @@ namespace Server
 	{
 		private static Encoding m_UTF8, m_UTF8WithEncoding;
 
-		public static Encoding UTF8
-		{
-			get
-			{
-				if (m_UTF8 == null)
-				{
-					m_UTF8 = new UTF8Encoding(false, false);
-				}
-
-				return m_UTF8;
-			}
-		}
-
-		public static Encoding UTF8WithEncoding
-		{
-			get
-			{
-				if (m_UTF8WithEncoding == null)
-				{
-					m_UTF8WithEncoding = new UTF8Encoding(true, false);
-				}
-
-				return m_UTF8WithEncoding;
-			}
-		}
+		public static Encoding UTF8 => m_UTF8 ??= new UTF8Encoding(false, false);
+		public static Encoding UTF8WithEncoding => m_UTF8WithEncoding ??= new UTF8Encoding(true, false);
 
 		public static void Separate(StringBuilder sb, string value, string separator)
 		{
 			if (sb.Length > 0)
 			{
-				sb.Append(separator);
+				_ = sb.Append(separator);
 			}
 
-			sb.Append(value);
+			_ = sb.Append(value);
 		}
 
 		public static string Intern(string str)
 		{
-			if (str == null)
+			if (!String.IsNullOrWhiteSpace(str))
 			{
-				return null;
-			}
-			else if (str.Length == 0)
-			{
-				return String.Empty;
+				return String.Intern(str);
 			}
 
-			return String.Intern(str);
+			return str;
 		}
 
 		public static void Intern(ref string str)
@@ -71,11 +45,49 @@ namespace Server
 			str = Intern(str);
 		}
 
-		private static readonly Dictionary<Type, string> m_FriendlyNames = new();
+		public static void SpaceWords(ref string str)
+		{
+			if (!String.IsNullOrWhiteSpace(str))
+			{
+				str = Regex.Replace(str, @"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))", " $0");
+			}
+		}
+
+		public static string SpaceWords(string str)
+		{
+			SpaceWords(ref str);
+
+			return str;
+		}
+
+		private static readonly Dictionary<Enum, string> m_FriendlyEnumNames = new();
+
+		public static string FriendlyName(Enum value)
+		{
+			var type = value.GetType();
+
+			var flags = type.GetCustomAttribute<FlagsAttribute>(true) != null;
+
+			if (flags || !m_FriendlyEnumNames.TryGetValue(value, out var name))
+			{
+				name = value.ToString();
+
+				SpaceWords(ref name);
+
+				if (!flags && !String.IsNullOrWhiteSpace(name))
+				{
+					m_FriendlyTypeNames[type] = name = Intern(name);
+				}
+			}
+
+			return name;
+		}
+
+		private static readonly Dictionary<Type, string> m_FriendlyTypeNames = new();
 
 		public static string FriendlyName(Type type)
 		{
-			if (!m_FriendlyNames.TryGetValue(type, out var name))
+			if (!m_FriendlyTypeNames.TryGetValue(type, out var name))
 			{
 				if (type.IsAssignableTo(typeof(Item)) && Activator.CreateInstance(type) is Item item)
 				{
@@ -91,13 +103,35 @@ namespace Server
 
 				if (String.IsNullOrWhiteSpace(name))
 				{
-					name = Regex.Replace(type.Name, @"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))", " $0");
+					name = SpaceWords(type.Name);
 				}
 
 				if (!String.IsNullOrWhiteSpace(name))
 				{
-					m_FriendlyNames[type] = name;
+					m_FriendlyTypeNames[type] = name = Intern(name);
 				}
+			}
+
+			return name;
+		}
+
+		public static string FriendlyName(IEntity entity)
+		{
+			var name = entity.Name;
+
+			if (entity is Item item)
+			{
+				name = item.Name;
+
+				if (String.IsNullOrWhiteSpace(name))
+				{
+					name = StringList.Localization.GetString(item.LabelNumber);
+				}
+			}
+
+			if (String.IsNullOrWhiteSpace(name))
+			{
+				name = FriendlyName(entity.GetType());
 			}
 
 			return name;
@@ -143,10 +177,7 @@ namespace Server
 
 		public static IPAddress Intern(IPAddress ipAddress)
 		{
-			if (_ipAddressTable == null)
-			{
-				_ipAddressTable = new Dictionary<IPAddress, IPAddress>();
-			}
+			_ipAddressTable ??= new Dictionary<IPAddress, IPAddress>();
 
 			IPAddress interned;
 
@@ -168,7 +199,7 @@ namespace Server
 		{
 			var valid = true;
 
-			IPMatch(text, IPAddress.None, ref valid);
+			_ = IPMatch(text, IPAddress.None, ref valid);
 
 			return valid;
 		}
@@ -187,9 +218,9 @@ namespace Server
 				return "";
 			}
 
-			var hasOpen = (str.IndexOf('<') >= 0);
-			var hasClose = (str.IndexOf('>') >= 0);
-			var hasPound = (str.IndexOf('#') >= 0);
+			var hasOpen = str.Contains('<');
+			var hasClose = str.Contains('>');
+			var hasPound = str.Contains('#');
 
 			if (!hasOpen && !hasClose && !hasPound)
 			{
@@ -200,17 +231,17 @@ namespace Server
 
 			if (hasOpen)
 			{
-				sb.Replace('<', '(');
+				_ = sb.Replace('<', '(');
 			}
 
 			if (hasClose)
 			{
-				sb.Replace('>', ')');
+				_ = sb.Replace('>', ')');
 			}
 
 			if (hasPound)
 			{
-				sb.Replace('#', '-');
+				_ = sb.Replace('#', '-');
 			}
 
 			return sb.ToString();
@@ -222,7 +253,6 @@ namespace Server
 			{
 				return false;   //Just worry about IPv4 for now
 			}
-
 
 			/*
 			string[] str = cidr.Split( '/' );
@@ -274,12 +304,11 @@ namespace Server
 				{
 					var c = pattern[j];
 
-
-					if (c == 'x' || c == 'X')
+					if (c is 'x' or 'X')
 					{
 						partBase = 16;
 					}
-					else if (c >= '0' && c <= '9')
+					else if (c is >= '0' and <= '9')
 					{
 						var offset = c - '0';
 
@@ -294,7 +323,7 @@ namespace Server
 							part += offset;
 						}
 					}
-					else if (c >= 'a' && c <= 'f')
+					else if (c is >= 'a' and <= 'f')
 					{
 						var offset = 10 + (c - 'a');
 
@@ -309,7 +338,7 @@ namespace Server
 							part += offset;
 						}
 					}
-					else if (c >= 'A' && c <= 'F')
+					else if (c is >= 'A' and <= 'F')
 					{
 						var offset = 10 + (c - 'A');
 
@@ -375,14 +404,14 @@ namespace Server
 
 		public static bool IPMatchCIDR(uint cidrPrefixValue, uint ipValue, int cidrLength)
 		{
-			if (cidrLength <= 0 || cidrLength >= 32)   //if invalid cidr Length, just compare IPs
+			if (cidrLength is <= 0 or >= 32)   //if invalid cidr Length, just compare IPs
 			{
 				return cidrPrefixValue == ipValue;
 			}
 
-			var mask = UInt32.MaxValue << 32 - cidrLength;
+			var mask = UInt32.MaxValue << (32 - cidrLength);
 
-			return ((cidrPrefixValue & mask) == (ipValue & mask));
+			return (cidrPrefixValue & mask) == (ipValue & mask);
 		}
 
 		private static uint OrderedAddressValue(byte[] bytes)
@@ -392,15 +421,15 @@ namespace Server
 				return 0;
 			}
 
-			return (uint)((((bytes[0] << 0x18) | (bytes[1] << 0x10)) | (bytes[2] << 8)) | bytes[3]) & 0xffffffff;
+			return (uint)((bytes[0] << 0x18) | (bytes[1] << 0x10) | (bytes[2] << 8) | bytes[3]) & 0xffffffff;
 		}
 
 		private static uint SwapUnsignedInt(uint source)
 		{
-			return (((source & 0x000000FF) << 0x18)
+			return ((source & 0x000000FF) << 0x18)
 			| ((source & 0x0000FF00) << 8)
 			| ((source & 0x00FF0000) >> 8)
-			| ((source & 0xFF000000) >> 0x18));
+			| ((source & 0xFF000000) >> 0x18);
 		}
 
 		public static bool TryConvertIPv6toIPv4(ref IPAddress address)
@@ -493,12 +522,12 @@ namespace Server
 								highOnly = true;
 								highPart = 0;
 							}
-							else if (c == 'x' || c == 'X')
+							else if (c is 'x' or 'X')
 							{
 								lowBase = 16;
 								highBase = 16;
 							}
-							else if (c >= '0' && c <= '9')
+							else if (c is >= '0' and <= '9')
 							{
 								var offset = c - '0';
 
@@ -511,7 +540,7 @@ namespace Server
 								highPart *= highBase;
 								highPart += offset;
 							}
-							else if (c >= 'a' && c <= 'f')
+							else if (c is >= 'a' and <= 'f')
 							{
 								var offset = 10 + (c - 'a');
 
@@ -524,7 +553,7 @@ namespace Server
 								highPart *= highBase;
 								highPart += offset;
 							}
-							else if (c >= 'A' && c <= 'F')
+							else if (c is >= 'A' and <= 'F')
 							{
 								var offset = 10 + (c - 'A');
 
@@ -558,7 +587,7 @@ namespace Server
 
 		public static bool IPMatchClassC(IPAddress ip1, IPAddress ip2)
 		{
-			return ((Utility.GetAddressValue(ip1) & 0xFFFFFF) == (Utility.GetAddressValue(ip2) & 0xFFFFFF));
+			return (Utility.GetAddressValue(ip1) & 0xFFFFFF) == (Utility.GetAddressValue(ip2) & 0xFFFFFF);
 		}
 
 		public static int InsensitiveCompare(string first, string second)
@@ -574,24 +603,21 @@ namespace Server
 		#region To[Something]
 		public static bool ToBoolean(string value)
 		{
-			bool b;
-			Boolean.TryParse(value, out b);
+			_ = Boolean.TryParse(value, out var b);
 
 			return b;
 		}
 
 		public static double ToDouble(string value)
 		{
-			double d;
-			Double.TryParse(value, out d);
+			_ = Double.TryParse(value, out var d);
 
 			return d;
 		}
 
 		public static TimeSpan ToTimeSpan(string value)
 		{
-			TimeSpan t;
-			TimeSpan.TryParse(value, out t);
+			_ = TimeSpan.TryParse(value, out var t);
 
 			return t;
 		}
@@ -602,11 +628,11 @@ namespace Server
 
 			if (value.StartsWith("0x"))
 			{
-				Int32.TryParse(value.Substring(2), NumberStyles.HexNumber, null, out i);
+				_ = Int32.TryParse(value.AsSpan(2), NumberStyles.HexNumber, null, out i);
 			}
 			else
 			{
-				Int32.TryParse(value, out i);
+				_ = Int32.TryParse(value, out i);
 			}
 
 			return i;
@@ -931,6 +957,21 @@ namespace Server
 			return total;
 		}
 
+		public static T RandomList<T>(List<T> list)
+		{
+			if (list.Count > 0)
+			{
+				if (list.Count > 1)
+				{
+					return list[Random(list.Count)];
+				}
+
+				return list[0];
+			}
+
+			return default;
+		}
+
 		public static T RandomList<T>(params T[] list)
 		{
 			if (list.Length > 0)
@@ -943,7 +984,7 @@ namespace Server
 				return list[0];
 			}
 
-			return default(T);
+			return default;
 		}
 
 		public static bool RandomBool()
@@ -951,7 +992,98 @@ namespace Server
 			return RandomImpl.NextBool();
 		}
 
+#if MONO
+		private static class EnumCache<T> where T : struct, IConvertible
+#else
+		private static class EnumCache<T> where T : struct, Enum
+#endif
+		{
+			public static T[] Values = (T[])Enum.GetValues(typeof(T));
+		}
+
+#if MONO
+		public static TEnum RandomEnum<TEnum>() where TEnum : struct, IConvertible            
+#else
+		public static TEnum RandomEnum<TEnum>() where TEnum : struct, Enum
+#endif
+		{
+			return RandomList(EnumCache<TEnum>.Values);
+		}
+
+#if MONO
+		public static TEnum RandomMinMax<TEnum>(TEnum min, TEnum max) where TEnum : struct, IConvertible            
+#else
+		public static TEnum RandomMinMax<TEnum>(TEnum min, TEnum max) where TEnum : struct, Enum
+#endif
+		{
+			var values = EnumCache<TEnum>.Values;
+
+			if (values.Length == 0)
+			{
+				return default(TEnum);
+			}
+
+			int curIdx = -1, minIdx = -1, maxIdx = -1;
+
+			while (++curIdx < values.Length)
+			{
+				if (Equals(values[curIdx], min))
+				{
+					minIdx = curIdx;
+				}
+				else if (Equals(values[curIdx], max))
+				{
+					maxIdx = curIdx;
+				}
+			}
+
+			if (minIdx == 0 && maxIdx == values.Length - 1)
+			{
+				return RandomList(values);
+			}
+
+			curIdx = -1;
+
+			if (minIdx >= 0)
+			{
+				if (minIdx == maxIdx)
+				{
+					curIdx = minIdx;
+				}
+				else if (maxIdx > minIdx)
+				{
+					curIdx = RandomMinMax(minIdx, maxIdx);
+				}
+			}
+
+			if (curIdx >= 0 && curIdx < values.Length)
+			{
+				return values[curIdx];
+			}
+
+			return RandomList(min, max);
+		}
+
+		public static TimeSpan RandomMinMax(TimeSpan min, TimeSpan max)
+		{
+			return TimeSpan.FromTicks(RandomMinMax(min.Ticks, max.Ticks));
+		}
+
 		public static int RandomMinMax(int min, int max)
+		{
+			if (min > max)
+			{
+				(max, min) = (min, max);
+			}
+			else if (min == max)
+			{
+				return min;
+			}
+
+			return min + Random(max - min + 1);
+		}
+
+		public static long RandomMinMax(long min, long max)
 		{
 			if (min > max)
 			{
@@ -964,7 +1096,21 @@ namespace Server
 				return min;
 			}
 
-			return min + Random((max - min) + 1);
+			return min + (long)(RandomImpl.NextDouble() * (max - min));
+		}
+
+		public static double RandomMinMax(double min, double max)
+		{
+			if (min > max)
+			{
+				(max, min) = (min, max);
+			}
+			else if (min == max)
+			{
+				return min;
+			}
+
+			return min + (RandomDouble() * (max - min + 1));
 		}
 
 		public static int Random(int from, int count)
@@ -1006,17 +1152,16 @@ namespace Server
 		/// </summary>
 		public static int RandomNondyedHue()
 		{
-			switch (Random(6))
+			return Random(6) switch
 			{
-				case 0: return RandomPinkHue();
-				case 1: return RandomBlueHue();
-				case 2: return RandomGreenHue();
-				case 3: return RandomOrangeHue();
-				case 4: return RandomRedHue();
-				case 5: return RandomYellowHue();
-			}
-
-			return 0;
+				0 => RandomPinkHue(),
+				1 => RandomBlueHue(),
+				2 => RandomGreenHue(),
+				3 => RandomOrangeHue(),
+				4 => RandomRedHue(),
+				5 => RandomYellowHue(),
+				_ => 0,
+			};
 		}
 
 		/// <summary>
@@ -1335,7 +1480,7 @@ namespace Server
 
 			while (e.MoveNext())
 			{
-				list.Add(e.Current);
+				_ = list.Add(e.Current);
 			}
 
 			return list;
@@ -1368,24 +1513,24 @@ namespace Server
 				{
 					var c = input.ReadByte();
 
-					bytes.Append(c.ToString("X2"));
+					_ = bytes.Append(c.ToString("X2"));
 
 					if (j != 7)
 					{
-						bytes.Append(' ');
+						_ = bytes.Append(' ');
 					}
 					else
 					{
-						bytes.Append("  ");
+						_ = bytes.Append("  ");
 					}
 
-					if (c >= 0x20 && c < 0x7F)
+					if (c is >= 0x20 and < 0x7F)
 					{
-						chars.Append((char)c);
+						_ = chars.Append((char)c);
 					}
 					else
 					{
-						chars.Append('.');
+						_ = chars.Append('.');
 					}
 				}
 
@@ -1407,29 +1552,29 @@ namespace Server
 					{
 						var c = input.ReadByte();
 
-						bytes.Append(c.ToString("X2"));
+						_ = bytes.Append(c.ToString("X2"));
 
 						if (j != 7)
 						{
-							bytes.Append(' ');
+							_ = bytes.Append(' ');
 						}
 						else
 						{
-							bytes.Append("  ");
+							_ = bytes.Append("  ");
 						}
 
-						if (c >= 0x20 && c < 0x7F)
+						if (c is >= 0x20 and < 0x7F)
 						{
-							chars.Append((char)c);
+							_ = chars.Append((char)c);
 						}
 						else
 						{
-							chars.Append('.');
+							_ = chars.Append('.');
 						}
 					}
 					else
 					{
-						bytes.Append("   ");
+						_ = bytes.Append("   ");
 					}
 				}
 
@@ -1441,7 +1586,7 @@ namespace Server
 			}
 		}
 
-		private static readonly Stack<ConsoleColor> m_ConsoleColors = new Stack<ConsoleColor>();
+		private static readonly Stack<ConsoleColor> m_ConsoleColors = new();
 
 		public static void PushColor(ConsoleColor color)
 		{
@@ -1470,12 +1615,10 @@ namespace Server
 		{
 			if (bound1 > bound2)
 			{
-				var i = bound1;
-				bound1 = bound2;
-				bound2 = i;
+				(bound2, bound1) = (bound1, bound2);
 			}
 
-			return (num < bound2 + allowance && num > bound1 - allowance);
+			return num < bound2 + allowance && num > bound1 - allowance;
 		}
 
 		public static void AssignRandomHair(Mobile m)
@@ -1531,9 +1674,7 @@ namespace Server
 
 			for (var i = 0; i < list.Count; i++)
 			{
-				var t = list[i] as TOutput;
-
-				if (t != null)
+				if (list[i] is TOutput t)
 				{
 					output.Add(t);
 				}

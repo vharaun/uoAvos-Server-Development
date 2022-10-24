@@ -60,7 +60,7 @@ namespace Server
 			}
 		}
 
-		private Serial(int serial)
+		public Serial(int serial)
 		{
 			m_Serial = serial;
 		}
@@ -201,11 +201,13 @@ namespace Server
 
 		public abstract Serial ReadSerial();
 
+		public abstract IEntity ReadEntity();
 		public abstract Item ReadItem();
 		public abstract Mobile ReadMobile();
 		public abstract BaseGuild ReadGuild();
 		public abstract Region ReadRegion();
 
+		public abstract T ReadEntity<T>() where T : class, IEntity;
 		public abstract T ReadItem<T>() where T : Item;
 		public abstract T ReadMobile<T>() where T : Mobile;
 		public abstract T ReadGuild<T>() where T : BaseGuild;
@@ -287,9 +289,12 @@ namespace Server
 			do
 			{
 				b = m_File.ReadByte();
+
 				v |= (b & 0x7F) << shift;
+
 				shift += 7;
-			} while (b >= 0x80);
+			} 
+			while (b >= 0x80);
 
 			return v;
 		}
@@ -300,10 +305,8 @@ namespace Server
 			{
 				return m_File.ReadString();
 			}
-			else
-			{
-				return null;
-			}
+			
+			return null;
 		}
 
 		public override Type ReadObjectType()
@@ -322,22 +325,24 @@ namespace Server
 			{
 				return DateTime.MaxValue;
 			}
-			else if (ticks < 0 && (ticks + now) < 0)
+			
+			if (ticks < 0 && (ticks + now) < 0)
 			{
 				return DateTime.MinValue;
 			}
 
-			try { return new DateTime(now + ticks); }
+			try
+			{
+				return new DateTime(now + ticks);
+			}
 			catch
 			{
 				if (ticks > 0)
 				{
 					return DateTime.MaxValue;
 				}
-				else
-				{
-					return DateTime.MinValue;
-				}
+				
+				return DateTime.MinValue;
 			}
 		}
 
@@ -521,6 +526,11 @@ namespace Server
 			return ReadInt();
 		}
 
+		public override IEntity ReadEntity()
+		{
+			return World.FindEntity(ReadSerial());
+		}
+
 		public override Item ReadItem()
 		{
 			return World.FindItem(ReadSerial());
@@ -539,6 +549,11 @@ namespace Server
 		public override Region ReadRegion()
 		{
 			return Region.Find(ReadInt());
+		}
+
+		public override T ReadEntity<T>()
+		{
+			return ReadEntity() as T;
 		}
 
 		public override T ReadItem<T>()
@@ -868,6 +883,7 @@ namespace Server
 
 		public abstract void Write(Serial value);
 
+		public abstract void Write(IEntity value);
 		public abstract void Write(Item value);
 		public abstract void Write(Mobile value);
 		public abstract void Write(BaseGuild value);
@@ -1285,12 +1301,15 @@ namespace Server
 
 #if MONO
 			byte[] bytes = BitConverter.GetBytes(value);
+
 			for(int i = 0; i < bytes.Length; i++)
+			{
 				m_Buffer[m_Index++] = bytes[i];
+			}
 #else
 			fixed (byte* pBuffer = m_Buffer)
 			{
-				*((double*)(pBuffer + m_Index)) = value;
+				*(double*)(pBuffer + m_Index) = value;
 			}
 
 			m_Index += 8;
@@ -1306,12 +1325,15 @@ namespace Server
 
 #if MONO
 			byte[] bytes = BitConverter.GetBytes(value);
+
 			for(int i = 0; i < bytes.Length; i++)
+			{
 				m_Buffer[m_Index++] = bytes[i];
+			}
 #else
 			fixed (byte* pBuffer = m_Buffer)
 			{
-				*((float*)(pBuffer + m_Index)) = value;
+				*(float*)(pBuffer + m_Index) = value;
 			}
 
 			m_Index += 4;
@@ -1455,6 +1477,18 @@ namespace Server
 		public override void Write(Serial value)
 		{
 			Write(value.Value);
+		}
+
+		public override void Write(IEntity value)
+		{
+			if (value == null || value.Deleted)
+			{
+				Write(Serial.MinusOne);
+			}
+			else
+			{
+				Write(value.Serial);
+			}
 		}
 
 		public override void Write(Item value)
@@ -2128,6 +2162,18 @@ namespace Server
 		public override void Write(Serial value)
 		{
 			Write(value.Value);
+		}
+
+		public override void Write(IEntity value)
+		{
+			if (value == null || value.Deleted)
+			{
+				Write(Serial.MinusOne);
+			}
+			else
+			{
+				Write(value.Serial);
+			}
 		}
 
 		public override void Write(Item value)

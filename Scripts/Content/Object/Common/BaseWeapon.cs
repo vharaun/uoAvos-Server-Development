@@ -7,6 +7,7 @@ using Server.Mobiles;
 using Server.Network;
 using Server.Spells;
 using Server.Spells.Bushido;
+using Server.Spells.Magery;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
 using Server.Spells.Spellweaving;
@@ -866,7 +867,7 @@ namespace Server.Items
 
 		private static bool CheckAnimal(Mobile m, Type type)
 		{
-			return AnimalForm.UnderTransformation(m, type);
+			return AnimalFormSpell.UnderTransformation(m, type);
 		}
 
 		public virtual bool CheckHit(Mobile attacker, Mobile defender)
@@ -956,7 +957,7 @@ namespace Server.Items
 
 				var surpriseMalus = 0;
 
-				if (SurpriseAttack.GetMalus(defender, ref surpriseMalus))
+				if (SurpriseAttackAbility.GetMalus(defender, ref surpriseMalus))
 				{
 					bonus -= surpriseMalus;
 				}
@@ -1034,7 +1035,7 @@ namespace Server.Items
 				}
 
 				// Bonus granted by successful use of Honorable Execution.
-				bonus += HonorableExecution.GetSwingBonus(m);
+				bonus += HonorableExecutionAbility.GetSwingBonus(m);
 
 				if (DualWield.Registry.Contains(m))
 				{
@@ -1167,7 +1168,7 @@ namespace Server.Items
 			}
 		}
 
-		public virtual TimeSpan OnSwing(Mobile attacker, Mobile defender)
+		public TimeSpan OnSwing(Mobile attacker, Mobile defender)
 		{
 			return OnSwing(attacker, defender, 1.0);
 		}
@@ -1312,9 +1313,9 @@ namespace Server.Items
 				}
 
 				// Evasion grants a variable bonus post ML. 50% prior.
-				if (Evasion.IsEvading(defender))
+				if (EvasionSpell.IsEvading(defender))
 				{
-					chance *= Evasion.GetParryScalar(defender);
+					chance *= EvasionSpell.GetParryScalar(defender);
 				}
 
 				// Low dexterity lowers the chance.
@@ -1347,9 +1348,9 @@ namespace Server.Items
 				}
 
 				// Evasion grants a variable bonus post ML. 50% prior.
-				if (Evasion.IsEvading(defender))
+				if (EvasionSpell.IsEvading(defender))
 				{
-					chance *= Evasion.GetParryScalar(defender);
+					chance *= EvasionSpell.GetParryScalar(defender);
 				}
 
 				// Low dexterity lowers the chance.
@@ -1385,9 +1386,9 @@ namespace Server.Items
 					damage = 0;
 
 					// Successful block removes the Honorable Execution penalty.
-					HonorableExecution.RemovePenalty(defender);
+					HonorableExecutionAbility.RemovePenalty(defender);
 
-					if (CounterAttack.IsCountering(defender))
+					if (CounterAttackSpell.IsCountering(defender))
 					{
 						var weapon = defender.Weapon as BaseWeapon;
 
@@ -1397,10 +1398,10 @@ namespace Server.Items
 							weapon.OnSwing(defender, attacker);
 						}
 
-						CounterAttack.StopCountering(defender);
+						CounterAttackSpell.StopCountering(defender);
 					}
 
-					if (Confidence.IsConfident(defender))
+					if (ConfidenceSpell.IsConfident(defender))
 					{
 						defender.SendLocalizedMessage(1063117); // Your confidence reassures you as you successfully block your opponent's blow.
 
@@ -1636,7 +1637,7 @@ namespace Server.Items
 
 		public virtual void OnHit(Mobile attacker, Mobile defender, double damageBonus)
 		{
-			if (MirrorImage.HasClone(defender) && (defender.Skills.Ninjitsu.Value / 150.0) > Utility.RandomDouble())
+			if (MirrorImageSpell.HasClone(defender) && (defender.Skills.Ninjitsu.Value / 150.0) > Utility.RandomDouble())
 			{
 				Clone bc;
 
@@ -1752,7 +1753,7 @@ namespace Server.Items
 
 			var context = TransformationSpellHelper.GetContext(defender);
 
-			if ((m_Slayer == SlayerName.Silver || m_Slayer2 == SlayerName.Silver) && context != null && context.Spell is NecromancerSpell && context.Type != typeof(HorrificBeastSpell))
+			if ((m_Slayer == SlayerName.Silver || m_Slayer2 == SlayerName.Silver) && context != null && context.Spell is NecromancySpell && context.Type != typeof(HorrificBeastSpell))
 			{
 				// Every necromancer transformation other than horrific beast takes an additional 25% damage
 				percentageBonus += 25;
@@ -2116,12 +2117,12 @@ namespace Server.Items
 
 			if (!(this is BaseRanged))
 			{
-				if (AnimalForm.UnderTransformation(attacker, typeof(GiantSerpent)))
+				if (AnimalFormSpell.UnderTransformation(attacker, typeof(GiantSerpent)))
 				{
 					defender.ApplyPoison(attacker, Poison.Lesser);
 				}
 
-				if (AnimalForm.UnderTransformation(defender, typeof(BullFrog)))
+				if (AnimalFormSpell.UnderTransformation(defender, typeof(BullFrog)))
 				{
 					attacker.ApplyPoison(defender, Poison.Regular);
 				}
@@ -2262,7 +2263,7 @@ namespace Server.Items
 
 			attacker.DoHarmful(defender);
 
-			Spells.MagerySpell sp = new Spells.Sixth.DispelSpell(attacker, null);
+			var sp = new DispelSpell(attacker, null);
 
 			if (sp.CheckResisted(defender))
 			{
@@ -2373,12 +2374,9 @@ namespace Server.Items
 
 			if (!Core.SE)
 			{
-				ISlayer defISlayer = Spellbook.FindEquippedSpellbook(defender);
+				ISlayer defISlayer = SpellbookHelper.FindEquippedSpellbook(defender) as ISlayer;
 
-				if (defISlayer == null)
-				{
-					defISlayer = defender.Weapon as ISlayer;
-				}
+				defISlayer ??= defender.Weapon as ISlayer;
 
 				if (defISlayer != null)
 				{
@@ -4460,7 +4458,7 @@ namespace Server.Items
 		{
 			damage = base.AbsorbDamage(attacker, defender, damage);
 
-			AttuneWeaponSpell.TryAbsorb(defender, ref damage);
+			AttunementSpell.TryAbsorb(defender, ref damage);
 
 			if (Core.AOS)
 			{
@@ -4492,7 +4490,7 @@ namespace Server.Items
 				{
 					defender.MeleeDamageAbsorb = 0;
 					defender.SendLocalizedMessage(1005556); // Your reactive armor spell has been nullified.
-					DefensiveSpell.Nullify(defender);
+					DefensiveState.Nullify(defender);
 				}
 			}
 

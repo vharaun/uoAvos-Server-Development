@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public WitherScroll(int amount) : base(114, 0x226E, amount)
+		public WitherScroll(int amount) : base(SpellName.Wither, 0x226E, amount)
 		{
 		}
 

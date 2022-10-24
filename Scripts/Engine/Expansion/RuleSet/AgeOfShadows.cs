@@ -1,9 +1,8 @@
 ﻿using Server.Items;
 using Server.Mobiles;
 using Server.Spells;
-using Server.Spells.Fifth;
+using Server.Spells.Magery;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
 
 using System;
 using System.Collections.Generic;
@@ -163,11 +162,9 @@ namespace Server
 			#region Dragon Barding
 			if ((from == null || !from.Player) && m.Player && m.Mount is SwampDragon)
 			{
-				var pet = m.Mount as SwampDragon;
-
-				if (pet != null && pet.HasBarding)
+				if (m.Mount is SwampDragon pet && pet.HasBarding)
 				{
-					var percent = (pet.BardingExceptional ? 20 : 10);
+					var percent = pet.BardingExceptional ? 20 : 10;
 					var absorbed = Scale(totalDamage, percent);
 
 					totalDamage -= absorbed;
@@ -195,7 +192,7 @@ namespace Server
 
 				if (reflectPhys != 0)
 				{
-					if (from is ExodusMinion && ((ExodusMinion)from).FieldActive || from is ExodusOverseer && ((ExodusOverseer)from).FieldActive)
+					if ((from is ExodusMinion && ((ExodusMinion)from).FieldActive) || (from is ExodusOverseer && ((ExodusOverseer)from).FieldActive))
 					{
 						from.FixedParticles(0x376A, 20, 10, 0x2530, EffectLayer.Waist);
 						from.PlaySound(0x2F4);
@@ -203,7 +200,7 @@ namespace Server
 					}
 					else
 					{
-						from.Damage(Scale((damage * phys * (100 - (ignoreArmor ? 0 : m.PhysicalResistance))) / 10000, reflectPhys), m);
+						from.Damage(Scale(damage * phys * (100 - (ignoreArmor ? 0 : m.PhysicalResistance)) / 10000, reflectPhys), m);
 					}
 				}
 			}
@@ -222,31 +219,31 @@ namespace Server
 
 		public static int Scale(int input, int percent)
 		{
-			return (input * percent) / 100;
+			return input * percent / 100;
 		}
 
 		public static int GetStatus(Mobile from, int index)
 		{
-			switch (index)
+			return index switch
 			{
 				// TODO: Account for buffs/debuffs
-				case 0: return from.GetMaxResistance(ResistanceType.Physical);
-				case 1: return from.GetMaxResistance(ResistanceType.Fire);
-				case 2: return from.GetMaxResistance(ResistanceType.Cold);
-				case 3: return from.GetMaxResistance(ResistanceType.Poison);
-				case 4: return from.GetMaxResistance(ResistanceType.Energy);
-				case 5: return AosAttributes.GetValue(from, AosAttribute.DefendChance);
-				case 6: return 45;
-				case 7: return AosAttributes.GetValue(from, AosAttribute.AttackChance);
-				case 8: return AosAttributes.GetValue(from, AosAttribute.WeaponSpeed);
-				case 9: return AosAttributes.GetValue(from, AosAttribute.WeaponDamage);
-				case 10: return AosAttributes.GetValue(from, AosAttribute.LowerRegCost);
-				case 11: return AosAttributes.GetValue(from, AosAttribute.SpellDamage);
-				case 12: return AosAttributes.GetValue(from, AosAttribute.CastRecovery);
-				case 13: return AosAttributes.GetValue(from, AosAttribute.CastSpeed);
-				case 14: return AosAttributes.GetValue(from, AosAttribute.LowerManaCost);
-				default: return 0;
-			}
+				0 => from.GetMaxResistance(ResistanceType.Physical),
+				1 => from.GetMaxResistance(ResistanceType.Fire),
+				2 => from.GetMaxResistance(ResistanceType.Cold),
+				3 => from.GetMaxResistance(ResistanceType.Poison),
+				4 => from.GetMaxResistance(ResistanceType.Energy),
+				5 => AosAttributes.GetValue(from, AosAttribute.DefendChance),
+				6 => 45,
+				7 => AosAttributes.GetValue(from, AosAttribute.AttackChance),
+				8 => AosAttributes.GetValue(from, AosAttribute.WeaponSpeed),
+				9 => AosAttributes.GetValue(from, AosAttribute.WeaponDamage),
+				10 => AosAttributes.GetValue(from, AosAttribute.LowerRegCost),
+				11 => AosAttributes.GetValue(from, AosAttribute.SpellDamage),
+				12 => AosAttributes.GetValue(from, AosAttribute.CastRecovery),
+				13 => AosAttributes.GetValue(from, AosAttribute.CastSpeed),
+				14 => AosAttributes.GetValue(from, AosAttribute.LowerManaCost),
+				_ => 0,
+			};
 		}
 	}
 
@@ -281,6 +278,84 @@ namespace Server
 
 	public sealed class AosAttributes : BaseAttributes
 	{
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int RegenHits { get => this[AosAttribute.RegenHits]; set => this[AosAttribute.RegenHits] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int RegenStam { get => this[AosAttribute.RegenStam]; set => this[AosAttribute.RegenStam] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int RegenMana { get => this[AosAttribute.RegenMana]; set => this[AosAttribute.RegenMana] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int DefendChance { get => this[AosAttribute.DefendChance]; set => this[AosAttribute.DefendChance] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int AttackChance { get => this[AosAttribute.AttackChance]; set => this[AosAttribute.AttackChance] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusStr { get => this[AosAttribute.BonusStr]; set => this[AosAttribute.BonusStr] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusDex { get => this[AosAttribute.BonusDex]; set => this[AosAttribute.BonusDex] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusInt { get => this[AosAttribute.BonusInt]; set => this[AosAttribute.BonusInt] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusHits { get => this[AosAttribute.BonusHits]; set => this[AosAttribute.BonusHits] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusStam { get => this[AosAttribute.BonusStam]; set => this[AosAttribute.BonusStam] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int BonusMana { get => this[AosAttribute.BonusMana]; set => this[AosAttribute.BonusMana] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int WeaponDamage { get => this[AosAttribute.WeaponDamage]; set => this[AosAttribute.WeaponDamage] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int WeaponSpeed { get => this[AosAttribute.WeaponSpeed]; set => this[AosAttribute.WeaponSpeed] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int SpellDamage { get => this[AosAttribute.SpellDamage]; set => this[AosAttribute.SpellDamage] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int CastRecovery { get => this[AosAttribute.CastRecovery]; set => this[AosAttribute.CastRecovery] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int CastSpeed { get => this[AosAttribute.CastSpeed]; set => this[AosAttribute.CastSpeed] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int LowerManaCost { get => this[AosAttribute.LowerManaCost]; set => this[AosAttribute.LowerManaCost] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int LowerRegCost { get => this[AosAttribute.LowerRegCost]; set => this[AosAttribute.LowerRegCost] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int ReflectPhysical { get => this[AosAttribute.ReflectPhysical]; set => this[AosAttribute.ReflectPhysical] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int EnhancePotions { get => this[AosAttribute.EnhancePotions]; set => this[AosAttribute.EnhancePotions] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int Luck { get => this[AosAttribute.Luck]; set => this[AosAttribute.Luck] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int SpellChanneling { get => this[AosAttribute.SpellChanneling]; set => this[AosAttribute.SpellChanneling] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int NightSight { get => this[AosAttribute.NightSight]; set => this[AosAttribute.NightSight] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int IncreasedKarmaLoss { get => this[AosAttribute.IncreasedKarmaLoss]; set => this[AosAttribute.IncreasedKarmaLoss] = value; }
+
+		public int this[AosAttribute attribute]
+		{
+			get => GetValue((int)attribute);
+			set => SetValue((int)attribute, value);
+		}
+
 		public AosAttributes(Item owner)
 			: base(owner)
 		{
@@ -294,6 +369,51 @@ namespace Server
 		public AosAttributes(Item owner, GenericReader reader)
 			: base(owner, reader)
 		{
+		}
+
+		public override string ToString()
+		{
+			return "...";
+		}
+
+		public void AddStatBonuses(Mobile to)
+		{
+			var strBonus = BonusStr;
+			var dexBonus = BonusDex;
+			var intBonus = BonusInt;
+
+			if (strBonus != 0 || dexBonus != 0 || intBonus != 0)
+			{
+				var modName = Owner.Serial.ToString();
+
+				if (strBonus != 0)
+				{
+					to.AddStatMod(new StatMod(StatType.Str, modName + "Str", strBonus, TimeSpan.Zero));
+				}
+
+				if (dexBonus != 0)
+				{
+					to.AddStatMod(new StatMod(StatType.Dex, modName + "Dex", dexBonus, TimeSpan.Zero));
+				}
+
+				if (intBonus != 0)
+				{
+					to.AddStatMod(new StatMod(StatType.Int, modName + "Int", intBonus, TimeSpan.Zero));
+				}
+			}
+
+			to.CheckStatTimers();
+		}
+
+		public void RemoveStatBonuses(Mobile from)
+		{
+			var modName = Owner.Serial.ToString();
+
+			_ = from.RemoveStatMod(modName + "Str");
+			_ = from.RemoveStatMod(modName + "Dex");
+			_ = from.RemoveStatMod(modName + "Int");
+
+			from.CheckStatTimers();
 		}
 
 		public static int GetValue(Mobile m, AosAttribute attribute)
@@ -387,129 +507,6 @@ namespace Server
 
 			return value;
 		}
-
-		public int this[AosAttribute attribute]
-		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
-		}
-
-		public override string ToString()
-		{
-			return "...";
-		}
-
-		public void AddStatBonuses(Mobile to)
-		{
-			var strBonus = BonusStr;
-			var dexBonus = BonusDex;
-			var intBonus = BonusInt;
-
-			if (strBonus != 0 || dexBonus != 0 || intBonus != 0)
-			{
-				var modName = Owner.Serial.ToString();
-
-				if (strBonus != 0)
-				{
-					to.AddStatMod(new StatMod(StatType.Str, modName + "Str", strBonus, TimeSpan.Zero));
-				}
-
-				if (dexBonus != 0)
-				{
-					to.AddStatMod(new StatMod(StatType.Dex, modName + "Dex", dexBonus, TimeSpan.Zero));
-				}
-
-				if (intBonus != 0)
-				{
-					to.AddStatMod(new StatMod(StatType.Int, modName + "Int", intBonus, TimeSpan.Zero));
-				}
-			}
-
-			to.CheckStatTimers();
-		}
-
-		public void RemoveStatBonuses(Mobile from)
-		{
-			var modName = Owner.Serial.ToString();
-
-			from.RemoveStatMod(modName + "Str");
-			from.RemoveStatMod(modName + "Dex");
-			from.RemoveStatMod(modName + "Int");
-
-			from.CheckStatTimers();
-		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int RegenHits { get => this[AosAttribute.RegenHits]; set => this[AosAttribute.RegenHits] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int RegenStam { get => this[AosAttribute.RegenStam]; set => this[AosAttribute.RegenStam] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int RegenMana { get => this[AosAttribute.RegenMana]; set => this[AosAttribute.RegenMana] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int DefendChance { get => this[AosAttribute.DefendChance]; set => this[AosAttribute.DefendChance] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int AttackChance { get => this[AosAttribute.AttackChance]; set => this[AosAttribute.AttackChance] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusStr { get => this[AosAttribute.BonusStr]; set => this[AosAttribute.BonusStr] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusDex { get => this[AosAttribute.BonusDex]; set => this[AosAttribute.BonusDex] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusInt { get => this[AosAttribute.BonusInt]; set => this[AosAttribute.BonusInt] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusHits { get => this[AosAttribute.BonusHits]; set => this[AosAttribute.BonusHits] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusStam { get => this[AosAttribute.BonusStam]; set => this[AosAttribute.BonusStam] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int BonusMana { get => this[AosAttribute.BonusMana]; set => this[AosAttribute.BonusMana] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int WeaponDamage { get => this[AosAttribute.WeaponDamage]; set => this[AosAttribute.WeaponDamage] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int WeaponSpeed { get => this[AosAttribute.WeaponSpeed]; set => this[AosAttribute.WeaponSpeed] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int SpellDamage { get => this[AosAttribute.SpellDamage]; set => this[AosAttribute.SpellDamage] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int CastRecovery { get => this[AosAttribute.CastRecovery]; set => this[AosAttribute.CastRecovery] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int CastSpeed { get => this[AosAttribute.CastSpeed]; set => this[AosAttribute.CastSpeed] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int LowerManaCost { get => this[AosAttribute.LowerManaCost]; set => this[AosAttribute.LowerManaCost] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int LowerRegCost { get => this[AosAttribute.LowerRegCost]; set => this[AosAttribute.LowerRegCost] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int ReflectPhysical { get => this[AosAttribute.ReflectPhysical]; set => this[AosAttribute.ReflectPhysical] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int EnhancePotions { get => this[AosAttribute.EnhancePotions]; set => this[AosAttribute.EnhancePotions] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int Luck { get => this[AosAttribute.Luck]; set => this[AosAttribute.Luck] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int SpellChanneling { get => this[AosAttribute.SpellChanneling]; set => this[AosAttribute.SpellChanneling] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int NightSight { get => this[AosAttribute.NightSight]; set => this[AosAttribute.NightSight] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int IncreasedKarmaLoss { get => this[AosAttribute.IncreasedKarmaLoss]; set => this[AosAttribute.IncreasedKarmaLoss] = value; }
 	}
 
 	[Flags]
@@ -544,69 +541,6 @@ namespace Server
 
 	public sealed class AosWeaponAttributes : BaseAttributes
 	{
-		public AosWeaponAttributes(Item owner)
-			: base(owner)
-		{
-		}
-
-		public AosWeaponAttributes(Item owner, AosWeaponAttributes other)
-			: base(owner, other)
-		{
-		}
-
-		public AosWeaponAttributes(Item owner, GenericReader reader)
-			: base(owner, reader)
-		{
-		}
-
-		public static int GetValue(Mobile m, AosWeaponAttribute attribute)
-		{
-			if (!Core.AOS)
-			{
-				return 0;
-			}
-
-			var items = m.Items;
-			var value = 0;
-
-			for (var i = 0; i < items.Count; ++i)
-			{
-				var obj = items[i];
-
-				if (obj is BaseWeapon)
-				{
-					var attrs = ((BaseWeapon)obj).WeaponAttributes;
-
-					if (attrs != null)
-					{
-						value += attrs[attribute];
-					}
-				}
-				else if (obj is ElvenGlasses)
-				{
-					var attrs = ((ElvenGlasses)obj).WeaponAttributes;
-
-					if (attrs != null)
-					{
-						value += attrs[attribute];
-					}
-				}
-			}
-
-			return value;
-		}
-
-		public int this[AosWeaponAttribute attribute]
-		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
-		}
-
-		public override string ToString()
-		{
-			return "...";
-		}
-
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int LowerStatReq { get => this[AosWeaponAttribute.LowerStatReq]; set => this[AosWeaponAttribute.LowerStatReq] = value; }
 
@@ -681,6 +615,69 @@ namespace Server
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int DurabilityBonus { get => this[AosWeaponAttribute.DurabilityBonus]; set => this[AosWeaponAttribute.DurabilityBonus] = value; }
+
+		public int this[AosWeaponAttribute attribute]
+		{
+			get => GetValue((int)attribute);
+			set => SetValue((int)attribute, value);
+		}
+
+		public AosWeaponAttributes(Item owner)
+			: base(owner)
+		{
+		}
+
+		public AosWeaponAttributes(Item owner, AosWeaponAttributes other)
+			: base(owner, other)
+		{
+		}
+
+		public AosWeaponAttributes(Item owner, GenericReader reader)
+			: base(owner, reader)
+		{
+		}
+
+		public override string ToString()
+		{
+			return "...";
+		}
+
+		public static int GetValue(Mobile m, AosWeaponAttribute attribute)
+		{
+			if (!Core.AOS)
+			{
+				return 0;
+			}
+
+			var items = m.Items;
+			var value = 0;
+
+			for (var i = 0; i < items.Count; ++i)
+			{
+				var obj = items[i];
+
+				if (obj is BaseWeapon)
+				{
+					var attrs = ((BaseWeapon)obj).WeaponAttributes;
+
+					if (attrs != null)
+					{
+						value += attrs[attribute];
+					}
+				}
+				else if (obj is ElvenGlasses)
+				{
+					var attrs = ((ElvenGlasses)obj).WeaponAttributes;
+
+					if (attrs != null)
+					{
+						value += attrs[attribute];
+					}
+				}
+			}
+
+			return value;
+		}
 	}
 
 	[Flags]
@@ -694,6 +691,24 @@ namespace Server
 
 	public sealed class AosArmorAttributes : BaseAttributes
 	{
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int LowerStatReq { get => this[AosArmorAttribute.LowerStatReq]; set => this[AosArmorAttribute.LowerStatReq] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int SelfRepair { get => this[AosArmorAttribute.SelfRepair]; set => this[AosArmorAttribute.SelfRepair] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int MageArmor { get => this[AosArmorAttribute.MageArmor]; set => this[AosArmorAttribute.MageArmor] = value; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int DurabilityBonus { get => this[AosArmorAttribute.DurabilityBonus]; set => this[AosArmorAttribute.DurabilityBonus] = value; }
+
+		public int this[AosArmorAttribute attribute]
+		{
+			get => GetValue((int)attribute);
+			set => SetValue((int)attribute, value);
+		}
+
 		public AosArmorAttributes(Item owner)
 			: base(owner)
 		{
@@ -707,6 +722,11 @@ namespace Server
 		public AosArmorAttributes(Item owner, AosArmorAttributes other)
 			: base(owner, other)
 		{
+		}
+
+		public override string ToString()
+		{
+			return "...";
 		}
 
 		public static int GetValue(Mobile m, AosArmorAttribute attribute)
@@ -745,267 +765,11 @@ namespace Server
 
 			return value;
 		}
-
-		public int this[AosArmorAttribute attribute]
-		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
-		}
-
-		public override string ToString()
-		{
-			return "...";
-		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int LowerStatReq { get => this[AosArmorAttribute.LowerStatReq]; set => this[AosArmorAttribute.LowerStatReq] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int SelfRepair { get => this[AosArmorAttribute.SelfRepair]; set => this[AosArmorAttribute.SelfRepair] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int MageArmor { get => this[AosArmorAttribute.MageArmor]; set => this[AosArmorAttribute.MageArmor] = value; }
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int DurabilityBonus { get => this[AosArmorAttribute.DurabilityBonus]; set => this[AosArmorAttribute.DurabilityBonus] = value; }
 	}
 
 	public sealed class AosSkillBonuses : BaseAttributes
 	{
 		private List<SkillMod> m_Mods;
-
-		public AosSkillBonuses(Item owner)
-			: base(owner)
-		{
-		}
-
-		public AosSkillBonuses(Item owner, GenericReader reader)
-			: base(owner, reader)
-		{
-		}
-
-		public AosSkillBonuses(Item owner, AosSkillBonuses other)
-			: base(owner, other)
-		{
-		}
-
-		public void GetProperties(ObjectPropertyList list)
-		{
-			for (var i = 0; i < 5; ++i)
-			{
-				SkillName skill;
-				double bonus;
-
-				if (!GetValues(i, out skill, out bonus))
-				{
-					continue;
-				}
-
-				list.Add(1060451 + i, "#{0}\t{1}", GetLabel(skill), bonus);
-			}
-		}
-
-		public static int GetLabel(SkillName skill)
-		{
-			switch (skill)
-			{
-				case SkillName.EvalInt: return 1002070; // Evaluate Intelligence
-				case SkillName.Forensics: return 1002078; // Forensic Evaluation
-				case SkillName.Lockpicking: return 1002097; // Lockpicking
-				default: return 1044060 + (int)skill;
-			}
-		}
-
-		public void AddTo(Mobile m)
-		{
-			Remove();
-
-			for (var i = 0; i < 5; ++i)
-			{
-				SkillName skill;
-				double bonus;
-
-				if (!GetValues(i, out skill, out bonus))
-				{
-					continue;
-				}
-
-				if (m_Mods == null)
-				{
-					m_Mods = new List<SkillMod>();
-				}
-
-				SkillMod sk = new DefaultSkillMod(skill, true, bonus) {
-					ObeyCap = true
-				};
-				m.AddSkillMod(sk);
-				m_Mods.Add(sk);
-			}
-		}
-
-		public void Remove()
-		{
-			if (m_Mods == null)
-			{
-				return;
-			}
-
-			for (var i = 0; i < m_Mods.Count; ++i)
-			{
-
-				var m = m_Mods[i].Owner;
-				m_Mods[i].Remove();
-
-				if (Core.ML)
-				{
-					CheckCancelMorph(m);
-				}
-			}
-			m_Mods = null;
-		}
-
-		public bool GetValues(int index, out SkillName skill, out double bonus)
-		{
-			var v = GetValue(1 << index);
-			var vSkill = 0;
-			var vBonus = 0;
-
-			for (var i = 0; i < 16; ++i)
-			{
-				vSkill <<= 1;
-				vSkill |= (v & 1);
-				v >>= 1;
-
-				vBonus <<= 1;
-				vBonus |= (v & 1);
-				v >>= 1;
-			}
-
-			skill = (SkillName)vSkill;
-			bonus = (double)vBonus / 10;
-
-			return (bonus != 0);
-		}
-
-		public void SetValues(int index, SkillName skill, double bonus)
-		{
-			var v = 0;
-			var vSkill = (int)skill;
-			var vBonus = (int)(bonus * 10);
-
-			for (var i = 0; i < 16; ++i)
-			{
-				v <<= 1;
-				v |= (vBonus & 1);
-				vBonus >>= 1;
-
-				v <<= 1;
-				v |= (vSkill & 1);
-				vSkill >>= 1;
-			}
-
-			SetValue(1 << index, v);
-		}
-
-		public SkillName GetSkill(int index)
-		{
-			SkillName skill;
-			double bonus;
-
-			GetValues(index, out skill, out bonus);
-
-			return skill;
-		}
-
-		public void SetSkill(int index, SkillName skill)
-		{
-			SetValues(index, skill, GetBonus(index));
-		}
-
-		public double GetBonus(int index)
-		{
-			SkillName skill;
-			double bonus;
-
-			GetValues(index, out skill, out bonus);
-
-			return bonus;
-		}
-
-		public void SetBonus(int index, double bonus)
-		{
-			SetValues(index, GetSkill(index), bonus);
-		}
-
-		public override string ToString()
-		{
-			return "...";
-		}
-
-		public void CheckCancelMorph(Mobile m)
-		{
-			if (m == null)
-			{
-				return;
-			}
-
-			double minSkill, maxSkill;
-
-			var acontext = AnimalForm.GetContext(m);
-			var context = TransformationSpellHelper.GetContext(m);
-
-			if (context != null)
-			{
-				var spell = context.Spell as Spell;
-				spell.GetCastSkills(out minSkill, out maxSkill);
-				if (m.Skills[spell.CastSkill].Value < minSkill)
-				{
-					TransformationSpellHelper.RemoveContext(m, context, true);
-				}
-			}
-			if (acontext != null)
-			{
-				int i;
-				for (i = 0; i < AnimalForm.Entries.Length; ++i)
-				{
-					if (AnimalForm.Entries[i].Type == acontext.Type)
-					{
-						break;
-					}
-				}
-
-				if (m.Skills[SkillName.Ninjitsu].Value < AnimalForm.Entries[i].ReqSkill)
-				{
-					AnimalForm.RemoveContext(m, true);
-				}
-			}
-			if (!m.CanBeginAction(typeof(PolymorphSpell)) && m.Skills[SkillName.Magery].Value < 66.1)
-			{
-				m.BodyMod = 0;
-				m.HueMod = -1;
-				m.NameMod = null;
-				m.EndAction(typeof(PolymorphSpell));
-				BaseArmor.ValidateMobile(m);
-				BaseClothing.ValidateMobile(m);
-			}
-			if (!m.CanBeginAction(typeof(IncognitoSpell)) && m.Skills[SkillName.Magery].Value < 38.1)
-			{
-				if (m is PlayerMobile)
-				{
-					((PlayerMobile)m).SetHairMods(-1, -1);
-				}
-
-				m.BodyMod = 0;
-				m.HueMod = -1;
-				m.NameMod = null;
-				m.EndAction(typeof(IncognitoSpell));
-				BaseArmor.ValidateMobile(m);
-				BaseClothing.ValidateMobile(m);
-				BuffInfo.RemoveBuff(m, BuffIcon.Incognito);
-			}
-			return;
-		}
-
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public double Skill_1_Value { get => GetBonus(0); set => SetBonus(0, value); }
@@ -1036,6 +800,221 @@ namespace Server
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public SkillName Skill_5_Name { get => GetSkill(4); set => SetSkill(4, value); }
+
+		public AosSkillBonuses(Item owner)
+			: base(owner)
+		{
+		}
+
+		public AosSkillBonuses(Item owner, GenericReader reader)
+			: base(owner, reader)
+		{
+		}
+
+		public AosSkillBonuses(Item owner, AosSkillBonuses other)
+			: base(owner, other)
+		{
+		}
+
+		public override string ToString()
+		{
+			return "...";
+		}
+
+		public void GetProperties(ObjectPropertyList list)
+		{
+			for (var i = 0; i < 5; ++i)
+			{
+				SkillName skill;
+				double bonus;
+
+				if (!GetValues(i, out skill, out bonus))
+				{
+					continue;
+				}
+
+				list.Add(1060451 + i, "#{0}\t{1}", GetLabel(skill), bonus);
+			}
+		}
+
+		public void AddTo(Mobile m)
+		{
+			Remove();
+
+			for (var i = 0; i < 5; ++i)
+			{
+				SkillName skill;
+				double bonus;
+
+				if (!GetValues(i, out skill, out bonus))
+				{
+					continue;
+				}
+
+				m_Mods ??= new List<SkillMod>();
+
+				var sk = new DefaultSkillMod(skill, true, bonus)
+				{
+					ObeyCap = true
+				};
+
+				m.AddSkillMod(sk);
+				m_Mods.Add(sk);
+			}
+		}
+
+		public void Remove()
+		{
+			if (m_Mods == null)
+			{
+				return;
+			}
+
+			for (var i = 0; i < m_Mods.Count; ++i)
+			{
+
+				var m = m_Mods[i].Owner;
+				m_Mods[i].Remove();
+
+				if (Core.ML)
+				{
+					CheckCancelMorph(m);
+				}
+			}
+
+			m_Mods = null;
+		}
+
+		public bool GetValues(int index, out SkillName skill, out double bonus)
+		{
+			var v = GetValue(1 << index);
+			var vSkill = 0;
+			var vBonus = 0;
+
+			for (var i = 0; i < 16; ++i)
+			{
+				vSkill <<= 1;
+				vSkill |= v & 1;
+				v >>= 1;
+
+				vBonus <<= 1;
+				vBonus |= v & 1;
+				v >>= 1;
+			}
+
+			skill = (SkillName)vSkill;
+			bonus = (double)vBonus / 10;
+
+			return bonus != 0;
+		}
+
+		public void SetValues(int index, SkillName skill, double bonus)
+		{
+			var v = 0;
+			var vSkill = (int)skill;
+			var vBonus = (int)(bonus * 10);
+
+			for (var i = 0; i < 16; ++i)
+			{
+				v <<= 1;
+				v |= vBonus & 1;
+				vBonus >>= 1;
+
+				v <<= 1;
+				v |= vSkill & 1;
+				vSkill >>= 1;
+			}
+
+			SetValue(1 << index, v);
+		}
+
+		public SkillName GetSkill(int index)
+		{
+			_ = GetValues(index, out var skill, out _);
+
+			return skill;
+		}
+
+		public void SetSkill(int index, SkillName skill)
+		{
+			SetValues(index, skill, GetBonus(index));
+		}
+
+		public double GetBonus(int index)
+		{
+			_ = GetValues(index, out _, out var bonus);
+
+			return bonus;
+		}
+
+		public void SetBonus(int index, double bonus)
+		{
+			SetValues(index, GetSkill(index), bonus);
+		}
+
+		public static int GetLabel(SkillName skill)
+		{
+			return skill switch
+			{
+				SkillName.EvalInt => 1002070,// Evaluate Intelligence
+				SkillName.Forensics => 1002078,// Forensic Evaluation
+				SkillName.Lockpicking => 1002097,// Lockpicking
+				_ => 1044060 + (int)skill,
+			};
+		}
+
+		public static void CheckCancelMorph(Mobile m)
+		{
+			if (m == null)
+			{
+				return;
+			}
+
+			var acontext = AnimalFormSpell.GetContext(m);
+			var context = TransformationSpellHelper.GetContext(m);
+
+			if (context != null)
+			{
+				var spell = context.Spell;
+
+				var reqSkill = spell.GetSkillRequirement();
+
+				spell.GetCastSkills(ref reqSkill, out var minSkill, out _);
+
+				if (m.Skills[spell.CastSkill].Value < minSkill)
+				{
+					TransformationSpellHelper.RemoveContext(m, context, true);
+				}
+			}
+
+			if (acontext != null)
+			{
+				int i;
+
+				for (i = 0; i < AnimalFormSpell.Entries.Length; ++i)
+				{
+					if (AnimalFormSpell.Entries[i].Type == acontext.Type)
+					{
+						break;
+					}
+				}
+
+				if (m.Skills.Ninjitsu.Value < AnimalFormSpell.Entries[i].ReqSkill)
+				{
+					AnimalFormSpell.RemoveContext(m, true);
+				}
+			}
+
+			if (PolymorphSpell.IsPolymorphed(m) && m.Skills.Magery.Value < 66.1)
+			{
+				PolymorphSpell.EndPolymorph(m);
+			}
+
+			if (IncognitoSpell.IsIncognito(m) && m.Skills.Magery.Value < 38.1)
+			{
+				IncognitoSpell.EndIncognito(m);
+			}
+		}
 	}
 
 	[Flags]
@@ -1052,32 +1031,6 @@ namespace Server
 
 	public sealed class AosElementAttributes : BaseAttributes
 	{
-		public AosElementAttributes(Item owner)
-			: base(owner)
-		{
-		}
-
-		public AosElementAttributes(Item owner, AosElementAttributes other)
-			: base(owner, other)
-		{
-		}
-
-		public AosElementAttributes(Item owner, GenericReader reader)
-			: base(owner, reader)
-		{
-		}
-
-		public int this[AosElementAttribute attribute]
-		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
-		}
-
-		public override string ToString()
-		{
-			return "...";
-		}
-
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int Physical { get => this[AosElementAttribute.Physical]; set => this[AosElementAttribute.Physical] = value; }
 
@@ -1098,29 +1051,54 @@ namespace Server
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int Direct { get => this[AosElementAttribute.Direct]; set => this[AosElementAttribute.Direct] = value; }
+
+		public int this[AosElementAttribute attribute]
+		{
+			get => GetValue((int)attribute);
+			set => SetValue((int)attribute, value);
+		}
+
+		public AosElementAttributes(Item owner)
+			: base(owner)
+		{
+		}
+
+		public AosElementAttributes(Item owner, AosElementAttributes other)
+			: base(owner, other)
+		{
+		}
+
+		public AosElementAttributes(Item owner, GenericReader reader)
+			: base(owner, reader)
+		{
+		}
+
+		public override string ToString()
+		{
+			return "...";
+		}
 	}
 
 	[PropertyObject]
 	public abstract class BaseAttributes
 	{
-		private readonly Item m_Owner;
 		private uint m_Names;
 		private int[] m_Values;
 
 		private static readonly int[] m_Empty = new int[0];
 
-		public bool IsEmpty => (m_Names == 0);
-		public Item Owner => m_Owner;
+		public bool IsEmpty => m_Names == 0;
+		public Item Owner { get; }
 
 		public BaseAttributes(Item owner)
 		{
-			m_Owner = owner;
+			Owner = owner;
 			m_Values = m_Empty;
 		}
 
 		public BaseAttributes(Item owner, BaseAttributes other)
 		{
-			m_Owner = owner;
+			Owner = owner;
 			m_Values = new int[other.m_Values.Length];
 			other.m_Values.CopyTo(m_Values, 0);
 			m_Names = other.m_Names;
@@ -1128,7 +1106,7 @@ namespace Server
 
 		public BaseAttributes(Item owner, GenericReader reader)
 		{
-			m_Owner = owner;
+			Owner = owner;
 
 			int version = reader.ReadByte();
 
@@ -1202,20 +1180,20 @@ namespace Server
 		{
 			if ((bitmask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
 			{
-				if (m_Owner is BaseWeapon)
+				if (Owner is BaseWeapon)
 				{
-					((BaseWeapon)m_Owner).UnscaleDurability();
+					((BaseWeapon)Owner).UnscaleDurability();
 				}
 			}
 			else if ((bitmask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
 			{
-				if (m_Owner is BaseArmor)
+				if (Owner is BaseArmor)
 				{
-					((BaseArmor)m_Owner).UnscaleDurability();
+					((BaseArmor)Owner).UnscaleDurability();
 				}
-				else if (m_Owner is BaseClothing)
+				else if (Owner is BaseClothing)
 				{
-					((BaseClothing)m_Owner).UnscaleDurability();
+					((BaseClothing)Owner).UnscaleDurability();
 				}
 			}
 
@@ -1289,27 +1267,25 @@ namespace Server
 
 			if ((bitmask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
 			{
-				if (m_Owner is BaseWeapon)
+				if (Owner is BaseWeapon)
 				{
-					((BaseWeapon)m_Owner).ScaleDurability();
+					((BaseWeapon)Owner).ScaleDurability();
 				}
 			}
 			else if ((bitmask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
 			{
-				if (m_Owner is BaseArmor)
+				if (Owner is BaseArmor)
 				{
-					((BaseArmor)m_Owner).ScaleDurability();
+					((BaseArmor)Owner).ScaleDurability();
 				}
-				else if (m_Owner is BaseClothing)
+				else if (Owner is BaseClothing)
 				{
-					((BaseClothing)m_Owner).ScaleDurability();
+					((BaseClothing)Owner).ScaleDurability();
 				}
 			}
 
-			if (m_Owner.Parent is Mobile)
+			if (Owner.Parent is Mobile m)
 			{
-				var m = (Mobile)m_Owner.Parent;
-
 				m.CheckStatTimers();
 				m.UpdateResistances();
 				m.Delta(MobileDelta.Stat | MobileDelta.WeaponDamage | MobileDelta.Hits | MobileDelta.Stam | MobileDelta.Mana);
@@ -1321,7 +1297,7 @@ namespace Server
 				}
 			}
 
-			m_Owner.InvalidateProperties();
+			Owner.InvalidateProperties();
 		}
 
 		private int GetIndex(uint mask)

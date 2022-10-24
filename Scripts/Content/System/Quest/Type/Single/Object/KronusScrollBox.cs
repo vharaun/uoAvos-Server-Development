@@ -14,7 +14,7 @@ namespace Server.Engines.Quests.Items
 
 			for (var i = 0; i < 40; i++)
 			{
-				Item scroll = Loot.RandomScroll(0, 15, SpellbookType.Necromancer);
+				Item scroll = Loot.RandomScroll(SpellSchool.Necromancy);
 				scroll.Movable = false;
 				DropItem(scroll);
 			}

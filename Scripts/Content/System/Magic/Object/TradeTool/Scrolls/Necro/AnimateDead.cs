@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public AnimateDeadScroll(int amount) : base(100, 0x2260, amount)
+		public AnimateDeadScroll(int amount) : base(SpellName.AnimateDead, 0x2260, amount)
 		{
 		}
 

@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public AgilityScroll(int amount) : base(8, 0x1F35, amount)
+		public AgilityScroll(int amount) : base(SpellName.Agility, 0x1F35, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public CunningScroll(int amount) : base(9, 0x1F36, amount)
+		public CunningScroll(int amount) : base(SpellName.Cunning, 0x1F36, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public CureScroll(int amount) : base(10, 0x1F37, amount)
+		public CureScroll(int amount) : base(SpellName.Cure, 0x1F37, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public HarmScroll(int amount) : base(11, 0x1F38, amount)
+		public HarmScroll(int amount) : base(SpellName.Harm, 0x1F38, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public MagicTrapScroll(int amount) : base(12, 0x1F39, amount)
+		public MagicTrapScroll(int amount) : base(SpellName.MagicTrap, 0x1F39, amount)
 		{
 		}
 
@@ -155,19 +155,19 @@
 		}
 	}
 
-	public class MagicUnTrapScroll : SpellScroll
+	public class RemoveTrapScroll : SpellScroll
 	{
 		[Constructable]
-		public MagicUnTrapScroll() : this(1)
+		public RemoveTrapScroll() : this(1)
 		{
 		}
 
 		[Constructable]
-		public MagicUnTrapScroll(int amount) : base(13, 0x1F3A, amount)
+		public RemoveTrapScroll(int amount) : base(SpellName.RemoveTrap, 0x1F3A, amount)
 		{
 		}
 
-		public MagicUnTrapScroll(Serial serial) : base(serial)
+		public RemoveTrapScroll(Serial serial) : base(serial)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public ProtectionScroll(int amount) : base(14, 0x1F3B, amount)
+		public ProtectionScroll(int amount) : base(SpellName.Protection, 0x1F3B, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public StrengthScroll(int amount) : base(15, 0x1F3C, amount)
+		public StrengthScroll(int amount) : base(SpellName.Strength, 0x1F3C, amount)
 		{
 		}
 

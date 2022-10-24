@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public VampiricEmbraceScroll(int amount) : base(112, 0x226C, amount)
+		public VampiricEmbraceScroll(int amount) : base(SpellName.VampiricEmbrace, 0x226C, amount)
 		{
 		}
 

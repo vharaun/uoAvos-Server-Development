@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public AnimatedWeaponScroll(int amount)
-			: base(683, 0x2DA4, amount)
+		public AnimatedWeaponScroll(int amount) : base(SpellName.AnimatedWeapon, 0x2DA4, amount)
 		{
 		}
 

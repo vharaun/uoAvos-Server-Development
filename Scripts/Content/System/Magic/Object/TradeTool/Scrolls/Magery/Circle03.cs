@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public BlessScroll(int amount) : base(16, 0x1F3D, amount)
+		public BlessScroll(int amount) : base(SpellName.Bless, 0x1F3D, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public FireballScroll(int amount) : base(17, 0x1F3E, amount)
+		public FireballScroll(int amount) : base(SpellName.Fireball, 0x1F3E, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public MagicLockScroll(int amount) : base(18, 0x1F3F, amount)
+		public MagicLockScroll(int amount) : base(SpellName.MagicLock, 0x1F3F, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public PoisonScroll(int amount) : base(19, 0x1F40, amount)
+		public PoisonScroll(int amount) : base(SpellName.Poison, 0x1F40, amount)
 		{
 		}
 
@@ -124,19 +124,19 @@
 		}
 	}
 
-	public class TelekinisisScroll : SpellScroll
+	public class TelekinesisScroll : SpellScroll
 	{
 		[Constructable]
-		public TelekinisisScroll() : this(1)
+		public TelekinesisScroll() : this(1)
 		{
 		}
 
 		[Constructable]
-		public TelekinisisScroll(int amount) : base(20, 0x1F41, amount)
+		public TelekinesisScroll(int amount) : base(SpellName.Telekinesis, 0x1F41, amount)
 		{
 		}
 
-		public TelekinisisScroll(Serial serial) : base(serial)
+		public TelekinesisScroll(Serial serial) : base(serial)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public TeleportScroll(int amount) : base(21, 0x1F42, amount)
+		public TeleportScroll(int amount) : base(SpellName.Teleport, 0x1F42, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public UnlockScroll(int amount) : base(22, 0x1F43, amount)
+		public UnlockScroll(int amount) : base(SpellName.Unlock, 0x1F43, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public WallOfStoneScroll(int amount) : base(23, 0x1F44, amount)
+		public WallOfStoneScroll(int amount) : base(SpellName.WallOfStone, 0x1F44, amount)
 		{
 		}
 

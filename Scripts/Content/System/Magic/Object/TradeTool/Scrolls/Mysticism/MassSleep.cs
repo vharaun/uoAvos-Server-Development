@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public MassSleepScroll(int amount)
-			: base(686, 0x2DA7, amount)
+		public MassSleepScroll(int amount) : base(SpellName.MassSleep, 0x2DA7, amount)
 		{
 		}
 

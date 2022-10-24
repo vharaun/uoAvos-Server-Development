@@ -1,15 +1,8 @@
 ﻿using Server.Items;
-using Server.Misc;
 using Server.Mobiles;
 using Server.Network;
 using Server.Spells;
-using Server.Spells.Fifth;
-using Server.Spells.First;
-using Server.Spells.Fourth;
-using Server.Spells.Second;
-using Server.Spells.Seventh;
-using Server.Spells.Sixth;
-using Server.Spells.Third;
+using Server.Spells.Magery;
 using Server.Targeting;
 
 using System;

@@ -62,7 +62,7 @@ namespace Server.Engines.Help
 
 			if (AutoStaffTeamToggle.Enabled)
 			{
-				if (((pm.LastTimePaged + CanHelpAgain) <= DateTime.Now))
+				if (((pm.LastTimePaged + CanHelpAgain) <= DateTime.UtcNow))
 				{
 					if (e.Mobile.HasGump(typeof(GM_StaffKeywords)))
 					{
@@ -83,7 +83,7 @@ namespace Server.Engines.Help
 						case 5: sm.MoveToWorld(new Point3D(e.Mobile.X, e.Mobile.Y + 3, e.Mobile.Z), e.Mobile.Map); break;
 					}
 
-					pm.LastTimePaged = DateTime.Now;
+					pm.LastTimePaged = DateTime.UtcNow;
 					return;
 				}
 				e.Mobile.SendMessage("You May Only Page Staff Once Every Thirty Minutes. If You Need Assistance Now, Please Visit Our Website At: www.yoursitename.com");

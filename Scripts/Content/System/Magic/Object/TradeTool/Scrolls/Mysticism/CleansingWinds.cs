@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public CleansingWindsScroll(int amount)
-			: base(687, 0x2DA8, amount)
+		public CleansingWindsScroll(int amount) : base(SpellName.CleansingWinds, 0x2DA8, amount)
 		{
 		}
 

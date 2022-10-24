@@ -346,6 +346,17 @@ namespace Server.Gumps
 			AddItemProperty(spoof.Serial.Value);
 		}
 
+		#region Images
+
+		public static Size GetImageSize(int gumpID)
+		{
+			var asset = GumpData.GetGump(gumpID);
+
+			return asset?.Size ?? Size.Empty;
+		}
+
+		#endregion
+
 		#region Formatting
 
 		public static int C16232(int c16)

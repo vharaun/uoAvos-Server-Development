@@ -9,8 +9,7 @@ using Server.Mobiles;
 using Server.Multis;
 using Server.Network;
 using Server.SkillHandlers;
-using Server.Spells.Seventh;
-using Server.Targeting;
+using Server.Spells.Magery;
 
 using System;
 using System.Collections;
@@ -20,8 +19,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
-
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Server.Misc
 {
@@ -711,7 +708,7 @@ namespace Server.Misc
 					return Notoriety.CanBeAttacked;
 				}
 
-				if (!Core.ML && !target.CanBeginAction(typeof(PolymorphSpell)))
+				if (!Core.ML && PolymorphSpell.IsPolymorphed(target))
 				{
 					return Notoriety.CanBeAttacked;
 				}
@@ -945,7 +942,7 @@ namespace Server.Misc
 
 			foreach (var definition in GetDefinitions(target))
 			{
-				points += Reputation.DeltaPoints(player, definition, delta, message);
+				points += DeltaPoints(player, definition, delta, message);
 			}
 
 			return points;

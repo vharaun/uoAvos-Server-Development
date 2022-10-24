@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public EvilOmenScroll(int amount) : base(104, 0x2264, amount)
+		public EvilOmenScroll(int amount) : base(SpellName.EvilOmen, 0x2264, amount)
 		{
 		}
 

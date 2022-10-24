@@ -89,7 +89,7 @@ namespace Server
 			{
 				if ((Core.AOS && m_Poison.Level < 4 && TransformationSpellHelper.UnderTransformation(m_Mobile, typeof(VampiricEmbraceSpell))) ||
 					(m_Poison.Level < 3 && OrangePetals.UnderEffect(m_Mobile)) ||
-					AnimalForm.UnderTransformation(m_Mobile, typeof(Unicorn)))
+					AnimalFormSpell.UnderTransformation(m_Mobile, typeof(Unicorn)))
 				{
 					if (m_Mobile.CurePoison(m_Mobile))
 					{

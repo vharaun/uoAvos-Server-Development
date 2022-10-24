@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public BombardScroll(int amount)
-			: base(688, 0x2DA9, amount)
+		public BombardScroll(int amount) : base(SpellName.Bombard, 0x2DA9, amount)
 		{
 		}
 

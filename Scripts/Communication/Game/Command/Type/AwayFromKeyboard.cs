@@ -147,7 +147,7 @@ namespace Server.Commands
 			what = message;
 			location = playerMobile.Location;
 
-			afkTimer = DateTime.Now;
+			afkTimer = DateTime.UtcNow;
 			this.Start();
 		}
 
@@ -168,7 +168,7 @@ namespace Server.Commands
 
 			playerMobile.Say("zZz");
 
-			TimeSpan ts = DateTime.Now.Subtract(afkTimer);
+			TimeSpan ts = DateTime.UtcNow.Subtract(afkTimer);
 
 			playerMobile.Emote("*{0} ({1}:{2}:{3})*", what, ts.Hours, ts.Minutes, ts.Seconds);
 			playerMobile.PlaySound(playerMobile.Female ? 819 : 1093);

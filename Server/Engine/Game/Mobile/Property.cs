@@ -356,6 +356,7 @@ namespace Server
 	}
 
 	#region Enums
+
 	[Flags]
 	public enum StatType
 	{
@@ -457,6 +458,27 @@ namespace Server
 		HigherPoisonActive,
 		Cured
 	}
+
+	public enum AnimationType
+	{
+		Attack = 0,
+		Parry = 1,
+		Block = 2,
+		Die = 3,
+		Impact = 4,
+		Fidget = 5,
+		Eat = 6,
+		Emote = 7,
+		Alert = 8,
+		TakeOff = 9,
+		Land = 10,
+		Spell = 11,
+		StartCombat = 12,
+		EndCombat = 13,
+		Pillage = 14,
+		Spawn = 15
+	}
+
 	#endregion
 
 	[Serializable]
@@ -832,6 +854,10 @@ namespace Server
 
 		protected virtual void OnRaceChange(Race oldRace)
 		{
+			if (m_Player)
+			{
+				CanFly = m_Race == Race.Gargoyle;
+			}
 		}
 
 		public virtual double RacialSkillBonus => 0;
@@ -4200,6 +4226,8 @@ namespace Server
 		/// </summary>
 		public virtual void OnDeath(Container c)
 		{
+			Flying = false;
+
 			var sound = GetDeathSound();
 
 			if (sound >= 0)
@@ -4209,6 +4237,8 @@ namespace Server
 
 			if (!m_Player)
 			{
+				EventSink.InvokeCreatureDeath(new CreatureDeathEventArgs(this, c));
+
 				Delete();
 			}
 			else
@@ -4239,7 +4269,7 @@ namespace Server
 				Stam = 0;
 				Mana = 0;
 
-				EventSink.InvokePlayerDeath(new PlayerDeathEventArgs(this));
+				EventSink.InvokePlayerDeath(new PlayerDeathEventArgs(this, c));
 
 				ProcessDeltaQueue();
 
@@ -4468,6 +4498,13 @@ namespace Server
 			set => m_ActionDelay = value;
 		}
 
+		public bool Lift(Item item, int amount)
+		{
+			Lift(item, amount, out var rejected, out _);
+
+			return !rejected;
+		}
+
 		public virtual void Lift(Item item, int amount, out bool rejected, out LRReason reject)
 		{
 			rejected = true;
@@ -4688,6 +4725,7 @@ namespace Server
 				Console.WriteLine("Warning: 0x{0:X}: Item must have a zero paramater constructor to be separated from a stack. '{1}'.", oldItem.Serial.Value, oldItem.GetType().Name);
 				return null;
 			}
+
 			item.Visible = oldItem.Visible;
 			item.Movable = oldItem.Movable;
 			item.LootType = oldItem.LootType;
@@ -5847,6 +5885,11 @@ namespace Server
 
 			switch (version)
 			{
+				case 33:
+					{
+						CanFly = reader.ReadBool();
+						goto case 32;
+					}
 				case 32:
 					{
 						// Removed StuckMenu
@@ -6197,11 +6240,10 @@ namespace Server
 			Utility.Intern(ref m_Title);
 			Utility.Intern(ref m_Language);
 
-			/*	//Moved into cleanup in scripts.
-			if( version < 30 )
-				Timer.DelayCall( TimeSpan.Zero,  ConvertHair  );
-			 * */
-
+			if (m_Player)
+			{
+				CanFly = m_Race == Race.Gargoyle;
+			}
 		}
 
 		public void ConvertHair()
@@ -6307,7 +6349,9 @@ namespace Server
 
 		public virtual void Serialize(GenericWriter writer)
 		{
-			writer.Write(32); // version
+			writer.Write(33); // version
+
+			writer.Write(CanFly);
 
 			writer.WriteDeltaTime(m_LastStrGain);
 			writer.WriteDeltaTime(m_LastIntGain);
@@ -6686,6 +6730,36 @@ namespace Server
 				{
 					UpdateResistances();
 				}
+			}
+		}
+
+		public virtual void Animate(AnimationType type, int action)
+		{
+			var map = m_Map;
+
+			if (map != null)
+			{
+				ProcessDelta();
+
+				Packet p = null;
+
+				var eable = map.GetClientsInRange(m_Location);
+
+				foreach (var state in eable)
+				{
+					if (state.Mobile.CanSee(this))
+					{
+						state.Mobile.ProcessDelta();
+
+						p = Packet.Acquire(new NewMobileAnimation(this, type, action, Utility.Random(0, 60)));
+
+						state.Send(p);
+					}
+				}
+
+				Packet.Release(p);
+
+				eable.Free();
 			}
 		}
 
@@ -7109,6 +7183,11 @@ namespace Server
 
 				eable.Free();
 			}
+		}
+
+		public virtual bool SendSpeedControl(SpeedControlType type)
+		{
+			return SpeedControl.Send(m_NetState, type);
 		}
 
 		public bool Send(Packet p)
@@ -8536,21 +8615,69 @@ namespace Server
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public bool CanFly { get; set; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public bool Flying
 		{
 			get => m_Flying;
 			set
 			{
-				if (m_Flying != value)
+				var canFly = CanFly;
+
+				if (value && !canFly)
 				{
-					m_Flying = value;
-					Delta(MobileDelta.Flags);
+					value = false;
 				}
+
+				if (m_Flying == value)
+				{
+					return;
+				}
+
+				if (m_Flying)
+				{
+					if (canFly && !CanEndFlight())
+					{
+						return;
+					}
+				}
+				else
+				{
+					if (!CanBeginFlight())
+					{
+						return;
+					}
+				}
+
+				m_Flying = value;
+
+				OnFlyingChange();
+
+				Delta(MobileDelta.Flags);
 			}
 		}
 
-		public virtual void ToggleFlying()
+		public virtual bool CanBeginFlight()
 		{
+			return true;
+		}
+
+		public virtual bool CanEndFlight()
+		{
+			return !Player || Map == null || Map == Map.Internal || Map.CanFit(X, Y, Z, 16, false, false);
+		}
+
+		protected virtual void OnFlyingChange()
+		{
+			if (m_Flying)
+			{
+				Animate(AnimationType.TakeOff, 0);
+			}
+			else
+			{
+				Animate(AnimationType.Land, 0);
+			}
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]

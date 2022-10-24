@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public SummonFeyScroll(int amount)
-			: base(606, 0x2D57, amount)
+		public SummonFeyScroll(int amount) : base(SpellName.SummonFey, 0x2D57, amount)
 		{
 			Hue = 0x8FD;
 		}

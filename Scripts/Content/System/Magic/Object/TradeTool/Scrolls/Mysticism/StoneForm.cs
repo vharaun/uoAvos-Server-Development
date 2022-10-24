@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public StoneFormScroll(int amount)
-			: base(684, 0x2DA5, amount)
+		public StoneFormScroll(int amount) : base(SpellName.StoneForm, 0x2DA5, amount)
 		{
 		}
 

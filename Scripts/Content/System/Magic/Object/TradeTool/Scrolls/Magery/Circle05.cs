@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public BladeSpiritsScroll(int amount) : base(32, 0x1F4D, amount)
+		public BladeSpiritsScroll(int amount) : base(SpellName.BladeSpirits, 0x1F4D, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public DispelFieldScroll(int amount) : base(33, 0x1F4E, amount)
+		public DispelFieldScroll(int amount) : base(SpellName.DispelField, 0x1F4E, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public IncognitoScroll(int amount) : base(34, 0x1F4F, amount)
+		public IncognitoScroll(int amount) : base(SpellName.Incognito, 0x1F4F, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public MagicReflectScroll(int amount) : base(35, 0x1F50, amount)
+		public MagicReflectScroll(int amount) : base(SpellName.MagicReflect, 0x1F50, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public MindBlastScroll(int amount) : base(36, 0x1F51, amount)
+		public MindBlastScroll(int amount) : base(SpellName.MindBlast, 0x1F51, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public ParalyzeScroll(int amount) : base(37, 0x1F52, amount)
+		public ParalyzeScroll(int amount) : base(SpellName.Paralyze, 0x1F52, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public PoisonFieldScroll(int amount) : base(38, 0x1F53, amount)
+		public PoisonFieldScroll(int amount) : base(SpellName.PoisonField, 0x1F53, amount)
 		{
 		}
 
@@ -225,7 +225,7 @@
 		}
 
 		[Constructable]
-		public SummonCreatureScroll(int amount) : base(39, 0x1F54, amount)
+		public SummonCreatureScroll(int amount) : base(SpellName.SummonCreature, 0x1F54, amount)
 		{
 		}
 

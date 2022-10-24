@@ -5,22 +5,19 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Server
 {
 	public static class ScriptCompiler
 	{
-		private static Assembly[] m_Assemblies;
-
-		public static Assembly[] Assemblies
-		{
-			get => m_Assemblies;
-			set => m_Assemblies = value;
-		}
-
 		private static readonly Type[] m_SerialTypeArray = { typeof(Serial) };
 		private static readonly Type[] m_IDTypeArray = { typeof(int) };
+
+		public static Assembly[] Assemblies { get; set; }
+
+		public static IPersistentHashGenerator HashGenerator { get; set; } = PersistentHash.Default;
 
 		private static void VerifyType(Type t)
 		{
@@ -86,7 +83,7 @@ namespace Server
 
 			Console.WriteLine("done (cached)");
 
-			m_Assemblies = assemblies.ToArray();
+			Assemblies = assemblies.ToArray();
 
 			Console.Write("Scripts: Verifying...");
 
@@ -142,19 +139,14 @@ namespace Server
 		{
 			if (asm == null)
 			{
-				if (m_NullCache == null)
-				{
-					m_NullCache = new TypeCache(null);
-				}
-
-				return m_NullCache;
+				return m_NullCache ??= new TypeCache(null, false, null);
 			}
 
 			m_TypeCaches.TryGetValue(asm, out var c);
 
 			if (c == null)
 			{
-				m_TypeCaches[asm] = c = new TypeCache(asm);
+				m_TypeCaches[asm] = c = new TypeCache(asm, true, HashGenerator);
 			}
 
 			return c;
@@ -356,6 +348,44 @@ namespace Server
 		public TypeTable Names => m_Names;
 		public TypeTable FullNames => m_FullNames;
 
+		public TypeCache(Assembly asm, bool hashCache, IPersistentHashGenerator generator)
+		{
+			if (asm == null)
+			{
+				m_Types = Type.EmptyTypes;
+			}
+			else
+			{
+				m_Types = asm.GetTypes();
+			}
+
+			m_Names = new TypeTable(m_Types.Length, hashCache, generator);
+			m_FullNames = new TypeTable(m_Types.Length, hashCache, generator);
+
+			foreach (var g in m_Types.ToLookup(t => t.Name))
+			{
+				m_Names.Add(g.Key, g);
+
+				foreach (var type in g)
+				{
+					m_FullNames.Add(type.FullName, type);
+
+					var attr = type.GetCustomAttribute<TypeAliasAttribute>(false);
+
+					if (attr != null)
+					{
+						foreach (var a in attr.Aliases)
+						{
+							m_FullNames.Add(a, type);
+						}
+					}
+				}
+			}
+
+			m_Names.Sort();
+			m_FullNames.Sort();
+		}
+
 		public Type GetTypeByNameHash(int hash)
 		{
 			return GetTypesByNameHash(hash).FirstOrDefault(t => t != null);
@@ -405,60 +435,10 @@ namespace Server
 		{
 			return m_FullNames.GetHash(fullName);
 		}
-
-		public TypeCache(Assembly asm)
-		{
-			if (asm == null)
-			{
-				m_Types = Type.EmptyTypes;
-			}
-			else
-			{
-				m_Types = asm.GetTypes();
-			}
-
-			m_Names = new TypeTable(m_Types.Length);
-			m_FullNames = new TypeTable(m_Types.Length);
-
-			foreach (var g in m_Types.ToLookup(t => t.Name))
-			{
-				m_Names.Add(g.Key, g);
-
-				foreach (var type in g)
-				{
-					m_FullNames.Add(type.FullName, type);
-
-					var attr = type.GetCustomAttribute<TypeAliasAttribute>(false);
-
-					if (attr != null)
-					{
-						foreach (var a in attr.Aliases)
-						{
-							m_FullNames.Add(a, type);
-						}
-					}
-				}
-			}
-
-			m_Names.Sort();
-			m_FullNames.Sort();
-		}
 	}
 
 	public class TypeTable
 	{
-		private readonly Dictionary<string, int> m_Hashes;
-		private readonly Dictionary<int, HashSet<Type>> m_Hashed;
-		private readonly Dictionary<string, HashSet<Type>> m_Sensitive;
-		private readonly Dictionary<string, HashSet<Type>> m_Insensitive;
-
-		public void Sort()
-		{
-			Sort(m_Hashed);
-			Sort(m_Sensitive);
-			Sort(m_Insensitive);
-		}
-
 		private static void Sort<T>(Dictionary<T, HashSet<Type>> types)
 		{
 			var sorter = new List<Type>();
@@ -540,6 +520,38 @@ namespace Server
 			return false;
 		}
 
+		private readonly Dictionary<int, HashSet<Type>> m_Hashed;
+		private readonly Dictionary<string, HashSet<Type>> m_Sensitive;
+		private readonly Dictionary<string, HashSet<Type>> m_Insensitive;
+
+		public bool HashCache { get; }
+
+		public IPersistentHashGenerator HashGenerator { get; }
+
+		public TypeTable(int capacity, bool hashCache, IPersistentHashGenerator generator)
+		{
+			m_Hashed = new(capacity);
+			m_Sensitive = new(capacity);
+			m_Insensitive = new(capacity, StringComparer.OrdinalIgnoreCase);
+
+			HashCache = hashCache;
+			HashGenerator = generator;
+		}
+
+		public int GetHash(string key)
+		{
+			var generator = HashGenerator;
+
+			return generator?.Generate(key, HashCache) ?? 0;
+		}
+ 
+		public void Sort()
+		{
+			Sort(m_Hashed);
+			Sort(m_Sensitive);
+			Sort(m_Insensitive);
+		}
+
 		public void Add(string key, IEnumerable<Type> types)
 		{
 			if (!String.IsNullOrWhiteSpace(key) && types != null)
@@ -581,7 +593,7 @@ namespace Server
 				insensitive.UnionWith(types);
 			}
 
-			var hash = GenerateHash(key);
+			var hash = GetHash(key);
 
 			if (!m_Hashed.TryGetValue(hash, out var hashed) || hashed == null)
 			{
@@ -634,51 +646,58 @@ namespace Server
 
 			return t.AsEnumerable();
 		}
+	}
 
-		public int GetHash(string key)
+	public interface IPersistentHashGenerator
+	{
+		int Generate(string key, bool intern);
+	}
+
+	public static class PersistentHash
+	{
+		public static IPersistentHashGenerator Default { get; set; } = Simple.Instance;
+
+		public sealed class Simple : IPersistentHashGenerator
 		{
-			if (String.IsNullOrWhiteSpace(key))
+			public static readonly Simple Instance = new();
+
+			private Simple()
+			{ }
+
+			private readonly Dictionary<string, int> m_Hashes = new();
+
+			[MethodImpl(MethodImplOptions.Synchronized)]
+			public int Generate(string key, bool intern)
 			{
-				return 0;
-			}
+				if (String.IsNullOrWhiteSpace(key))
+				{
+					return 0;
+				}
 
-			m_Hashes.TryGetValue(key, out var hash);
+				if (intern && m_Hashes.TryGetValue(key, out var hash))
+				{
+					return hash;
+				}
 
-			return hash;
-		}
+				hash = key.Length;
 
-		private int GenerateHash(string key)
-		{
-			var hash = GetHash(key);
+				unchecked
+				{
+					var span = key.AsSpan();
 
-			if (hash != 0)
-			{
+					for (var i = 0; i < span.Length; i++)
+					{
+						hash = (hash * 397) ^ Convert.ToInt32(span[i]);
+					}
+				}
+
+				if (intern)
+				{
+					m_Hashes[key] = hash;
+				}
+
 				return hash;
 			}
-
-			hash = key.Length;
-
-			unchecked
-			{
-				var span = key.AsSpan();
-
-				for (var i = 0; i < span.Length; i++)
-				{
-					hash = (hash * 397) ^ Convert.ToInt32(span[i]);
-				}
-			}
-
-			m_Hashes[key] = hash;
-
-			return hash;
-		}
-
-		public TypeTable(int capacity)
-		{
-			m_Hashes = new Dictionary<string, int>();
-			m_Hashed = new Dictionary<int, HashSet<Type>>(capacity);
-			m_Sensitive = new Dictionary<string, HashSet<Type>>(capacity);
-			m_Insensitive = new Dictionary<string, HashSet<Type>>(capacity, StringComparer.OrdinalIgnoreCase);
 		}
 	}
 }

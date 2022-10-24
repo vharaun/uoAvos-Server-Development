@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public StrangleScroll(int amount) : base(110, 0x226A, amount)
+		public StrangleScroll(int amount) : base(SpellName.Strangle, 0x226A, amount)
 		{
 		}
 

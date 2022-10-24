@@ -9,8 +9,7 @@
 		}
 
 		[Constructable]
-		public SleepScroll(int amount)
-			: base(681, 0x2DA2, amount)
+		public SleepScroll(int amount) : base(SpellName.Sleep, 0x2DA2, amount)
 		{
 		}
 

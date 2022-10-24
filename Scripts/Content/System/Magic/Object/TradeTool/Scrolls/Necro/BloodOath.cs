@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public BloodOathScroll(int amount) : base(101, 0x2261, amount)
+		public BloodOathScroll(int amount) : base(SpellName.BloodOath, 0x2261, amount)
 		{
 		}
 

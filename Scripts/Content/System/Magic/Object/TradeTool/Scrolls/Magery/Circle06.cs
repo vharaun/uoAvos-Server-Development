@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public DispelScroll(int amount) : base(40, 0x1F55, amount)
+		public DispelScroll(int amount) : base(SpellName.Dispel, 0x1F55, amount)
 		{
 		}
 
@@ -39,7 +39,7 @@
 		}
 
 		[Constructable]
-		public EnergyBoltScroll(int amount) : base(41, 0x1F56, amount)
+		public EnergyBoltScroll(int amount) : base(SpellName.EnergyBolt, 0x1F56, amount)
 		{
 		}
 
@@ -70,7 +70,7 @@
 		}
 
 		[Constructable]
-		public ExplosionScroll(int amount) : base(42, 0x1F57, amount)
+		public ExplosionScroll(int amount) : base(SpellName.Explosion, 0x1F57, amount)
 		{
 		}
 
@@ -101,7 +101,7 @@
 		}
 
 		[Constructable]
-		public InvisibilityScroll(int amount) : base(43, 0x1F58, amount)
+		public InvisibilityScroll(int amount) : base(SpellName.Invisibility, 0x1F58, amount)
 		{
 		}
 
@@ -132,7 +132,7 @@
 		}
 
 		[Constructable]
-		public MarkScroll(int amount) : base(44, 0x1F59, amount)
+		public MarkScroll(int amount) : base(SpellName.Mark, 0x1F59, amount)
 		{
 		}
 
@@ -163,7 +163,7 @@
 		}
 
 		[Constructable]
-		public MassCurseScroll(int amount) : base(45, 0x1F5A, amount)
+		public MassCurseScroll(int amount) : base(SpellName.MassCurse, 0x1F5A, amount)
 		{
 		}
 
@@ -194,7 +194,7 @@
 		}
 
 		[Constructable]
-		public ParalyzeFieldScroll(int amount) : base(46, 0x1F5B, amount)
+		public ParalyzeFieldScroll(int amount) : base(SpellName.ParalyzeField, 0x1F5B, amount)
 		{
 		}
 
@@ -227,7 +227,7 @@
 		}
 
 		[Constructable]
-		public RevealScroll(int amount) : base(47, 0x1F5C, amount)
+		public RevealScroll(int amount) : base(SpellName.Reveal, 0x1F5C, amount)
 		{
 		}
 

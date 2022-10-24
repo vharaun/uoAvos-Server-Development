@@ -311,7 +311,7 @@ namespace Server.Items
 			// Scrolls
 			for (var i = Utility.Random(1, m_Level); i > 1; i--)
 			{
-				Item ScrollLoot = Loot.RandomScroll(0, 39, SpellbookType.Regular);
+				Item ScrollLoot = Loot.RandomScroll(SpellCircle.First, SpellCircle.Fifth);
 				ScrollLoot.Amount = Utility.Random(1, 8);
 				DropItem(ScrollLoot);
 			}
@@ -433,7 +433,7 @@ namespace Server.Items
 			// Scrolls
 			for (var i = Utility.Random(1, m_Level); i > 1; i--)
 			{
-				Item ScrollLoot = Loot.RandomScroll(0, 47, SpellbookType.Regular);
+				Item ScrollLoot = Loot.RandomScroll(SpellCircle.First, SpellCircle.Sixth);
 				ScrollLoot.Amount = Utility.Random(1, 12);
 				DropItem(ScrollLoot);
 			}
@@ -601,7 +601,7 @@ namespace Server.Items
 			// Scrolls
 			for (var i = Utility.Random(1, m_Level); i > 1; i--)
 			{
-				Item ScrollLoot = Loot.RandomScroll(0, 47, SpellbookType.Regular);
+				Item ScrollLoot = Loot.RandomScroll(SpellCircle.First, SpellCircle.Sixth);
 				ScrollLoot.Amount = 16;
 				DropItem(ScrollLoot);
 			}

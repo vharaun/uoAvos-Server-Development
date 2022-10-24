@@ -8,7 +8,7 @@
 		}
 
 		[Constructable]
-		public HorrificBeastScroll(int amount) : base(105, 0x2265, amount)
+		public HorrificBeastScroll(int amount) : base(SpellName.HorrificBeast, 0x2265, amount)
 		{
 		}
 

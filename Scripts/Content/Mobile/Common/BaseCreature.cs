@@ -10,6 +10,7 @@ using Server.Regions;
 using Server.SkillHandlers;
 using Server.Spells;
 using Server.Spells.Bushido;
+using Server.Spells.Magery;
 using Server.Spells.Necromancy;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
@@ -793,7 +794,7 @@ namespace Server.Mobiles
 
 		public virtual void BreathDealDamage(Mobile target)
 		{
-			if (!Evasion.CheckSpellEvasion(target))
+			if (!EvasionSpell.CheckSpellEvasion(target))
 			{
 				var physDamage = BreathPhysicalDamage;
 				var fireDamage = BreathFireDamage;
@@ -1647,9 +1648,9 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Confidence.IsRegenerating(this))
+			if (ConfidenceSpell.IsRegenerating(this))
 			{
-				Confidence.StopRegenerating(this);
+				ConfidenceSpell.StopRegenerating(this);
 			}
 
 			WeightOverloading.FatigueOnDamage(this, amount);
@@ -2186,7 +2187,10 @@ namespace Server.Mobiles
 				if (m_bSummoned)
 				{
 					m_SummonEnd = reader.ReadDeltaTime();
-					new UnsummonTimer(m_ControlMaster, this, m_SummonEnd - DateTime.UtcNow).Start();
+
+					var t = new UnsummonTimer(this, m_SummonEnd - DateTime.UtcNow);
+					
+					t.Start();
 				}
 
 				m_iControlSlots = reader.ReadInt();
@@ -2890,7 +2894,7 @@ namespace Server.Mobiles
 
 		public override void RevealingAction()
 		{
-			Spells.Sixth.InvisibilitySpell.RemoveTimer(this);
+			InvisibilitySpell.RemoveTimer(this);
 
 			base.RevealingAction();
 		}
@@ -4309,7 +4313,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 		#endregion
 
@@ -4325,7 +4329,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 
 		public void PackNecroScroll(int index)
@@ -4338,16 +4342,14 @@ namespace Server.Mobiles
 			PackItem(Loot.Construct(Loot.NecromancyScrollTypes, index));
 		}
 
-		public void PackScroll(int minCircle, int maxCircle)
+		public void PackScroll(SpellCircle minCircle, SpellCircle maxCircle)
 		{
-			PackScroll(Utility.RandomMinMax(minCircle, maxCircle));
+			PackItem(Loot.RandomScroll(minCircle, maxCircle));
 		}
 
-		public void PackScroll(int circle)
+		public void PackScroll(SpellCircle circle)
 		{
-			var min = (circle - 1) * 8;
-
-			PackItem(Loot.RandomScroll(min, min + 7, SpellbookType.Regular));
+			PackItem(Loot.RandomScroll(circle));
 		}
 
 		public void PackMagicItems(int minLevel, int maxLevel)
@@ -5363,8 +5365,6 @@ namespace Server.Mobiles
 					OwnerAbandonTime = DateTime.MinValue;
 				}
 
-				GiftOfLifeSpell.HandleDeath(this);
-
 				CheckStatTimers();
 			}
 			else
@@ -5687,10 +5687,32 @@ namespace Server.Mobiles
 				}
 			}
 
-			new UnsummonTimer(caster, creature, duration).Start();
 			creature.m_SummonEnd = DateTime.UtcNow + duration;
 
+			creature.OnBeforeSpawn(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
 			creature.MoveToWorld(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			creature.OnAfterSpawn();
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			var t = new UnsummonTimer(creature, duration);
+
+			t.Start();
 
 			Effects.PlaySound(p, creature.Map, sound);
 
