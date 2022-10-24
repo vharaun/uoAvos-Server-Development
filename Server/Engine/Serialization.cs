@@ -161,6 +161,9 @@ namespace Server
 		public abstract int PeekInt();
 
 		public abstract int ReadEncodedInt();
+		public abstract uint ReadEncodedUInt();
+		public abstract long ReadEncodedLong();
+		public abstract ulong ReadEncodedULong();
 
 		public abstract string ReadString();
 
@@ -283,17 +286,41 @@ namespace Server
 
 		public override int ReadEncodedInt()
 		{
-			int v = 0, shift = 0;
-			byte b;
+			return (int)ReadEncodedUInt();
+		}
+
+		public override uint ReadEncodedUInt()
+		{
+			uint v = 0, b;
+			var shift = 0;
 
 			do
 			{
 				b = m_File.ReadByte();
-
 				v |= (b & 0x7F) << shift;
-
 				shift += 7;
-			} 
+			}
+			while (b >= 0x80);
+
+			return v;
+		}
+
+		public override long ReadEncodedLong()
+		{
+			return (long)ReadEncodedULong();
+		}
+
+		public override ulong ReadEncodedULong()
+		{
+			ulong v = 0, b;
+			var shift = 0;
+
+			do
+			{
+				b = m_File.ReadByte();
+				v |= (b & 0x7F) << shift;
+				shift += 7;
+			}
 			while (b >= 0x80);
 
 			return v;
@@ -369,22 +396,29 @@ namespace Server
 			return new IPAddress(m_File.ReadInt64());
 		}
 
-		private enum DefaultEnum : long
-		{
-			Undefined
-		}
-
 		public override Enum ReadEnum()
 		{
 			var type = ReadObjectType();
-			var value = ReadLong();
+			var value = ReadEncodedULong();
+
+			if (type == null)
+			{
+				_ = ReadEncodedULong();
+
+				return default;
+			}
 
 			if (type?.IsEnum == true)
 			{
-				return (Enum)Enum.ToObject(type, Convert.ChangeType(value, type.GetEnumUnderlyingType()));
+				if ((int)Type.GetTypeCode(type) % 2 == 1)
+				{
+					return (Enum)Enum.ToObject(type, unchecked((long)value));
+				}
+
+				return (Enum)Enum.ToObject(type, value);
 			}
 
-			return (DefaultEnum)value;
+			return default;
 		}
 
 		public override T ReadEnum<T>()
@@ -846,6 +880,9 @@ namespace Server
 		public abstract void Write(string value);
 
 		public abstract void WriteEncodedInt(int value);
+		public abstract void WriteEncodedUInt(uint value);
+		public abstract void WriteEncodedLong(long value);
+		public abstract void WriteEncodedULong(ulong value);
 
 		public abstract void WriteObjectType(object value);
 		public abstract void WriteObjectType(Type value);
@@ -1032,25 +1069,56 @@ namespace Server
 
 		public override void WriteEncodedInt(int value)
 		{
-			var v = (uint)value;
+			WriteEncodedUInt((uint)value);
+		}
 
-			while (v >= 0x80)
+		public override void WriteEncodedUInt(uint value)
+		{
+			while (value >= 0x80)
 			{
-				if ((m_Index + 1) > m_Buffer.Length)
+				if (m_Index + 1 > m_Buffer.Length)
 				{
 					Flush();
 				}
 
-				m_Buffer[m_Index++] = (byte)(v | 0x80);
-				v >>= 7;
+				m_Buffer[m_Index++] = (byte)(value | 0x80);
+
+				value >>= 7;
 			}
 
-			if ((m_Index + 1) > m_Buffer.Length)
+			if (m_Index + 1 > m_Buffer.Length)
 			{
 				Flush();
 			}
 
-			m_Buffer[m_Index++] = (byte)v;
+			m_Buffer[m_Index++] = (byte)value;
+		}
+
+		public override void WriteEncodedLong(long value)
+		{
+			WriteEncodedULong((ulong)value);
+		}
+
+		public override void WriteEncodedULong(ulong value)
+		{
+			while (value >= 0x80)
+			{
+				if (m_Index + 1 > m_Buffer.Length)
+				{
+					Flush();
+				}
+
+				m_Buffer[m_Index++] = (byte)(value | 0x80);
+
+				value >>= 7;
+			}
+
+			if (m_Index + 1 > m_Buffer.Length)
+			{
+				Flush();
+			}
+
+			m_Buffer[m_Index++] = (byte)value;
 		}
 
 		private byte[] m_CharacterBuffer;
@@ -1191,7 +1259,18 @@ namespace Server
 		public override void Write(Enum value)
 		{
 			WriteObjectType(value);
-			Write((long)Convert.ChangeType(value, typeof(long)));
+
+			if (value != null)
+			{
+				if ((int)value.GetTypeCode() % 2 == 1)
+				{
+					WriteEncodedLong(Convert.ToInt64(value));
+				}
+				else
+				{
+					WriteEncodedULong(Convert.ToUInt64(value));
+				}
+			}
 		}
 
 		public override void Write(decimal value)
@@ -1898,15 +1977,39 @@ namespace Server
 
 		public override void WriteEncodedInt(int value)
 		{
-			var v = (uint)value;
+			WriteEncodedUInt((uint)value);
+		}
 
-			while (v >= 0x80)
+		public override void WriteEncodedUInt(uint value)
+		{
+			while (value >= 0x80)
 			{
-				m_Bin.Write((byte)(v | 0x80));
-				v >>= 7;
+				m_Bin.Write((byte)(value | 0x80));
+
+				value >>= 7;
 			}
 
-			m_Bin.Write((byte)v);
+			m_Bin.Write((byte)value);
+
+			OnWrite();
+		}
+
+		public override void WriteEncodedLong(long value)
+		{
+			WriteEncodedULong((ulong)value);
+		}
+
+		public override void WriteEncodedULong(ulong value)
+		{
+			while (value >= 0x80)
+			{
+				m_Bin.Write((byte)(value | 0x80));
+
+				value >>= 7;
+			}
+
+			m_Bin.Write((byte)value);
+
 			OnWrite();
 		}
 
@@ -1991,7 +2094,18 @@ namespace Server
 		public override void Write(Enum value)
 		{
 			WriteObjectType(value);
-			Write((long)Convert.ChangeType(value, typeof(long)));
+
+			if (value != null)
+			{
+				if ((byte)value.GetTypeCode() % 2 == 1)
+				{
+					WriteEncodedLong(Convert.ToInt64(value));
+				}
+				else
+				{
+					WriteEncodedULong(Convert.ToUInt64(value));
+				}
+			}
 		}
 
 		public override void Write(decimal value)

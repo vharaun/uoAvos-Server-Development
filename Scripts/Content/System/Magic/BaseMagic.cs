@@ -1727,7 +1727,7 @@ namespace Server.Spells
 
 		private readonly Rectangle[] _Panels = new Rectangle[2];
 
-		private int _PageCount, _EntryLimit;
+		private int _Page, _PageCount, _EntryLimit;
 
 		public SpellbookGump(PlayerMobile user, Spellbook book)
 			: base(user)
@@ -1805,6 +1805,7 @@ namespace Server.Spells
 			}
 
 			_PageCount = (int)Math.Ceiling(_Info.Count / (double)_EntryLimit);
+			_Page = Math.Clamp(_Page, 1, _PageCount);
 
 			Build();
 		}
@@ -1847,101 +1848,106 @@ namespace Server.Spells
 
 			buttonSize.Width += 5;
 
-			for (var page = 1; page <= _PageCount; page++)
+			var spells = _Info.Skip((_Page - 1) * _EntryLimit).Take(_EntryLimit).ToArray();
+
+			for (var index = 0; index < spells.Length; index++)
 			{
-				AddPage(page);
+				var spell = spells[index];
+				var bounds = _Panels[index / perPage];
 
-				var spells = _Info.Skip((page - 1) * _EntryLimit).Take(_EntryLimit).ToArray();
+				var offsetX = bounds.X + bounds.Width - 115;
+				var offsetY = bounds.Y + 30 + (20 * (index % perPage)) + 2;
 
-				for (var index = 0; index < spells.Length; index++)
+				AddButton(offsetX, offsetY + buttonOffsetY, 2062, 2061, b => ViewInfo(spell));
+			}
+
+			if (Book?.Hue > 0)
+			{
+				AddImage(0, 0, bgID, Book.Hue - 1);
+			}
+			else if (bgHue > 0)
+			{
+				AddImage(0, 0, bgID, bgHue);
+			}
+			else
+			{
+				AddImage(0, 0, bgID);
+			}
+
+			if (_PageCount > 1)
+			{
+				if (_Page > 1)
 				{
-					var spell = spells[index];
-					var bounds = _Panels[index / perPage];
+					var bounds = _Panels[0];
 
-					var offsetX = bounds.X + bounds.Width - 115;
-					var offsetY = bounds.Y + 30 + (20 * (index % perPage)) + 2;
+					var offsetX = bounds.X - 8;
+					var offsetY = bounds.Y - 5;
 
-					AddButton(offsetX, offsetY + buttonOffsetY, 2062, 2061, b => ViewInfo(spell));
+					AddButton(offsetX, offsetY, 2205, 2205, b =>
+					{
+						--_Page;
+
+						Refresh(true, false);
+					});
+
+					if (Book?.Hue > 0)
+					{
+						AddImage(offsetX, offsetY, 2205, Book.Hue - 1);
+					}
+					else if (bgHue > 0)
+					{
+						AddImage(offsetX, offsetY, 2205, bgHue);
+					}
 				}
 
-				if (Book?.Hue > 0)
+				if (_Page < _PageCount)
 				{
-					AddImage(0, 0, bgID, Book.Hue - 1);
+					var bounds = _Panels[1];
+
+					var offsetX = bounds.X + bounds.Width - 37;
+					var offsetY = bounds.Y - 6;
+
+					AddButton(offsetX, offsetY, 2206, 2206, b =>
+					{
+						++_Page;
+
+						Refresh(true, false);
+					});
+
+					if (Book?.Hue > 0)
+					{
+						AddImage(offsetX, offsetY, 2206, Book.Hue - 1);
+					}
+					else if (bgHue > 0)
+					{
+						AddImage(offsetX, offsetY, 2206, bgHue);
+					}
 				}
-				else if (bgHue > 0)
+			}
+
+			for (var index = 0; index < spells.Length; index++)
+			{
+				var spell = spells[index];
+				var bounds = _Panels[index / perPage];
+
+				var offsetX = bounds.X;
+				var offsetY = bounds.Y + 30 + (20 * (index % perPage));
+
+				if (!spell.Type.IsAssignableTo(typeof(RacialPassiveAbility)))
 				{
-					AddImage(0, 0, bgID, bgHue);
+					AddButton(offsetX, offsetY + buttonOffsetY, cb1, cb2, b =>
+					{
+						var result = SpellHelper.TryCast(User, Book, spell, true);
+
+						Refresh(result == null, false);
+					});
 				}
 				else
 				{
-					AddImage(0, 0, bgID);
+					AddImage(offsetX, offsetY + buttonOffsetY, cb1, 900);
 				}
 
-				if (_PageCount > 1)
-				{
-					if (page > 1)
-					{
-						var bounds = _Panels[0];
-
-						var offsetX = bounds.X - 8;
-						var offsetY = bounds.Y - 5;
-
-						AddButton(offsetX, offsetY, 2205, 2205, 0, GumpButtonType.Page, page - 1);
-
-						if (Book?.Hue > 0)
-						{
-							AddImage(offsetX, offsetY, 2205, Book.Hue - 1);
-						}
-						else if (bgHue > 0)
-						{
-							AddImage(offsetX, offsetY, 2205, bgHue);
-						}
-					}
-
-					if (page < _PageCount)
-					{
-						var bounds = _Panels[1];
-
-						var offsetX = bounds.X + bounds.Width - 37;
-						var offsetY = bounds.Y - 6;
-
-						AddButton(offsetX, offsetY, 2206, 2206, 0, GumpButtonType.Page, page + 1);
-
-						if (Book?.Hue > 0)
-						{
-							AddImage(offsetX, offsetY, 2206, Book.Hue - 1);
-						}
-						else if (bgHue > 0)
-						{
-							AddImage(offsetX, offsetY, 2206, bgHue);
-						}
-					}
-				}
-
-				for (var index = 0; index < spells.Length; index++)
-				{
-					var spell = spells[index];
-					var bounds = _Panels[index / perPage];
-
-					var offsetX = bounds.X;
-					var offsetY = bounds.Y + 30 + (20 * (index % perPage));
-
-					if (!spell.Type.IsAssignableTo(typeof(RacialPassiveAbility)))
-					{
-						AddButton(offsetX, offsetY + buttonOffsetY, cb1, cb2, b =>
-						{
-							var result = SpellHelper.TryCast(User, Book, spell, true);
-
-							Refresh(result == null, false);
-						});
-					}
-					else
-					{
-						AddImage(offsetX, offsetY + buttonOffsetY, cb1, 900);
-					}
-
-					AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 20, spell.Name, false, false, color, Color.Empty);
-				}
+				AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 20, spell.Name, false, false, color, Color.Empty);
 			}
 		}
 
@@ -1962,7 +1968,7 @@ namespace Server.Spells
 			Refresh();
 
 			_ = User.CloseGump(typeof(ScrollGump));
-			_ = User.SendGump(new ScrollGump(User, Book, info));
+			_ = SendGump(new ScrollGump(User, Book, info));
 		}
 
 		public override void OnClosed()
@@ -2065,37 +2071,12 @@ namespace Server.Spells
 
 				if (!String.IsNullOrWhiteSpace(m_Info.Desc))
 				{
-					_ = infoString.Append(SetColor(textColor, Color.Empty, String.Empty));
-
 					_ = infoString.AppendLine(m_Info.Desc);
-					_ = infoString.AppendLine();
-				}
-
-				if (m_Info.ReagentsCount > 0)
-				{
-					_ = infoString.Append(SetColor(Color.Black, Color.Empty, String.Empty));
-
-					_ = infoString.AppendLine($"Reagents :");
-					_ = infoString.AppendLine();
-
-					_ = infoString.Append(SetColor(textColor, Color.Empty, String.Empty));
-
-					foreach (var reg in m_Info.Reagents)
-					{
-						if (reg.Amount > 0)
-						{
-							var name = Utility.FriendlyName(reg.Type);
-
-							_ = infoString.AppendLine($"{reg.Amount:N0} {name}");
-						}
-					}
-
-					_ = infoString.AppendLine();
 				}
 
 				if (m_Info.Mana > 0 || m_Info.Tithe > 0 || m_Info.Skill > 0.0)
 				{
-					_ = infoString.Append(SetColor(textColor, Color.Empty, String.Empty));
+					_ = infoString.AppendLine();
 
 					if (m_Info.Mana > 0)
 					{
@@ -2111,13 +2092,28 @@ namespace Server.Spells
 					{
 						_ = infoString.AppendLine($"{m_Info.Skill:F1} Skill");
 					}
+				}
 
+				if (m_Info.ReagentsCount > 0)
+				{
 					_ = infoString.AppendLine();
+					_ = infoString.AppendLine($"Reagents:");
+					_ = infoString.AppendLine();
+
+					foreach (var reg in m_Info.Reagents)
+					{
+						if (reg.Amount > 0)
+						{
+							var name = Utility.FriendlyName(reg.Type);
+
+							_ = infoString.AppendLine($"{reg.Amount:N0} {name}");
+						}
+					}
 				}
 
 				if (infoString.Length > 0)
 				{
-					AddHtml(30, 95, 140, 130, infoString.ToString(), false, true);
+					AddHtml(30, 95, 140, 130, SetColor(textColor, Color.Empty, infoString.ToString()), false, true);
 				}
 			}
 		}

@@ -100,7 +100,7 @@ namespace Server.Regions
 		/// <summary>
 		/// Default every rule to true except those in this list
 		/// </summary>
-		DefaultRules = All & ~(AllowYoungAggro | AllowParentSpawns | FreeMovement | FreeReagents | FreeInsurance | 1ul << 63),
+		DefaultRules = All & ~(AllowYoungAggro | AllowParentSpawns | FreeMovement | FreeReagents | FreeInsurance/* | 1ul << 63*/),
 	}
 
 	[PropertyObject]
@@ -423,16 +423,16 @@ namespace Server.Regions
 		public string RuneName { get; set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Currencies Currencies { get; private set; } = new();
+		public Currencies Currencies { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SkillPermissions SkillPermissions { get; private set; } = new();
+		public SkillPermissions SkillPermissions { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SpellPermissions SpellPermissions { get; private set; } = new();
+		public SpellPermissions SpellPermissions { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RegionRules Rules { get; private set; } = new();
+		public RegionRules Rules { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public AccessLevel RulesOverride { get; set; } = AccessLevel.GameMaster;

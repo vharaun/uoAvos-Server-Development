@@ -1379,7 +1379,7 @@ namespace Server.Gumps
 
 					var cpa = GetCPA(prop);
 
-					if (prop.CanWrite && cpa != null && m_Mobile.AccessLevel >= cpa.WriteLevel && !cpa.ReadOnly)
+					if ((prop.CanWrite || prop.SetMethod != null) && cpa != null && m_Mobile.AccessLevel >= cpa.WriteLevel && !cpa.ReadOnly)
 					{
 						AddButton(x + SetOffsetX, y + SetOffsetY, SetButtonID1, SetButtonID2, i + 3, GumpButtonType.Reply, 0);
 					}
