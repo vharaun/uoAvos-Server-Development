@@ -1105,8 +1105,8 @@ namespace Server.Gumps
 		private static readonly Type m_TypeOfSkills = typeof(Skills);
 		private static readonly Type m_TypeOfColor = typeof(Color);
 		private static readonly Type m_TypeOfICollection = typeof(ICollection);
+		private static readonly Type m_TypeOfICollectionT = typeof(ICollection<>);
 
-		private static readonly Type m_TypeOfCPA = typeof(CommandPropertyAttribute);
 		private static readonly Type m_TypeOfNoSort = typeof(NoSortAttribute);
 		private static readonly Type m_TypeOfPropertyObject = typeof(PropertyObjectAttribute);
 		private static readonly Type m_TypeOfObject = typeof(object);
@@ -1344,6 +1344,37 @@ namespace Server.Gumps
 				{
 					AddImageTiled(x - OffsetSize, y, TotalWidth, EntryHeight, BackGumpID + 4);
 				}
+				else if (o == m_Object)
+				{
+					AddImageTiled(x, y, NameWidth, EntryHeight, EntryGumpID);
+					AddLabelCropped(x + TextOffsetX, y, NameWidth - TextOffsetX, EntryHeight, TextHue, "Entries");
+					x += NameWidth + OffsetSize;
+
+					var subcount = 0;
+
+					if (o is ICollection col)
+					{
+						subcount = col.Count;
+					}
+					else if (o is IEnumerable eable)
+					{
+						foreach (var obj in eable)
+						{
+							++subcount;
+						}
+					}
+
+					AddImageTiled(x, y, ValueWidth, EntryHeight, EntryGumpID);
+					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, $"[{subcount:N0}]...");
+					x += ValueWidth + OffsetSize;
+
+					if (SetGumpID != 0)
+					{
+						AddImageTiled(x, y, SetWidth, EntryHeight, SetGumpID);
+					}
+
+					AddButton(x + SetOffsetX, y + SetOffsetY, SetButtonID1, SetButtonID2, i + 3, GumpButtonType.Reply, 0);
+				}
 				else if (o is Type type)
 				{
 					AddImageTiled(x, y, TypeWidth, EntryHeight, EntryGumpID);
@@ -1444,9 +1475,31 @@ namespace Server.Gumps
 
 						if (index >= 0 && index < m_List.Count)
 						{
-							var prop = m_List[index] as PropertyInfo;
+							var entry = m_List[index];
 
-							if (prop == null)
+							if (entry == m_Object)
+							{
+								if (entry is ICollection col && col.Count > 0)
+								{
+									_ = from.SendGump(new InterfaceGump(from, col));
+								}
+								else if (entry is IEnumerable eable)
+								{
+									var arr = new ArrayList();
+
+									foreach (var o in eable)
+									{
+										arr.Add(o);
+									}
+
+									if (arr.Count > 0)
+									{
+										_ = from.SendGump(new InterfaceGump(from, arr));
+									}
+								}
+							}
+
+							if (entry is not PropertyInfo prop)
 							{
 								return;
 							}
@@ -1531,21 +1584,51 @@ namespace Server.Gumps
 									_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 								}
 
-								if (IsType(type, m_TypeOfICollection))
+								if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 								{
 									if (obj is ICollection col && col.Count > 0)
 									{
 										_ = from.SendGump(new InterfaceGump(from, col));
 									}
+									else if (obj is IEnumerable eable)
+									{
+										var arr = new ArrayList();
+
+										foreach (var o in eable)
+										{
+											arr.Add(o);
+										}
+
+										if (arr.Count > 0)
+										{
+											_ = from.SendGump(new InterfaceGump(from, arr));
+										}
+									}
 								}
 							}
-							else if (IsType(type, m_TypeOfICollection))
+							else if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 							{
 								_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 
-								if (prop.GetValue(m_Object, null) is ICollection col && col.Count > 0)
+								var subval = prop.GetValue(m_Object, null);
+
+								if (subval is ICollection col && col.Count > 0)
 								{
 									_ = from.SendGump(new InterfaceGump(from, col));
+								}
+								else if (subval is IEnumerable eable)
+								{
+									var arr = new ArrayList();
+
+									foreach (var o in eable)
+									{
+										arr.Add(o);
+									}
+
+									if (arr.Count > 0)
+									{
+										_ = from.SendGump(new InterfaceGump(from, arr));
+									}
 								}
 							}
 						}
@@ -1829,7 +1912,12 @@ namespace Server.Gumps
 				return list;
 			}
 
-			var props = m_Type.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public);
+			var props = new List<PropertyInfo>(m_Type.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public));
+
+			if (IsType(m_Type, m_TypeOfICollection) || IsType(m_Type, m_TypeOfICollectionT))
+			{
+				list.Add(m_Object);
+			}
 
 			var groups = GetGroups(m_Type, props);
 
@@ -1865,14 +1953,12 @@ namespace Server.Gumps
 			return null;
 		}
 
-		private ArrayList GetGroups(Type objectType, PropertyInfo[] props)
+		private ArrayList GetGroups(Type objectType, IEnumerable<PropertyInfo> props)
 		{
 			var groups = new Hashtable();
 
-			for (var i = 0; i < props.Length; ++i)
+			foreach (var prop in props)
 			{
-				var prop = props[i];
-
 				if (prop.CanRead)
 				{
 					var attr = GetCPA(prop);

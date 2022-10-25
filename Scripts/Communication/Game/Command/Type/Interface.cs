@@ -65,7 +65,7 @@ namespace Server.Commands.Generic
 			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
 		}
 
-		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object value)
 		{
 			if (sender != null && Instances.TryGetValue(sender, out var gumps))
 			{

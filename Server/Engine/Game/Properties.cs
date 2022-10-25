@@ -168,9 +168,9 @@ namespace Server
 	}
 
 	[PropertyObject]
-	public class TypeAmounts : ICollection<TypeAmount>, INotifyPropertyUpdate
+	public class TypeAmounts : ICollection, ICollection<TypeAmount>, INotifyPropertyUpdate
 	{
-		private readonly List<TypeAmount> _Entries = new();
+		private List<TypeAmount> _Entries = new();
 
 		bool ICollection<TypeAmount>.IsReadOnly => ((ICollection<TypeAmount>)_Entries).IsReadOnly;
 
@@ -358,9 +358,9 @@ namespace Server
 			else
 			{
 				_Entries.Add(new TypeAmount(type, amount, inherit));
-
-				PropertyNotifier.Notify(this, _Entries);
 			}
+
+			PropertyNotifier.Notify(this, _Entries);
 
 			return true;
 		}
@@ -386,9 +386,9 @@ namespace Server
 			else
 			{
 				_Entries.Add(new TypeAmount(type, amount));
-
-				PropertyNotifier.Notify(this, _Entries);
 			}
+
+			PropertyNotifier.Notify(this, _Entries);
 
 			return true;
 		}
@@ -414,9 +414,9 @@ namespace Server
 			else
 			{
 				_Entries.Add(new TypeAmount(type, 1, inherit));
-
-				PropertyNotifier.Notify(this, _Entries);
 			}
+
+			PropertyNotifier.Notify(this, _Entries);
 		}
 
 		public void Unset(Type type)
@@ -484,6 +484,17 @@ namespace Server
 
 			_Entries.RemoveAll(e => e.Type == null || !IsValidType(e.Type));
 		}
+
+		#region ICollection
+		bool ICollection.IsSynchronized => ((ICollection)_Entries).IsSynchronized;
+
+		object ICollection.SyncRoot => ((ICollection)_Entries).SyncRoot;
+
+		void ICollection.CopyTo(Array array, int index)
+		{
+			((ICollection)_Entries).CopyTo(array, index);
+		}
+		#endregion
 	}
 
 	[PropertyObject]
