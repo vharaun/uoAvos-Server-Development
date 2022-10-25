@@ -1481,6 +1481,7 @@ namespace Server.Gumps
 							{
 								if (entry is ICollection col && col.Count > 0)
 								{
+									_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 									_ = from.SendGump(new InterfaceGump(from, col));
 								}
 								else if (entry is IEnumerable eable)
@@ -1494,6 +1495,7 @@ namespace Server.Gumps
 
 									if (arr.Count > 0)
 									{
+										_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 										_ = from.SendGump(new InterfaceGump(from, arr));
 									}
 								}
@@ -1583,7 +1585,7 @@ namespace Server.Gumps
 								{
 									_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 								}
-
+								/*
 								if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 								{
 									if (obj is ICollection col && col.Count > 0)
@@ -1605,11 +1607,12 @@ namespace Server.Gumps
 										}
 									}
 								}
+								*/
 							}
 							else if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 							{
 								_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
-
+								/*
 								var subval = prop.GetValue(m_Object, null);
 
 								if (subval is ICollection col && col.Count > 0)
@@ -1630,6 +1633,7 @@ namespace Server.Gumps
 										_ = from.SendGump(new InterfaceGump(from, arr));
 									}
 								}
+								*/
 							}
 						}
 
@@ -1912,12 +1916,7 @@ namespace Server.Gumps
 				return list;
 			}
 
-			var props = new List<PropertyInfo>(m_Type.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public));
-
-			if (IsType(m_Type, m_TypeOfICollection) || IsType(m_Type, m_TypeOfICollectionT))
-			{
-				list.Add(m_Object);
-			}
+			var props = m_Type.GetProperties(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public);
 
 			var groups = GetGroups(m_Type, props);
 
@@ -1938,6 +1937,11 @@ namespace Server.Gumps
 
 				_ = list.Add(de.Key);
 				list.AddRange(groupList);
+			}
+
+			if (IsType(m_Type, m_TypeOfICollection) || IsType(m_Type, m_TypeOfICollectionT))
+			{
+				list.Add(m_Object);
 			}
 
 			return list;

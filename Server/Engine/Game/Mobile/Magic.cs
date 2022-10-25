@@ -1388,42 +1388,42 @@ namespace Server
 		#region Schools
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public MagerySpellStates<T> Magery { get; private set; } = new();
+		public MagerySpellStates<T> Magery { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public NecromancySpellStates<T> Necromancy { get; private set; } = new();
+		public NecromancySpellStates<T> Necromancy { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public ChivalrySpellStates<T> Chivalry { get; private set; } = new();
+		public ChivalrySpellStates<T> Chivalry { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public BushidoSpellStates<T> Bushido { get; private set; } = new();
+		public BushidoSpellStates<T> Bushido { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public NinjitsuSpellStates<T> Ninjitsu { get; private set; } = new();
+		public NinjitsuSpellStates<T> Ninjitsu { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SpellweavingSpellStates<T> Spellweaving { get; private set; } = new();
+		public SpellweavingSpellStates<T> Spellweaving { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public MysticismSpellStates<T> Mysticism { get; private set; } = new();
+		public MysticismSpellStates<T> Mysticism { get; protected set; } = new();
 
 		// Custom
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public AvatarSpellStates<T> Avatar { get; private set; } = new();
+		public AvatarSpellStates<T> Avatar { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public ClericSpellStates<T> Cleric { get; private set; } = new();
+		public ClericSpellStates<T> Cleric { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public DruidSpellStates<T> Druid { get; private set; } = new();
+		public DruidSpellStates<T> Druid { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RangerSpellStates<T> Ranger { get; private set; } = new();
+		public RangerSpellStates<T> Ranger { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RogueSpellStates<T> Rogue { get; private set; } = new();
+		public RogueSpellStates<T> Rogue { get; protected set; } = new();
 
 		#endregion
 
