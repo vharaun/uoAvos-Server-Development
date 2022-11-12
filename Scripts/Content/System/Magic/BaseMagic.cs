@@ -1758,15 +1758,18 @@ namespace Server.Spells
 
 			_Info.Clear();
 
-			foreach (var spell in SpellRegistry.GetSpells(School))
+			if (Book.SpellCount > 0)
 			{
-				if (HasSpell(spell))
+				foreach (var spell in SpellRegistry.GetSpells(School))
 				{
-					var info = SpellRegistry.GetInfo(spell);
-
-					if (info?.IsValid == true)
+					if (HasSpell(spell))
 					{
-						_Info.Add(info);
+						var info = SpellRegistry.GetInfo(spell);
+
+						if (info?.IsValid == true)
+						{
+							_Info.Add(info);
+						}
 					}
 				}
 			}
@@ -1804,7 +1807,7 @@ namespace Server.Spells
 				_EntryLimit = (int)Math.Floor(_Panels.Sum(p => p.Height - 30) / 20.0);
 			}
 
-			_PageCount = (int)Math.Ceiling(_Info.Count / (double)_EntryLimit);
+			_PageCount = Math.Max(1, (int)Math.Ceiling(_Info.Count / (double)_EntryLimit));
 			_Page = Math.Clamp(_Page, 1, _PageCount);
 
 			Build();
@@ -1848,17 +1851,22 @@ namespace Server.Spells
 
 			buttonSize.Width += 5;
 
-			var spells = _Info.Skip((_Page - 1) * _EntryLimit).Take(_EntryLimit).ToArray();
+			SpellInfo[] spells = null;
 
-			for (var index = 0; index < spells.Length; index++)
+			if (_Info.Count > 0)
 			{
-				var spell = spells[index];
-				var bounds = _Panels[index / perPage];
+				spells = _Info.Skip((_Page - 1) * _EntryLimit).Take(_EntryLimit).ToArray();
 
-				var offsetX = bounds.X + bounds.Width - 115;
-				var offsetY = bounds.Y + 30 + (20 * (index % perPage)) + 2;
+				for (var index = 0; index < spells.Length; index++)
+				{
+					var spell = spells[index];
+					var bounds = _Panels[index / perPage];
 
-				AddButton(offsetX, offsetY + buttonOffsetY, 2062, 2061, b => ViewInfo(spell));
+					var offsetX = bounds.X + bounds.Width - 115;
+					var offsetY = bounds.Y + 30 + (20 * (index % perPage)) + 2;
+
+					AddButton(offsetX, offsetY + buttonOffsetY, 2062, 2061, b => ViewInfo(spell));
+				}
 			}
 
 			if (Book?.Hue > 0)
@@ -1925,29 +1933,32 @@ namespace Server.Spells
 				}
 			}
 
-			for (var index = 0; index < spells.Length; index++)
+			if (spells != null)
 			{
-				var spell = spells[index];
-				var bounds = _Panels[index / perPage];
-
-				var offsetX = bounds.X;
-				var offsetY = bounds.Y + 30 + (20 * (index % perPage));
-
-				if (!spell.Type.IsAssignableTo(typeof(RacialPassiveAbility)))
+				for (var index = 0; index < spells.Length; index++)
 				{
-					AddButton(offsetX, offsetY + buttonOffsetY, cb1, cb2, b =>
+					var spell = spells[index];
+					var bounds = _Panels[index / perPage];
+
+					var offsetX = bounds.X;
+					var offsetY = bounds.Y + 30 + (20 * (index % perPage));
+
+					if (!spell.Type.IsAssignableTo(typeof(RacialPassiveAbility)))
 					{
-						var result = SpellHelper.TryCast(User, Book, spell, true);
+						AddButton(offsetX, offsetY + buttonOffsetY, cb1, cb2, b =>
+						{
+							var result = SpellHelper.TryCast(User, Book, spell, true);
 
-						Refresh(result == null, false);
-					});
-				}
-				else
-				{
-					AddImage(offsetX, offsetY + buttonOffsetY, cb1, 900);
-				}
+							Refresh(result == null, false);
+						});
+					}
+					else
+					{
+						AddImage(offsetX, offsetY + buttonOffsetY, cb1, 900);
+					}
 
-				AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 20, spell.Name, false, false, color, Color.Empty);
+					AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 20, spell.Name, false, false, color, Color.Empty);
+				}
 			}
 		}
 
