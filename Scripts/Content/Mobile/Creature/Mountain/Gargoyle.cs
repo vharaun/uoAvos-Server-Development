@@ -38,13 +38,13 @@ namespace Server.Mobiles
 
 			VirtualArmor = 32;
 
+			CanFly = true;
+
 			if (0.025 > Utility.RandomDouble())
 			{
 				PackItem(new GargoylesPickaxe());
 			}
 		}
-
-		public override bool CanFly => true;
 
 		public override void GenerateLoot()
 		{

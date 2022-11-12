@@ -1,5 +1,6 @@
 ﻿using Server.Commands;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.PathAlgorithms;
 using Server.PathAlgorithms.FastAStar;
@@ -26,33 +27,17 @@ namespace Server
 		// Should we use the new method of speeds?
 		private static readonly bool Enabled = true;
 
-		private double m_ActiveSpeed;
-		private double m_PassiveSpeed;
-		private Type[] m_Types;
+		public double ActiveSpeed { get; set; }
 
-		public double ActiveSpeed
-		{
-			get => m_ActiveSpeed;
-			set => m_ActiveSpeed = value;
-		}
+		public double PassiveSpeed { get; set; }
 
-		public double PassiveSpeed
-		{
-			get => m_PassiveSpeed;
-			set => m_PassiveSpeed = value;
-		}
-
-		public Type[] Types
-		{
-			get => m_Types;
-			set => m_Types = value;
-		}
+		public Type[] Types { get; set; }
 
 		public SpeedInfo(double activeSpeed, double passiveSpeed, Type[] types)
 		{
-			m_ActiveSpeed = activeSpeed;
-			m_PassiveSpeed = passiveSpeed;
-			m_Types = types;
+			ActiveSpeed = activeSpeed;
+			PassiveSpeed = passiveSpeed;
+			Types = types;
 		}
 
 		public static bool Contains(object obj)
@@ -67,11 +52,10 @@ namespace Server
 				LoadTable();
 			}
 
-			SpeedInfo sp = null;
+			SpeedInfo sp;
+			_ = m_Table.TryGetValue(obj.GetType(), out sp);
 
-			m_Table.TryGetValue(obj.GetType(), out sp);
-
-			return (sp != null);
+			return sp != null;
 		}
 
 		public static bool GetSpeeds(object obj, ref double activeSpeed, ref double passiveSpeed)
@@ -86,9 +70,8 @@ namespace Server
 				LoadTable();
 			}
 
-			SpeedInfo sp = null;
-
-			m_Table.TryGetValue(obj.GetType(), out sp);
+			SpeedInfo sp;
+			_ = m_Table.TryGetValue(obj.GetType(), out sp);
 
 			if (sp == null)
 			{
@@ -130,16 +113,14 @@ namespace Server
 
 	public sealed class MovementPath
 	{
-		private readonly Map m_Map;
 		private Point3D m_Start;
 		private Point3D m_Goal;
-		private readonly Direction[] m_Directions;
 
-		public Map Map => m_Map;
+		public Map Map { get; }
 		public Point3D Start => m_Start;
 		public Point3D Goal => m_Goal;
-		public Direction[] Directions => m_Directions;
-		public bool Success => (m_Directions != null && m_Directions.Length > 0);
+		public Direction[] Directions { get; }
+		public bool Success => Directions != null && Directions.Length > 0;
 
 		public static void Initialize()
 		{
@@ -148,13 +129,13 @@ namespace Server
 
 		public static void Path_OnCommand(CommandEventArgs e)
 		{
-			e.Mobile.BeginTarget(-1, true, TargetFlags.None, new TargetCallback(Path_OnTarget));
+			_ = e.Mobile.BeginTarget(-1, true, TargetFlags.None, new TargetCallback(Path_OnTarget));
 			e.Mobile.SendMessage("Target a location and a path will be drawn there.");
 		}
 
 		private static void Path(Mobile from, IPoint3D p, PathAlgorithm alg, string name, int zOffset)
 		{
-			m_OverrideAlgorithm = alg;
+			OverrideAlgorithm = alg;
 
 			var start = DateTime.UtcNow.Ticks;
 			var path = new MovementPath(from, new Point3D(p));
@@ -175,18 +156,16 @@ namespace Server
 
 				for (var i = 0; i < path.Directions.Length; ++i)
 				{
-					Movement.Movement.Offset(path.Directions[i], ref x, ref y);
+					CalcMoves.Offset(path.Directions[i], ref x, ref y);
 
-					new Items.RecallRune().MoveToWorld(new Point3D(x, y, z + zOffset), from.Map);
+					new RecallRune().MoveToWorld(new Point3D(x, y, z + zOffset), from.Map);
 				}
 			}
 		}
 
 		public static void Path_OnTarget(Mobile from, object obj)
 		{
-			var p = obj as IPoint3D;
-
-			if (p == null)
+			if (obj is not IPoint3D p)
 			{
 				return;
 			}
@@ -195,7 +174,7 @@ namespace Server
 
 			Path(from, p, FastAStarAlgorithm.Instance, "Fast", 0);
 			Path(from, p, SlowAStarAlgorithm.Instance, "Slow", 2);
-			m_OverrideAlgorithm = null;
+			OverrideAlgorithm = null;
 
 			/*MovementPath path = new MovementPath( from, new Point3D( p ) );
 
@@ -230,7 +209,7 @@ namespace Server
 			{
 				from.Direction = d;
 				from.NetState.BlockAllPackets = true;
-				from.Move(d);
+				_ = from.Move(d);
 				from.NetState.BlockAllPackets = false;
 				from.ProcessDelta();
 			}
@@ -239,20 +218,14 @@ namespace Server
 			}
 		}
 
-		private static PathAlgorithm m_OverrideAlgorithm;
-
-		public static PathAlgorithm OverrideAlgorithm
-		{
-			get => m_OverrideAlgorithm;
-			set => m_OverrideAlgorithm = value;
-		}
+		public static PathAlgorithm OverrideAlgorithm { get; set; }
 
 		public MovementPath(Mobile m, Point3D goal)
 		{
 			var start = m.Location;
 			var map = m.Map;
 
-			m_Map = map;
+			Map = map;
 			m_Start = start;
 			m_Goal = goal;
 
@@ -268,19 +241,13 @@ namespace Server
 
 			try
 			{
-				var alg = m_OverrideAlgorithm;
+				var alg = OverrideAlgorithm;
 
-				if (alg == null)
-				{
-					alg = FastAStarAlgorithm.Instance;
-
-					//if ( !alg.CheckCondition( m, map, start, goal ) )	// SlowAstar is still broken
-					//	alg = SlowAStarAlgorithm.Instance;		// TODO: Fix SlowAstar
-				}
+				alg ??= FastAStarAlgorithm.Instance;
 
 				if (alg != null && alg.CheckCondition(m, map, start, goal))
 				{
-					m_Directions = alg.Find(m, map, start, goal);
+					Directions = alg.Find(m, map, start, goal);
 				}
 			}
 			catch (Exception e)
@@ -296,45 +263,39 @@ namespace Server
 		private static readonly bool Enabled = true;
 
 		private readonly Mobile m_From;
-		private readonly IPoint3D m_Goal;
 		private MovementPath m_Path;
 		private int m_Index;
 		private Point3D m_Next, m_LastGoalLoc;
 		private DateTime m_LastPathTime;
-		private MoveMethod m_Mover;
 
-		public MoveMethod Mover
-		{
-			get => m_Mover;
-			set => m_Mover = value;
-		}
+		public MoveMethod Mover { get; set; }
 
-		public IPoint3D Goal => m_Goal;
+		public IPoint3D Goal { get; }
 
 		public PathFollower(Mobile from, IPoint3D goal)
 		{
 			m_From = from;
-			m_Goal = goal;
+			Goal = goal;
 		}
 
 		public MoveResult Move(Direction d)
 		{
-			if (m_Mover == null)
+			if (Mover == null)
 			{
-				return (m_From.Move(d) ? MoveResult.Success : MoveResult.Blocked);
+				return m_From.Move(d) ? MoveResult.Success : MoveResult.Blocked;
 			}
 
-			return m_Mover(d);
+			return Mover(d);
 		}
 
 		public Point3D GetGoalLocation()
 		{
-			if (m_Goal is Item)
+			if (Goal is Item g)
 			{
-				return ((Item)m_Goal).GetWorldLocation();
+				return g.GetWorldLocation();
 			}
 
-			return new Point3D(m_Goal);
+			return new Point3D(Goal);
 		}
 
 		private static readonly TimeSpan RepathDelay = TimeSpan.FromSeconds(2.0);
@@ -404,7 +365,7 @@ namespace Server
 			return true;
 		}
 
-		public bool Check(Point3D loc, Point3D goal, int range)
+		public static bool Check(Point3D loc, Point3D goal, int range)
 		{
 			if (!Utility.InRange(loc, goal, range))
 			{
@@ -441,7 +402,7 @@ namespace Server
 				}
 
 				m_From.SetDirection(d);
-				Move(d);
+				_ = Move(d);
 
 				return Check(m_From.Location, goal, range);
 			}
@@ -465,7 +426,7 @@ namespace Server
 				}
 
 				m_Path = null;
-				CheckPath();
+				_ = CheckPath();
 
 				if (!m_Path.Success)
 				{
@@ -477,7 +438,7 @@ namespace Server
 					}
 
 					m_From.SetDirection(d);
-					Move(d);
+					_ = Move(d);
 
 					return Check(m_From.Location, goal, range);
 				}
@@ -551,31 +512,27 @@ namespace Server.Movement
 {
 	public class MovementImpl : IMovementImpl
 	{
-		private const int PersonHeight = 16;
-		private const int StepHeight = 2;
+		private const int PersonHeight = CalcMoves.PersonHeight;
+		private const int StepHeight = CalcMoves.StepHeight;
 
 		private const TileFlag ImpassableSurface = TileFlag.Impassable | TileFlag.Surface;
-
-		private static bool m_AlwaysIgnoreDoors;
-		private static bool m_IgnoreMovableImpassables;
-		private static bool m_IgnoreSpellFields;
 		private static Point3D m_Goal;
 
-		public static bool AlwaysIgnoreDoors { get => m_AlwaysIgnoreDoors; set => m_AlwaysIgnoreDoors = value; }
-		public static bool IgnoreMovableImpassables { get => m_IgnoreMovableImpassables; set => m_IgnoreMovableImpassables = value; }
-		public static bool IgnoreSpellFields { get => m_IgnoreSpellFields; set => m_IgnoreSpellFields = value; }
+		public static bool AlwaysIgnoreDoors { get; set; }
+		public static bool IgnoreMovableImpassables { get; set; }
+		public static bool IgnoreSpellFields { get; set; }
 		public static Point3D Goal { get => m_Goal; set => m_Goal = value; }
 
 		public static void Configure()
 		{
-			Movement.Impl = new MovementImpl();
+			CalcMoves.Impl = new MovementImpl();
 		}
 
 		private MovementImpl()
 		{
 		}
 
-		private bool IsOk(bool ignoreDoors, bool ignoreSpellFields, int ourZ, int ourTop, StaticTile[] tiles, List<Item> items)
+		private static bool IsOk(bool ignoreDoors, bool ignoreSpellFields, int ourZ, int ourTop, StaticTile[] tiles, List<Item> items)
 		{
 			for (var i = 0; i < tiles.Length; ++i)
 			{
@@ -626,21 +583,24 @@ namespace Server.Movement
 			return true;
 		}
 
-		private readonly List<Item>[] m_Pools = new List<Item>[4]
-			{
-				new List<Item>(), new List<Item>(),
-				new List<Item>(), new List<Item>(),
-			};
+		private readonly List<Item>[] m_Pools =
+		{
+			new List<Item>(), 
+			new List<Item>(),
+			new List<Item>(), 
+			new List<Item>(),
+		};
 
-		private readonly List<Mobile>[] m_MobPools = new List<Mobile>[3]
-			{
-				new List<Mobile>(), new List<Mobile>(),
-				new List<Mobile>(),
-			};
+		private readonly List<Mobile>[] m_MobPools =
+		{
+			new List<Mobile>(), 
+			new List<Mobile>(), 
+			new List<Mobile>(),
+		};
 
-		private readonly List<Sector> m_Sectors = new List<Sector>();
+		private readonly List<Sector> m_Sectors = new();
 
-		private bool Check(Map map, Mobile m, List<Item> items, List<Mobile> mobiles, int x, int y, int startTop, int startZ, bool canSwim, bool cantWalk, out int newZ)
+		private static bool Check(Map map, Mobile m, List<Item> items, List<Mobile> mobiles, int x, int y, int startTop, int startZ, bool canSwim, bool cantWalk, out int newZ)
 		{
 			newZ = 0;
 
@@ -668,7 +628,7 @@ namespace Server.Movement
 			var stepTop = startTop + StepHeight;
 			var checkTop = startZ + PersonHeight;
 
-			var ignoreDoors = (m_AlwaysIgnoreDoors || !m.Alive || m.Body.BodyID == 0x3DB || m.IsDeadBondedPet);
+			var ignoreDoors = AlwaysIgnoreDoors || !m.Alive || m.Body.BodyID == 0x3DB || m.IsDeadBondedPet;
 			var ignoreSpellFields = m is PlayerMobile && map != Map.Felucca;
 
 			#region Tiles
@@ -688,7 +648,7 @@ namespace Server.Movement
 					var itemZ = tile.Z;
 					var itemTop = itemZ;
 					var ourZ = itemZ + itemData.CalcHeight;
-					var ourTop = ourZ + PersonHeight;
+					_ = ourZ + PersonHeight;
 					var testTop = checkTop;
 
 					if (moveIsOk)
@@ -756,7 +716,7 @@ namespace Server.Movement
 					var itemZ = item.Z;
 					var itemTop = itemZ;
 					var ourZ = itemZ + itemData.CalcHeight;
-					var ourTop = ourZ + PersonHeight;
+					_ = ourZ + PersonHeight;
 					var testTop = checkTop;
 
 					if (moveIsOk)
@@ -810,7 +770,7 @@ namespace Server.Movement
 			if (considerLand && !landBlocks && stepTop >= landZ)
 			{
 				var ourZ = landCenter;
-				var ourTop = ourZ + PersonHeight;
+				_ = ourZ + PersonHeight;
 				var testTop = checkTop;
 
 				if (ourZ + PersonHeight > testTop)
@@ -855,9 +815,9 @@ namespace Server.Movement
 			return moveIsOk;
 		}
 
-		private bool CanMoveOver(Mobile m, Mobile t)
+		private static bool CanMoveOver(Mobile m, Mobile t)
 		{
-			return (!t.Alive || !m.Alive || t.IsDeadBondedPet || m.IsDeadBondedPet) || (t.Hidden && t.AccessLevel > AccessLevel.Player);
+			return !t.Alive || !m.Alive || t.IsDeadBondedPet || m.IsDeadBondedPet || (t.Hidden && t.AccessLevel > AccessLevel.Player);
 		}
 
 		public bool CheckMovement(Mobile m, Map map, Point3D loc, Direction d, out int newZ)
@@ -893,7 +853,7 @@ namespace Server.Movement
 			var itemsLeft = m_Pools[2];
 			var itemsRight = m_Pools[3];
 
-			var ignoreMovableImpassables = m_IgnoreMovableImpassables;
+			var ignoreMovableImpassables = IgnoreMovableImpassables;
 			var reqFlags = ImpassableSurface;
 
 			if (m.CanSwim)
@@ -905,7 +865,7 @@ namespace Server.Movement
 			var mobsLeft = m_MobPools[1];
 			var mobsRight = m_MobPools[2];
 
-			var checkMobs = (m is BaseCreature && !((BaseCreature)m).Controlled && (xForward != m_Goal.X || yForward != m_Goal.Y));
+			var checkMobs = m is BaseCreature c && !c.Controlled && (xForward != m_Goal.X || yForward != m_Goal.Y);
 
 			if (checkDiagonals)
 			{
@@ -951,19 +911,19 @@ namespace Server.Movement
 							continue;
 						}
 
-						if (sector == sectorStart && item.AtWorldPoint(xStart, yStart) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						if (sector == sectorStart && item.AtWorldPoint(xStart, yStart) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsStart.Add(item);
 						}
-						else if (sector == sectorForward && item.AtWorldPoint(xForward, yForward) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						else if (sector == sectorForward && item.AtWorldPoint(xForward, yForward) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsForward.Add(item);
 						}
-						else if (sector == sectorLeft && item.AtWorldPoint(xLeft, yLeft) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						else if (sector == sectorLeft && item.AtWorldPoint(xLeft, yLeft) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsLeft.Add(item);
 						}
-						else if (sector == sectorRight && item.AtWorldPoint(xRight, yRight) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						else if (sector == sectorRight && item.AtWorldPoint(xRight, yRight) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsRight.Add(item);
 						}
@@ -1017,11 +977,11 @@ namespace Server.Movement
 							continue;
 						}
 
-						if (item.AtWorldPoint(xStart, yStart) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						if (item.AtWorldPoint(xStart, yStart) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsStart.Add(item);
 						}
-						else if (item.AtWorldPoint(xForward, yForward) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						else if (item.AtWorldPoint(xForward, yForward) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsForward.Add(item);
 						}
@@ -1043,7 +1003,7 @@ namespace Server.Movement
 							continue;
 						}
 
-						if (item.AtWorldPoint(xForward, yForward) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						if (item.AtWorldPoint(xForward, yForward) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsForward.Add(item);
 						}
@@ -1063,7 +1023,7 @@ namespace Server.Movement
 							continue;
 						}
 
-						if (item.AtWorldPoint(xStart, yStart) && !(item is BaseMulti) && item.ItemID <= TileData.MaxItemValue)
+						if (item.AtWorldPoint(xStart, yStart) && item is not BaseMulti && item.ItemID <= TileData.MaxItemValue)
 						{
 							itemsStart.Add(item);
 						}
@@ -1090,18 +1050,16 @@ namespace Server.Movement
 
 			if (moveIsOk && checkDiagonals)
 			{
-				int hold;
-
 				if (m.Player && m.AccessLevel < AccessLevel.GameMaster)
 				{
-					if (!Check(map, m, itemsLeft, mobsLeft, xLeft, yLeft, startTop, startZ, m.CanSwim, m.CantWalk, out hold) || !Check(map, m, itemsRight, mobsRight, xRight, yRight, startTop, startZ, m.CanSwim, m.CantWalk, out hold))
+					if (!Check(map, m, itemsLeft, mobsLeft, xLeft, yLeft, startTop, startZ, m.CanSwim, m.CantWalk, out _) || !Check(map, m, itemsRight, mobsRight, xRight, yRight, startTop, startZ, m.CanSwim, m.CantWalk, out _))
 					{
 						moveIsOk = false;
 					}
 				}
 				else
 				{
-					if (!Check(map, m, itemsLeft, mobsLeft, xLeft, yLeft, startTop, startZ, m.CanSwim, m.CantWalk, out hold) && !Check(map, m, itemsRight, mobsRight, xRight, yRight, startTop, startZ, m.CanSwim, m.CantWalk, out hold))
+					if (!Check(map, m, itemsLeft, mobsLeft, xLeft, yLeft, startTop, startZ, m.CanSwim, m.CantWalk, out _) && !Check(map, m, itemsRight, mobsRight, xRight, yRight, startTop, startZ, m.CanSwim, m.CantWalk, out _))
 					{
 						moveIsOk = false;
 					}
@@ -1137,7 +1095,7 @@ namespace Server.Movement
 			return CheckMovement(m, m.Map, m.Location, d, out newZ);
 		}
 
-		private void GetStartZ(Mobile m, Map map, Point3D loc, List<Item> itemList, out int zLow, out int zTop)
+		private static void GetStartZ(Mobile m, Map map, Point3D loc, List<Item> itemList, out int zLow, out int zTop)
 		{
 			int xCheck = loc.X, yCheck = loc.Y;
 
@@ -1181,7 +1139,7 @@ namespace Server.Movement
 				var tile = staticTiles[i];
 				var id = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
 
-				var calcTop = (tile.Z + id.CalcHeight);
+				var calcTop = tile.Z + id.CalcHeight;
 
 				if ((!isSet || calcTop >= zCenter) && ((id.Flags & TileFlag.Surface) != 0 || (m.CanSwim && (id.Flags & TileFlag.Wet) != 0)) && loc.Z >= calcTop)
 				{
@@ -1243,7 +1201,7 @@ namespace Server.Movement
 			}
 		}
 
-		public void Offset(Direction d, ref int x, ref int y)
+		public static void Offset(Direction d, ref int x, ref int y)
 		{
 			switch (d & Direction.Mask)
 			{
@@ -1261,10 +1219,10 @@ namespace Server.Movement
 
 	public class FastMovementImpl : IMovementImpl
 	{
-		public static bool Enabled = false;
+		public static bool Enabled { get; set; } = true;
 
-		private const int PersonHeight = 16;
-		private const int StepHeight = 2;
+		private const int PersonHeight = CalcMoves.PersonHeight;
+		private const int StepHeight = CalcMoves.StepHeight;
 
 		private const TileFlag ImpassableSurface = TileFlag.Impassable | TileFlag.Surface;
 
@@ -1272,8 +1230,8 @@ namespace Server.Movement
 
 		public static void Initialize()
 		{
-			_Successor = Movement.Impl;
-			Movement.Impl = new FastMovementImpl();
+			_Successor = CalcMoves.Impl;
+			CalcMoves.Impl = new FastMovementImpl();
 		}
 
 		private FastMovementImpl()
@@ -1296,13 +1254,12 @@ namespace Server.Movement
 				return true;
 			}
 
-			if (((itemData.Flags & TileFlag.Door) != 0 || itemID == 0x692 || itemID == 0x846 || itemID == 0x873 ||
-				 (itemID >= 0x6F5 && itemID <= 0x6F6)) && ignoreDoors)
+			if (ignoreDoors && (itemData.Door || itemID == 0x692 || itemID == 0x846 || itemID == 0x873 || (itemID >= 0x6F5 && itemID <= 0x6F6)))
 			{
 				return true;
 			}
 
-			if ((itemID == 0x82 || itemID == 0x3946 || itemID == 0x3956) && ignoreSpellFields)
+			if (ignoreSpellFields && (itemID == 0x82 || itemID == 0x3946 || itemID == 0x3956))
 			{
 				return true;
 			}
@@ -1310,29 +1267,151 @@ namespace Server.Movement
 			return item.Z + itemData.CalcHeight <= ourZ || ourTop <= item.Z;
 		}
 
-		private static bool IsOk(
-			bool ignoreDoors,
-			bool ignoreSpellFields,
-			int ourZ,
-			int ourTop,
-			IEnumerable<StaticTile> tiles,
-			IEnumerable<Item> items)
+		private static bool IsOk(bool ignoreDoors, bool ignoreSpellFields, int ourZ, int ourTop, IEnumerable<StaticTile> tiles, IEnumerable<Item> items)
 		{
 			return tiles.All(t => IsOk(t, ourZ, ourTop)) && items.All(i => IsOk(i, ourZ, ourTop, ignoreDoors, ignoreSpellFields));
 		}
 
-		private static bool Check(
-			Map map,
-			Mobile m,
-			List<Item> items,
-			int x,
-			int y,
-			int startTop,
-			int startZ,
-			bool canSwim,
-			bool cantWalk,
-			out int newZ)
+		private static bool? CheckFlying(Map map, BaseCreature c, List<Item> items, int x, int y, int _, int startZ, int flyingH, out int newZ)
 		{
+			var ignoreDoors = MovementImpl.AlwaysIgnoreDoors || !c.Alive || c.IsDeadBondedPet || c.Body.IsGhost || c.Body.BodyID == 987;
+
+			bool? result = null;
+
+			newZ = 0;
+
+			var landTile = map.Tiles.GetLandTile(x, y);
+
+			int landZ = 0, landCenter = 0, landTop = 0;
+
+			map.GetAverageZ(x, y, ref landZ, ref landCenter, ref landTop);
+
+			var testZ = startZ;
+
+			if (!landTile.Ignored && landZ <= startZ)
+			{
+				var data = TileData.LandTable[landTile.ID & TileData.MaxLandValue];
+
+				if (data.Impassable || data.Surface || data.Wet)
+				{
+					result = true;
+					testZ = landZ + flyingH;
+				}
+			}
+
+			var tiles = map.Tiles.GetStaticTiles(x, y, true);
+
+			foreach (var tile in tiles)
+			{
+				var data = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
+
+				var id = tile.ID;
+
+				if (ignoreDoors && (data.Door || id == 0x692 || id == 0x846 || id == 0x873 || (id >= 0x6F5 && id <= 0x6F6)))
+				{
+					continue;
+				}
+
+				if (!data.Impassable && !data.Wall && !data.Window && !data.Roof && !data.Door && !data.Surface && !data.Wet)
+				{
+					continue;
+				}
+
+				if (Geometry.Intersects(startZ, PersonHeight, tile))
+				{
+					result = false;
+					break;
+				}
+
+				if (startZ != testZ && Geometry.Intersects(testZ, PersonHeight, tile))
+				{
+					result = false;
+					break;
+				}
+
+				if (tile.Z > startZ)
+				{
+					continue;
+				}
+
+				testZ = tile.Z + flyingH;
+
+				if (Geometry.GetHeight(tile, out var h))
+				{
+					testZ += h;
+				}
+			}
+
+			foreach (var item in items)
+			{
+				if (item.Movable)
+				{
+					continue;
+				}
+
+				var data = item.ItemData;
+
+				if (!data.Impassable && !data.Wall && !data.Window && !data.Roof && !data.Door && !data.Surface && !data.Wet)
+				{
+					continue;
+				}
+
+				var id = item.ItemID;
+
+				if (ignoreDoors && (data.Door || id == 0x692 || id == 0x846 || id == 0x873 || (id >= 0x6F5 && id <= 0x6F6)))
+				{
+					continue;
+				}
+
+				if (Geometry.Intersects(startZ, PersonHeight, item))
+				{
+					result = false;
+					break;
+				}
+
+				if (startZ != testZ && Geometry.Intersects(testZ, PersonHeight, item))
+				{
+					result = false;
+					break;
+				}
+
+				if (item.Z > startZ)
+				{
+					continue;
+				}
+
+				testZ = item.Z + flyingH;
+
+				if (Geometry.GetHeight(item, out var h))
+				{
+					testZ += h;
+				}
+			}
+
+			if (result == true)
+			{
+				newZ = Math.Clamp(testZ, Region.MinZ + 1, Region.MaxZ - (PersonHeight + 1));
+			}
+			else
+			{
+				newZ = 0;
+			}
+
+			return result;
+		}
+
+		private static bool Check(Map map, Mobile m, List<Item> items, int x, int y, int startTop, int startZ, bool canSwim, bool cantWalk, out int newZ)
+		{
+			if (m is BaseCreature c && (c.Flying || c.FlyingHeightCur > 0))
+			{
+				var result = CheckFlying(map, c, items, x, y, startTop, startZ, c.FlyingHeightCur, out newZ);
+
+				if (result != null)
+				{
+					return result.Value;
+				}
+			}
+
 			newZ = 0;
 
 			var tiles = map.Tiles.GetStaticTiles(x, y, true);
@@ -1361,8 +1440,7 @@ namespace Server.Movement
 			var stepTop = startTop + StepHeight;
 			var checkTop = startZ + PersonHeight;
 
-			var ignoreDoors = MovementImpl.AlwaysIgnoreDoors || !m.Alive || m.IsDeadBondedPet || m.Body.IsGhost ||
-							  m.Body.BodyID == 987;
+			var ignoreDoors = MovementImpl.AlwaysIgnoreDoors || !m.Alive || m.IsDeadBondedPet || m.Body.IsGhost || m.Body.BodyID == 987;
 			var ignoreSpellFields = m is PlayerMobile && map.MapID != 0;
 
 			int itemZ, itemTop, ourZ, ourTop, testTop;
@@ -1374,28 +1452,17 @@ namespace Server.Movement
 			{
 				itemData = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
 
-				#region SA
-				if (m.Flying && Insensitive.Equals(itemData.Name, "hover over"))
+				if (m.Flying)
 				{
-					newZ = tile.Z;
-					return true;
-				}
-
-				// Stygian Dragon
-				if (m.Body == 826 && map != null && map.MapID == 5)
-				{
-					if (x >= 307 && x <= 354 && y >= 126 && y <= 192)
+					if (Insensitive.Equals(itemData.Name, "hover over"))
 					{
-						if (tile.Z > newZ)
-						{
-							newZ = tile.Z;
-						}
-
-						moveIsOk = true;
+						newZ = tile.Z;
+						return true;
 					}
-					else if (x >= 42 && x <= 89)
+
+					if (map != null && map.MapID == 5)
 					{
-						if ((y >= 333 && y <= 399) || (y >= 531 && y <= 597) || (y >= 739 && y <= 805))
+						if (x >= 307 && x <= 354 && y >= 126 && y <= 192)
 						{
 							if (tile.Z > newZ)
 							{
@@ -1404,9 +1471,20 @@ namespace Server.Movement
 
 							moveIsOk = true;
 						}
+						else if (x is >= 42 and <= 89)
+						{
+							if (y is (>= 333 and <= 399) or (>= 531 and <= 597) or (>= 739 and <= 805))
+							{
+								if (tile.Z > newZ)
+								{
+									newZ = tile.Z;
+								}
+
+								moveIsOk = true;
+							}
+						}
 					}
 				}
-				#endregion
 
 				flags = itemData.Flags;
 
@@ -1483,13 +1561,14 @@ namespace Server.Movement
 				itemData = item.ItemData;
 				flags = itemData.Flags;
 
-				#region SA
-				if (m.Flying && Insensitive.Equals(itemData.Name, "hover over"))
+				if (m.Flying)
 				{
-					newZ = item.Z;
-					return true;
+					if (Insensitive.Equals(itemData.Name, "hover over"))
+					{
+						newZ = item.Z;
+						return true;
+					}
 				}
-				#endregion
 
 				if (item.Movable)
 				{
@@ -1807,7 +1886,7 @@ namespace Server.Movement
 			foreach (var tile in staticTiles)
 			{
 				var tileData = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
-				var calcTop = (tile.Z + tileData.CalcHeight);
+				var calcTop = tile.Z + tileData.CalcHeight;
 
 				if (isSet && calcTop < zCenter)
 				{
@@ -1893,7 +1972,7 @@ namespace Server.Movement
 			}
 		}
 
-		public void Offset(Direction d, ref int x, ref int y)
+		public static void Offset(Direction d, ref int x, ref int y)
 		{
 			switch (d & Direction.Mask)
 			{
@@ -1930,8 +2009,8 @@ namespace Server.Movement
 
 		private static class MovementPool
 		{
-			private static readonly object _MovePoolLock = new object();
-			private static readonly Queue<List<Item>> _MoveCachePool = new Queue<List<Item>>(0x400);
+			private static readonly object _MovePoolLock = new();
+			private static readonly Queue<List<Item>> _MoveCachePool = new(0x400);
 
 			public static void AcquireMoveCache(ref List<Item> cache, IEnumerable<Item> items)
 			{

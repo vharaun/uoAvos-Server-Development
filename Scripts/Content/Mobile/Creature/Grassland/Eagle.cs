@@ -39,13 +39,14 @@
 			Tamable = true;
 			ControlSlots = 1;
 			MinTameSkill = 17.1;
+
+			CanFly = true;
 		}
 
 		public override int Meat => 1;
 		public override MeatType MeatType => MeatType.Bird;
 		public override int Feathers => 36;
 		public override FoodType FavoriteFood => FoodType.Meat | FoodType.Fish;
-		public override bool CanFly => true;
 
 		public Eagle(Serial serial) : base(serial)
 		{

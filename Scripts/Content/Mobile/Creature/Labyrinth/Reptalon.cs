@@ -36,6 +36,8 @@ namespace Server.Mobiles
 			Tamable = true;
 			ControlSlots = 4;
 			MinTameSkill = 101.1;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -55,7 +57,6 @@ namespace Server.Mobiles
 		public override bool CanAngerOnTame => true;
 		public override bool StatLossAfterTame => true;
 		public override FoodType FavoriteFood => FoodType.Meat;
-		public override bool CanFly => true;
 
 		public Reptalon(Serial serial) : base(serial)
 		{

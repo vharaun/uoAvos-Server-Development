@@ -36,6 +36,8 @@
 			Karma = -4500;
 
 			VirtualArmor = 50;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -71,7 +73,6 @@
 
 		public override int Meat => 1;
 		public override int Feathers => 50;
-		public override bool CanFly => true;
 
 		public StoneHarpy(Serial serial) : base(serial)
 		{

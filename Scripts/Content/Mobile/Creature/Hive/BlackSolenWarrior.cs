@@ -4,8 +4,8 @@ using Server.Network;
 namespace Server.Mobiles
 {
 	[CorpseName("a solen warrior corpse")]
-	public class BlackSolenWarrior : BaseCreature
-	{
+	public class BlackSolenWarrior : BaseCreature, IBlackSolenMember
+    {
 		private bool m_BurstSac;
 		public bool BurstSac => m_BurstSac;
 

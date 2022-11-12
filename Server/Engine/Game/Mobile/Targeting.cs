@@ -425,11 +425,13 @@ namespace Server.Targeting
 			}
 		}
 
-		[CommandProperty(AccessLevel.Counselor)]
-		public string Name => TileData.LandTable[TileID].Name;
+		public LandData Data => TileData.LandTable[TileID];
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public TileFlag Flags => TileData.LandTable[TileID].Flags;
+		public string Name => Data.Name;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public TileFlag Flags => Data.Flags;
 
 		[CommandProperty(AccessLevel.Counselor)]
 		public int TileID { get; }
@@ -463,6 +465,8 @@ namespace Server.Targeting
 			Location = location;
 		}
 
+		public ItemData Data => TileData.ItemTable[ItemID];
+
 		[CommandProperty(AccessLevel.Counselor)]
 		public Point3D Location { get; }
 
@@ -482,9 +486,9 @@ namespace Server.Targeting
 		public int Hue { get; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public string Name => TileData.ItemTable[ItemID].Name;
+		public string Name => Data.Name;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public TileFlag Flags => TileData.ItemTable[ItemID].Flags;
+		public TileFlag Flags => Data.Flags;
 	}
 }

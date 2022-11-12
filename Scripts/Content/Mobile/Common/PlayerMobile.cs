@@ -773,7 +773,14 @@ namespace Server.Mobiles
 		{
 			if (HomeTownsEnabled && HomeTown != null)
 			{
-				suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+				if (suffix?.Length > 0)
+				{
+					suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+				}
+				else
+				{
+					suffix = $"of {HomeTown.Definition.FriendlyName}";
+				}
 			}
 
 			return suffix;

@@ -45,13 +45,13 @@ namespace Server.Mobiles
 
 			VirtualArmor = 50;
 
+			CanFly = true;
+
 			if (0.2 > Utility.RandomDouble())
 			{
 				PackItem(new GargoylesPickaxe());
 			}
 		}
-
-		public override bool CanFly => true;
 
 		public override void GenerateLoot()
 		{

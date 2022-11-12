@@ -37,10 +37,11 @@
 
 			VirtualArmor = 58;
 			ControlSlots = Core.SE ? 4 : 5;
+
+			CanFly = true;
 		}
 
 		public override Poison PoisonImmune => Poison.Regular;  // TODO: Immune to poison?
-		public override bool CanFly => true;
 
 		public SummonedDaemon(Serial serial) : base(serial)
 		{

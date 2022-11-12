@@ -62,6 +62,8 @@ namespace Server.Mobiles
 			Karma = 22500;
 
 			VirtualArmor = 100;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -70,7 +72,6 @@ namespace Server.Mobiles
 		}
 
 		public override bool AutoDispel => true;
-		public override bool CanFly => true;
 		public override bool BardImmune => !Core.SE;
 		public override bool Unprovokable => Core.SE;
 		public override bool Uncalmable => Core.SE;

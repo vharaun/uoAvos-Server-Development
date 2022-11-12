@@ -40,6 +40,8 @@ namespace Server.Mobiles
 			Fame = 18000;
 			Karma = 0;
 
+			CanFly = true;
+
 			PackReg(4);
 			PackArcaneScroll(0, 1);
 		}
@@ -110,7 +112,6 @@ namespace Server.Mobiles
 			}
 		}
 
-		public override bool CanFly => true;
 		public override bool GivesMLMinorArtifact => true;
 		public override int Feathers => 72;
 

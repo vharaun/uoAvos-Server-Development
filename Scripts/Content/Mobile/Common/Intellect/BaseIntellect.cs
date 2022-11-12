@@ -2,6 +2,7 @@
 using Server.Engines.Quests.Definitions;
 using Server.Engines.Quests.Items;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.Network;
 using Server.Regions;
@@ -97,7 +98,7 @@ namespace Server.Mobiles
 		{
 			var name = m_Mobile.Name;
 
-			return (name != null && Insensitive.StartsWith(speech, name));
+			return name != null && Insensitive.StartsWith(speech, name);
 		}
 
 		private class InternalEntry : ContextMenuEntry
@@ -130,8 +131,8 @@ namespace Server.Mobiles
 						return;
 					}
 
-					var isOwner = (m_From == m_Mobile.ControlMaster);
-					var isFriend = (!isOwner && m_Mobile.IsPetFriend(m_From));
+					var isOwner = m_From == m_Mobile.ControlMaster;
+					var isFriend = !isOwner && m_Mobile.IsPetFriend(m_From);
 
 					if (!isOwner && !isFriend)
 					{
@@ -173,7 +174,7 @@ namespace Server.Mobiles
 								}
 								else
 								{
-									m_From.SendGump(new Gumps.ConfirmReleaseGump(m_From, m_Mobile));
+									_ = m_From.SendGump(new Gumps.ConfirmReleaseGump(m_From, m_Mobile));
 								}
 
 								break;
@@ -211,7 +212,7 @@ namespace Server.Mobiles
 					list.Add(new InternalEntry(from, 6112, 14, m_Mobile, this, OrderType.Stop));   // Command: Stop
 					list.Add(new InternalEntry(from, 6114, 14, m_Mobile, this, OrderType.Stay));   // Command: Stay
 
-					if (!m_Mobile.Summoned && !(m_Mobile is GrizzledMare))
+					if (!m_Mobile.Summoned && m_Mobile is not GrizzledMare)
 					{
 						list.Add(new InternalEntry(from, 6110, 14, m_Mobile, this, OrderType.Friend)); // Add Friend
 						list.Add(new InternalEntry(from, 6099, 14, m_Mobile, this, OrderType.Unfriend)); // Remove Friend
@@ -236,8 +237,8 @@ namespace Server.Mobiles
 				return;
 			}
 
-			var isOwner = (from == m_Mobile.ControlMaster);
-			var isFriend = (!isOwner && m_Mobile.IsPetFriend(from));
+			var isOwner = from == m_Mobile.ControlMaster;
+			var isFriend = !isOwner && m_Mobile.IsPetFriend(from);
 
 			if (!isOwner && !isFriend)
 			{
@@ -265,10 +266,8 @@ namespace Server.Mobiles
 
 				from.Target = new AIControlMobileTarget(this, order);
 			}
-			else if (from.Target is AIControlMobileTarget)
+			else if (from.Target is AIControlMobileTarget t)
 			{
-				var t = (AIControlMobileTarget)from.Target;
-
 				if (t.Order == order)
 				{
 					t.AddAI(this);
@@ -293,41 +292,43 @@ namespace Server.Mobiles
 				return;
 			}
 
-			var isOwner = (from == m_Mobile.ControlMaster);
-			var isFriend = (!isOwner && m_Mobile.IsPetFriend(from));
+			var isOwner = from == m_Mobile.ControlMaster;
+			var isFriend = !isOwner && m_Mobile.IsPetFriend(from);
 
 			if (!isOwner && !isFriend)
 			{
 				return;
 			}
-			else if (isFriend && order != OrderType.Follow && order != OrderType.Stay && order != OrderType.Stop)
+
+			if (isFriend && order != OrderType.Follow && order != OrderType.Stay && order != OrderType.Stop)
 			{
 				return;
 			}
 
 			if (order == OrderType.Attack)
 			{
-				if (target is BaseCreature && ((BaseCreature)target).IsScaryToPets && m_Mobile.IsScaredOfScaryThings)
+				if (target is BaseCreature bc && bc.IsScaryToPets && m_Mobile.IsScaredOfScaryThings)
 				{
 					m_Mobile.SayTo(from, "Your pet refuses to attack this creature!");
 					return;
 				}
 
-				if ((SolenHelper.CheckRedFriendship(from) &&
-							(target is RedSolenInfiltratorQueen
-							|| target is RedSolenInfiltratorWarrior
-							|| target is RedSolenQueen
-							|| target is RedSolenWarrior
-							|| target is RedSolenWorker))
-					|| (SolenHelper.CheckBlackFriendship(from) &&
-							(target is BlackSolenInfiltratorQueen
-							|| target is BlackSolenInfiltratorWarrior
-							|| target is BlackSolenQueen
-							|| target is BlackSolenWarrior
-							|| target is BlackSolenWorker)))
+				if (SolenHelper.CheckRedFriendship(from))
 				{
-					from.SendAsciiMessage("You can not force your pet to attack a creature you are protected from.");
-					return;
+					if (target is IRedSolenMember)
+					{
+						from.SendAsciiMessage("You can not force your pet to attack a creature you are protected from.");
+						return;
+					}
+				}
+
+				if (SolenHelper.CheckBlackFriendship(from))
+				{
+					if (target is IBlackSolenMember)
+					{
+						from.SendAsciiMessage("You can not force your pet to attack a creature you are protected from.");
+						return;
+					}
 				}
 
 				if (target is Factions.BaseFactionGuard)
@@ -356,60 +357,65 @@ namespace Server.Mobiles
 				return true;
 			}
 
-			return (from.Alive && from.InRange(m_Mobile.Location, 3) && m_Mobile.IsHumanInTown());
+			if (from.Alive && from.InRange(m_Mobile.Location, 3) && m_Mobile.IsHumanInTown())
+			{
+				return true;
+			}
+
+			return false;
 		}
 
-		private static readonly SkillName[] m_KeywordTable = new SkillName[]
-			{
-				SkillName.Parry,
-				SkillName.Healing,
-				SkillName.Hiding,
-				SkillName.Stealing,
-				SkillName.Alchemy,
-				SkillName.AnimalLore,
-				SkillName.ItemID,
-				SkillName.ArmsLore,
-				SkillName.Begging,
-				SkillName.Blacksmith,
-				SkillName.Fletching,
-				SkillName.Peacemaking,
-				SkillName.Camping,
-				SkillName.Carpentry,
-				SkillName.Cartography,
-				SkillName.Cooking,
-				SkillName.DetectHidden,
-				SkillName.Discordance,//??
-				SkillName.EvalInt,
-				SkillName.Fishing,
-				SkillName.Provocation,
-				SkillName.Lockpicking,
-				SkillName.Magery,
-				SkillName.MagicResist,
-				SkillName.Tactics,
-				SkillName.Snooping,
-				SkillName.RemoveTrap,
-				SkillName.Musicianship,
-				SkillName.Poisoning,
-				SkillName.Archery,
-				SkillName.SpiritSpeak,
-				SkillName.Tailoring,
-				SkillName.AnimalTaming,
-				SkillName.TasteID,
-				SkillName.Tinkering,
-				SkillName.Veterinary,
-				SkillName.Forensics,
-				SkillName.Herding,
-				SkillName.Tracking,
-				SkillName.Stealth,
-				SkillName.Inscribe,
-				SkillName.Swords,
-				SkillName.Macing,
-				SkillName.Fencing,
-				SkillName.Wrestling,
-				SkillName.Lumberjacking,
-				SkillName.Mining,
-				SkillName.Meditation
-			};
+		private static readonly SkillName[] m_KeywordTable =
+		{
+			SkillName.Parry,
+			SkillName.Healing,
+			SkillName.Hiding,
+			SkillName.Stealing,
+			SkillName.Alchemy,
+			SkillName.AnimalLore,
+			SkillName.ItemID,
+			SkillName.ArmsLore,
+			SkillName.Begging,
+			SkillName.Blacksmith,
+			SkillName.Fletching,
+			SkillName.Peacemaking,
+			SkillName.Camping,
+			SkillName.Carpentry,
+			SkillName.Cartography,
+			SkillName.Cooking,
+			SkillName.DetectHidden,
+			SkillName.Discordance,//??
+			SkillName.EvalInt,
+			SkillName.Fishing,
+			SkillName.Provocation,
+			SkillName.Lockpicking,
+			SkillName.Magery,
+			SkillName.MagicResist,
+			SkillName.Tactics,
+			SkillName.Snooping,
+			SkillName.RemoveTrap,
+			SkillName.Musicianship,
+			SkillName.Poisoning,
+			SkillName.Archery,
+			SkillName.SpiritSpeak,
+			SkillName.Tailoring,
+			SkillName.AnimalTaming,
+			SkillName.TasteID,
+			SkillName.Tinkering,
+			SkillName.Veterinary,
+			SkillName.Forensics,
+			SkillName.Herding,
+			SkillName.Tracking,
+			SkillName.Stealth,
+			SkillName.Inscribe,
+			SkillName.Swords,
+			SkillName.Macing,
+			SkillName.Fencing,
+			SkillName.Wrestling,
+			SkillName.Lumberjacking,
+			SkillName.Mining,
+			SkillName.Meditation
+		};
 
 		public virtual void OnSpeech(SpeechEventArgs e)
 		{
@@ -439,9 +445,7 @@ namespace Server.Mobiles
 					else
 					{
 						int generalNumber;
-						string exactTime;
-
-						Clock.GetTime(m_Mobile, out generalNumber, out exactTime);
+						Clock.GetTime(m_Mobile, out generalNumber, out _);
 
 						m_Mobile.PublicOverheadMessage(MessageType.Regular, 0x3B2, generalNumber);
 					}
@@ -505,7 +509,7 @@ namespace Server.Mobiles
 				{
 					var toTrain = (SkillName)(-1);
 
-					for (var i = 0; toTrain == (SkillName)(-1) && i < e.Keywords.Length; ++i)
+					for (var i = 0; !Enum.IsDefined(toTrain) && i < e.Keywords.Length; ++i)
 					{
 						var keyword = e.Keywords[i];
 
@@ -513,7 +517,7 @@ namespace Server.Mobiles
 						{
 							toTrain = SkillName.Anatomy;
 						}
-						else if (keyword >= 0x6D && keyword <= 0x9C)
+						else if (keyword is >= 0x6D and <= 0x9C)
 						{
 							var index = keyword - 0x6D;
 
@@ -524,7 +528,7 @@ namespace Server.Mobiles
 						}
 					}
 
-					if (toTrain != (SkillName)(-1) && WasNamed(e.Speech))
+					if (Enum.IsDefined(toTrain) && WasNamed(e.Speech))
 					{
 						if (m_Mobile.Combatant != null)
 						{
@@ -542,7 +546,7 @@ namespace Server.Mobiles
 							}
 							else
 							{
-								m_Mobile.Teach(toTrain, e.Mobile, 0, false);
+								_ = m_Mobile.Teach(toTrain, e.Mobile, 0, false);
 							}
 						}
 					}
@@ -553,8 +557,8 @@ namespace Server.Mobiles
 			{
 				m_Mobile.DebugSay("Listening...");
 
-				var isOwner = (e.Mobile == m_Mobile.ControlMaster);
-				var isFriend = (!isOwner && m_Mobile.IsPetFriend(e.Mobile));
+				var isOwner = e.Mobile == m_Mobile.ControlMaster;
+				var isFriend = !isOwner && m_Mobile.IsPetFriend(e.Mobile);
 
 				if (e.Mobile.Alive && (isOwner || isFriend))
 				{
@@ -603,6 +607,7 @@ namespace Server.Mobiles
 										m_Mobile.ControlTarget = null;
 										m_Mobile.ControlOrder = OrderType.Guard;
 									}
+
 									return;
 								}
 							case 0x167: // all stop
@@ -612,6 +617,7 @@ namespace Server.Mobiles
 										m_Mobile.ControlTarget = null;
 										m_Mobile.ControlOrder = OrderType.Stop;
 									}
+
 									return;
 								}
 							case 0x168: // all kill
@@ -632,6 +638,7 @@ namespace Server.Mobiles
 										m_Mobile.ControlTarget = e.Mobile;
 										m_Mobile.ControlOrder = OrderType.Follow;
 									}
+
 									return;
 								}
 							case 0x170: // all stay
@@ -641,6 +648,7 @@ namespace Server.Mobiles
 										m_Mobile.ControlTarget = null;
 										m_Mobile.ControlOrder = OrderType.Stay;
 									}
+
 									return;
 								}
 						}
@@ -793,7 +801,7 @@ namespace Server.Mobiles
 									{
 										if (!m_Mobile.Summoned)
 										{
-											e.Mobile.SendGump(new Gumps.ConfirmReleaseGump(e.Mobile, m_Mobile));
+											_ = e.Mobile.SendGump(new Gumps.ConfirmReleaseGump(e.Mobile, m_Mobile));
 										}
 										else
 										{
@@ -860,7 +868,7 @@ namespace Server.Mobiles
 
 							if (Insensitive.Equals(word, "obey"))
 							{
-								m_Mobile.SetControlMaster(e.Mobile);
+								_ = m_Mobile.SetControlMaster(e.Mobile);
 
 								if (m_Mobile.Summoned)
 								{
@@ -881,7 +889,7 @@ namespace Server.Mobiles
 			{
 				return false;
 			}
-			
+
 			if (CheckFlee())
 			{
 				return true;
@@ -979,7 +987,7 @@ namespace Server.Mobiles
 				if ((point.X != m_Mobile.Location.X || point.Y != m_Mobile.Location.Y) && point.Map == m_Mobile.Map && point.Parent == null && !point.Deleted)
 				{
 					m_Mobile.DebugSay("I will move towards my waypoint.");
-					DoMove(m_Mobile.GetDirectionTo(m_Mobile.CurrentWayPoint));
+					_ = DoMove(m_Mobile.GetDirectionTo(m_Mobile.CurrentWayPoint));
 				}
 				else if (OnAtWayPoint())
 				{
@@ -995,7 +1003,7 @@ namespace Server.Mobiles
 			{
 				if (m_Mobile.Formation.CheckMove(m_Mobile, out var to))
 				{
-					MoveTo(to, !m_Mobile.InRange(to, 2), 0);
+					_ = MoveTo(to, !m_Mobile.InRange(to, 2), 0);
 
 					if (m_Mobile.InRange(to, 0))
 					{
@@ -1010,7 +1018,7 @@ namespace Server.Mobiles
 
 				if (master != null && master.Map == m_Mobile.Map && master.InRange(m_Mobile, m_Mobile.RangePerception))
 				{
-					MoveTo(master, false, 1);
+					_ = MoveTo(master, false, 1);
 				}
 				else
 				{
@@ -1118,50 +1126,23 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			switch (m_Mobile.ControlOrder)
+			return m_Mobile.ControlOrder switch
 			{
-				case OrderType.None:
-					return DoOrderNone();
-
-				case OrderType.Come:
-					return DoOrderCome();
-
-				case OrderType.Drop:
-					return DoOrderDrop();
-
-				case OrderType.Friend:
-					return DoOrderFriend();
-
-				case OrderType.Unfriend:
-					return DoOrderUnfriend();
-
-				case OrderType.Guard:
-					return DoOrderGuard();
-
-				case OrderType.Attack:
-					return DoOrderAttack();
-
-				case OrderType.Patrol:
-					return DoOrderPatrol();
-
-				case OrderType.Release:
-					return DoOrderRelease();
-
-				case OrderType.Stay:
-					return DoOrderStay();
-
-				case OrderType.Stop:
-					return DoOrderStop();
-
-				case OrderType.Follow:
-					return DoOrderFollow();
-
-				case OrderType.Transfer:
-					return DoOrderTransfer();
-
-				default:
-					return false;
-			}
+				OrderType.None => DoOrderNone(),
+				OrderType.Come => DoOrderCome(),
+				OrderType.Drop => DoOrderDrop(),
+				OrderType.Friend => DoOrderFriend(),
+				OrderType.Unfriend => DoOrderUnfriend(),
+				OrderType.Guard => DoOrderGuard(),
+				OrderType.Attack => DoOrderAttack(),
+				OrderType.Patrol => DoOrderPatrol(),
+				OrderType.Release => DoOrderRelease(),
+				OrderType.Stay => DoOrderStay(),
+				OrderType.Stop => DoOrderStop(),
+				OrderType.Follow => DoOrderFollow(),
+				OrderType.Transfer => DoOrderTransfer(),
+				_ => false,
+			};
 		}
 
 		public virtual void OnCurrentOrderChanged()
@@ -1311,7 +1292,7 @@ namespace Server.Mobiles
 					m_Mobile.DebugSay("My master told me come");
 
 					// Not exactly OSI style, but better than nothing.
-					var bRun = (iCurrDist > 5);
+					var bRun = iCurrDist > 5;
 
 					if (WalkMobileRange(m_Mobile.ControlMaster, 1, bRun, 0, 1))
 					{
@@ -1372,13 +1353,11 @@ namespace Server.Mobiles
 
 			var distance = m_Mobile.GetDistanceToSqrt(target);
 
-			if (distance < 1 || distance > 15)
+			if (distance is < 1 or > 15)
 			{
 				if (distance < 1 && target.X == 1076 && target.Y == 450 && (m_Mobile is HordeMinionFamiliar))
 				{
-					var pm = m_Mobile.ControlMaster as PlayerMobile;
-
-					if (pm != null)
+					if (m_Mobile.ControlMaster is PlayerMobile pm)
 					{
 						var qs = pm.Quest;
 
@@ -1388,7 +1367,7 @@ namespace Server.Mobiles
 
 							if (obj != null && !obj.Completed)
 							{
-								m_Mobile.AddToBackpack(new ScrollOfAbraxus());
+								_ = m_Mobile.AddToBackpack(new ScrollOfAbraxus());
 								obj.Complete();
 							}
 						}
@@ -1399,7 +1378,7 @@ namespace Server.Mobiles
 				return false; // At the target or too far away
 			}
 
-			DoMove(m_Mobile.GetDirectionTo(target));
+			_ = DoMove(m_Mobile.GetDirectionTo(target));
 
 			return true;
 		}
@@ -1433,7 +1412,7 @@ namespace Server.Mobiles
 					m_Mobile.DebugSay("My master told me to follow: {0}", m_Mobile.ControlTarget.Name);
 
 					// Not exactly OSI style, but better than nothing.
-					var bRun = (iCurrDist > 5);
+					var bRun = iCurrDist > 5;
 
 					if (WalkMobileRange(m_Mobile.ControlTarget, 1, bRun, 0, 1))
 					{
@@ -1474,8 +1453,8 @@ namespace Server.Mobiles
 			}
 			else
 			{
-				var youngFrom = from is PlayerMobile ? ((PlayerMobile)from).Young : false;
-				var youngTo = to is PlayerMobile ? ((PlayerMobile)to).Young : false;
+				var youngFrom = from is PlayerMobile pmf && pmf.Young;
+				var youngTo = to is PlayerMobile pmt && pmt.Young;
 
 				if (youngFrom && !youngTo)
 				{
@@ -1618,7 +1597,7 @@ namespace Server.Mobiles
 				 * We need to call Think() here or spell casting monsters will not use
 				 * spells when guarding because their target is never processed.
 				 */
-				Think();
+				_ = Think();
 			}
 			else
 			{
@@ -1630,7 +1609,7 @@ namespace Server.Mobiles
 					m_Mobile.CurrentSpeed = 0.1;
 				}
 
-				WalkMobileRange(controlMaster, 1, false, 0, 1);
+				_ = WalkMobileRange(controlMaster, 1, false, 0, 1);
 			}
 
 			return true;
@@ -1658,7 +1637,7 @@ namespace Server.Mobiles
 					m_Mobile.ControlOrder = OrderType.None;
 				}
 
-				if (m_Mobile.FightMode == FightMode.Closest || m_Mobile.FightMode == FightMode.Aggressor)
+				if (m_Mobile.FightMode is FightMode.Closest or FightMode.Aggressor)
 				{
 					Mobile newCombatant = null;
 					var newScore = 0.0;
@@ -1690,14 +1669,14 @@ namespace Server.Mobiles
 						m_Mobile.ControlOrder = OrderType.Attack;
 						m_Mobile.Combatant = newCombatant;
 						m_Mobile.DebugSay("But -that- is not dead. Here we go again...");
-						Think();
+						_ = Think();
 					}
 				}
 			}
 			else
 			{
 				m_Mobile.DebugSay("Attacking target...");
-				Think();
+				_ = Think();
 			}
 
 			return true;
@@ -1715,15 +1694,14 @@ namespace Server.Mobiles
 
 			m_Mobile.PlaySound(m_Mobile.GetAngerSound());
 
-			m_Mobile.SetControlMaster(null);
+			_ = m_Mobile.SetControlMaster(null);
 			m_Mobile.SummonMaster = null;
 
 			m_Mobile.BondingBegin = DateTime.MinValue;
 			m_Mobile.OwnerAbandonTime = DateTime.MinValue;
 			m_Mobile.IsBonded = false;
 
-			var se = m_Mobile.Spawner as SpawnEntry;
-			if (se != null && se.HomeLocation != Point3D.Zero)
+			if (m_Mobile.Spawner is SpawnEntry se && se.HomeLocation != Point3D.Zero)
 			{
 				m_Mobile.Home = se.HomeLocation;
 				m_Mobile.RangeHome = se.HomeRange;
@@ -1786,7 +1764,7 @@ namespace Server.Mobiles
 		{
 			public static bool IsInCombat(BaseCreature creature)
 			{
-				return (creature != null && (creature.Aggressors.Count > 0 || creature.Aggressed.Count > 0));
+				return creature != null && (creature.Aggressors.Count > 0 || creature.Aggressed.Count > 0);
 			}
 
 			private readonly BaseCreature m_Creature;
@@ -1827,8 +1805,7 @@ namespace Server.Mobiles
 			public override void Deserialize(GenericReader reader)
 			{
 				base.Deserialize(reader);
-
-				var version = reader.ReadInt();
+				_ = reader.ReadInt();
 
 				Delete();
 			}
@@ -1863,8 +1840,8 @@ namespace Server.Mobiles
 					return false;
 				}
 
-				var youngFrom = from is PlayerMobile ? ((PlayerMobile)from).Young : false;
-				var youngTo = to is PlayerMobile ? ((PlayerMobile)to).Young : false;
+				var youngFrom = from is PlayerMobile pmf && pmf.Young;
+				var youngTo = to is PlayerMobile pmt && pmt.Young;
 
 				if (accepted && youngFrom && !youngTo)
 				{
@@ -1876,7 +1853,7 @@ namespace Server.Mobiles
 				}
 				else if (accepted && !m_Creature.CanBeControlledBy(to))
 				{
-					var args = String.Format("{0}\t{1}\t ", to.Name, from.Name);
+					var args = $"{to.Name}\t{from.Name}\t ";
 
 					from.SendLocalizedMessage(1043248, args); // The pet refuses to be transferred because it will not obey ~1_NAME~.~3_BLANK~
 					to.SendLocalizedMessage(1043249, args); // The pet will not accept you as a master because it does not trust you.~3_BLANK~
@@ -1967,8 +1944,8 @@ namespace Server.Mobiles
 			{
 				m_Mobile.DebugSay("Begin transfer with {0}", to.Name);
 
-				var youngFrom = from is PlayerMobile ? ((PlayerMobile)from).Young : false;
-				var youngTo = to is PlayerMobile ? ((PlayerMobile)to).Young : false;
+				var youngFrom = from is PlayerMobile pmf && pmf.Young;
+				var youngTo = to is PlayerMobile pmt && pmt.Young;
 
 				if (youngFrom && !youngTo)
 				{
@@ -2074,7 +2051,7 @@ namespace Server.Mobiles
 					m_Action = ActionType.Combat;
 
 					m_Mobile.OnThink();
-					Think();
+					_ = Think();
 				}
 			}
 
@@ -2088,42 +2065,20 @@ namespace Server.Mobiles
 				return;
 			}
 
+			if (m_Mobile.Flying || m_Mobile.FlyingHeightCur > 0)
+			{
+				iChanceToNotMove = 0;
+				iSteps *= 3;
+			}
+
+			var rndMove = (Direction)Utility.Random(0, 8 + (9 * iChanceToDir));
+			var rndDir = Enum.IsDefined(rndMove) ? rndMove : m_Mobile.Direction;
+
 			for (var i = 0; i < iSteps; i++)
 			{
-				if (Utility.Random(8 * iChanceToNotMove) <= 8)
+				if (iChanceToNotMove <= 0 || Utility.Random(8 * iChanceToNotMove) <= 8)
 				{
-					var iRndMove = Utility.Random(0, 8 + (9 * iChanceToDir));
-
-					switch (iRndMove)
-					{
-						case 0:
-							DoMove(Direction.Up);
-							break;
-						case 1:
-							DoMove(Direction.North);
-							break;
-						case 2:
-							DoMove(Direction.Left);
-							break;
-						case 3:
-							DoMove(Direction.West);
-							break;
-						case 5:
-							DoMove(Direction.Down);
-							break;
-						case 6:
-							DoMove(Direction.South);
-							break;
-						case 7:
-							DoMove(Direction.Right);
-							break;
-						case 8:
-							DoMove(Direction.East);
-							break;
-						default:
-							DoMove(m_Mobile.Direction);
-							break;
-					}
+					DoMove(rndDir);
 				}
 			}
 		}
@@ -2144,8 +2099,9 @@ namespace Server.Mobiles
 				return delay;
 			}
 
-			var isPassive = (delay == m_Mobile.PassiveSpeed);
-			var isControlled = (m_Mobile.Controlled || m_Mobile.Summoned);
+			var isFlying = m_Mobile.Flying || m_Mobile.FlyingHeightCur > 0;
+			var isPassive = delay == m_Mobile.PassiveSpeed;
+			var isControlled = m_Mobile.Controlled || m_Mobile.Summoned;
 
 			if (delay == 0.2)
 			{
@@ -2195,7 +2151,18 @@ namespace Server.Mobiles
 				delay -= 0.075;
 			}
 
-			if (m_Mobile.ReduceSpeedWithDamage || m_Mobile.IsSubdued)
+			if (isFlying)
+			{
+				if (m_Mobile.Combatant != null)
+				{
+					delay = Math.Min(delay, BaseCreature.FlyingActiveSpeed);
+				}
+				else
+				{
+					delay = Math.Min(delay, BaseCreature.FlyingPassiveSpeed);
+				}
+			}
+			else if (m_Mobile.ReduceSpeedWithDamage || m_Mobile.IsSubdued)
 			{
 				var offset = (double)m_Mobile.Hits / m_Mobile.HitsMax;
 
@@ -2210,7 +2177,7 @@ namespace Server.Mobiles
 
 				offset = 1.0 - offset;
 
-				delay += (offset * 0.8);
+				delay += offset * 0.8;
 			}
 
 			if (delay < 0.0)
@@ -2231,17 +2198,11 @@ namespace Server.Mobiles
 			return delay;
 		}
 
-		private long m_NextMove;
-
-		public long NextMove
-		{
-			get => m_NextMove;
-			set => m_NextMove = value;
-		}
+		public long NextMove { get; set; }
 
 		public virtual bool CheckMove()
 		{
-			return (Core.TickCount - m_NextMove >= 0);
+			return Core.TickCount - NextMove >= 0;
 		}
 
 		public virtual bool DoMove(Direction d)
@@ -2253,10 +2214,45 @@ namespace Server.Mobiles
 		{
 			var res = DoMoveImpl(d);
 
-			return (res == MoveResult.Success || res == MoveResult.SuccessAutoTurn || (badStateOk && res == MoveResult.BadState));
+			if (res == MoveResult.Success || res == MoveResult.SuccessAutoTurn || (badStateOk && res == MoveResult.BadState))
+			{
+				if (m_Mobile.Flying)
+				{
+					if (m_Mobile.Combatant != null)
+					{
+						var zdiff = Math.Clamp(m_Mobile.Z - m_Mobile.Combatant.Z, -Movement.Movement.StepHeight, Movement.Movement.StepHeight);
+
+						if (zdiff != 0)
+						{
+							m_Mobile.FlyingHeightCur = Math.Clamp(m_Mobile.FlyingHeightCur + zdiff, 0, m_Mobile.FlyingHeightMax);
+						}
+					}
+					else if (m_Mobile.FlyingHeightCur < m_Mobile.FlyingHeightMin)
+					{
+						m_Mobile.FlyingHeightCur = Math.Min(m_Mobile.FlyingHeightMax, m_Mobile.FlyingHeightCur + Movement.Movement.StepHeight);
+					}
+					else if (m_Mobile.FlyingHeightCur <= m_Mobile.FlyingHeightMax)
+					{
+						var zdiff = Utility.RandomMinMax(-Movement.Movement.StepHeight, Movement.Movement.StepHeight);
+
+						if (zdiff != 0)
+						{
+							m_Mobile.FlyingHeightCur = Math.Clamp(m_Mobile.FlyingHeightCur + zdiff, m_Mobile.FlyingHeightMin, m_Mobile.FlyingHeightMax);
+						}
+					}
+				}
+				else if (m_Mobile.FlyingHeightCur > 0)
+				{
+					m_Mobile.FlyingHeightCur = Math.Max(0, m_Mobile.FlyingHeightCur - Movement.Movement.StepHeight);
+				}
+
+				return true;
+			}
+
+			return false;
 		}
 
-		private static readonly Queue<Item> m_Obstacles = new Queue<Item>();
+		private static readonly Queue<Item> m_Obstacles = new();
 
 		public virtual MoveResult DoMoveImpl(Direction d)
 		{
@@ -2264,7 +2260,8 @@ namespace Server.Mobiles
 			{
 				return MoveResult.BadState;
 			}
-			else if (!CheckMove())
+
+			if (!CheckMove())
 			{
 				return MoveResult.BadState;
 			}
@@ -2274,165 +2271,166 @@ namespace Server.Mobiles
 
 			var delay = (int)(TransformMoveDelay(m_Mobile.CurrentSpeed) * 1000);
 
-			m_NextMove += delay;
+			NextMove += delay;
 
-			if (Core.TickCount - m_NextMove > 0)
+			if (Core.TickCount - NextMove > 0)
 			{
-				m_NextMove = Core.TickCount;
+				NextMove = Core.TickCount;
 			}
 
 			m_Mobile.Pushing = false;
 
-			MoveImpl.IgnoreMovableImpassables = (m_Mobile.CanMoveOverObstacles && !m_Mobile.CanDestroyObstacles);
+			MoveImpl.IgnoreMovableImpassables = m_Mobile.CanMoveOverObstacles && !m_Mobile.CanDestroyObstacles;
 
-			if ((m_Mobile.Direction & Direction.Mask) != (d & Direction.Mask))
+			try
 			{
-				var v = m_Mobile.Move(d);
-
-				MoveImpl.IgnoreMovableImpassables = false;
-				return (v ? MoveResult.Success : MoveResult.Blocked);
-			}
-			else if (!m_Mobile.Move(d))
-			{
-				var wasPushing = m_Mobile.Pushing;
-
-				var blocked = true;
-
-				var canOpenDoors = m_Mobile.CanOpenDoors;
-				var canDestroyObstacles = m_Mobile.CanDestroyObstacles;
-
-				if (canOpenDoors || canDestroyObstacles)
+				if ((m_Mobile.Direction & Direction.Mask) != (d & Direction.Mask))
 				{
-					m_Mobile.DebugSay("My movement was blocked, I will try to clear some obstacles.");
+					var v = m_Mobile.Move(d);
 
-					var map = m_Mobile.Map;
+					return v ? MoveResult.Success : MoveResult.Blocked;
+				}
 
-					if (map != null)
+				if (!m_Mobile.Move(d))
+				{
+					var wasPushing = m_Mobile.Pushing;
+
+					var blocked = true;
+
+					var canOpenDoors = m_Mobile.CanOpenDoors;
+					var canDestroyObstacles = m_Mobile.CanDestroyObstacles;
+
+					if (canOpenDoors || canDestroyObstacles)
 					{
-						int x = m_Mobile.X, y = m_Mobile.Y;
-						Movement.Movement.Offset(d, ref x, ref y);
+						m_Mobile.DebugSay("My movement was blocked, I will try to clear some obstacles.");
 
-						var destroyables = 0;
+						var map = m_Mobile.Map;
 
-						IPooledEnumerable eable = map.GetItemsInRange(new Point3D(x, y, m_Mobile.Location.Z), 1);
-
-						foreach (Item item in eable)
+						if (map != null)
 						{
-							if (canOpenDoors && item is BaseDoor && (item.Z + item.ItemData.Height) > m_Mobile.Z && (m_Mobile.Z + 16) > item.Z)
+							int x = m_Mobile.X, y = m_Mobile.Y, z = m_Mobile.Z;
+
+							Movement.Movement.Offset(d, ref x, ref y);
+
+							var destroyables = 0;
+
+							var eable = map.GetItemsInRange(new Point3D(x, y, z), 1);
+
+							foreach (var item in eable)
 							{
-								if (item.X != x || item.Y != y)
+								if (!Geometry.Intersects(z, Movement.Movement.PersonHeight, item))
 								{
 									continue;
 								}
 
-								var door = (BaseDoor)item;
-
-								if (!door.Locked || !door.UseLocks())
+								if (canOpenDoors && item is BaseDoor door)
 								{
-									m_Obstacles.Enqueue(door);
-								}
-
-								if (!canDestroyObstacles)
-								{
-									break;
-								}
-							}
-							else if (canDestroyObstacles && item.Movable && item.ItemData.Impassable && (item.Z + item.ItemData.Height) > m_Mobile.Z && (m_Mobile.Z + 16) > item.Z)
-							{
-								if (!m_Mobile.InRange(item.GetWorldLocation(), 1))
-								{
-									continue;
-								}
-
-								m_Obstacles.Enqueue(item);
-								++destroyables;
-							}
-						}
-
-						eable.Free();
-
-						if (destroyables > 0)
-						{
-							Effects.PlaySound(new Point3D(x, y, m_Mobile.Z), m_Mobile.Map, 0x3B3);
-						}
-
-						if (m_Obstacles.Count > 0)
-						{
-							blocked = false; // retry movement
-						}
-
-						while (m_Obstacles.Count > 0)
-						{
-							var item = m_Obstacles.Dequeue();
-
-							if (item is BaseDoor)
-							{
-								m_Mobile.DebugSay("Little do they expect, I've learned how to open doors. Didn't they read the script??");
-								m_Mobile.DebugSay("*twist*");
-
-								((BaseDoor)item).Use(m_Mobile);
-							}
-							else
-							{
-								m_Mobile.DebugSay("Ugabooga. I'm so big and tough I can destroy it: {0}", item.GetType().Name);
-
-								if (item is Container)
-								{
-									var cont = (Container)item;
-
-									for (var i = 0; i < cont.Items.Count; ++i)
+									if (item.X != x || item.Y != y)
 									{
-										var check = cont.Items[i];
-
-										if (check.Movable && check.ItemData.Impassable && (item.Z + check.ItemData.Height) > m_Mobile.Z)
-										{
-											m_Obstacles.Enqueue(check);
-										}
+										continue;
 									}
 
-									cont.Destroy();
+									if (!door.Locked || !door.UseLocks())
+									{
+										m_Obstacles.Enqueue(door);
+									}
+
+									if (!canDestroyObstacles)
+									{
+										break;
+									}
+								}
+								else if (canDestroyObstacles && item.Movable && item.ItemData.Impassable)
+								{
+									if (!m_Mobile.InRange(item.GetWorldLocation(), 1))
+									{
+										continue;
+									}
+
+									m_Obstacles.Enqueue(item);
+									++destroyables;
+								}
+							}
+
+							eable.Free();
+
+							if (destroyables > 0)
+							{
+								Effects.PlaySound(new Point3D(x, y, z), m_Mobile.Map, 0x3B3);
+							}
+
+							if (m_Obstacles.Count > 0)
+							{
+								blocked = false; // retry movement
+							}
+
+							while (m_Obstacles.Count > 0)
+							{
+								var item = m_Obstacles.Dequeue();
+
+								if (item is BaseDoor door)
+								{
+									m_Mobile.DebugSay("Little do they expect, I've learned how to open doors. Didn't they read the script??");
+									m_Mobile.DebugSay("*twist*");
+
+									door.Use(m_Mobile);
 								}
 								else
 								{
-									item.Delete();
+									m_Mobile.DebugSay("Ugabooga. I'm so big and tough I can destroy it: {0}", item.GetType().Name);
+
+									if (item is Container cont)
+									{
+										for (var i = 0; i < cont.Items.Count; ++i)
+										{
+											var check = cont.Items[i];
+
+											if (check.Movable && check.ItemData.Impassable && (item.Z + check.ItemData.Height) > m_Mobile.Z)
+											{
+												m_Obstacles.Enqueue(check);
+											}
+										}
+
+										cont.Destroy();
+									}
+									else
+									{
+										item.Delete();
+									}
 								}
+							}
+
+							if (!blocked)
+							{
+								blocked = !m_Mobile.Move(d);
+							}
+						}
+					}
+
+					if (blocked)
+					{
+						var offset = Utility.RandomDouble() >= 0.6 ? 1 : -1;
+
+						for (var i = 0; i < 2; ++i)
+						{
+							m_Mobile.TurnInternal(offset);
+
+							if (m_Mobile.Move(m_Mobile.Direction))
+							{
+								return MoveResult.SuccessAutoTurn;
 							}
 						}
 
-						if (!blocked)
-						{
-							blocked = !m_Mobile.Move(d);
-						}
+						return wasPushing ? MoveResult.BadState : MoveResult.Blocked;
 					}
 				}
 
-				if (blocked)
-				{
-					var offset = (Utility.RandomDouble() >= 0.6 ? 1 : -1);
-
-					for (var i = 0; i < 2; ++i)
-					{
-						m_Mobile.TurnInternal(offset);
-
-						if (m_Mobile.Move(m_Mobile.Direction))
-						{
-							MoveImpl.IgnoreMovableImpassables = false;
-							return MoveResult.SuccessAutoTurn;
-						}
-					}
-
-					MoveImpl.IgnoreMovableImpassables = false;
-					return (wasPushing ? MoveResult.BadState : MoveResult.Blocked);
-				}
-				else
-				{
-					MoveImpl.IgnoreMovableImpassables = false;
-					return MoveResult.Success;
-				}
+				return MoveResult.Success;
 			}
-
-			MoveImpl.IgnoreMovableImpassables = false;
-			return MoveResult.Success;
+			finally
+			{
+				MoveImpl.IgnoreMovableImpassables = false;
+			}
 		}
 
 		public virtual void WalkRandomInHome(int iChanceToNotMove, int iChanceToDir, int iSteps)
@@ -2444,9 +2442,9 @@ namespace Server.Mobiles
 
 			if (m_Mobile.Home == Point3D.Zero)
 			{
-				if (m_Mobile.Spawner is SpawnEntry)
+				if (m_Mobile.Spawner is SpawnEntry se)
 				{
-					Region region = ((SpawnEntry)m_Mobile.Spawner).Region;
+					var region = se.Region;
 
 					if (m_Mobile.Region.AcceptsSpawnsFrom(m_Mobile, region))
 					{
@@ -2458,7 +2456,7 @@ namespace Server.Mobiles
 					{
 						if (region.GoLocation != Point3D.Zero && Utility.Random(10) > 5)
 						{
-							DoMove(m_Mobile.GetDirectionTo(region.GoLocation));
+							_ = DoMove(m_Mobile.GetDirectionTo(region.GoLocation));
 						}
 						else
 						{
@@ -2485,13 +2483,13 @@ namespace Server.Mobiles
 						}
 						else if (iCurrDist > m_Mobile.RangeHome)
 						{
-							DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
+							_ = DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
 						}
 						else
 						{
 							if (Utility.Random(10) > 5)
 							{
-								DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
+								_ = DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
 							}
 							else
 							{
@@ -2503,7 +2501,7 @@ namespace Server.Mobiles
 					{
 						if (m_Mobile.Location != m_Mobile.Home)
 						{
-							DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
+							_ = DoMove(m_Mobile.GetDirectionTo(m_Mobile.Home));
 						}
 					}
 				}
@@ -2527,7 +2525,7 @@ namespace Server.Mobiles
 					d = (Direction)((int)d + Utility.RandomMinMax(-1, +1));
 
 					m_Mobile.Direction = d;
-					m_Mobile.Move(d);
+					_ = m_Mobile.Move(d);
 				}
 
 				return true;
@@ -2570,7 +2568,8 @@ namespace Server.Mobiles
 			}
 			else if (!DoMove(m_Mobile.GetDirectionTo(p), true))
 			{
-				m_Path = new PathFollower(m_Mobile, p) {
+				m_Path = new PathFollower(m_Mobile, p)
+				{
 					Mover = DoMoveImpl
 				};
 
@@ -2614,7 +2613,7 @@ namespace Server.Mobiles
 
 					if (iCurrDist < iWantDistMin || iCurrDist > iWantDistMax)
 					{
-						var needCloser = (iCurrDist > iWantDistMax);
+						var needCloser = iCurrDist > iWantDistMax;
 						var needFurther = !needCloser;
 
 						if (needCloser && m_Path != null && m_Path.Goal == m)
@@ -2640,12 +2639,13 @@ namespace Server.Mobiles
 							// Add the run flag
 							if (bRun)
 							{
-								dirTo = dirTo | Direction.Running;
+								dirTo |= Direction.Running;
 							}
 
 							if (!DoMove(dirTo, true) && needCloser)
 							{
-								m_Path = new PathFollower(m_Mobile, m) {
+								m_Path = new PathFollower(m_Mobile, m)
+								{
 									Mover = new MoveMethod(DoMoveImpl)
 								};
 
@@ -2709,7 +2709,7 @@ namespace Server.Mobiles
 				else
 				{
 					m_Mobile.FocusMob = m_Mobile.BardTarget;
-					return (m_Mobile.FocusMob != null);
+					return m_Mobile.FocusMob != null;
 				}
 			}
 			else if (m_Mobile.Controlled)
@@ -2727,7 +2727,7 @@ namespace Server.Mobiles
 				else
 				{
 					m_Mobile.FocusMob = m_Mobile.ControlTarget;
-					return (m_Mobile.FocusMob != null);
+					return m_Mobile.FocusMob != null;
 				}
 			}
 
@@ -2852,29 +2852,29 @@ namespace Server.Mobiles
 					}
 
 					// Ignore players with activated honor
-					if (m is PlayerMobile && ((PlayerMobile)m).HonorActive && !(m_Mobile.Combatant == m))
+					if (m is PlayerMobile pm && pm.HonorActive && m_Mobile.Combatant != pm)
 					{
 						continue;
 					}
 
-					if (acqType == FightMode.Aggressor || acqType == FightMode.Evil)
+					if (acqType is FightMode.Aggressor or FightMode.Evil)
 					{
 						var bValid = IsHostile(m);
 
 						if (!bValid)
 						{
-							bValid = (m_Mobile.GetFactionAllegiance(m) == BaseCreature.Allegiance.Enemy || m_Mobile.GetEthicAllegiance(m) == BaseCreature.Allegiance.Enemy);
+							bValid = m_Mobile.GetFactionAllegiance(m) == BaseCreature.Allegiance.Enemy || m_Mobile.GetEthicAllegiance(m) == BaseCreature.Allegiance.Enemy;
 						}
 
 						if (acqType == FightMode.Evil && !bValid)
 						{
-							if (m is BaseCreature && ((BaseCreature)m).Controlled && ((BaseCreature)m).ControlMaster != null)
+							if (m is BaseCreature bc && bc.Controlled && bc.ControlMaster != null)
 							{
-								bValid = (((BaseCreature)m).ControlMaster.Karma < 0);
+								bValid = bc.ControlMaster.Karma < 0;
 							}
 							else
 							{
-								bValid = (m.Karma < 0);
+								bValid = m.Karma < 0;
 							}
 						}
 
@@ -2912,7 +2912,7 @@ namespace Server.Mobiles
 				m_Mobile.FocusMob = newFocusMob;
 			}
 
-			return (m_Mobile.FocusMob != null);
+			return m_Mobile.FocusMob != null;
 		}
 
 		private bool IsHostile(Mobile from)
@@ -2943,7 +2943,6 @@ namespace Server.Mobiles
 			return false;
 		}
 
-
 		public virtual void DetectHidden()
 		{
 			if (m_Mobile.Deleted || m_Mobile.Map == null)
@@ -2970,7 +2969,7 @@ namespace Server.Mobiles
 					var trgHiding = trg.Skills[SkillName.Hiding].Value / 2.9;
 					var trgStealth = trg.Skills[SkillName.Stealth].Value / 1.8;
 
-					var chance = srcSkill / 1.2 - Math.Min(trgHiding, trgStealth);
+					var chance = (srcSkill / 1.2) - Math.Min(trgHiding, trgStealth);
 
 					if (chance < srcSkill / 10)
 					{
@@ -2986,6 +2985,7 @@ namespace Server.Mobiles
 					}
 				}
 			}
+
 			eable.Free();
 		}
 
@@ -2995,20 +2995,18 @@ namespace Server.Mobiles
 			{
 				m_Timer.Stop();
 
-				var se = m_Mobile.Spawner as SpawnEntry;
-
-				if (se != null && se.ReturnOnDeactivate && !m_Mobile.Controlled)
+				if (m_Mobile.Spawner is SpawnEntry se && se.ReturnOnDeactivate && !m_Mobile.Controlled)
 				{
 					if (se.HomeLocation == Point3D.Zero)
 					{
 						if (!m_Mobile.Region.AcceptsSpawnsFrom(m_Mobile, se.Region))
 						{
-							Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
+							_ = Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
 						}
 					}
 					else if (!m_Mobile.InRange(se.HomeLocation, se.HomeRange))
 					{
-						Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
+						_ = Timer.DelayCall(TimeSpan.Zero, ReturnToHome);
 					}
 				}
 			}
@@ -3016,9 +3014,7 @@ namespace Server.Mobiles
 
 		private void ReturnToHome()
 		{
-			var se = m_Mobile.Spawner as SpawnEntry;
-
-			if (se != null)
+			if (m_Mobile.Spawner is SpawnEntry se)
 			{
 				var loc = se.RandomSpawnLocation(16, !m_Mobile.CantWalk, m_Mobile.CanSwim);
 
@@ -3108,11 +3104,11 @@ namespace Server.Mobiles
 
 				if (m_Owner.m_Mobile.BardPacified)
 				{
-					m_Owner.DoBardPacified();
+					_ = m_Owner.DoBardPacified();
 				}
 				else if (m_Owner.m_Mobile.BardProvoked)
 				{
-					m_Owner.DoBardProvoked();
+					_ = m_Owner.DoBardProvoked();
 				}
 				else
 				{
@@ -3139,7 +3135,7 @@ namespace Server.Mobiles
 					m_Owner.DetectHidden();
 
 					// Not exactly OSI style, approximation.
-					var delay = (15000 / m_Owner.m_Mobile.Int);
+					var delay = 15000 / m_Owner.m_Mobile.Int;
 
 					if (delay > 60)
 					{
@@ -3161,14 +3157,13 @@ namespace Server.Targets
 	public class AIControlMobileTarget : Target
 	{
 		private readonly List<BaseAI> m_List;
-		private readonly OrderType m_Order;
 
-		public OrderType Order => m_Order;
+		public OrderType Order { get; }
 
-		public AIControlMobileTarget(BaseAI ai, OrderType order) : base(-1, false, (order == OrderType.Attack ? TargetFlags.Harmful : TargetFlags.None))
+		public AIControlMobileTarget(BaseAI ai, OrderType order) : base(-1, false, order == OrderType.Attack ? TargetFlags.Harmful : TargetFlags.None)
 		{
 			m_List = new List<BaseAI>();
-			m_Order = order;
+			Order = order;
 
 			AddAI(ai);
 		}
@@ -3183,12 +3178,11 @@ namespace Server.Targets
 
 		protected override void OnTarget(Mobile from, object o)
 		{
-			if (o is Mobile)
+			if (o is Mobile m)
 			{
-				var m = (Mobile)o;
 				for (var i = 0; i < m_List.Count; ++i)
 				{
-					m_List[i].EndPickTarget(from, m, m_Order);
+					m_List[i].EndPickTarget(from, m, Order);
 				}
 			}
 		}

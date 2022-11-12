@@ -1,4 +1,6 @@
 ﻿
+using Server.Targeting;
+
 using System;
 
 namespace Server.Misc
@@ -263,6 +265,168 @@ namespace Server.Misc
 					error += deltax;
 				}
 			}
+		}
+
+		public static bool GetHeight(IPoint3D p, out int h)
+		{
+			h = 0;
+
+			if (p is LandTarget)
+			{
+				h = 1;
+			}
+			else if (p is StaticTarget s)
+			{
+				h = Math.Max(1, s.Data.CalcHeight);
+			}
+			else if (p is Mobile)
+			{
+				h = 16;
+			}
+			else if (p is Item i)
+			{
+				if (i.Parent != null)
+				{
+					return false;
+				}
+
+				h = Math.Max(1, i.ItemData.CalcHeight);
+			}
+
+			return true;
+		}
+
+		public static bool GetHeight(LandTile l, out int h)
+		{
+			h = l.Ignored ? 0 : 1;
+
+			return h > 0;
+		}
+
+		public static bool GetHeight(StaticTile s, out int h)
+		{
+			try
+			{
+				h = s.Ignored ? 0 : Math.Max(1, TileData.ItemTable[s.ID].CalcHeight);
+
+				return h > 0;
+			}
+			catch
+			{
+				h = 0;
+
+				return false;
+			}
+		}
+
+		public static bool Intersects(StaticTile p1, StaticTile p2)
+		{
+			return GetHeight(p1, out var h1) && GetHeight(p2, out var h2) && Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(StaticTile p1, int x2, int y2, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(p1.X, p1.Y, p1.Z, h1, x2, y2, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, StaticTile p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(x1, y1, z1, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, StaticTile p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(0, 0, z1, h1, 0, 0, p2.Z, h2);
+		}
+
+		public static bool Intersects(StaticTile p1, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(0, 0, p1.Z, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, IPoint3D p2)
+		{
+			return GetHeight(p1, out var h1) && GetHeight(p2, out var h2) && Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, int x2, int y2, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(p1.X, p1.Y, p1.Z, h1, x2, y2, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, IPoint3D p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(x1, y1, z1, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, IPoint3D p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(0, 0, z1, h1, 0, 0, p2.Z, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(0, 0, p1.Z, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(Point2D p1, int z1, int h1, Point2D p2, int z2, int h2)
+		{
+			return Intersects(p1.X, p1.Y, z1, h1, p2.X, p2.Y, z2, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, Point3D p2)
+		{
+			return Intersects(0, 0, z1, h1, 0, 0, p2.Z, 1);
+		}
+
+		public static bool Intersects(Point3D p1, int z2, int h2)
+		{
+			return Intersects(0, 0, p1.Z, 1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(Point3D p1, int h1, Point3D p2, int h2)
+		{
+			return Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, int z2, int h2)
+		{
+			return Intersects(0, 0, z1, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, int x2, int y2, int z2, int h2)
+		{
+			if (x1 != x2 || y1 != y2)
+			{
+				return false;
+			}
+
+			if (z1 == z2 || z1 + h1 == z2 + h2)
+			{
+				return true;
+			}
+
+			if (z1 >= z2 && z1 <= z2 + h2)
+			{
+				return true;
+			}
+
+			if (z2 >= z1 && z2 <= z1 + h1)
+			{
+				return true;
+			}
+
+			if (z1 <= z2 && z1 + h1 >= z2)
+			{
+				return true;
+			}
+
+			if (z2 <= z1 && z2 + h2 >= z1)
+			{
+				return true;
+			}
+
+			return false;
 		}
 	}
 }

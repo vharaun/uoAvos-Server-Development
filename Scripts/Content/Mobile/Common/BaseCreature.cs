@@ -844,7 +844,71 @@ namespace Server.Mobiles
 
 		#endregion
 
-		public virtual bool CanFly => false;
+		#region Flying
+
+		public static double FlyingPassiveSpeed => WalkMount / 1000.0;
+		public static double FlyingActiveSpeed => RunMount / 1000.0;
+
+		private double m_cPassiveSpeed;
+		private double m_cActiveSpeed;
+
+		private int m_FlyingHeightCur, m_FlyingHeightMin = 20, m_FlyingHeightMax = 40;
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public int FlyingHeightCur { get => m_FlyingHeightCur; set => m_FlyingHeightCur = Math.Clamp(value, 0, m_FlyingHeightMax); }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMin
+		{
+			get => m_FlyingHeightMin; 
+			set
+			{
+				m_FlyingHeightMin = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMin > m_FlyingHeightMax)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMax
+		{
+			get => m_FlyingHeightMax;
+			set
+			{
+				m_FlyingHeightMax = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMax < m_FlyingHeightMin)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		public override bool CanBeginFlight()
+		{
+			return CanFly && (World.Loading || base.CanBeginFlight());
+		}
+
+		protected override void OnFlyingChange()
+		{
+			base.OnFlyingChange();
+
+			if (Flying)
+			{
+				(m_dPassiveSpeed, m_cPassiveSpeed) = (FlyingPassiveSpeed, m_dPassiveSpeed);
+				(m_dActiveSpeed, m_cActiveSpeed) = (FlyingActiveSpeed, m_dActiveSpeed);
+			}
+			else
+			{
+				m_dPassiveSpeed = m_cPassiveSpeed;
+				m_dActiveSpeed = m_cActiveSpeed;
+			}
+		}
+
+		#endregion
 
 		#region Spill Acid
 
@@ -1963,7 +2027,7 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(18); // version
+			writer.Write(19); // version
 
 			writer.Write((int)m_CurrentAI);
 			writer.Write((int)m_DefaultAI);
@@ -2090,6 +2154,16 @@ namespace Server.Mobiles
 
 			// Version 18
 			writer.Write(m_CorpseNameOverride);
+
+			// Version 19
+			writer.Write(m_cActiveSpeed);
+			writer.Write(m_cPassiveSpeed);
+
+			writer.WriteEncodedInt(m_FlyingHeightCur);
+			writer.WriteEncodedInt(m_FlyingHeightMin);
+			writer.WriteEncodedInt(m_FlyingHeightMax);
+
+			writer.Write(Flying);
 		}
 
 		private static readonly double[] m_StandardActiveSpeeds = new double[]
@@ -2363,6 +2437,18 @@ namespace Server.Mobiles
 			if (version >= 18)
 			{
 				m_CorpseNameOverride = reader.ReadString();
+			}
+
+			if (version >= 19)
+			{
+				m_cActiveSpeed = reader.ReadDouble();
+				m_cPassiveSpeed = reader.ReadDouble();
+
+				m_FlyingHeightCur = reader.ReadEncodedInt();
+				m_FlyingHeightMin = reader.ReadEncodedInt();
+				m_FlyingHeightMax = reader.ReadEncodedInt();
+
+				Flying = reader.ReadBool();
 			}
 
 			if (version <= 14 && m_Paragon && Hue == 0x31)
@@ -3819,6 +3905,11 @@ namespace Server.Mobiles
 
 		public virtual bool CheckIdle()
 		{
+			if (Flying || FlyingHeightCur > 0)
+			{
+				return false;
+			}
+
 			if (Combatant != null)
 			{
 				return false; // in combat.. not idling

@@ -38,6 +38,8 @@
 			Karma = -3500;
 
 			VirtualArmor = 32;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -49,7 +51,6 @@
 		public override bool HasBreath => true;  // fire breath enabled
 		public override int TreasureMapLevel => 1;
 		public override int Meat => 1;
-		public override bool CanFly => true;
 
 		public FireGargoyle(Serial serial) : base(serial)
 		{

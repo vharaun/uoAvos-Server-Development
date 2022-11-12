@@ -41,6 +41,8 @@
 			Tamable = true;
 			ControlSlots = 3;
 			MinTameSkill = 96.3;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -59,7 +61,6 @@
 		public override ScaleType ScaleType => ScaleType.White;
 		public override FoodType FavoriteFood => FoodType.Meat | FoodType.Gold;
 		public override bool CanAngerOnTame => true;
-		public override bool CanFly => true;
 
 		public WhiteWyrm(Serial serial) : base(serial)
 		{
