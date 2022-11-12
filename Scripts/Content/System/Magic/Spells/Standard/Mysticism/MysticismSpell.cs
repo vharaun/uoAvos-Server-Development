@@ -9,6 +9,10 @@ namespace Server.Spells.Mysticism
 		public override SkillName CastSkill => SkillName.Mysticism;
 		public override SkillName DamageSkill => SkillName.EvalInt;
 
+		public override TimeSpan CastDelayBase => TimeSpan.FromMilliseconds((4 + (int)Circle) * CastDelaySecondsPerTick * 1000);
+
+		public override double CastDelayFastScalar => 1.0;
+
 		public MysticismSpell(Mobile caster, Item scroll, MysticismSpellName id)
 			: base(caster, scroll, (SpellName)id)
 		{

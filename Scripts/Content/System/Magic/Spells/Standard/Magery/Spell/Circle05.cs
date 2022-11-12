@@ -447,6 +447,11 @@ namespace Server.Spells.Magery
 			}
 		}
 
+		public static bool HasReflect(Mobile m)
+		{
+			return m_Table.ContainsKey(m);
+		}
+
 		public static void EndReflect(Mobile m)
 		{
 			if (m_Table.Contains(m))

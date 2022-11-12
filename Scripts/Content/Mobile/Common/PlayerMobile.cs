@@ -18,6 +18,7 @@ using Server.Regions;
 using Server.Spells;
 using Server.Spells.Bushido;
 using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
 using Server.Spells.Racial;
@@ -3295,6 +3296,8 @@ namespace Server.Mobiles
 			{
 				ConfidenceSpell.StopRegenerating(this);
 			}
+
+			SleepSpell.OnDamage(this);
 
 			WeightOverloading.FatigueOnDamage(this, amount);
 

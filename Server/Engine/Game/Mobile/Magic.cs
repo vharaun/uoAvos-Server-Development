@@ -1290,6 +1290,20 @@ namespace Server
 			return info?.Enabled == true;
 		}
 
+		public static string GetName(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.Name;
+		}
+
+		public static string GetMantra(SpellName id)
+		{
+			var info = GetInfo(id);
+
+			return info?.Mantra;
+		}
+
 		public static Type GetType(SpellName id)
 		{
 			var info = GetInfo(id);

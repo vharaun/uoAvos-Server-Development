@@ -4,6 +4,7 @@ using Server.Network;
 using Server.SkillHandlers;
 using Server.Spells;
 using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 
 using System;
 using System.Collections.Generic;
@@ -80,6 +81,10 @@ namespace Server.Items
 			{
 				// You cannot disguise yourself while polymorphed.
 				from.SendLocalizedMessage(501705);
+			}
+			else if (SleepSpell.IsUnderSleepEffects(from))
+			{
+				from.SendMessage("You can't do that while fatigued.");
 			}
 			else
 			{

@@ -4,9 +4,9 @@ using Server.Targeting;
 
 namespace Server.Spells.Cleric
 {
-	public class PurgeMagicSpell : ClericSpell
+	public class PurgeSpell : ClericSpell
 	{
-		public PurgeMagicSpell(Mobile caster, Item scroll)
+		public PurgeSpell(Mobile caster, Item scroll)
 			: base(caster, scroll, ClericSpellName.Purge)
 		{
 		}
@@ -50,9 +50,9 @@ namespace Server.Spells.Cleric
 
 		private class InternalTarget : Target
 		{
-			private readonly PurgeMagicSpell m_Owner;
+			private readonly PurgeSpell m_Owner;
 
-			public InternalTarget(PurgeMagicSpell owner)
+			public InternalTarget(PurgeSpell owner)
 				: base(12, false, TargetFlags.Beneficial)
 			{
 				m_Owner = owner;

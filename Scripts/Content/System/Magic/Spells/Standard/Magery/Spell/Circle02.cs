@@ -504,6 +504,11 @@ namespace Server.Spells.Magery
 			}
 		}
 
+		public static bool HasProtection(Mobile m)
+		{
+			return m_Table.ContainsKey(m);
+		}
+
 		public static void EndProtection(Mobile m)
 		{
 			if (m_Table.Contains(m))

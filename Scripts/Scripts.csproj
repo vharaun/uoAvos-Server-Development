@@ -53,8 +53,4 @@
 	  </EmbeddedResource>
 	</ItemGroup>
 	
-	<ItemGroup>
-	  <Folder Include="Content\System\Magic\Object\TradeTool\Scrolls\Custom\" />
-	</ItemGroup>
-	
 </Project>

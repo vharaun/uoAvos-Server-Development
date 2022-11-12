@@ -2249,7 +2249,7 @@ namespace Server.Spells
 
 		public static readonly SpellInfo[] Mysticism =
 		{
-			new(/*typeof(NetherBoltSpell)*/null, SpellName.NetherBolt, SpellSchool.Mysticism)
+			new(typeof(NetherBoltSpell), SpellName.NetherBolt, SpellSchool.Mysticism, SpellCircle.First)
 			{
 				Name = "Nether Bolt",
 				Mantra = "In Corp Ylem",
@@ -2257,7 +2257,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 4,
@@ -2267,7 +2267,7 @@ namespace Server.Spells
 					[Reagent.SulfurousAsh] = 1,
 				},
 			},
-			new(/*typeof(HealingStoneSpell)*/null, SpellName.HealingStone, SpellSchool.Mysticism)
+			new(typeof(HealingStoneSpell), SpellName.HealingStone, SpellSchool.Mysticism, SpellCircle.First)
 			{
 				Name = "Healing Stone",
 				Mantra = "Kal In Mani",
@@ -2275,7 +2275,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 4,
@@ -2287,7 +2287,7 @@ namespace Server.Spells
 					[Reagent.SpidersSilk] = 1,
 				},
 			},
-			new(typeof(PurgeMagicSpell), SpellName.PurgeMagic, SpellSchool.Mysticism)
+			new(typeof(PurgeMagicSpell), SpellName.PurgeMagic, SpellSchool.Mysticism, SpellCircle.Second)
 			{
 				Name = "Purge Magic",
 				Mantra = "An Ort Sanct",
@@ -2295,7 +2295,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 6,
@@ -2308,7 +2308,7 @@ namespace Server.Spells
 					[Reagent.SulfurousAsh] = 1,
 				},
 			},
-			new(/*typeof(EnchantSpell)*/null, SpellName.Enchant, SpellSchool.Mysticism)
+			new(typeof(EnchantSpell), SpellName.Enchant, SpellSchool.Mysticism, SpellCircle.Second)
 			{
 				Name = "Enchant",
 				Mantra = "In Ort Ylem",
@@ -2316,7 +2316,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 6,
@@ -2328,7 +2328,7 @@ namespace Server.Spells
 					[Reagent.SulfurousAsh] = 1,
 				},
 			},
-			new(/*typeof(SleepSpell)*/null, SpellName.Sleep, SpellSchool.Mysticism)
+			new(typeof(SleepSpell), SpellName.Sleep, SpellSchool.Mysticism, SpellCircle.Third)
 			{
 				Name = "Sleep",
 				Mantra = "In Zu",
@@ -2339,7 +2339,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 9,
@@ -2351,7 +2351,7 @@ namespace Server.Spells
 					[Reagent.BlackPearl] = 1,
 				},
 			},
-			new(typeof(EagleStrikeSpell), SpellName.EagleStrike, SpellSchool.Mysticism)
+			new(typeof(EagleStrikeSpell), SpellName.EagleStrike, SpellSchool.Mysticism, SpellCircle.Third)
 			{
 				Name = "Eagle Strike",
 				Mantra = "Kal Por Xen",
@@ -2359,7 +2359,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 9,
@@ -2372,7 +2372,7 @@ namespace Server.Spells
 					[Reagent.MandrakeRoot] = 1,
 				},
 			},
-			new(typeof(AnimatedWeaponSpell), SpellName.AnimatedWeapon, SpellSchool.Mysticism)
+			new(typeof(AnimatedWeaponSpell), SpellName.AnimatedWeapon, SpellSchool.Mysticism, SpellCircle.Fourth)
 			{
 				Name = "Animated Weapon",
 				Mantra = "In Jux Por Ylem",
@@ -2380,7 +2380,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 11,
@@ -2393,7 +2393,7 @@ namespace Server.Spells
 					[Reagent.Nightshade] = 1,
 				},
 			},
-			new(typeof(StoneFormSpell), SpellName.StoneForm, SpellSchool.Mysticism)
+			new(typeof(StoneFormSpell), SpellName.StoneForm, SpellSchool.Mysticism, SpellCircle.Fourth)
 			{
 				Name = "Stone Form",
 				Mantra = "In Rel Ylem",
@@ -2403,7 +2403,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 11,
@@ -2415,7 +2415,7 @@ namespace Server.Spells
 					[Reagent.Garlic] = 1,
 				},
 			},
-			new(/*typeof(SpellTriggerSpell)*/null, SpellName.SpellTrigger, SpellSchool.Mysticism)
+			new(typeof(SpellTriggerSpell), SpellName.SpellTrigger, SpellSchool.Mysticism, SpellCircle.Fifth)
 			{
 				Name = "Spell Trigger",
 				Mantra = "In Vas Ort Ex",
@@ -2425,7 +2425,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 14,
@@ -2438,7 +2438,7 @@ namespace Server.Spells
 					[Reagent.SpidersSilk] = 1,
 				},
 			},
-			new(/*typeof(MassSleepSpell)*/null, SpellName.MassSleep, SpellSchool.Mysticism)
+			new(typeof(MassSleepSpell), SpellName.MassSleep, SpellSchool.Mysticism, SpellCircle.Fifth)
 			{
 				Name = "Mass Sleep",
 				Mantra = "Vas Zu",
@@ -2448,7 +2448,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 14,
@@ -2460,7 +2460,7 @@ namespace Server.Spells
 					[Reagent.SpidersSilk] = 1,
 				}
 			},
-			new(/*typeof(CleansingWindsSpell)*/null, SpellName.CleansingWinds, SpellSchool.Mysticism)
+			new(typeof(CleansingWindsSpell), SpellName.CleansingWinds, SpellSchool.Mysticism, SpellCircle.Sixth)
 			{
 				Name = "Cleansing Winds",
 				Mantra = "In Vas Mani Hur",
@@ -2468,7 +2468,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 20,
@@ -2481,7 +2481,7 @@ namespace Server.Spells
 					[Reagent.MandrakeRoot] = 1,
 				},
 			},
-			new(/*typeof(BombardSpell)*/null, SpellName.Bombard, SpellSchool.Mysticism)
+			new(typeof(BombardSpell), SpellName.Bombard, SpellSchool.Mysticism, SpellCircle.Sixth)
 			{
 				Name = "Bombard",
 				Mantra = "Corp Por Ylem",
@@ -2490,7 +2490,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 20,
@@ -2503,7 +2503,7 @@ namespace Server.Spells
 					[Reagent.SulfurousAsh] = 1,
 				},
 			},
-			new(typeof(SpellPlagueSpell), SpellName.SpellPlague, SpellSchool.Mysticism)
+			new(typeof(SpellPlagueSpell), SpellName.SpellPlague, SpellSchool.Mysticism, SpellCircle.Seventh)
 			{
 				Name = "Spell Plague",
 				Mantra = "Vas Rel Jux Ort",
@@ -2512,7 +2512,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 40,
@@ -2525,7 +2525,7 @@ namespace Server.Spells
 					[Reagent.SulfurousAsh] = 1,
 				},
 			},
-			new(typeof(HailStormSpell), SpellName.HailStorm, SpellSchool.Mysticism)
+			new(typeof(HailStormSpell), SpellName.HailStorm, SpellSchool.Mysticism, SpellCircle.Seventh)
 			{
 				Name = "Hail Storm",
 				Mantra = "Kal Des Ylem",
@@ -2533,7 +2533,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 40,
@@ -2546,7 +2546,7 @@ namespace Server.Spells
 					[Reagent.MandrakeRoot] = 1,
 				},
 			},
-			new(typeof(NetherCycloneSpell), SpellName.NetherCyclone, SpellSchool.Mysticism)
+			new(typeof(NetherCycloneSpell), SpellName.NetherCyclone, SpellSchool.Mysticism, SpellCircle.Eighth)
 			{
 				Name = "Nether Cyclone",
 				Mantra = "Grav Hur",
@@ -2555,7 +2555,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 50,
@@ -2568,7 +2568,7 @@ namespace Server.Spells
 					[Reagent.Bloodmoss] = 1,
 				},
 			},
-			new(/*typeof(RisingColossusSpell)*/null, SpellName.RisingColossus, SpellSchool.Mysticism)
+			new(typeof(RisingColossusSpell), SpellName.RisingColossus, SpellSchool.Mysticism, SpellCircle.Eighth)
 			{
 				Name = "Rising Colossus",
 				Mantra = "Kal Vas Xen Corp Ylem",
@@ -2577,7 +2577,7 @@ namespace Server.Spells
 				Enabled = Core.SA,
 				Icon = 0,
 				Back = 0,
-				Action = -1,
+				Action = 230,
 				LeftHandEffect = 9002,
 				RightHandEffect = 9002,
 				Mana = 50,
@@ -2734,7 +2734,7 @@ namespace Server.Spells
 				Tithe = 20, 
 				Skill = 40.0
 			},
-			new(typeof(PurgeMagicSpell), SpellName.PurgeMagic, SpellSchool.Cleric, SpellCircle.Second)
+			new(typeof(PurgeSpell), SpellName.Purge, SpellSchool.Cleric, SpellCircle.Second)
 			{ 
 				Name = "Purge",
 				Mantra = "Repurgo",

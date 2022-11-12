@@ -9,6 +9,7 @@ using Server.Network;
 using Server.Regions;
 using Server.Spells.Bushido;
 using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
 using Server.Targeting;
@@ -318,6 +319,78 @@ namespace Server.Spells
 			}
 
 			return false;
+		}
+
+		public static bool RemoveStatBonus(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset > 0 && m.RemoveStatMod(name);
+		}
+
+		public static bool RemoveStatCurse(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset < 0 && m.RemoveStatMod(name);
+		}
+
+		public static bool RemoveStatOffset(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset != 0 && m.RemoveStatMod(name);
+		}
+
+		public static bool RemoveStatOffset(Mobile m, StatType type, int value)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset == value && m.RemoveStatMod(name);
+		}
+
+		public static bool HasStatBonus(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset > 0;
+		}
+
+		public static bool HasStatCurse(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset < 0;
+		}
+
+		public static bool HasStatOffset(Mobile m, StatType type)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset != 0;
+		}
+
+		public static bool HasStatOffset(Mobile m, StatType type, int value)
+		{
+			var name = String.Format("[Magic] {0} Offset", type);
+
+			var mod = m.GetStatMod(name);
+
+			return mod?.Offset == value;
 		}
 
 		public static TimeSpan GetDuration(Mobile caster, Mobile target)
@@ -1045,12 +1118,12 @@ namespace Server.Spells
 		}
 
 		//magic reflection
-		public static void CheckReflect(int circle, Mobile caster, ref Mobile target)
+		public static bool CheckReflect(int circle, Mobile caster, ref Mobile target)
 		{
-			CheckReflect(circle, ref caster, ref target);
+			return CheckReflect(circle, ref caster, ref target);
 		}
 
-		public static void CheckReflect(int circle, ref Mobile caster, ref Mobile target)
+		public static bool CheckReflect(int circle, ref Mobile caster, ref Mobile target)
 		{
 			if (target.MagicDamageAbsorb > 0)
 			{
@@ -1062,9 +1135,9 @@ namespace Server.Spells
 
 				var reflect = target.MagicDamageAbsorb >= 0;
 
-				if (target is BaseCreature tc)
+				if (target is BaseCreature c)
 				{
-					tc.CheckReflect(caster, ref reflect);
+					c.CheckReflect(caster, ref reflect);
 				}
 
 				if (target.MagicDamageAbsorb <= 0)
@@ -1080,8 +1153,11 @@ namespace Server.Spells
 
 					(target, caster) = (caster, target);
 				}
+
+				return reflect;
 			}
-			else if (target is BaseCreature tc)
+			
+			if (target is BaseCreature tc)
 			{
 				var reflect = false;
 
@@ -1093,7 +1169,11 @@ namespace Server.Spells
 
 					(target, caster) = (caster, target);
 				}
+
+				return reflect;
 			}
+
+			return false;
 		}
 
 		public static void Damage(Spell spell, Mobile target, double damage)
@@ -1459,6 +1539,12 @@ namespace Server.Spells
 			if (PolymorphSpell.IsPolymorphed(caster))
 			{
 				caster.SendLocalizedMessage(1061628); // You can't do that while polymorphed.
+				return false;
+			}
+
+			if (SleepSpell.IsUnderSleepEffects(caster))
+			{
+				caster.SendMessage("You can't do that while fatigued.");
 				return false;
 			}
 

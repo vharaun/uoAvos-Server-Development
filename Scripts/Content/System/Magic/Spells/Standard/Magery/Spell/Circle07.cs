@@ -5,6 +5,7 @@ using Server.Mobiles;
 using Server.Network;
 using Server.Spells;
 using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Targeting;
 
 using System;
@@ -1307,6 +1308,12 @@ namespace Server.Spells.Magery
 			if (TransformationSpellHelper.UnderTransformation(Caster))
 			{
 				Caster.SendLocalizedMessage(1061633); // You cannot polymorph while in that form.
+				return false;
+			}
+
+			if (SleepSpell.IsUnderSleepEffects(Caster))
+			{
+				Caster.SendMessage("You can't do that while fatigued.");
 				return false;
 			}
 

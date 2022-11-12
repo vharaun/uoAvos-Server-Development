@@ -56,6 +56,18 @@ namespace Server.Spells.Magery
 			FinishSequence();
 		}
 
+		public static bool UnderEffect(Mobile m)
+		{
+			return SpellHelper.HasStatCurse(m, StatType.Dex);
+		}
+
+		public static void RemoveEffect(Mobile m)
+		{
+			SpellHelper.RemoveStatCurse(m, StatType.Dex);
+
+			BuffInfo.RemoveBuff(m, BuffIcon.Clumsy);
+		}
+
 		private class InternalTarget : Target
 		{
 			private readonly ClumsySpell m_Owner;
@@ -199,6 +211,18 @@ namespace Server.Spells.Magery
 			}
 
 			FinishSequence();
+		}
+
+		public static bool UnderEffect(Mobile m)
+		{
+			return SpellHelper.HasStatCurse(m, StatType.Int);
+		}
+
+		public static void RemoveEffect(Mobile m)
+		{
+			SpellHelper.RemoveStatCurse(m, StatType.Int);
+
+			BuffInfo.RemoveBuff(m, BuffIcon.FeebleMind);
 		}
 
 		private class InternalTarget : Target
@@ -611,6 +635,11 @@ namespace Server.Spells.Magery
 			}
 		}
 
+		public static bool HasArmor(Mobile m)
+		{
+			return m_Table.ContainsKey(m);
+		}
+
 		public static void EndArmor(Mobile m)
 		{
 			if (m_Table.Contains(m))
@@ -677,6 +706,18 @@ namespace Server.Spells.Magery
 			}
 
 			FinishSequence();
+		}
+
+		public static bool UnderEffect(Mobile m)
+		{
+			return SpellHelper.HasStatCurse(m, StatType.Str);
+		}
+
+		public static void RemoveEffect(Mobile m)
+		{
+			SpellHelper.RemoveStatCurse(m, StatType.Str);
+
+			BuffInfo.RemoveBuff(m, BuffIcon.Weaken);
 		}
 
 		public class InternalTarget : Target

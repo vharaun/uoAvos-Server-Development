@@ -1,20 +1,20 @@
 
 namespace Server.Items
 {
-	public class PurgeMagicScroll : SpellScroll
+	public class PurgeScroll : SpellScroll
 	{
 		[Constructable]
-		public PurgeMagicScroll() : this(1)
+		public PurgeScroll() : this(1)
 		{
 		}
 
 		[Constructable]
-		public PurgeMagicScroll(int amount) : base(SpellName.PurgeMagic, 0x1F6D, amount)
+		public PurgeScroll(int amount) : base(SpellName.Purge, 0x1F6D, amount)
 		{
 			Hue = 0xAA8;
 		}
 
-		public PurgeMagicScroll(Serial serial) : base(serial)
+		public PurgeScroll(Serial serial) : base(serial)
 		{
 		}
 
