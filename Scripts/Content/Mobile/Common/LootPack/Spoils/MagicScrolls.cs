@@ -11,9 +11,11 @@ namespace Server
 		private static readonly Dictionary<SpellSchool, Type[]> m_ScrollTypes = new();
 		private static readonly Dictionary<SpellName, Type> m_ScrollTypesByID = new();
 
+		// All available scrolls
+		public static Type[] SpellScrolls => GetScrollTypes(SpellSchool.Invalid);
+
 		#region Standard
 
-		public static Type[] SpellScrolls => GetScrollTypes(SpellSchool.Invalid);
 		public static Type[] MageryScrollTypes => GetScrollTypes(SpellSchool.Magery);
 		public static Type[] NecromancyScrollTypes => GetScrollTypes(SpellSchool.Magery);
 		public static Type[] ChivalryScrolls => GetScrollTypes(SpellSchool.Magery);

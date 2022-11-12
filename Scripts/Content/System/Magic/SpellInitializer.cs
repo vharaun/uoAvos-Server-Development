@@ -2688,7 +2688,7 @@ namespace Server.Spells
 				Tithe = 30, 
 				Skill = 60.0
 			},
-			new(typeof(DampenSpiritSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Fourth)
+			new(typeof(DampenSpiritSpell), SpellName.DampenSpirit, SpellSchool.Cleric, SpellCircle.Fourth)
 			{ 
 				Name = "Dampen Spirit",
 				Mantra = "Abicio Spiritus",
@@ -2703,7 +2703,7 @@ namespace Server.Spells
 				Tithe = 15, 
 				Skill = 35.0
 			},
-			new(typeof(DivineFocusSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.First)
+			new(typeof(DivineFocusSpell), SpellName.DivineFocus, SpellSchool.Cleric, SpellCircle.First)
 			{ 
 				Name = "Divine Focus",
 				Mantra = "Divinium Cogitatus",
@@ -2719,7 +2719,7 @@ namespace Server.Spells
 				Tithe = 15, 
 				Skill = 35.0
 			},
-			new(typeof(HammerOfFaithSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Fifth)
+			new(typeof(HammerOfFaithSpell), SpellName.HammerOfFaith, SpellSchool.Cleric, SpellCircle.Fifth)
 			{ 
 				Name = "Hammer Of Faith",
 				Mantra = "Malleus Terum",
@@ -2734,7 +2734,7 @@ namespace Server.Spells
 				Tithe = 20, 
 				Skill = 40.0
 			},
-			new(typeof(PurgeMagicSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Second)
+			new(typeof(PurgeMagicSpell), SpellName.PurgeMagic, SpellSchool.Cleric, SpellCircle.Second)
 			{ 
 				Name = "Purge",
 				Mantra = "Repurgo",
@@ -2749,7 +2749,7 @@ namespace Server.Spells
 				Tithe = 5, 
 				Skill = 10.0
 			},
-			new(typeof(RestorationSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Eighth)
+			new(typeof(RestorationSpell), SpellName.Restoration, SpellSchool.Cleric, SpellCircle.Eighth)
 			{ 
 				Name = "Restoration",
 				Mantra = "Reductio Aetas",
@@ -2764,7 +2764,7 @@ namespace Server.Spells
 				Tithe = 40, 
 				Skill = 50.0
 			},
-			new(typeof(SacredBoonSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Fourth)
+			new(typeof(SacredBoonSpell), SpellName.SacredBoon, SpellSchool.Cleric, SpellCircle.Fourth)
 			{ 
 				Name = "Sacred Boon",
 				Mantra = "Vir Consolatio",
@@ -2779,7 +2779,7 @@ namespace Server.Spells
 				Tithe = 15, 
 				Skill = 25.0
 			},
-			new(typeof(SacrificeSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.First)
+			new(typeof(SacrificeSpell), SpellName.Sacrifice, SpellSchool.Cleric, SpellCircle.First)
 			{ 
 				Name = "Sacrifice",
 				Mantra = "Adoleo",
@@ -2796,7 +2796,7 @@ namespace Server.Spells
 				Tithe = 5, 
 				Skill = 5.0
 			},
-			new(typeof(SmiteSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Eighth)
+			new(typeof(SmiteSpell), SpellName.Smite, SpellSchool.Cleric, SpellCircle.Eighth)
 			{ 
 				Name = "Smite",
 				Mantra = "Ferio",
@@ -2811,7 +2811,7 @@ namespace Server.Spells
 				Tithe = 60, 
 				Skill = 80.0
 			},
-			new(typeof(TouchOfLifeSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Third)
+			new(typeof(TouchOfLifeSpell), SpellName.TouchOfLife, SpellSchool.Cleric, SpellCircle.Third)
 			{ 
 				Name = "Touch Of Life",
 				Mantra = "Tactus Vitalis",
@@ -2826,7 +2826,7 @@ namespace Server.Spells
 				Tithe = 10, 
 				Skill = 30.0
 			},
-			new(typeof(TrialByFireSpell), SpellName.Invalid, SpellSchool.Cleric, SpellCircle.Third)
+			new(typeof(TrialByFireSpell), SpellName.TrialByFire, SpellSchool.Cleric, SpellCircle.Third)
 			{ 
 				Name = "Trial By Fire",
 				Mantra = "Temptatio Exsuscito",
