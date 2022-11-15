@@ -1,5 +1,4 @@
 ﻿[![N|Solid](http://uoavocation.net/portal/site_image/0001b.png)](http://www.uoavocation.net)
-[![N|Solid](http://uoavocation.net/portal/site_image/text_0002.png)](http://www.uoavocation.net)
 ***
 ## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 04/15/2022</div>
 
