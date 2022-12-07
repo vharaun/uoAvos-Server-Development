@@ -738,7 +738,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class SkillStates<T> : BaseStates<SkillName, T>
 	{
 		#region Skill Getters & Setters
@@ -945,10 +945,12 @@ namespace Server
 		}
 	}
 
+	[NoSort]
 	public class SkillPermissions : SkillStates<bool>
 	{
 		public SkillPermissions()
 		{
+			SetAll(true);
 		}
 
 		public SkillPermissions(GenericReader reader)
@@ -958,7 +960,10 @@ namespace Server
 
 		public virtual void SetAll(bool value)
 		{
-			Array.Fill(m_Data, value);
+			foreach (var o in EnumValues)
+			{
+				this[o] = value;
+			}
 		}
 
 		public override void Serialize(GenericWriter writer)

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public DruidFamiliarScroll(int amount) : base(SpellName.DruidFamiliar, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public DruidFamiliarScroll(Serial serial) : base(serial)

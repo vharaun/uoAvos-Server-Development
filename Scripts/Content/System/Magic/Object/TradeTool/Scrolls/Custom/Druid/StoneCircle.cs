@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public StoneCircleScroll(int amount) : base(SpellName.StoneCircle, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public StoneCircleScroll(Serial serial) : base(serial)

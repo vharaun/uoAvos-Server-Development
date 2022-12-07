@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public LureStoneScroll(int amount) : base(SpellName.LureStone, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public LureStoneScroll(Serial serial) : base(serial)

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public HammerOfFaithScroll(int amount) : base(SpellName.HammerOfFaith, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public HammerOfFaithScroll(Serial serial) : base(serial)

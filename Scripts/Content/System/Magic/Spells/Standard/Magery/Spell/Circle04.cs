@@ -493,7 +493,9 @@ namespace Server.Spells.Magery
 			{
 				Caster.SendLocalizedMessage(500237); // Target can not be seen.
 			}
-			else if (SpellHelper.CheckTown(p, Caster) && CheckSequence())
+			else if (!SpellHelper.CheckTown(this, p))
+			{ }
+			else if (CheckSequence())
 			{
 				SpellHelper.Turn(Caster, p);
 
@@ -1199,7 +1201,7 @@ namespace Server.Spells.Magery
 			{
 				Caster.SendLocalizedMessage(1049543); // You decide against traveling to Felucca while you are still young.
 			}
-			else if (Caster.Kills >= 5 && map != Map.Felucca)
+			else if (Caster.Murderer && map != Map.Felucca)
 			{
 				Caster.SendLocalizedMessage(1019004); // You are not allowed to travel there.
 			}

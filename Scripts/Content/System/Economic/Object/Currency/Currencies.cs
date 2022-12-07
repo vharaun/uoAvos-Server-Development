@@ -1,5 +1,4 @@
 ﻿
-using Server.ContextMenus;
 using Server.Gumps;
 using Server.Mobiles;
 using Server.Network;
@@ -7,8 +6,6 @@ using Server.Network;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using static Server.Items.NinjaWeapon;
 
 namespace Server.Items
 {
@@ -254,8 +251,6 @@ namespace Server.Items
 
 		public static readonly TypeAmount GoldEntry = new(GoldType, 100);
 
-		public static readonly TypeAmount EmptyEntry = TypeAmount.Empty;
-
 		/// <summary>
 		/// Defaults be used when constructing a new <see cref="Currencies"/> collection using the default constructor. 
 		/// </summary>
@@ -279,16 +274,27 @@ namespace Server.Items
 			: base(entries)
 		{ }
 
+		public Currencies(GenericReader reader)
+			: base(reader)
+		{ }
+
 		public override bool IsValidType(Type type)
 		{
 			return base.IsValidType(type) && !type.IsAbstract && type.IsAssignableTo(typeof(Item)) && !type.IsAssignableTo(GoldType);
 		}
 
-		public override bool Set(Type type, int amount)
+		public override bool SetAmount(Type type, int amount)
 		{
-			amount = Math.Clamp(amount, 0, MaxExchangeRate);
+			if (Contains(type))
+			{
+				amount = Math.Clamp(amount, 0, MaxExchangeRate);
+			}
+			else if (amount == 1)
+			{
+				amount = 100;
+			}
 
-			return base.Set(type, amount);
+			return base.SetAmount(type, amount);
 		}
 
 		public bool ConvertCurrencyToGold(Type sourceCurrency, int sourceAmount, out int goldAmount)
@@ -363,6 +369,20 @@ namespace Server.Items
 
 			return false;
 		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.WriteEncodedInt(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadEncodedInt();
+		}
 	}
 
 	public delegate void SelectCurrencyCallback(Mobile player, TypeAmount currency);
@@ -421,12 +441,11 @@ namespace Server.Items
 			m_Currencies = currencies;
 			m_Callback = callback;
 
-			m_Currencies.Remove(Currencies.EmptyEntry);
 			m_Currencies.Remove(Currencies.GoldEntry);
 
-			Closable = false;
-			Disposable = false;
-			Dragable = false;
+			Closable = true;
+			Disposable = true;
+			Dragable = true;
 			Resizable = false;
 
 			AddNewPage();
@@ -530,7 +549,7 @@ namespace Server.Items
 
 			if (m_Handlers != null)
 			{
-				if (m_Handlers.TryGetValue(info.ButtonID - 4, out var handler))
+				if (m_Handlers.TryGetValue(info.ButtonID, out var handler))
 				{
 					handler?.Invoke();
 				}

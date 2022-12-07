@@ -11,7 +11,6 @@
 		[Constructable]
 		public EtherealVoyageScroll(int amount) : base(SpellName.EtherealVoyage, 0x2D5D, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public EtherealVoyageScroll(Serial serial)

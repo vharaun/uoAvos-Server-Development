@@ -11,7 +11,6 @@
 		[Constructable]
 		public ImmolatingWeaponScroll(int amount) : base(SpellName.ImmolatingWeapon, 0x2D53, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public ImmolatingWeaponScroll(Serial serial)

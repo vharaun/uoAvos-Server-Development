@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public LeafWhirlwindScroll(int amount) : base(SpellName.LeafWhirlwind, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public LeafWhirlwindScroll(Serial serial) : base(serial)

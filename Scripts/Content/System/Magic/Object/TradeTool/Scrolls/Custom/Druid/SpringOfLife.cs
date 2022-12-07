@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SpringOfLifeScroll(int amount) : base(SpellName.SpringOfLife, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public SpringOfLifeScroll(Serial serial) : base(serial)

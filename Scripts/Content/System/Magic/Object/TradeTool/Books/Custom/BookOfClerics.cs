@@ -14,7 +14,6 @@
 		public BookOfClerics(ulong content)
 			: base(content, 0x2252)
 		{
-			Hue = 2728;
 		}
 
 		public BookOfClerics(Serial serial)

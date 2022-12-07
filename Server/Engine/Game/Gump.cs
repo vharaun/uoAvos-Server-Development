@@ -192,41 +192,21 @@ namespace Server.Gumps
         
 		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar)
 		{
-			if (!scrollbar && !background && height < 40 && !Insensitive.Contains(text, "BODYBGCOLOR"))
-			{
-				height = 40;
-			}
-
 			Add(new GumpHtml(x, y, width, height, text, background, scrollbar));
 		}
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, bool background, bool scrollbar)
 		{
-			if (!scrollbar && !background && height < 40)
-			{
-				height = 40;
-			}
-
 			Add(new GumpHtmlLocalized(x, y, width, height, number, background, scrollbar));
 		}
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, int color, bool background, bool scrollbar)
 		{
-			if (!scrollbar && !background && height < 40)
-			{
-				height = 40;
-			}
-
 			Add(new GumpHtmlLocalized(x, y, width, height, number, color, background, scrollbar));
 		}
 
 		public void AddHtmlLocalized(int x, int y, int width, int height, int number, string args, int color, bool background, bool scrollbar)
 		{
-			if (!scrollbar && !background && height < 40)
-			{
-				height = 40;
-			}
-
 			Add(new GumpHtmlLocalized(x, y, width, height, number, args, color, background, scrollbar));
 		}
 
@@ -254,6 +234,7 @@ namespace Server.Gumps
 		{
 			Add(new GumpImageTileButton(x, y, normalID, pressedID, buttonID, type, param, itemID, hue, width, height));
 		}
+
 		public void AddImageTiledButton(int x, int y, int normalID, int pressedID, int buttonID, GumpButtonType type, int param, int itemID, int hue, int width, int height, int localizedTooltip)
 		{
 			Add(new GumpImageTileButton(x, y, normalID, pressedID, buttonID, type, param, itemID, hue, width, height, localizedTooltip));

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public AnimalCompanionScroll(int amount) : base(SpellName.AnimalCompanion, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public AnimalCompanionScroll(Serial serial) : base(serial)

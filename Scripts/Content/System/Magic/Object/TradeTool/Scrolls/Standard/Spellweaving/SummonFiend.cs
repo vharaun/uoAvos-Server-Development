@@ -11,7 +11,6 @@
 		[Constructable]
 		public SummonFiendScroll(int amount) : base(SpellName.SummonFiend, 0x2D58, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public SummonFiendScroll(Serial serial)

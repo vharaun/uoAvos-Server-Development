@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public LightningBowScroll(int amount) : base(SpellName.LightningBow, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public LightningBowScroll(Serial serial) : base(serial)

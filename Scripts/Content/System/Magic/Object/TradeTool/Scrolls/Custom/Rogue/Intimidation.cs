@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public IntimidationScroll(int amount) : base(SpellName.Intimidation, 0x1F6D, amount)
 		{
-			Hue = 0x20;
 		}
 
 		public IntimidationScroll(Serial serial) : base(serial)

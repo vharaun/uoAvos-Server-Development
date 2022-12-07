@@ -1340,7 +1340,7 @@ namespace Server
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
-			else if (CheckNewbied() && parent.Kills < 5)
+			else if (CheckNewbied() && !parent.Murderer)
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
@@ -1368,7 +1368,7 @@ namespace Server
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
-			else if (CheckNewbied() && parent.Kills < 5)
+			else if (CheckNewbied() && !parent.Murderer)
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}

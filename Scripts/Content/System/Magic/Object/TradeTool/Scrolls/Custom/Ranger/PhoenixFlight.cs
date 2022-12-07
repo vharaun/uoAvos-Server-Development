@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public PhoenixFlightScroll(int amount) : base(SpellName.PhoenixFlight, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public PhoenixFlightScroll(Serial serial) : base(serial)

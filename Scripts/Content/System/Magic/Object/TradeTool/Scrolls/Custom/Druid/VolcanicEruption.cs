@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public VolcanicEruptionScroll(int amount) : base(SpellName.VolcanicEruption, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public VolcanicEruptionScroll(Serial serial) : base(serial)

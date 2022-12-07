@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public MushroomGatewayScroll(int amount) : base(SpellName.MushroomGateway, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public MushroomGatewayScroll(Serial serial) : base(serial)

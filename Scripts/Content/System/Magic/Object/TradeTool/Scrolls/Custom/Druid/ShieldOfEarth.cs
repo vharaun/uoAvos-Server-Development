@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public ShieldOfEarthScroll(int amount) : base(SpellName.ShieldOfEarth, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public ShieldOfEarthScroll(Serial serial) : base(serial)

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public BlendWithForestScroll(int amount) : base(SpellName.BlendWithForest, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public BlendWithForestScroll(Serial serial) : base(serial)

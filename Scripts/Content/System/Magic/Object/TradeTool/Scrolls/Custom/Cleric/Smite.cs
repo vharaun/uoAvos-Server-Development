@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SmiteScroll(int amount) : base(SpellName.Smite, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public SmiteScroll(Serial serial) : base(serial)

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public TouchOfLifeScroll(int amount) : base(SpellName.TouchOfLife, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public TouchOfLifeScroll(Serial serial) : base(serial)

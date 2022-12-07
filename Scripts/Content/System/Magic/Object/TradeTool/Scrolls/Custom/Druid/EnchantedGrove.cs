@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public EnchantedGroveScroll(int amount) : base(SpellName.EnchantedGrove, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public EnchantedGroveScroll(Serial serial) : base(serial)

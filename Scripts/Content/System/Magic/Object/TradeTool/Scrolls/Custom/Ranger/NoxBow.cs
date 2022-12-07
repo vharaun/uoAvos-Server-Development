@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public NoxBowScroll(int amount) : base(SpellName.NoxBow, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public NoxBowScroll(Serial serial) : base(serial)

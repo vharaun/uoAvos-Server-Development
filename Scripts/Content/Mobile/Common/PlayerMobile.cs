@@ -3593,7 +3593,7 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Kills >= 5 && DateTime.UtcNow >= m_NextJustAward)
+			if (Murderer && DateTime.UtcNow >= m_NextJustAward)
 			{
 				var m = FindMostRecentDamager(false);
 

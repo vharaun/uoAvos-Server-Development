@@ -577,7 +577,7 @@ namespace Server.Spells
 
 			var noto = Notoriety.Compute(from, to);
 
-			return noto != Notoriety.Innocent || from.Kills >= 5;
+			return noto != Notoriety.Innocent || from.Murderer;
 		}
 
 		private static readonly int[] m_Offsets =
@@ -1075,43 +1075,23 @@ namespace Server.Spells
 		}
 
 		//towns
-		public static bool IsTown(IPoint3D loc, Mobile caster)
+		public static bool CheckTown(ISpell spell, GuardedRegion region)
 		{
-			if (loc is Item item)
+			if ((spell.Caster == null || spell.Caster.AccessLevel < AccessLevel.GameMaster) && !region.IsDisabled() && !spell.OnCastInTown(region))
 			{
-				loc = item.GetWorldLocation();
-			}
+				spell.Caster?.SendMessage($"You cannot cast {spell.Name} in town!");
 
-			var map = caster.Map;
-
-			if (map == null)
-			{
 				return false;
 			}
 
-			var reg = Region.Find(loc, map);
-
-			#region Dueling
-			if (caster is PlayerMobile pm && (pm.DuelContext == null || !pm.DuelContext.Started || pm.DuelPlayer == null || pm.DuelPlayer.Eliminated))
-			{
-				if (reg.IsPartOf<Engines.ConPVP.SafeZone>())
-				{
-					return true;
-				}
-			}
-			#endregion
-
-			var guarded = reg.GetRegion<GuardedRegion>();
-
-			return guarded?.IsDisabled() != true;
+			return true;
 		}
 
-		public static bool CheckTown(IPoint3D loc, Mobile caster)
+        public static bool CheckTown(ISpell spell, IPoint3D loc)
 		{
-			if (IsTown(loc, caster))
+			if (Region.Find(loc, spell.Caster?.Map) is GuardedRegion reg)
 			{
-				caster.SendLocalizedMessage(500946); // You cannot cast this in town!
-				return false;
+				return CheckTown(spell, reg);
 			}
 
 			return true;

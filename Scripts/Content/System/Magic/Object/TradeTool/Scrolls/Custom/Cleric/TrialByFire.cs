@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public TrialByFireScroll(int amount) : base(SpellName.TrialByFire, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public TrialByFireScroll(Serial serial) : base(serial)

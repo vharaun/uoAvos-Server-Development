@@ -80,6 +80,11 @@ namespace Server.Items
 		/// Has this corpse been self looted?
 		/// </summary>
 		SelfLooted = 0x00000080,
+
+		/// <summary>
+		/// Was the owner a murderer when he died?
+		/// </summary>
+		Murderer = 0x00000100,
 	}
 
 	public class Corpse : Container, ICarvable
@@ -380,6 +385,13 @@ namespace Server.Items
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public bool Murderer
+		{
+			get => GetFlag(CorpseFlag.Murderer);
+			set => SetFlag(CorpseFlag.Murderer, value);
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public Mobile Owner => m_Owner;
 
 		public void TurnToBones()
@@ -589,7 +601,9 @@ namespace Server.Items
 			m_AccessLevel = owner.AccessLevel;
 			m_Guild = owner.Guild as Guild;
 			m_Kills = owner.Kills;
+
 			SetFlag(CorpseFlag.Criminal, owner.Criminal);
+			SetFlag(CorpseFlag.Murderer, owner.Murderer);
 
 			m_Hair = hair;
 			m_FacialHair = facialhair;

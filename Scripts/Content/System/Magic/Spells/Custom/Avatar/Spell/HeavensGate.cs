@@ -71,7 +71,7 @@ namespace Server.Spells.Avatar
 			else if (!SpellHelper.CheckTravel(Caster, map, loc, TravelCheckType.GateTo))
 			{
 			}
-			else if (Caster.Kills >= 5 && map != Map.Felucca)
+			else if (Caster.Murderer && map != Map.Felucca)
 			{
 				Caster.SendLocalizedMessage(1019004); // You are not allowed to travel there.
 			}

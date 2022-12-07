@@ -26,7 +26,7 @@ namespace Server.Spells.Druid
 			{
 				Caster.SendLocalizedMessage(500237); // Target can not be seen.
 			}
-			else if (!SpellHelper.CheckTown(p, Caster))
+			else if (!SpellHelper.CheckTown(this, p))
 			{ }
 			else if (CheckSequence())
 			{

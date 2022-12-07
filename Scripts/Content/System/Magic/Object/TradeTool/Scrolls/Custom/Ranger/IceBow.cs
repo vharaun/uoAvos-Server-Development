@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public IceBowScroll(int amount) : base(SpellName.IceBow, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public IceBowScroll(Serial serial) : base(serial)

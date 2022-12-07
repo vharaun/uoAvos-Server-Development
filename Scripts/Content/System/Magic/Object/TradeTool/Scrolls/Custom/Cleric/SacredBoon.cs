@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SacredBoonScroll(int amount) : base(SpellName.SacredBoon, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public SacredBoonScroll(Serial serial) : base(serial)

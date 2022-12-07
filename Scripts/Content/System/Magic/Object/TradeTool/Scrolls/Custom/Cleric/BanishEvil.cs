@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public BanishEvilScroll(int amount) : base(SpellName.BanishEvil, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public BanishEvilScroll(Serial serial) : base(serial)

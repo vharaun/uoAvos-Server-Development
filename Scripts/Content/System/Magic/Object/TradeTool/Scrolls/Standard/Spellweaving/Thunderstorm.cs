@@ -11,7 +11,6 @@
 		[Constructable]
 		public ThunderstormScroll(int amount) : base(SpellName.Thunderstorm, 0x2D55, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public ThunderstormScroll(Serial serial)

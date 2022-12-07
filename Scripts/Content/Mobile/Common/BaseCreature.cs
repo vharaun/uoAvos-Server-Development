@@ -4092,7 +4092,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (!Body.IsHuman || Kills >= 5 || AlwaysMurderer || AlwaysAttackable || m.Kills < 5 || !m.InRange(Location, 12) || !m.Alive)
+			if (!Body.IsHuman || Murderer || AlwaysMurderer || AlwaysAttackable || !m.Murderer || !m.InRange(Location, 12) || !m.Alive)
 			{
 				return;
 			}

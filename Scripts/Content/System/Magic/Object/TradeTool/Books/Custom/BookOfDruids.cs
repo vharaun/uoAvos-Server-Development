@@ -14,7 +14,6 @@
 		public BookOfDruids(ulong content)
 			: base(content, 0xEFA)
 		{
-			Hue = 2001;
 		}
 
 		public BookOfDruids(Serial serial)

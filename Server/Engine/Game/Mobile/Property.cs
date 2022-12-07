@@ -11362,6 +11362,9 @@ namespace Server
 			}
 		}
 
+		[CommandProperty(AccessLevel.GameMaster)]
+		public virtual bool Murderer => Kills >= 5;
+
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public int Kills
 		{
@@ -11372,14 +11375,11 @@ namespace Server
 
 				if (m_Kills != value)
 				{
-					m_Kills = value;
+					var oldMurderer = Murderer;
 
-					if (m_Kills < 0)
-					{
-						m_Kills = 0;
-					}
+					m_Kills = Math.Max(0, value);
 
-					if ((oldValue >= 5) != (m_Kills >= 5))
+					if (oldMurderer != Murderer)
 					{
 						Delta(MobileDelta.Noto);
 						InvalidateProperties();
@@ -11402,12 +11402,7 @@ namespace Server
 			{
 				if (m_ShortTermMurders != value)
 				{
-					m_ShortTermMurders = value;
-
-					if (m_ShortTermMurders < 0)
-					{
-						m_ShortTermMurders = 0;
-					}
+					m_ShortTermMurders = Math.Max(0, value);
 				}
 			}
 		}

@@ -107,7 +107,9 @@ namespace Server.Spells.Magery
 
 		public override void OnCast()
 		{
-			if (SpellHelper.CheckTown(Caster, Caster) && CheckSequence())
+			if (!SpellHelper.CheckTown(this, Caster))
+			{ }
+			else if (CheckSequence())
 			{
 				var targets = new List<Mobile>();
 
@@ -206,7 +208,9 @@ namespace Server.Spells.Magery
 			{
 				Caster.SendLocalizedMessage(501942); // That location is blocked.
 			}
-			else if (SpellHelper.CheckTown(p, Caster) && CheckSequence())
+			else if (!SpellHelper.CheckTown(this, p))
+			{ }
+			else if (CheckSequence())
 			{
 				TimeSpan duration;
 

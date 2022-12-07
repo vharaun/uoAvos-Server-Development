@@ -11,7 +11,6 @@
 		[Constructable]
 		public WildfireScroll(int amount) : base(SpellName.Wildfire, 0x2D5A, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public WildfireScroll(Serial serial)

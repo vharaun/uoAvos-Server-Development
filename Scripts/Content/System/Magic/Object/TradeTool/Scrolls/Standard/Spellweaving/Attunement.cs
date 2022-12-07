@@ -11,7 +11,6 @@
 		[Constructable]
 		public AttunementScroll(int amount) : base(SpellName.Attunement, 0x2D54, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public AttunementScroll(Serial serial)

@@ -223,6 +223,11 @@ namespace Server
 				return Map.Internal.DefaultRegion;
 			}
 
+			if (p is Item item)
+			{
+				p = item.GetWorldLocation();
+			}
+
 			var sector = map.GetSector(p);
 
 			foreach (var o in sector.RegionRects)

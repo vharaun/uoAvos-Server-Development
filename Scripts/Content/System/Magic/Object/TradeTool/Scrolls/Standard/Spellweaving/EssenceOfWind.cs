@@ -11,7 +11,6 @@
 		[Constructable]
 		public EssenceOfWindScroll(int amount) : base(SpellName.EssenceOfWind, 0x2D5B, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public EssenceOfWindScroll(Serial serial)

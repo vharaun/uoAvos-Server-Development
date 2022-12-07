@@ -52,7 +52,7 @@ namespace Server.Spells.Ranger
 			else if (!SpellHelper.CheckTravel(Caster, map, loc, TravelCheckType.RecallTo))
 			{
 			}
-			else if (Caster.Kills >= 5 && map != Map.Felucca)
+			else if (Caster.Murderer && map != Map.Felucca)
 			{
 				Caster.SendLocalizedMessage(1019004); // You are not allowed to travel there.
 			}

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public HuntersAimScroll(int amount) : base(SpellName.HuntersAim, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public HuntersAimScroll(Serial serial) : base(serial)

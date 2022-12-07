@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public ShadowBlendScroll(int amount) : base(SpellName.ShadowBlend, 0x1F6D, amount)
 		{
-			Hue = 0x20;
 		}
 
 		public ShadowBlendScroll(Serial serial) : base(serial)

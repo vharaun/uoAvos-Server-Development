@@ -14,7 +14,6 @@
 		public BookOfSpellweaving(ulong content) 
 			: base(content, 0x2D50)
 		{
-			Hue = 0x8A2;
 		}
 
 		public BookOfSpellweaving(Serial serial) 

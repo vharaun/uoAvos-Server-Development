@@ -56,28 +56,37 @@ namespace Server.Commands.Generic
 
 	public class InterfaceGump : BaseGridGump
 	{
-		public static Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>> Instances { get; } = new();
+		public static Dictionary<object, HashSet<InterfaceGump>> Instances { get; } = new();
 
 		private static HashSet<InterfaceGump> m_Buffer = new();
 
 		public static void Configure()
 		{
-			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+			PropertyNotifier.PropertyChanged += OnPropertyChanged;
 		}
 
-		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object value)
+		private static void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			if (sender != null && Instances.TryGetValue(sender, out var gumps))
 			{
 				Instances[sender] = m_Buffer;
 
-				foreach (var gump in gumps)
+				m_Buffer = gumps;
+
+				foreach (var gump in m_Buffer)
 				{
 					foreach (var o in gump.m_List)
 					{
-						if (o != sender && o is INotifyPropertyUpdate u)
+						if (o == null)
 						{
-							Instances.Remove(u);
+							continue;
+						}
+
+						var t = o.GetType();
+
+						if (!t.IsPrimitive)
+						{
+							Instances.Remove(o);
 						}
 					}
 
@@ -88,16 +97,18 @@ namespace Server.Commands.Generic
 						continue;
 					}
 
+					ns.Send(new CloseGump(gump.TypeID, 0));
+
 					ns.RemoveGump(gump);
+
+					gump.OnServerClose(ns);
 
 					var g = new InterfaceGump(gump.m_From, gump.m_Columns, gump.m_List, gump.m_Page, gump.m_Select);
 
 					g.SendTo(ns);
 				}
 
-				gumps.Clear();
-
-				m_Buffer = gumps;
+				m_Buffer.Clear();
 			}
 		}
 
@@ -110,7 +121,7 @@ namespace Server.Commands.Generic
 
 		private readonly object m_Select;
 
-		private const int EntriesPerPage = 15;
+		private const int EntriesPerPage = 25;
 
 		public InterfaceGump(Mobile from, IEnumerable list)
 			: this(from, list.Cast<object>().ToArray())
@@ -120,7 +131,8 @@ namespace Server.Commands.Generic
 			: this(from, new[] { "Object" }, new(list), 0, null)
 		{ }
 
-		public InterfaceGump(Mobile from, string[] columns, ArrayList list, int page, object select) : base(30, 30)
+		public InterfaceGump(Mobile from, string[] columns, ArrayList list, int page, object select) 
+			: base(30, 30)
 		{
 			m_From = from;
 
@@ -133,11 +145,22 @@ namespace Server.Commands.Generic
 
 			foreach (var o in m_List)
 			{
-				if (o is INotifyPropertyUpdate u)
+				if (o == null)
 				{
-					if (!Instances.TryGetValue(u, out var gumps))
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive)
+				{
+					if (!Instances.TryGetValue(o, out var gumps))
 					{
-						Instances[u] = gumps = new HashSet<InterfaceGump>();
+						Instances[o] = gumps = new HashSet<InterfaceGump>();
+					}
+					else
+					{
+						_ = gumps.RemoveWhere(g => g.m_From == m_From && Enumerable.SequenceEqual(g.m_List.Cast<object>(), m_List.Cast<object>()));
 					}
 
 					gumps.Add(this);
@@ -303,13 +326,20 @@ namespace Server.Commands.Generic
 		{
 			foreach (var o in m_List)
 			{
-				if (o is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+				if (o == null)
+				{
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive && Instances.TryGetValue(o, out var gumps))
 				{
 					gumps.Remove(this);
 
 					if (gumps.Count == 0)
 					{
-						Instances.Remove(u);
+						Instances.Remove(o);
 					}
 				}
 			}

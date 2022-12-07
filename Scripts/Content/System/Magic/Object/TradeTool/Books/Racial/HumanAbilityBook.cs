@@ -8,7 +8,6 @@
 
 		[Constructable]
 		public HumanAbilityBook()
-			: base()
 		{ }
 
 		public HumanAbilityBook(Serial serial)

@@ -11,7 +11,6 @@
 		[Constructable]
 		public WordOfDeathScroll(int amount) : base(SpellName.WordOfDeath, 0x2D5E, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public WordOfDeathScroll(Serial serial)

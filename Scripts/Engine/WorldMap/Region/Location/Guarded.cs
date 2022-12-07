@@ -1,5 +1,6 @@
 ﻿using Server.Commands;
 using Server.Mobiles;
+using Server.Spells;
 
 using System;
 using System.Collections.Generic;
@@ -199,7 +200,7 @@ namespace Server.Regions
 				return true;
 			}
 
-			if (from.Kills < 5 || AllowReds)
+			if (!from.Murderer || AllowReds)
 			{
 				return true;
 			}
@@ -209,17 +210,7 @@ namespace Server.Regions
 
 		public override bool OnBeginSpellCast(Mobile m, ISpell s)
 		{
-			if (!IsDisabled())
-			{
-				if (!s.OnCastInTown(this))
-				{
-					m.SendLocalizedMessage(500946); // You cannot cast this in town!
-
-					return false;
-				}
-			}
-
-			return base.OnBeginSpellCast(m, s);
+			return base.OnBeginSpellCast(m, s) && SpellHelper.CheckTown(s, this);
 		}
 
 		public virtual BaseGuard MakeGuard(Point3D location)
@@ -272,7 +263,7 @@ namespace Server.Regions
 		{
 			if (!IsDisabled())
 			{
-				if (!AllowReds && m.Kills >= 5)
+				if (!AllowReds && m.Murderer)
 				{
 					CheckGuardCandidate(m);
 				}
@@ -419,7 +410,7 @@ namespace Server.Regions
 				{
 					if (IsGuardCandidate(m))
 					{
-						if (m_GuardCandidates.TryGetValue(m, out var timer) || (!AllowReds && m.Kills >= 5 && m.Region.IsPartOf(this)))
+						if (m_GuardCandidates.TryGetValue(m, out var timer) || (!AllowReds && m.Murderer && m.Region.IsPartOf(this)))
 						{
 							if (timer != null)
 							{
@@ -459,7 +450,7 @@ namespace Server.Regions
 							return true;
 						}
 
-						if (!AllowReds && m.Kills >= 5)
+						if (!AllowReds && m.Murderer)
 						{
 							return true;
 						}

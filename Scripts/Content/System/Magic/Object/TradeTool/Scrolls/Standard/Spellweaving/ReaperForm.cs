@@ -11,7 +11,6 @@
 		[Constructable]
 		public ReaperFormScroll(int amount) : base(SpellName.ReaperForm, 0x2D59, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public ReaperFormScroll(Serial serial)

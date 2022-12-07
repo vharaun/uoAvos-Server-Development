@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public CallMountScroll(int amount) : base(SpellName.CallMount, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public CallMountScroll(Serial serial) : base(serial)

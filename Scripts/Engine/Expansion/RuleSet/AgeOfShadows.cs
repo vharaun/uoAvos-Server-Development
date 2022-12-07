@@ -192,10 +192,11 @@ namespace Server
 
 				if (reflectPhys != 0)
 				{
-					if ((from is ExodusMinion && ((ExodusMinion)from).FieldActive) || (from is ExodusOverseer && ((ExodusOverseer)from).FieldActive))
+					if ((from is ExodusMinion em && em.FieldActive) || (from is ExodusOverseer eo && eo.FieldActive))
 					{
 						from.FixedParticles(0x376A, 20, 10, 0x2530, EffectLayer.Waist);
 						from.PlaySound(0x2F4);
+
 						m.SendAsciiMessage("Your weapon cannot penetrate the creature's magical barrier");
 					}
 					else
@@ -206,6 +207,7 @@ namespace Server
 			}
 
 			m.Damage(totalDamage, from);
+
 			return totalDamage;
 		}
 
@@ -248,7 +250,7 @@ namespace Server
 	}
 
 	[Flags]
-	public enum AosAttribute
+	public enum AosAttribute : ulong
 	{
 		RegenHits = 0x00000001,
 		RegenStam = 0x00000002,
@@ -352,21 +354,21 @@ namespace Server
 
 		public int this[AosAttribute attribute]
 		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
+			get => GetValue((ulong)attribute);
+			set => SetValue((ulong)attribute, value);
 		}
 
-		public AosAttributes(Item owner)
+		public AosAttributes(IEntity owner)
 			: base(owner)
 		{
 		}
 
-		public AosAttributes(Item owner, AosAttributes other)
+		public AosAttributes(IEntity owner, AosAttributes other)
 			: base(owner, other)
 		{
 		}
 
-		public AosAttributes(Item owner, GenericReader reader)
+		public AosAttributes(IEntity owner, GenericReader reader)
 			: base(owner, reader)
 		{
 		}
@@ -430,9 +432,9 @@ namespace Server
 			{
 				var obj = items[i];
 
-				if (obj is BaseWeapon)
+				if (obj is BaseWeapon w)
 				{
-					var attrs = ((BaseWeapon)obj).Attributes;
+					var attrs = w.Attributes;
 
 					if (attrs != null)
 					{
@@ -441,12 +443,12 @@ namespace Server
 
 					if (attribute == AosAttribute.Luck)
 					{
-						value += ((BaseWeapon)obj).GetLuckBonus();
+						value += w.GetLuckBonus();
 					}
 				}
-				else if (obj is BaseArmor)
+				else if (obj is BaseArmor a)
 				{
-					var attrs = ((BaseArmor)obj).Attributes;
+					var attrs = a.Attributes;
 
 					if (attrs != null)
 					{
@@ -455,48 +457,48 @@ namespace Server
 
 					if (attribute == AosAttribute.Luck)
 					{
-						value += ((BaseArmor)obj).GetLuckBonus();
+						value += a.GetLuckBonus();
 					}
 				}
-				else if (obj is BaseJewel)
+				else if (obj is BaseJewel j)
 				{
-					var attrs = ((BaseJewel)obj).Attributes;
+					var attrs = j.Attributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is BaseClothing)
+				else if (obj is BaseClothing c)
 				{
-					var attrs = ((BaseClothing)obj).Attributes;
+					var attrs = c.Attributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is Spellbook)
+				else if (obj is Spellbook s)
 				{
-					var attrs = ((Spellbook)obj).Attributes;
+					var attrs = s.Attributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is BaseQuiver)
+				else if (obj is BaseQuiver q)
 				{
-					var attrs = ((BaseQuiver)obj).Attributes;
+					var attrs = q.Attributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is BaseTalisman)
+				else if (obj is BaseTalisman t)
 				{
-					var attrs = ((BaseTalisman)obj).Attributes;
+					var attrs = t.Attributes;
 
 					if (attrs != null)
 					{
@@ -505,12 +507,16 @@ namespace Server
 				}
 			}
 
+			#region Enhancement
+			value += Enhancement.GetValue(m, attribute);
+			#endregion
+
 			return value;
 		}
 	}
 
 	[Flags]
-	public enum AosWeaponAttribute
+	public enum AosWeaponAttribute : ulong
 	{
 		LowerStatReq = 0x00000001,
 		SelfRepair = 0x00000002,
@@ -618,21 +624,21 @@ namespace Server
 
 		public int this[AosWeaponAttribute attribute]
 		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
+			get => GetValue((ulong)attribute);
+			set => SetValue((ulong)attribute, value);
 		}
 
-		public AosWeaponAttributes(Item owner)
+		public AosWeaponAttributes(IEntity owner)
 			: base(owner)
 		{
 		}
 
-		public AosWeaponAttributes(Item owner, AosWeaponAttributes other)
+		public AosWeaponAttributes(IEntity owner, AosWeaponAttributes other)
 			: base(owner, other)
 		{
 		}
 
-		public AosWeaponAttributes(Item owner, GenericReader reader)
+		public AosWeaponAttributes(IEntity owner, GenericReader reader)
 			: base(owner, reader)
 		{
 		}
@@ -656,18 +662,18 @@ namespace Server
 			{
 				var obj = items[i];
 
-				if (obj is BaseWeapon)
+				if (obj is BaseWeapon w)
 				{
-					var attrs = ((BaseWeapon)obj).WeaponAttributes;
+					var attrs = w.WeaponAttributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is ElvenGlasses)
+				else if (obj is ElvenGlasses g)
 				{
-					var attrs = ((ElvenGlasses)obj).WeaponAttributes;
+					var attrs = g.WeaponAttributes;
 
 					if (attrs != null)
 					{
@@ -676,12 +682,16 @@ namespace Server
 				}
 			}
 
+			#region Enhancement
+			value += Enhancement.GetValue(m, attribute);
+			#endregion
+
 			return value;
 		}
 	}
 
 	[Flags]
-	public enum AosArmorAttribute
+	public enum AosArmorAttribute : ulong
 	{
 		LowerStatReq = 0x00000001,
 		SelfRepair = 0x00000002,
@@ -705,21 +715,21 @@ namespace Server
 
 		public int this[AosArmorAttribute attribute]
 		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
+			get => GetValue((ulong)attribute);
+			set => SetValue((ulong)attribute, value);
 		}
 
-		public AosArmorAttributes(Item owner)
+		public AosArmorAttributes(IEntity owner)
 			: base(owner)
 		{
 		}
 
-		public AosArmorAttributes(Item owner, GenericReader reader)
+		public AosArmorAttributes(IEntity owner, GenericReader reader)
 			: base(owner, reader)
 		{
 		}
 
-		public AosArmorAttributes(Item owner, AosArmorAttributes other)
+		public AosArmorAttributes(IEntity owner, AosArmorAttributes other)
 			: base(owner, other)
 		{
 		}
@@ -743,18 +753,18 @@ namespace Server
 			{
 				var obj = items[i];
 
-				if (obj is BaseArmor)
+				if (obj is BaseArmor a)
 				{
-					var attrs = ((BaseArmor)obj).ArmorAttributes;
+					var attrs = a.ArmorAttributes;
 
 					if (attrs != null)
 					{
 						value += attrs[attribute];
 					}
 				}
-				else if (obj is BaseClothing)
+				else if (obj is BaseClothing c)
 				{
-					var attrs = ((BaseClothing)obj).ClothingAttributes;
+					var attrs = c.ClothingAttributes;
 
 					if (attrs != null)
 					{
@@ -801,17 +811,17 @@ namespace Server
 		[CommandProperty(AccessLevel.GameMaster)]
 		public SkillName Skill_5_Name { get => GetSkill(4); set => SetSkill(4, value); }
 
-		public AosSkillBonuses(Item owner)
+		public AosSkillBonuses(IEntity owner)
 			: base(owner)
 		{
 		}
 
-		public AosSkillBonuses(Item owner, GenericReader reader)
+		public AosSkillBonuses(IEntity owner, GenericReader reader)
 			: base(owner, reader)
 		{
 		}
 
-		public AosSkillBonuses(Item owner, AosSkillBonuses other)
+		public AosSkillBonuses(IEntity owner, AosSkillBonuses other)
 			: base(owner, other)
 		{
 		}
@@ -825,10 +835,7 @@ namespace Server
 		{
 			for (var i = 0; i < 5; ++i)
 			{
-				SkillName skill;
-				double bonus;
-
-				if (!GetValues(i, out skill, out bonus))
+				if (!GetValues(i, out var skill, out var bonus))
 				{
 					continue;
 				}
@@ -843,10 +850,7 @@ namespace Server
 
 			for (var i = 0; i < 5; ++i)
 			{
-				SkillName skill;
-				double bonus;
-
-				if (!GetValues(i, out skill, out bonus))
+				if (!GetValues(i, out var skill, out var bonus))
 				{
 					continue;
 				}
@@ -872,8 +876,8 @@ namespace Server
 
 			for (var i = 0; i < m_Mods.Count; ++i)
 			{
-
 				var m = m_Mods[i].Owner;
+
 				m_Mods[i].Remove();
 
 				if (Core.ML)
@@ -887,11 +891,11 @@ namespace Server
 
 		public bool GetValues(int index, out SkillName skill, out double bonus)
 		{
-			var v = GetValue(1 << index);
+			var v = GetValue(1ul << index);
 			var vSkill = 0;
 			var vBonus = 0;
 
-			for (var i = 0; i < 16; ++i)
+			for (var i = 0; i < 32; ++i)
 			{
 				vSkill <<= 1;
 				vSkill |= v & 1;
@@ -903,7 +907,7 @@ namespace Server
 			}
 
 			skill = (SkillName)vSkill;
-			bonus = (double)vBonus / 10;
+			bonus = vBonus / 10.0;
 
 			return bonus != 0;
 		}
@@ -914,7 +918,7 @@ namespace Server
 			var vSkill = (int)skill;
 			var vBonus = (int)(bonus * 10);
 
-			for (var i = 0; i < 16; ++i)
+			for (var i = 0; i < 32; ++i)
 			{
 				v <<= 1;
 				v |= vBonus & 1;
@@ -925,7 +929,7 @@ namespace Server
 				vSkill >>= 1;
 			}
 
-			SetValue(1 << index, v);
+			SetValue(1ul << index, v);
 		}
 
 		public SkillName GetSkill(int index)
@@ -1018,7 +1022,7 @@ namespace Server
 	}
 
 	[Flags]
-	public enum AosElementAttribute
+	public enum AosElementAttribute : ulong
 	{
 		Physical = 0x00000001,
 		Fire = 0x00000002,
@@ -1054,21 +1058,21 @@ namespace Server
 
 		public int this[AosElementAttribute attribute]
 		{
-			get => GetValue((int)attribute);
-			set => SetValue((int)attribute, value);
+			get => GetValue((ulong)attribute);
+			set => SetValue((ulong)attribute, value);
 		}
 
-		public AosElementAttributes(Item owner)
+		public AosElementAttributes(IEntity owner)
 			: base(owner)
 		{
 		}
 
-		public AosElementAttributes(Item owner, AosElementAttributes other)
+		public AosElementAttributes(IEntity owner, AosElementAttributes other)
 			: base(owner, other)
 		{
 		}
 
-		public AosElementAttributes(Item owner, GenericReader reader)
+		public AosElementAttributes(IEntity owner, GenericReader reader)
 			: base(owner, reader)
 		{
 		}
@@ -1082,39 +1086,44 @@ namespace Server
 	[PropertyObject]
 	public abstract class BaseAttributes
 	{
-		private uint m_Names;
+		private static readonly int[] m_Empty = Array.Empty<int>();
+
+		private ulong m_Names;
 		private int[] m_Values;
 
-		private static readonly int[] m_Empty = new int[0];
-
 		public bool IsEmpty => m_Names == 0;
-		public Item Owner { get; }
 
-		public BaseAttributes(Item owner)
+		public IEntity Owner { get; }
+
+		public BaseAttributes(IEntity owner)
 		{
 			Owner = owner;
 			m_Values = m_Empty;
 		}
 
-		public BaseAttributes(Item owner, BaseAttributes other)
+		public BaseAttributes(IEntity owner, BaseAttributes other)
 		{
 			Owner = owner;
+
 			m_Values = new int[other.m_Values.Length];
+
 			other.m_Values.CopyTo(m_Values, 0);
+
 			m_Names = other.m_Names;
 		}
 
-		public BaseAttributes(Item owner, GenericReader reader)
+		public BaseAttributes(IEntity owner, GenericReader reader)
 		{
 			Owner = owner;
 
-			int version = reader.ReadByte();
+			var version = reader.ReadByte();
 
 			switch (version)
 			{
+				case 2:
 				case 1:
 					{
-						m_Names = reader.ReadUInt();
+						m_Names = version >= 2 ? reader.ReadEncodedULong() : reader.ReadUInt();
 						m_Values = new int[reader.ReadEncodedInt()];
 
 						for (var i = 0; i < m_Values.Length; ++i)
@@ -1141,9 +1150,9 @@ namespace Server
 
 		public void Serialize(GenericWriter writer)
 		{
-			writer.Write((byte)1); // version;
+			writer.Write((byte)2); // version;
 
-			writer.Write(m_Names);
+			writer.WriteEncodedULong(m_Names);
 			writer.WriteEncodedInt(m_Values.Length);
 
 			for (var i = 0; i < m_Values.Length; ++i)
@@ -1152,14 +1161,12 @@ namespace Server
 			}
 		}
 
-		public int GetValue(int bitmask)
+		public int GetValue(ulong mask)
 		{
 			if (!Core.AOS)
 			{
 				return 0;
 			}
-
-			var mask = (uint)bitmask;
 
 			if ((m_Names & mask) == 0)
 			{
@@ -1176,28 +1183,26 @@ namespace Server
 			return 0;
 		}
 
-		public void SetValue(int bitmask, int value)
+		public void SetValue(ulong mask, int value)
 		{
-			if ((bitmask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
+			if ((mask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
 			{
-				if (Owner is BaseWeapon)
+				if (Owner is BaseWeapon w)
 				{
-					((BaseWeapon)Owner).UnscaleDurability();
+					w.UnscaleDurability();
 				}
 			}
-			else if ((bitmask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
+			else if ((mask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
 			{
-				if (Owner is BaseArmor)
+				if (Owner is BaseArmor a)
 				{
-					((BaseArmor)Owner).UnscaleDurability();
+					a.UnscaleDurability();
 				}
-				else if (Owner is BaseClothing)
+				else if (Owner is BaseClothing c)
 				{
-					((BaseClothing)Owner).UnscaleDurability();
+					c.UnscaleDurability();
 				}
 			}
-
-			var mask = (uint)bitmask;
 
 			if (value != 0)
 			{
@@ -1217,6 +1222,7 @@ namespace Server
 					if (index >= 0 && index <= m_Values.Length)
 					{
 						var old = m_Values;
+
 						m_Values = new int[old.Length + 1];
 
 						for (var i = 0; i < index; ++i)
@@ -1250,6 +1256,7 @@ namespace Server
 					else
 					{
 						var old = m_Values;
+
 						m_Values = new int[old.Length - 1];
 
 						for (var i = 0; i < index; ++i)
@@ -1265,46 +1272,46 @@ namespace Server
 				}
 			}
 
-			if ((bitmask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
+			if ((mask == (int)AosWeaponAttribute.DurabilityBonus) && (this is AosWeaponAttributes))
 			{
-				if (Owner is BaseWeapon)
+				if (Owner is BaseWeapon w)
 				{
-					((BaseWeapon)Owner).ScaleDurability();
+					w.ScaleDurability();
 				}
 			}
-			else if ((bitmask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
+			else if ((mask == (int)AosArmorAttribute.DurabilityBonus) && (this is AosArmorAttributes))
 			{
-				if (Owner is BaseArmor)
+				if (Owner is BaseArmor a)
 				{
-					((BaseArmor)Owner).ScaleDurability();
+					a.ScaleDurability();
 				}
-				else if (Owner is BaseClothing)
+				else if (Owner is BaseClothing c)
 				{
-					((BaseClothing)Owner).ScaleDurability();
+					c.ScaleDurability();
 				}
 			}
 
-			if (Owner.Parent is Mobile m)
+			if (Owner is Item item && item.Parent is Mobile m)
 			{
 				m.CheckStatTimers();
 				m.UpdateResistances();
 				m.Delta(MobileDelta.Stat | MobileDelta.WeaponDamage | MobileDelta.Hits | MobileDelta.Stam | MobileDelta.Mana);
 
-				if (this is AosSkillBonuses)
+				if (this is AosSkillBonuses sb)
 				{
-					((AosSkillBonuses)this).Remove();
-					((AosSkillBonuses)this).AddTo(m);
+					sb.Remove();
+					sb.AddTo(m);
 				}
 			}
 
 			Owner.InvalidateProperties();
 		}
 
-		private int GetIndex(uint mask)
+		private int GetIndex(ulong mask)
 		{
 			var index = 0;
 			var ourNames = m_Names;
-			uint currentBit = 1;
+			var currentBit = 1ul;
 
 			while (currentBit != mask)
 			{
@@ -1313,7 +1320,7 @@ namespace Server
 					++index;
 				}
 
-				if (currentBit == 0x80000000)
+				if (currentBit == 0x8000000000000000)
 				{
 					return -1;
 				}

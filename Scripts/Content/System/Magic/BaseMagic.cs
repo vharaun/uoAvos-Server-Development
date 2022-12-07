@@ -1316,7 +1316,10 @@ namespace Server.Spells
 					{
 						if (o.Value != null && o.Value.Spell != SpellName.Invalid)
 						{
-							_ = BaseGump.SendGump(new SpellIconGump(user, o.Value));
+							if (o.Value.Enabled)
+							{
+								new SpellIconGump(user, o.Value).SendGump();
+							}
 						}
 						else
 						{
@@ -1526,6 +1529,8 @@ namespace Server.Spells
 	{
 		private readonly SpellIconState m_Icon;
 
+		public SpellIconState Icon => m_Icon;
+
 		public SpellIconGump(PlayerMobile user, SpellIconState info)
 			: base(user, info.X, info.Y)
 		{
@@ -1626,7 +1631,33 @@ namespace Server.Spells
 			AddLabel(338, 350, 1153, m_Icon.Name);
 
 			// Apply
-			AddButton(412, 288, 2444, 2443, () => Refresh(true, false));
+			AddButton(412, 288, 2444, 2443, () =>
+			{
+				var ns = User.NetState;
+
+				if (ns != null)
+				{
+					var gump = ns.Gumps.Find(g => g is SpellIconGump ig && ig.Icon?.Spell == m_Spell);
+
+					if (gump != null)
+					{
+						ns.Send(new CloseGump(gump.TypeID, 0));
+
+						ns.RemoveGump(gump);
+
+						gump.OnServerClose(ns);
+					}
+
+					if (m_Icon.Enabled && m_Icon.Spell != SpellName.Invalid)
+					{
+						var ig = new SpellIconGump(User, m_Icon);
+
+						ig.SendGump();
+					}
+				}
+
+				Refresh(true, false);
+			});
 
 			// Move
 			AddButton(325, 288, 2444, 2443, () =>
@@ -1828,21 +1859,10 @@ namespace Server.Spells
 			var name = Center(theme.Name);
 			var summary = Center(theme.Summary);
 
-			if (Book?.Hue > 0)
+			if (bgHue <= 0 && Book?.Hue > 0)
 			{
-				AddImage(0, 0, bgID, Book.Hue - 1);
+				bgHue = Book.Hue;
 			}
-			else if (bgHue > 0)
-			{
-				AddImage(0, 0, bgID, bgHue);
-			}
-			else
-			{
-				AddImage(0, 0, bgID);
-			}
-
-			AddHtml(_Panels[0].X, _Panels[0].Y, _Panels[0].Width, 20, name, false, false, color, Color.Empty);
-			AddHtml(_Panels[1].X, _Panels[1].Y, _Panels[1].Width, 20, summary, false, false, color, Color.Empty);
 
 			var perPage = (int)Math.Ceiling(_EntryLimit / (double)_Panels.Length);
 
@@ -1852,6 +1872,8 @@ namespace Server.Spells
 			buttonSize.Width += 5;
 
 			SpellInfo[] spells = null;
+
+			AddECHandleInput();
 
 			if (_Info.Count > 0)
 			{
@@ -1869,11 +1891,7 @@ namespace Server.Spells
 				}
 			}
 
-			if (Book?.Hue > 0)
-			{
-				AddImage(0, 0, bgID, Book.Hue - 1);
-			}
-			else if (bgHue > 0)
+			if (bgHue > 0)
 			{
 				AddImage(0, 0, bgID, bgHue);
 			}
@@ -1881,6 +1899,8 @@ namespace Server.Spells
 			{
 				AddImage(0, 0, bgID);
 			}
+
+			AddECHandleInput();
 
 			if (_PageCount > 1)
 			{
@@ -1891,6 +1911,8 @@ namespace Server.Spells
 					var offsetX = bounds.X - 8;
 					var offsetY = bounds.Y - 5;
 
+					AddECHandleInput();
+
 					AddButton(offsetX, offsetY, 2205, 2205, b =>
 					{
 						--_Page;
@@ -1898,14 +1920,12 @@ namespace Server.Spells
 						Refresh(true, false);
 					});
 
-					if (Book?.Hue > 0)
-					{
-						AddImage(offsetX, offsetY, 2205, Book.Hue - 1);
-					}
-					else if (bgHue > 0)
+					if (bgHue > 0)
 					{
 						AddImage(offsetX, offsetY, 2205, bgHue);
 					}
+
+					AddECHandleInput();
 				}
 
 				if (_Page < _PageCount)
@@ -1915,6 +1935,8 @@ namespace Server.Spells
 					var offsetX = bounds.X + bounds.Width - 37;
 					var offsetY = bounds.Y - 6;
 
+					AddECHandleInput();
+
 					AddButton(offsetX, offsetY, 2206, 2206, b =>
 					{
 						++_Page;
@@ -1922,16 +1944,17 @@ namespace Server.Spells
 						Refresh(true, false);
 					});
 
-					if (Book?.Hue > 0)
-					{
-						AddImage(offsetX, offsetY, 2206, Book.Hue - 1);
-					}
-					else if (bgHue > 0)
+					if (bgHue > 0)
 					{
 						AddImage(offsetX, offsetY, 2206, bgHue);
 					}
+
+					AddECHandleInput();
 				}
 			}
+
+			AddHtml(_Panels[0].X, _Panels[0].Y, _Panels[0].Width, 40, name, false, false, color);
+			AddHtml(_Panels[1].X, _Panels[1].Y, _Panels[1].Width, 40, summary, false, false, color);
 
 			if (spells != null)
 			{
@@ -1942,6 +1965,8 @@ namespace Server.Spells
 
 					var offsetX = bounds.X;
 					var offsetY = bounds.Y + 30 + (20 * (index % perPage));
+
+					AddECHandleInput();
 
 					if (!spell.Type.IsAssignableTo(typeof(RacialPassiveAbility)))
 					{
@@ -1957,7 +1982,9 @@ namespace Server.Spells
 						AddImage(offsetX, offsetY + buttonOffsetY, cb1, 900);
 					}
 
-					AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 20, spell.Name, false, false, color, Color.Empty);
+					AddHtml(offsetX + buttonSize.Width, offsetY, bounds.Width - buttonSize.Width, 40, spell.Name, false, false, color);
+
+					AddECHandleInput();
 				}
 			}
 		}
@@ -2034,26 +2061,57 @@ namespace Server.Spells
 
 			public override void AddGumpLayout()
 			{
-				AddPage(0);
-				AddBackground(0, 0, 200, 265, 9380);
+				var theme = m_Book.Theme;
 
-				var textColor = m_Book.Theme.TextColor;
+				var textColor = theme.TextColor;
 
-				if (!String.IsNullOrWhiteSpace(m_Info.Name))
+				var bgHue = theme.BackgroundHue;
+
+				var cb1 = theme.CastButtonID1;
+				var cb2 = theme.CastButtonID2;
+
+				if (m_Book is IEntity e)
 				{
-					AddHtml(30, 3, 140, 20, Center(m_Info.Name), false, false, textColor, Color.Empty);
+					if (bgHue <= 0 && e.Hue > 0)
+					{
+						bgHue = e.Hue;
+					}
+				}
+
+				AddPage(0);
+
+				if (bgHue > 0)
+				{
+					AddImage(0, 0, 9390, bgHue);
+					AddImage(86, 0, 9392, bgHue);
+
+					AddImage(0, 125, 9396, bgHue);
+					AddImage(86, 125, 9398, bgHue);
 				}
 				else
 				{
-					AddHtml(30, 3, 140, 20, Center(Utility.FriendlyName(m_Info.ID)), false, false, textColor, Color.Empty);
+					AddImage(0, 0, 9390);
+					AddImage(86, 0, 9392);
+
+					AddImage(0, 125, 9396);
+					AddImage(86, 125, 9398);
+				}
+
+				if (!String.IsNullOrWhiteSpace(m_Info.Name))
+				{
+					AddHtml(30, 3, 140, 20, Center(m_Info.Name), false, false, textColor);
+				}
+				else
+				{
+					AddHtml(30, 3, 140, 20, Center(Utility.FriendlyName(m_Info.ID)), false, false, textColor);
 				}
 
 				if (m_IsRacialPassive)
 				{
 					AddImage(30, 40, m_Info.Icon);
 
-					AddImage(90, 40, 2331, 900);
-					AddLabel(120, 38, 0, "Passive");
+					AddHtml(80, 40, 60, 40, AlignRight("Passive"), false, false, textColor);
+					AddImage(145, 40, cb1, 900);
 				}
 				else
 				{
@@ -2065,7 +2123,10 @@ namespace Server.Spells
 						_ = SendGump(new SpellIconPlacementGump(User, m_Info.ID));
 					});
 
-					AddButton(90, 40, 2331, 2338, () =>
+					AddECHandleInput();
+
+					AddHtml(80, 40, 60, 40, AlignRight("Cast"), false, false, textColor);
+					AddButton(145, 40, cb1, cb2, () =>
 					{
 						var result = SpellHelper.TryCast(User, m_Book, m_Info, true);
 
@@ -2074,7 +2135,8 @@ namespace Server.Spells
 							Refresh(false, false);
 						}
 					});
-					AddLabel(120, 38, 0, "Cast");
+
+					AddECHandleInput();
 				}
 
 				// Spell Info
@@ -2082,7 +2144,7 @@ namespace Server.Spells
 
 				if (!String.IsNullOrWhiteSpace(m_Info.Desc))
 				{
-					_ = infoString.AppendLine(m_Info.Desc);
+					_ = infoString.AppendLine(m_Info.Desc.Replace(".  ", ".\n"));
 				}
 
 				if (m_Info.Mana > 0 || m_Info.Tithe > 0 || m_Info.Skill > 0.0)
@@ -2124,7 +2186,7 @@ namespace Server.Spells
 
 				if (infoString.Length > 0)
 				{
-					AddHtml(30, 95, 140, 130, SetColor(textColor, Color.Empty, infoString.ToString()), false, true);
+					AddHtml(30, 95, 140, 130, infoString.ToString(), false, true, textColor);
 				}
 			}
 		}

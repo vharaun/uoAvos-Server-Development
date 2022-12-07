@@ -14,7 +14,6 @@
 		public BookOfRogues(ulong content)
 			: base(content, 0xEFA)
 		{
-			Hue = 0x20;
 		}
 
 		public BookOfRogues(Serial serial)

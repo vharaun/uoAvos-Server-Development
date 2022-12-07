@@ -126,12 +126,12 @@ namespace Server.Spells.Mysticism
 
 				var malus = 0;
 
-				//Enhancement.SetValue(Caster, Attribute, value, ModName);
+				Enhancement.SetValue(Caster, Attribute, value, ModName);
 
 				if (prim >= 80 && sec >= 80 && Weapon.Attributes.SpellChanneling == 0)
 				{
-					//Enhancement.SetValue(Caster, AosAttribute.SpellChanneling, 1, ModName);
-					//Enhancement.SetValue(Caster, AosAttribute.CastSpeed, -1, ModName);
+					Enhancement.SetValue(Caster, AosAttribute.SpellChanneling, 1, ModName);
+					Enhancement.SetValue(Caster, AosAttribute.CastSpeed, -1, ModName);
 
 					malus = 1;
 				}
@@ -210,7 +210,7 @@ namespace Server.Spells.Mysticism
 				caster.SendLocalizedMessage(1115273); // The enchantment on your weapon has expired.
 				caster.PlaySound(0x1E6);
 
-				//Enhancement.RemoveMobile(caster);
+				Enhancement.RemoveMobile(caster);
 			}
 		}
 

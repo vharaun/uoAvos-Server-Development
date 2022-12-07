@@ -11,7 +11,6 @@
 		[Constructable]
 		public SummonFeyScroll(int amount) : base(SpellName.SummonFey, 0x2D57, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public SummonFeyScroll(Serial serial)

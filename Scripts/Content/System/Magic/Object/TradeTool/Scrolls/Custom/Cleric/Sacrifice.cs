@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SacrificeScroll(int amount) : base(SpellName.Sacrifice, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public SacrificeScroll(Serial serial) : base(serial)

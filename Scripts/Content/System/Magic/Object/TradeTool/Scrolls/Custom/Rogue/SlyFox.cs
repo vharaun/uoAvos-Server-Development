@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SlyFoxScroll(int amount) : base(SpellName.SlyFox, 0x1F6D, amount)
 		{
-			Hue = 0x20;
 		}
 
 		public SlyFoxScroll(Serial serial) : base(serial)

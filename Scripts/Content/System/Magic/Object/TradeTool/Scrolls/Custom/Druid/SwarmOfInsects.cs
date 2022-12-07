@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public SwarmOfInsectsScroll(int amount) : base(SpellName.SwarmOfInsects, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public SwarmOfInsectsScroll(Serial serial) : base(serial)

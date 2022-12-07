@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public PurgeScroll(int amount) : base(SpellName.Purge, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public PurgeScroll(Serial serial) : base(serial)

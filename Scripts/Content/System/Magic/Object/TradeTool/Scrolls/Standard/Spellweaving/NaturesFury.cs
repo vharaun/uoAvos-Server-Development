@@ -11,7 +11,6 @@
 		[Constructable]
 		public NaturesFuryScroll(int amount) : base(SpellName.NaturesFury, 0x2D56, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public NaturesFuryScroll(Serial serial)

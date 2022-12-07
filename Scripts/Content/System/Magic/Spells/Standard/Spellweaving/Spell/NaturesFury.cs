@@ -35,7 +35,7 @@ namespace Server.Spells.Spellweaving
 			{
 				Caster.SendLocalizedMessage(501942); // That location is blocked.
 			}
-			else if (!SpellHelper.CheckTown(p, Caster))
+			else if (!SpellHelper.CheckTown(this, p))
 			{ 
 			}
 			else

@@ -11,7 +11,6 @@
 		[Constructable]
 		public ArcaneCircleScroll(int amount) : base(SpellName.ArcaneCircle, 0x2D51, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public ArcaneCircleScroll(Serial serial)

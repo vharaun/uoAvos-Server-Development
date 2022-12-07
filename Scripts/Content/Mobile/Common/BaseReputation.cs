@@ -429,7 +429,7 @@ namespace Server.Misc
 
 				var actual = Notoriety.CanBeAttacked;
 
-				if (trgCreature.Kills >= 5)
+				if (trgCreature.Murderer)
 				{
 					actual = Notoriety.Murderer;
 				}
@@ -466,7 +466,7 @@ namespace Server.Misc
 			}
 			else
 			{
-				if (target.Kills >= 5)
+				if (target.Murderer)
 				{
 					return Notoriety.Murderer;
 				}
@@ -627,7 +627,7 @@ namespace Server.Misc
 				}
 			}
 
-			if (target.Kills >= 5)
+			if (target.Murderer)
 			{
 				return Notoriety.Murderer;
 			}
@@ -1563,13 +1563,13 @@ namespace Server.Misc
 	}
 
 	[PropertyObject]
-	public class ReputationState : ICollection<ReputationEntry>, INotifyPropertyUpdate
+	public class ReputationState : ICollection<ReputationEntry>
 	{
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public PlayerMobile Owner { get; private set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public HashSet<ReputationEntry> Entries { get; private set; } = new();
+		public HashSet<ReputationEntry> Entries { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public int Count => Entries.Count;
@@ -1607,24 +1607,17 @@ namespace Server.Misc
 
 			_ = Entries.Add(add);
 
-			PropertyNotifier.Notify(this, Entries);
-
 			return add;
 		}
 
 		void ICollection<ReputationEntry>.Add(ReputationEntry item)
 		{
-			if (Entries.Add(item))
-			{
-				PropertyNotifier.Notify(this, Entries);
-			}
+			_ = Entries.Add(item);
 		}
 
 		public void Clear()
 		{
 			Entries.Clear();
-
-			PropertyNotifier.Notify(this, Entries);
 		}
 
 		public bool Contains(ReputationEntry entry)
@@ -1639,14 +1632,7 @@ namespace Server.Misc
 
 		public bool Remove(ReputationEntry item)
 		{
-			if (Entries.Remove(item))
-			{
-				PropertyNotifier.Notify(this, Entries);
-
-				return true;
-			}
-
-			return false;
+			return Entries.Remove(item);
 		}
 
 		public IEnumerator<ReputationEntry> GetEnumerator()

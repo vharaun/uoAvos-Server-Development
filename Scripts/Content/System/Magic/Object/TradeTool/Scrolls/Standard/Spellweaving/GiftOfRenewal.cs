@@ -11,7 +11,6 @@
 		[Constructable]
 		public GiftOfRenewalScroll(int amount) : base(SpellName.GiftOfRenewal, 0x2D52, amount)
 		{
-			Hue = 0x8FD;
 		}
 
 		public GiftOfRenewalScroll(Serial serial)

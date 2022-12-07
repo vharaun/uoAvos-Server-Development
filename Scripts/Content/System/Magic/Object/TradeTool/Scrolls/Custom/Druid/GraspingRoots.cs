@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public GraspingRootsScroll(int amount) : base(SpellName.GraspingRoots, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public GraspingRootsScroll(Serial serial) : base(serial)

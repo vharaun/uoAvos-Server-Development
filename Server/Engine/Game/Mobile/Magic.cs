@@ -877,9 +877,11 @@ namespace Server
 
 			var values = Enum.GetValues<T>();
 
-			list = new T[values.Length - 1];
+			var offset = typeof(T) == typeof(SpellName) ? 1 : 0;
 
-			Array.Copy(values, 1, list, 0, list.Length);
+			list = new T[values.Length - offset];
+
+			Array.Copy(values, offset, list, 0, list.Length);
 
 			return list;
 		}
@@ -889,7 +891,7 @@ namespace Server
 	{
 		public static SpellInfo CreateInvalid()
 		{
-			return new SpellInfo(typeof(object))
+			return new SpellInfo(typeof(ISpell))
 			{
 				Enabled = false,
 				Action = -1,
@@ -957,37 +959,37 @@ namespace Server
 
 	public readonly record struct SpellbookTheme : IEquatable<SpellbookTheme>
 	{
-		public static readonly SpellbookTheme Invalid = new(SpellSchool.Invalid, Color.Black, 2203, 0, 2362, 2361, "Invalid", "Concepts");
+		public static readonly SpellbookTheme Invalid = new(SpellSchool.Invalid, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Invalid", "Concepts");
 
 		static SpellbookTheme()
 		{
 			// Base
-			Register(SpellSchool.Magery, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Magery", "Spells");
-			Register(SpellSchool.Necromancy, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Necromancy", "Spells");
-			Register(SpellSchool.Chivalry, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Chivalry", "Spells");
-			Register(SpellSchool.Bushido, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Bushido", "Abilities");
-			Register(SpellSchool.Ninjitsu, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Ninjitsu", "Abilities");
-			Register(SpellSchool.Spellweaving, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Spellweaving", "Spells");
-			Register(SpellSchool.Mysticism, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Mysticism", "Spells");
+			Register(SpellSchool.Magery, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Magery", "Spells");
+			Register(SpellSchool.Necromancy, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Necromancy", "Spells");
+			Register(SpellSchool.Chivalry, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Chivalry", "Spells");
+			Register(SpellSchool.Bushido, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Bushido", "Abilities");
+			Register(SpellSchool.Ninjitsu, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Ninjitsu", "Abilities");
+			Register(SpellSchool.Spellweaving, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0x8A2, 0x8FD, "Spellweaving", "Spells");
+			Register(SpellSchool.Mysticism, Color.DarkSlateGray, 2203, 0, 2362, 2361, 0, 0, "Mysticism", "Spells");
 
 			// Class
-			Register(SpellSchool.Avatar, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Avatar", "Spells");
-			Register(SpellSchool.Cleric, Color.DarkSlateGray, 11009, 0, 2362, 2361, "Cleric", "Spells");
-			Register(SpellSchool.Druid, Color.DarkSlateGray, 63067, 0, 2224, 2224, "Druid", "Spells");
-			Register(SpellSchool.Ranger, Color.DarkSlateGray, 63068, 0, 2362, 2361, "Ranger", "Abilities");
-			Register(SpellSchool.Rogue, Color.DarkSlateGray, 2203, 0, 2362, 2361, "Rogue", "Abilities");
+			Register(SpellSchool.Avatar, Color.Goldenrod, 2202, 0, 2362, 2361, 0x8A7, 0x8A7, "Avatar", "Spells");
+			Register(SpellSchool.Cleric, Color.DarkSlateGray, 2202, 0, 2362, 2361, 0xAA8, 0xAA8, "Cleric", "Spells");
+			Register(SpellSchool.Druid, Color.RosyBrown, 2202, 0, 2362, 2361, 0x7D3, 0x7D3, "Druid", "Spells");
+			Register(SpellSchool.Ranger, Color.DarkSlateGray, 2202, 0, 2362, 2361, 0x9F6, 0x9F6, "Ranger", "Abilities");
+			Register(SpellSchool.Rogue, Color.IndianRed, 2202, 0, 2362, 2361, 0x89D, 0x89D, "Rogue", "Abilities");
 
 			// Racial
-			Register(SpellSchool.Human, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Human", "Abilities");
-			Register(SpellSchool.Elf, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Elven", "Abilities");
-			Register(SpellSchool.Gargoyle, Color.DarkSlateGray, 51246, 0, 2224, 2224, "Gargish", "Abilities");
+			Register(SpellSchool.Human, Color.DarkSlateGray, 2200, 0, 2224, 2224, 0, 0, "Human", "Abilities");
+			Register(SpellSchool.Elf, Color.DarkSlateGray, 2200, 0, 2224, 2224, 0, 0, "Elven", "Abilities");
+			Register(SpellSchool.Gargoyle, Color.DarkSlateGray, 2200, 0, 2224, 2224, 0, 0, "Gargish", "Abilities");
 		}
 
-		public static void Register(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, string name, string summary)
+		public static void Register(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, int bookHue, int scrollHue, string name, string summary)
 		{
 			if (school != SpellSchool.Invalid)
 			{
-				_Themes[school] = new(school, textColor, backgroundID, backgroundHue, castButtonID1, castButtonID2, name, summary);
+				_Themes[school] = new(school, textColor, backgroundID, backgroundHue, castButtonID1, castButtonID2, bookHue, scrollHue, name, summary);
 			}
 		}
 
@@ -1016,10 +1018,13 @@ namespace Server
 		public readonly int CastButtonID1;
 		public readonly int CastButtonID2;
 
+		public readonly int BookHue;
+		public readonly int ScrollHue;
+
 		public readonly string Name;
 		public readonly string Summary;
 
-		public SpellbookTheme(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, string name, string summary)
+		public SpellbookTheme(SpellSchool school, Color textColor, int backgroundID, int backgroundHue, int castButtonID1, int castButtonID2, int bookHue, int scrollHue, string name, string summary)
 		{
 			School = school;
 
@@ -1030,6 +1035,9 @@ namespace Server
 
 			CastButtonID1 = castButtonID1;
 			CastButtonID2 = castButtonID2;
+
+			BookHue = bookHue;
+			ScrollHue = scrollHue;
 
 			Name = name;
 			Summary = summary;
@@ -1396,7 +1404,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class SpellStates<T> : BaseStates<SpellName, T>
 	{
 		#region Schools
@@ -1610,7 +1618,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class MagerySpellStates<T> : BaseStates<MagerySpellName, T>
 	{
 		#region Magery
@@ -1867,7 +1875,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class NecromancySpellStates<T> : BaseStates<NecromancySpellName, T>
 	{
 		#region Necromancy
@@ -1951,7 +1959,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class ChivalrySpellStates<T> : BaseStates<ChivalrySpellName, T>
 	{
 		#region Chivalry
@@ -2014,7 +2022,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class BushidoSpellStates<T> : BaseStates<BushidoSpellName, T>
 	{
 		#region Bushido
@@ -2065,7 +2073,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class NinjitsuSpellStates<T> : BaseStates<NinjitsuSpellName, T>
 	{
 		#region Ninjitsu
@@ -2122,7 +2130,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class SpellweavingSpellStates<T> : BaseStates<SpellweavingSpellName, T>
 	{
 		#region Spellweaving
@@ -2203,7 +2211,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class MysticismSpellStates<T> : BaseStates<MysticismSpellName, T>
 	{
 		#region Mysticism
@@ -2284,7 +2292,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class AvatarSpellStates<T> : BaseStates<AvatarSpellName, T>
 	{
 		#region Avatar
@@ -2326,7 +2334,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class ClericSpellStates<T> : BaseStates<ClericSpellName, T>
 	{
 		#region Cleric
@@ -2395,7 +2403,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class DruidSpellStates<T> : BaseStates<DruidSpellName, T>
 	{
 		#region Druid
@@ -2476,7 +2484,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class RangerSpellStates<T> : BaseStates<RangerSpellName, T>
 	{
 		#region Ranger
@@ -2533,7 +2541,7 @@ namespace Server
 		}
 	}
 
-	[PropertyObject]
+	[NoSort, PropertyObject]
 	public class RogueSpellStates<T> : BaseStates<RogueSpellName, T>
 	{
 		#region Rogue
@@ -2575,10 +2583,12 @@ namespace Server
 		}
 	}
 
+	[NoSort]
 	public class SpellPermissions : SpellStates<bool>
 	{
 		public SpellPermissions()
 		{
+			SetAll(true);
 		}
 
 		public SpellPermissions(GenericReader reader)
@@ -2588,7 +2598,10 @@ namespace Server
 
 		public virtual void SetAll(bool value)
 		{
-			Array.Fill(m_Data, value);
+			foreach (var o in EnumValues)
+			{
+				this[o] = value;
+			}
 		}
 
 		public override void Serialize(GenericWriter writer)

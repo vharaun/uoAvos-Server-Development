@@ -60,7 +60,9 @@ namespace Server.Spells.Magery
 			{
 				Caster.SendLocalizedMessage(501942); // That location is blocked.
 			}
-			else if (SpellHelper.CheckTown(p, Caster) && CheckSequence())
+			else if (!SpellHelper.CheckTown(this, p))
+			{ }
+			else if (CheckSequence())
 			{
 				TimeSpan duration;
 
@@ -753,7 +755,9 @@ namespace Server.Spells.Magery
 			{
 				Caster.SendLocalizedMessage(500237); // Target can not be seen.
 			}
-			else if (SpellHelper.CheckTown(p, Caster) && CheckSequence())
+			else if (!SpellHelper.CheckTown(this, p))
+			{ }
+			else if (CheckSequence())
 			{
 				SpellHelper.Turn(Caster, p);
 

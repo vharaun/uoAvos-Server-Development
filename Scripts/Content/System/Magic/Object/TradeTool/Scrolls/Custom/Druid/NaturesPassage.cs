@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public NaturesPassageScroll(int amount) : base(SpellName.NaturesPassage, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public NaturesPassageScroll(Serial serial) : base(serial)

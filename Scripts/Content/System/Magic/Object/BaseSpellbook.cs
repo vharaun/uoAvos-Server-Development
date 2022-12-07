@@ -97,7 +97,7 @@ namespace Server.Items
 		{
 			var from = e.Mobile;
 
-			if (!Multis.DesignContext.Check(from))
+			if (!DesignContext.Check(from))
 			{
 				return; // They are customizing
 			}
@@ -111,7 +111,7 @@ namespace Server.Items
 		{
 			var from = e.Mobile;
 
-			if (!Multis.DesignContext.Check(from))
+			if (!DesignContext.Check(from))
 			{
 				return; // They are customizing
 			}
@@ -159,6 +159,11 @@ namespace Server.Items
 			get => base.Hue;
 			set
 			{
+				if (value <= 0)
+				{
+					value = Theme.BookHue;
+				}
+
 				if (base.Hue != value)
 				{
 					base.Hue = value;
@@ -299,9 +304,10 @@ namespace Server.Items
 		public int BookOffset => SpellbookHelper.GetSchoolOffset(School);
 		public int BookCount => SpellbookHelper.GetSchoolCount(School);
 
+		[CommandProperty(AccessLevel.GameMaster)]
 		public SpellbookTheme Theme => SpellbookTheme.GetTheme(School);
 
-		public override string DefaultName => Theme.ToString();
+		public override string DefaultName => $"{Theme.Name} {Theme.Summary}";
 
 		public virtual bool UseGumps => true;
 		public virtual bool FillSpells => false;
@@ -331,6 +337,8 @@ namespace Server.Items
 			LootType = LootType.Blessed;
 
 			Content = content;
+
+			Hue = 0;
 
 			if (FillSpells)
 			{

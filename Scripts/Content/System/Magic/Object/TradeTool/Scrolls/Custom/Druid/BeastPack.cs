@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public BeastPackScroll(int amount) : base(SpellName.BeastPack, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public BeastPackScroll(Serial serial) : base(serial)

@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public DampenSpiritScroll(int amount) : base(SpellName.DampenSpirit, 0x1F6D, amount)
 		{
-			Hue = 0xAA8;
 		}
 
 		public DampenSpiritScroll(Serial serial) : base(serial)

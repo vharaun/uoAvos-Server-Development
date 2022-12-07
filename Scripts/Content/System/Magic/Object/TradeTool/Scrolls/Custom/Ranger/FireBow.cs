@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public FireBowScroll(int amount) : base(SpellName.FireBow, 0x1F6D, amount)
 		{
-			Hue = 0x9F6;
 		}
 
 		public FireBowScroll(Serial serial) : base(serial)

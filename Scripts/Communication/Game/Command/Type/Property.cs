@@ -1052,20 +1052,22 @@ namespace Server.Gumps
 	{
 		private static HashSet<PropertiesGump> m_Buffer = new();
 
-		public static Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>> Instances { get; } = new();
+		public static Dictionary<object, HashSet<PropertiesGump>> Instances { get; } = new();
 
 		public static void Configure()
 		{
-			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+			PropertyNotifier.PropertyChanged += OnPropertyChanged;
 		}
 
-		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		private static void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			if (sender != null && Instances.TryGetValue(sender, out var gumps))
 			{
 				Instances[sender] = m_Buffer;
 
-				foreach (var gump in gumps)
+				m_Buffer = gumps;
+
+				foreach (var gump in m_Buffer)
 				{
 					var ns = gump.m_Mobile?.NetState;
 
@@ -1074,16 +1076,18 @@ namespace Server.Gumps
 						continue;
 					}
 
+					ns.Send(new CloseGump(gump.TypeID, 0));
+
 					ns.RemoveGump(gump);
+
+					gump.OnServerClose(ns);
 
 					var g = new PropertiesGump(gump.m_Mobile, gump.m_Object, gump.m_Stack, gump.m_List, gump.m_Page);
 
 					g.SendTo(ns);
 				}
 
-				gumps.Clear();
-
-				m_Buffer = gumps;
+				m_Buffer.Clear();
 			}
 		}
 
@@ -1195,7 +1199,9 @@ namespace Server.Gumps
 		{
 			m_Mobile = mobile;
 			m_Object = o;
-			m_Type = o.GetType();
+
+			m_Type = m_Object?.GetType();
+
 			m_List = BuildList();
 
 			Initialize(0);
@@ -1205,16 +1211,15 @@ namespace Server.Gumps
 		{
 			m_Mobile = mobile;
 			m_Object = o;
-			m_Type = o.GetType();
+
+			m_Type = m_Object?.GetType();
+
 			m_Stack = stack;
 			m_List = BuildList();
 
 			if (parent != null)
 			{
-				if (m_Stack == null)
-				{
-					m_Stack = new Stack<StackEntry>();
-				}
+				m_Stack ??= new Stack<StackEntry>();
 
 				m_Stack.Push(parent);
 			}
@@ -1227,10 +1232,7 @@ namespace Server.Gumps
 			m_Mobile = mobile;
 			m_Object = o;
 
-			if (o != null)
-			{
-				m_Type = o.GetType();
-			}
+			m_Type = m_Object?.GetType();
 
 			m_List = list;
 			m_Stack = stack;
@@ -1240,13 +1242,34 @@ namespace Server.Gumps
 
 		private void Initialize(int page)
 		{
-			foreach (var e in m_List)
+			if (!m_Type.IsPrimitive)
 			{
-				if (e is INotifyPropertyUpdate u)
+				if (!Instances.TryGetValue(m_Object, out var gumps))
 				{
-					if (!Instances.TryGetValue(u, out var gumps))
+					Instances[m_Object] = gumps = new HashSet<PropertiesGump>();
+				}
+				else
+				{
+					_ = gumps.RemoveWhere(g => g.m_Mobile == m_Mobile);
+				}
+
+				_ = gumps.Add(this);
+			}
+
+			foreach (var o in m_List)
+			{
+				if (o == null)
+				{
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive)
+				{
+					if (!Instances.TryGetValue(o, out var gumps))
 					{
-						Instances[u] = gumps = new HashSet<PropertiesGump>();
+						Instances[o] = gumps = new HashSet<PropertiesGump>();
 					}
 
 					_ = gumps.Add(this);
@@ -1420,13 +1443,13 @@ namespace Server.Gumps
 
 		public override void OnResponse(NetState state, RelayInfo info)
 		{
-			if (m_Object is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+			if (!m_Type.IsPrimitive && Instances.TryGetValue(m_Object, out var gumps))
 			{
 				_ = gumps.Remove(this);
 
 				if (gumps.Count == 0)
 				{
-					_ = Instances.Remove(u);
+					_ = Instances.Remove(m_Object);
 				}
 			}
 
@@ -1881,30 +1904,35 @@ namespace Server.Gumps
 			{
 				return name;
 			}
-			
+
 			name = name.Substring(0, name.IndexOf('`'));
 
 			return $"{name}<{String.Join(", ", type.GenericTypeArguments.Select(GetRealTypeName))}>";
 		}
 
-		public static void OnValueChanged(object obj, PropertyInfo prop, Stack<StackEntry> stack)
+		public static void OnValueChanged(Stack<StackEntry> stack, object obj, PropertyInfo prop, object oldValue, object newValue)
 		{
-			if (stack == null || stack.Count == 0)
+			if (stack != null && stack.Count != 0 && prop.PropertyType.IsValueType)
 			{
-				return;
+				var o = obj;
+
+				foreach (var e in stack)
+				{
+					if (!e.m_Property.PropertyType.IsValueType)
+					{
+						break;
+					}
+
+					if (e.m_Property.CanWrite)
+					{
+						e.m_Property.SetValue(e.m_Object, o, null);
+					}
+
+					o = e.m_Object;
+				}
 			}
 
-			if (!prop.PropertyType.IsValueType)
-			{
-				return;
-			}
-
-			var peek = stack.Peek();
-
-			if (peek.m_Property.CanWrite)
-			{
-				peek.m_Property.SetValue(peek.m_Object, obj, null);
-			}
+			PropertyNotifier.Notify(obj, prop, oldValue, newValue);
 		}
 
 		private ArrayList BuildList()
@@ -2359,9 +2387,11 @@ namespace Server.Gumps
 
 							CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, entry.Body.ToString());
 
+							var oldValue = m_Property.GetValue(m_Object, null);
+
 							m_Property.SetValue(m_Object, entry.Body, null);
 
-							PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+							PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, entry.Body);
 						}
 						catch
 						{
@@ -2506,20 +2536,23 @@ namespace Server.Gumps
 
 					var result = "";
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+					object newValue = null;
+
 					if (info != null)
 					{
-						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, newValue = info.Invoke(null, new object[] { m_Names[index] }), true);
 					}
 					else if (m_Property.PropertyType.IsEnum)
 					{
-						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, newValue = Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
 					}
 
 					m_Mobile.SendMessage(result);
 
 					if (result == "Property has been set.")
 					{
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, newValue);
 					}
 				}
 				catch
@@ -2721,9 +2754,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, hue.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, hue, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, hue);
 				}
 				catch
 				{
@@ -2817,9 +2852,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3005,6 +3042,8 @@ namespace Server.Gumps
 			{
 				try
 				{
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					var toSet = m_Values[index];
 
 					var result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
@@ -3013,7 +3052,7 @@ namespace Server.Gumps
 
 					if (result == "Property has been set.")
 					{
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 				}
 				catch
@@ -3235,9 +3274,11 @@ namespace Server.Gumps
 					{
 						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+						var oldValue = m_Property.GetValue(m_Object, null);
+
 						m_Property.SetValue(m_Object, toSet, null);
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3337,9 +3378,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3403,9 +3446,11 @@ namespace Server.Gumps
 					{
 						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, targeted.ToString());
 
+						var oldValue = m_Property.GetValue(m_Object, null);
+
 						m_Property.SetValue(m_Object, targeted, null);
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, targeted);
 					}
 					else
 					{
@@ -3590,11 +3635,15 @@ namespace Server.Gumps
 				{
 					try
 					{
-						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, new Point2D(p).ToString());
+						var toSet = new Point2D(p);
 
-						m_Property.SetValue(m_Object, new Point2D(p), null);
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						var oldValue = m_Property.GetValue(m_Object, null);
+
+						m_Property.SetValue(m_Object, toSet, null);
+
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3665,9 +3714,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3841,11 +3892,15 @@ namespace Server.Gumps
 				{
 					try
 					{
-						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, new Point3D(p).ToString());
+						var toSet = new Point3D(p);
 
-						m_Property.SetValue(m_Object, new Point3D(p), null);
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						var oldValue = m_Property.GetValue(m_Object, null);
+
+						m_Property.SetValue(m_Object, toSet, null);
+
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3917,9 +3972,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -4166,9 +4223,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -4388,9 +4447,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString(CultureInfo.InvariantCulture));
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -4596,9 +4657,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{

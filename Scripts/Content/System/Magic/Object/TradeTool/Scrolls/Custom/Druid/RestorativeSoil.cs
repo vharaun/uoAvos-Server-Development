@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public RestorativeSoilScroll(int amount) : base(SpellName.RestorativeSoil, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public RestorativeSoilScroll(Serial serial) : base(serial)

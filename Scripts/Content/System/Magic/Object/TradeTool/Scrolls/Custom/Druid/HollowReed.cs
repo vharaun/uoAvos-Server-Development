@@ -11,7 +11,6 @@ namespace Server.Items
 		[Constructable]
 		public HollowReedScroll(int amount) : base(SpellName.HollowReed, 0x1F6D, amount)
 		{
-			Hue = 0x7D1;
 		}
 
 		public HollowReedScroll(Serial serial) : base(serial)

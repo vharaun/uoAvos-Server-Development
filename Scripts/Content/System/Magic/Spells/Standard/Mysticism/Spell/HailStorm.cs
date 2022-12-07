@@ -21,7 +21,7 @@ namespace Server.Spells.Mysticism
 
 		public void Target(IPoint3D p)
 		{
-			if (!SpellHelper.CheckTown(p, Caster))
+			if (!SpellHelper.CheckTown(this, p))
 			{
 			}
 			else if (CheckSequence())
