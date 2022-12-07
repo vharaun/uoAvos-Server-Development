@@ -1405,47 +1405,47 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class SpellStates<T> : BaseStates<SpellName, T>
+	public abstract class SpellStates<T> : BaseStates<SpellName, T>
 	{
 		#region Schools
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public MagerySpellStates<T> Magery { get; protected set; } = new();
+		public abstract MagerySpellStates<T> Magery { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public NecromancySpellStates<T> Necromancy { get; protected set; } = new();
+		public abstract NecromancySpellStates<T> Necromancy { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public ChivalrySpellStates<T> Chivalry { get; protected set; } = new();
+		public abstract ChivalrySpellStates<T> Chivalry { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public BushidoSpellStates<T> Bushido { get; protected set; } = new();
+		public abstract BushidoSpellStates<T> Bushido { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public NinjitsuSpellStates<T> Ninjitsu { get; protected set; } = new();
+		public abstract NinjitsuSpellStates<T> Ninjitsu { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SpellweavingSpellStates<T> Spellweaving { get; protected set; } = new();
+		public abstract SpellweavingSpellStates<T> Spellweaving { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public MysticismSpellStates<T> Mysticism { get; protected set; } = new();
+		public abstract MysticismSpellStates<T> Mysticism { get; protected set; }
 
 		// Custom
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public AvatarSpellStates<T> Avatar { get; protected set; } = new();
+		public abstract AvatarSpellStates<T> Avatar { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public ClericSpellStates<T> Cleric { get; protected set; } = new();
+		public abstract ClericSpellStates<T> Cleric { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public DruidSpellStates<T> Druid { get; protected set; } = new();
+		public abstract DruidSpellStates<T> Druid { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RangerSpellStates<T> Ranger { get; protected set; } = new();
+		public abstract RangerSpellStates<T> Ranger { get; protected set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RogueSpellStates<T> Rogue { get; protected set; } = new();
+		public abstract RogueSpellStates<T> Rogue { get; protected set; }
 
 		#endregion
 
@@ -1487,7 +1487,7 @@ namespace Server
 		public T this[RangerSpellName spell] { get => Ranger[spell]; set => Ranger[spell] = value; }
 		public T this[RogueSpellName spell] { get => Rogue[spell]; set => Rogue[spell] = value; }
 
-		//public T this[int spell] { get => this[(SpellName)spell]; set => this[(SpellName)spell] = value; }
+		public T this[int spell] { get => this[(SpellName)spell]; set => this[(SpellName)spell] = value; }
 
 		public override sealed int Length { get; } = EnumValues.Length;
 
@@ -1619,7 +1619,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class MagerySpellStates<T> : BaseStates<MagerySpellName, T>
+	public abstract class MagerySpellStates<T> : BaseStates<MagerySpellName, T>
 	{
 		#region Magery
 
@@ -1849,7 +1849,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(MagerySpellName)spell]; set => this[(MagerySpellName)spell] = value; }
+		//public T this[int spell] { get => this[(MagerySpellName)spell]; set => this[(MagerySpellName)spell] = value; }
 
 		public MagerySpellStates()
 		{
@@ -1876,7 +1876,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class NecromancySpellStates<T> : BaseStates<NecromancySpellName, T>
+	public abstract class NecromancySpellStates<T> : BaseStates<NecromancySpellName, T>
 	{
 		#region Necromancy
 
@@ -1933,7 +1933,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(NecromancySpellName)spell]; set => this[(NecromancySpellName)spell] = value; }
+		//public T this[int spell] { get => this[(NecromancySpellName)spell]; set => this[(NecromancySpellName)spell] = value; }
 
 		public NecromancySpellStates()
 		{
@@ -1960,7 +1960,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class ChivalrySpellStates<T> : BaseStates<ChivalrySpellName, T>
+	public abstract class ChivalrySpellStates<T> : BaseStates<ChivalrySpellName, T>
 	{
 		#region Chivalry
 
@@ -1996,7 +1996,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(ChivalrySpellName)spell]; set => this[(ChivalrySpellName)spell] = value; }
+		//public T this[int spell] { get => this[(ChivalrySpellName)spell]; set => this[(ChivalrySpellName)spell] = value; }
 
 		public ChivalrySpellStates()
 		{
@@ -2023,7 +2023,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class BushidoSpellStates<T> : BaseStates<BushidoSpellName, T>
+	public abstract class BushidoSpellStates<T> : BaseStates<BushidoSpellName, T>
 	{
 		#region Bushido
 
@@ -2047,7 +2047,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(BushidoSpellName)spell]; set => this[(BushidoSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(BushidoSpellName)spell]; set => this[(BushidoSpellName)spell] = value; }
 
 		public BushidoSpellStates()
 		{
@@ -2074,7 +2074,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class NinjitsuSpellStates<T> : BaseStates<NinjitsuSpellName, T>
+	public abstract class NinjitsuSpellStates<T> : BaseStates<NinjitsuSpellName, T>
 	{
 		#region Ninjitsu
 
@@ -2104,7 +2104,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(NinjitsuSpellName)spell]; set => this[(NinjitsuSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(NinjitsuSpellName)spell]; set => this[(NinjitsuSpellName)spell] = value; }
 
 		public NinjitsuSpellStates()
 		{
@@ -2131,7 +2131,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class SpellweavingSpellStates<T> : BaseStates<SpellweavingSpellName, T>
+	public abstract class SpellweavingSpellStates<T> : BaseStates<SpellweavingSpellName, T>
 	{
 		#region Spellweaving
 
@@ -2185,7 +2185,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(SpellweavingSpellName)spell]; set => this[(SpellweavingSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(SpellweavingSpellName)spell]; set => this[(SpellweavingSpellName)spell] = value; }
 
 		public SpellweavingSpellStates()
 		{
@@ -2212,7 +2212,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class MysticismSpellStates<T> : BaseStates<MysticismSpellName, T>
+	public abstract class MysticismSpellStates<T> : BaseStates<MysticismSpellName, T>
 	{
 		#region Mysticism
 
@@ -2266,7 +2266,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(MysticismSpellName)spell]; set => this[(MysticismSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(MysticismSpellName)spell]; set => this[(MysticismSpellName)spell] = value; }
 
 		public MysticismSpellStates()
 		{
@@ -2293,7 +2293,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class AvatarSpellStates<T> : BaseStates<AvatarSpellName, T>
+	public abstract class AvatarSpellStates<T> : BaseStates<AvatarSpellName, T>
 	{
 		#region Avatar
 
@@ -2308,7 +2308,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(AvatarSpellName)spell]; set => this[(AvatarSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(AvatarSpellName)spell]; set => this[(AvatarSpellName)spell] = value; }
 
 		public AvatarSpellStates()
 		{
@@ -2335,7 +2335,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class ClericSpellStates<T> : BaseStates<ClericSpellName, T>
+	public abstract class ClericSpellStates<T> : BaseStates<ClericSpellName, T>
 	{
 		#region Cleric
 
@@ -2377,7 +2377,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(ClericSpellName)spell]; set => this[(ClericSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(ClericSpellName)spell]; set => this[(ClericSpellName)spell] = value; }
 
 		public ClericSpellStates()
 		{
@@ -2404,7 +2404,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class DruidSpellStates<T> : BaseStates<DruidSpellName, T>
+	public abstract class DruidSpellStates<T> : BaseStates<DruidSpellName, T>
 	{
 		#region Druid
 
@@ -2458,7 +2458,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(DruidSpellName)spell]; set => this[(DruidSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(DruidSpellName)spell]; set => this[(DruidSpellName)spell] = value; }
 
 		public DruidSpellStates()
 		{
@@ -2485,7 +2485,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class RangerSpellStates<T> : BaseStates<RangerSpellName, T>
+	public abstract class RangerSpellStates<T> : BaseStates<RangerSpellName, T>
 	{
 		#region Ranger
 
@@ -2515,7 +2515,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(RangerSpellName)spell]; set => this[(RangerSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(RangerSpellName)spell]; set => this[(RangerSpellName)spell] = value; }
 
 		public RangerSpellStates()
 		{
@@ -2542,7 +2542,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class RogueSpellStates<T> : BaseStates<RogueSpellName, T>
+	public abstract class RogueSpellStates<T> : BaseStates<RogueSpellName, T>
 	{
 		#region Rogue
 
@@ -2557,7 +2557,7 @@ namespace Server
 
 		#endregion
 
-		public T this[int spell] { get => this[(RogueSpellName)spell]; set => this[(RogueSpellName)spell] = value; }
+		//public T this[int spell] { get => this[(RogueSpellName)spell]; set => this[(RogueSpellName)spell] = value; }
 
 		public RogueSpellStates()
 		{
@@ -2586,6 +2586,48 @@ namespace Server
 	[NoSort]
 	public class SpellPermissions : SpellStates<bool>
 	{
+		#region Schools
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override MagerySpellStates<bool> Magery { get; protected set; } = new MagerySpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override NecromancySpellStates<bool> Necromancy { get; protected set; } = new NecromancySpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override ChivalrySpellStates<bool> Chivalry { get; protected set; } = new ChivalrySpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override BushidoSpellStates<bool> Bushido { get; protected set; } = new BushidoSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override NinjitsuSpellStates<bool> Ninjitsu { get; protected set; } = new NinjitsuSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override SpellweavingSpellStates<bool> Spellweaving { get; protected set; } = new SpellweavingSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override MysticismSpellStates<bool> Mysticism { get; protected set; } = new MysticismSpellPermissions();
+
+		// Custom
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override AvatarSpellStates<bool> Avatar { get; protected set; } = new AvatarSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override ClericSpellStates<bool> Cleric { get; protected set; } = new ClericSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override DruidSpellStates<bool> Druid { get; protected set; } = new DruidSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override RangerSpellStates<bool> Ranger { get; protected set; } = new RangerSpellPermissions();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public override RogueSpellStates<bool> Rogue { get; protected set; } = new RogueSpellPermissions();
+
+		#endregion
+
 		public SpellPermissions()
 		{
 			SetAll(true);
@@ -2594,14 +2636,6 @@ namespace Server
 		public SpellPermissions(GenericReader reader)
 			: base(reader)
 		{
-		}
-
-		public virtual void SetAll(bool value)
-		{
-			foreach (var o in EnumValues)
-			{
-				this[o] = value;
-			}
 		}
 
 		public override void Serialize(GenericWriter writer)
@@ -2616,6 +2650,460 @@ namespace Server
 			base.Deserialize(reader);
 
 			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, SpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, SpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class MagerySpellPermissions : MagerySpellStates<bool>
+	{
+		public MagerySpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public MagerySpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, MagerySpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, MagerySpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class NecromancySpellPermissions : NecromancySpellStates<bool>
+	{
+		public NecromancySpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public NecromancySpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, NecromancySpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, NecromancySpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class ChivalrySpellPermissions : ChivalrySpellStates<bool>
+	{
+		public ChivalrySpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public ChivalrySpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, ChivalrySpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, ChivalrySpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class BushidoSpellPermissions : BushidoSpellStates<bool>
+	{
+		public BushidoSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public BushidoSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, BushidoSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, BushidoSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class NinjitsuSpellPermissions : NinjitsuSpellStates<bool>
+	{
+		public NinjitsuSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public NinjitsuSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, NinjitsuSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, NinjitsuSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class SpellweavingSpellPermissions : SpellweavingSpellStates<bool>
+	{
+		public SpellweavingSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public SpellweavingSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, SpellweavingSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, SpellweavingSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class MysticismSpellPermissions : MysticismSpellStates<bool>
+	{
+		public MysticismSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public MysticismSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, MysticismSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, MysticismSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class AvatarSpellPermissions : AvatarSpellStates<bool>
+	{
+		public AvatarSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public AvatarSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, AvatarSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, AvatarSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class ClericSpellPermissions : ClericSpellStates<bool>
+	{
+		public ClericSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public ClericSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, ClericSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, ClericSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class DruidSpellPermissions : DruidSpellStates<bool>
+	{
+		public DruidSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public DruidSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, DruidSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, DruidSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class RangerSpellPermissions : RangerSpellStates<bool>
+	{
+		public RangerSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public RangerSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, RangerSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, RangerSpellName key)
+		{
+			return reader.ReadBool();
+		}
+	}
+
+	public class RogueSpellPermissions : RogueSpellStates<bool>
+	{
+		public RogueSpellPermissions()
+		{
+			SetAll(true);
+		}
+
+		public RogueSpellPermissions(GenericReader reader)
+			: base(reader)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			reader.ReadInt();
+		}
+
+		protected override void WriteData(GenericWriter writer, RogueSpellName key, bool value)
+		{
+			writer.Write(value);
+		}
+
+		protected override bool ReadData(GenericReader reader, RogueSpellName key)
+		{
+			return reader.ReadBool();
 		}
 	}
 }

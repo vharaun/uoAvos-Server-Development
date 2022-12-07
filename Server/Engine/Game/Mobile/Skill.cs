@@ -124,12 +124,7 @@ namespace Server
 
 					Owner.OnSkillChange(this);
 
-					var m = Owner.Owner;
-
-					if (m != null)
-					{
-						m.OnSkillChange(SkillName, (double)oldBase / 10);
-					}
+					Owner.Owner?.OnSkillChange(SkillName, (double)oldBase / 10);
 				}
 			}
 		}
@@ -526,12 +521,12 @@ namespace Server
 			{
 				return false;
 			}
-			
+
 			if (!from.Region.OnSkillUse(from, skillID))
 			{
 				return false;
 			}
-			
+
 			if (!from.AllowSkillUse((SkillName)skillID))
 			{
 				return false;
@@ -652,12 +647,7 @@ namespace Server
 
 			Owner.OnSkillInvalidated(skill);
 
-			var ns = Owner.NetState;
-
-			if (ns != null)
-			{
-				ns.Send(new SkillChange(skill));
-			}
+			Owner.NetState?.Send(new SkillChange(skill));
 		}
 
 		public override void Serialize(GenericWriter writer)
@@ -693,7 +683,7 @@ namespace Server
 						}
 
 						if (version < 3)
-						{							
+						{
 							reader.ReadInt(); // Total
 						}
 
@@ -739,7 +729,7 @@ namespace Server
 	}
 
 	[NoSort, PropertyObject]
-	public class SkillStates<T> : BaseStates<SkillName, T>
+	public abstract class SkillStates<T> : BaseStates<SkillName, T>
 	{
 		#region Skill Getters & Setters
 
@@ -956,14 +946,6 @@ namespace Server
 		public SkillPermissions(GenericReader reader)
 			: base(reader)
 		{
-		}
-
-		public virtual void SetAll(bool value)
-		{
-			foreach (var o in EnumValues)
-			{
-				this[o] = value;
-			}
 		}
 
 		public override void Serialize(GenericWriter writer)
