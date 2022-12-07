@@ -228,11 +228,11 @@ namespace Server.Misc
 				Name = "Spell Casting Stuff"
 			};
 
-			PlaceItemIn(cont, 45, 105, new Spellbook(UInt64.MaxValue));
-			PlaceItemIn(cont, 65, 105, new NecromancerSpellbook((ulong)0xFFFF));
-			PlaceItemIn(cont, 85, 105, new BookOfChivalry((ulong)0x3FF));
-			PlaceItemIn(cont, 105, 105, new BookOfBushido());   //Default ctor = full
-			PlaceItemIn(cont, 125, 105, new BookOfNinjitsu()); //Default ctor = full
+			PlaceItemIn(cont, 45, 105, new BookOfMagery(UInt64.MaxValue));
+			PlaceItemIn(cont, 65, 105, new BookOfNecromancy((ulong)0xFFFF));
+			PlaceItemIn(cont, 85, 105, new BookOfChivalry());
+			PlaceItemIn(cont, 105, 105, new BookOfBushido());
+			PlaceItemIn(cont, 125, 105, new BookOfNinjitsu());
 
 			var runebook = new Runebook(10);
 			runebook.CurCharges = runebook.MaxCharges;
@@ -456,9 +456,7 @@ namespace Server.Misc
 			bank.DropItem(new BankCheck(1000000));
 
 			// Full spellbook
-			var book = new Spellbook {
-				Content = UInt64.MaxValue
-			};
+			var book = new BookOfMagery(UInt64.MaxValue);
 
 			bank.DropItem(book);
 
@@ -1174,7 +1172,7 @@ namespace Server.Misc
 							EquipItem(new Sandals(0x8FD));
 						}
 
-						Spellbook book = new NecromancerSpellbook((ulong)0x8981); // animate dead, evil omen, pain spike, summon familiar, wraith form
+						Spellbook book = new BookOfNecromancy((ulong)0x8981); // animate dead, evil omen, pain spike, summon familiar, wraith form
 
 						PackItem(book);
 
@@ -1209,7 +1207,7 @@ namespace Server.Misc
 							EquipItem(new BodySash(0xCF));
 						}
 
-						Spellbook book = new BookOfChivalry((ulong)0x3FF);
+						Spellbook book = new BookOfChivalry();
 
 						PackItem(book);
 
@@ -1376,14 +1374,14 @@ namespace Server.Misc
 				case 10: PackItem(new CureScroll()); break;
 				case 11: PackItem(new HarmScroll()); break;
 				case 12: PackItem(new MagicTrapScroll()); break;
-				case 13: PackItem(new MagicUnTrapScroll()); break;
+				case 13: PackItem(new RemoveTrapScroll()); break;
 				case 14: PackItem(new ProtectionScroll()); break;
 				case 15: PackItem(new StrengthScroll()); break;
 				case 16: PackItem(new BlessScroll()); break;
 				case 17: PackItem(new FireballScroll()); break;
 				case 18: PackItem(new MagicLockScroll()); break;
 				case 19: PackItem(new PoisonScroll()); break;
-				case 20: PackItem(new TelekinisisScroll()); break;
+				case 20: PackItem(new TelekinesisScroll()); break;
 				case 21: PackItem(new TeleportScroll()); break;
 				case 22: PackItem(new UnlockScroll()); break;
 				case 23: PackItem(new WallOfStoneScroll()); break;
@@ -1584,7 +1582,7 @@ namespace Server.Misc
 					{
 						if (Core.ML)
 						{
-							PackItem(new BookOfChivalry((ulong)0x3FF));
+							PackItem(new BookOfChivalry());
 						}
 
 						break;
@@ -1718,7 +1716,7 @@ namespace Server.Misc
 						PackScroll(1);
 						PackScroll(2);
 
-						var book = new Spellbook((ulong)0x382A8C38);
+						var book = new BookOfMagery((ulong)0x382A8C38);
 
 						EquipItem(book);
 

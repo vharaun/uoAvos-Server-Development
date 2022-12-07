@@ -40,6 +40,8 @@
 			Tamable = true;
 			ControlSlots = 3;
 			MinTameSkill = 93.9;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -59,7 +61,6 @@
 		public override ScaleType ScaleType => (Body == 12 ? ScaleType.Yellow : ScaleType.Red);
 		public override FoodType FavoriteFood => FoodType.Meat;
 		public override bool CanAngerOnTame => true;
-		public override bool CanFly => true;
 
 		public Dragon(Serial serial) : base(serial)
 		{

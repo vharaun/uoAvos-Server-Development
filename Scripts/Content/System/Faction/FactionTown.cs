@@ -136,15 +136,16 @@ namespace Server.Factions
 						this,
 						"Moonglow Township",
 						// https://www.uoguide.com/Moonglow
-						"Moonglow is found on the southern tip of Verity Isle, which was named to reflect the objective intellectual pursuits of the city's populace.\n" +
+						"Moonglow is found on the southern tip of Verity Isle, which was named to reflect the objective intellectual pursuits of the citys' populace.\n" +
 						"\n" +
 						"Although the buildings were designed and constructed by the architects and masons from mainland Britannia, the overall appearance of the city is one of function over form.\n" +
-						"Buildings are sturdy and devoid of superfluous accouterments. The streets are narrow, but straightforward and well-connected.\n" +
+						"Buildings are sturdy and devoid of superfluous accouterments.\n" +
+						"The streets are narrow, but straightforward and well-connected.\n" +
 						"In many ways, the city looks like one large campus, with the Lycaeum as the central college.\n" +
 						"\n" +
 						"Much of the study that goes on in Moonglow, and especially at the Lycaeum, is of the arcane arts.\n" +
-						"Nearly every form of sorcery, enchantment and potion is studied here, and most of the realm's research into new magic is performed here.\n" +
-						"Almost every great wizard interested in enhancing his or her personal abilities, or in increasing Britannia's pool of abilities, has spent at least a few months within the walls of the Lycaeum.\n" +
+						"Nearly every form of sorcery, enchantment and potion is studied here, and most of the realms' research into new magic is performed here.\n" +
+						"Almost every great wizard interested in enhancing his or her personal abilities, or in increasing Britannias' pool of abilities, has spent at least a few months within the walls of the Lycaeum.\n" +
 						"\n" +
 						"Not wanting to worry about inconveniences of daily life, the residents of Moonglow have worked hard to ensure they have every contemporary labor-saving device and invention known to the realm.\n" +
 						"Although nearly all is imported, the keen minds quickly dissect and analyze the latest gadgets, as their understanding of technology is usually quite strong.\n"

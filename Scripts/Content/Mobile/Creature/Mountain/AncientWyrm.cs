@@ -38,6 +38,8 @@
 			Karma = -22500;
 
 			VirtualArmor = 70;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -67,7 +69,6 @@
 		public override Poison PoisonImmune => Poison.Regular;
 		public override Poison HitPoison => Utility.RandomBool() ? Poison.Lesser : Poison.Regular;
 		public override int TreasureMapLevel => 5;
-		public override bool CanFly => true;
 
 		public AncientWyrm(Serial serial) : base(serial)
 		{

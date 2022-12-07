@@ -1,13 +1,16 @@
 ﻿using Server.Accounting;
 using Server.Network;
 
+using System;
+
 namespace Server
 {
 	public class CurrentExpansion
 	{
 		private static readonly Expansion Expansion = Expansion.EJ;
 
-		public static void Configure()
+		[CallPriority(Int32.MinValue)]
+		public static void Prepare()
 		{
 			Core.Expansion = Expansion;
 

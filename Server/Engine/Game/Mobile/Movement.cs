@@ -2,6 +2,9 @@
 {
 	public static class Movement
 	{
+		public const int PersonHeight = 16;
+		public const int StepHeight = 2;
+
 		private static IMovementImpl m_Impl;
 
 		public static IMovementImpl Impl

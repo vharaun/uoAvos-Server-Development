@@ -276,7 +276,7 @@ namespace Server.Engines.Quests.Mobiles
 
 								for (var i = 0; i < 3; i++)
 								{
-									cont.DropItem(Loot.RandomScroll(0, 23, SpellbookType.Regular));
+									cont.DropItem(Loot.RandomScroll(SpellCircle.First, SpellCircle.Third));
 								}
 							}
 							else

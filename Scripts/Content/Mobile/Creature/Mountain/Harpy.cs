@@ -34,6 +34,8 @@
 			Karma = -2500;
 
 			VirtualArmor = 28;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -70,7 +72,6 @@
 		public override int Meat => 4;
 		public override MeatType MeatType => MeatType.Bird;
 		public override int Feathers => 50;
-		public override bool CanFly => true;
 
 		public Harpy(Serial serial) : base(serial)
 		{

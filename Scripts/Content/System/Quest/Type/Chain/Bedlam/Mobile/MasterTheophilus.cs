@@ -53,7 +53,7 @@ namespace Server.Mobiles
 				}
 				else
 				{
-					PackScroll(4, 7);
+					PackScroll(SpellCircle.Fourth, SpellCircle.Seventh);
 				}
 			}
 

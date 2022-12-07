@@ -9,9 +9,9 @@ using Server.Regions;
 using Server.Spells;
 using Server.Spells.Bushido;
 using Server.Spells.Chivalry;
+using Server.Spells.Magery;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
 
@@ -25,22 +25,18 @@ namespace Server.Engines.ConPVP
 	/// Participants
 	public class Participant
 	{
-		private readonly DuelContext m_Context;
-		private DuelPlayer[] m_Players;
 		private TournyParticipant m_TournyPart;
 
-		public int Count => m_Players.Length;
-		public DuelPlayer[] Players => m_Players;
-		public DuelContext Context => m_Context;
+		public int Count => Players.Length;
+		public DuelPlayer[] Players { get; private set; }
+		public DuelContext Context { get; }
 		public TournyParticipant TournyPart { get => m_TournyPart; set => m_TournyPart = value; }
 
 		public DuelPlayer Find(Mobile mob)
 		{
-			if (mob is PlayerMobile)
+			if (mob is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)mob;
-
-				if (pm.DuelContext == m_Context && pm.DuelPlayer.Participant == this)
+				if (pm.DuelContext == Context && pm.DuelPlayer.Participant == this)
 				{
 					return pm.DuelPlayer;
 				}
@@ -48,11 +44,11 @@ namespace Server.Engines.ConPVP
 				return null;
 			}
 
-			for (var i = 0; i < m_Players.Length; ++i)
+			for (var i = 0; i < Players.Length; ++i)
 			{
-				if (m_Players[i] != null && m_Players[i].Mobile == mob)
+				if (Players[i] != null && Players[i].Mobile == mob)
 				{
-					return m_Players[i];
+					return Players[i];
 				}
 			}
 
@@ -61,28 +57,28 @@ namespace Server.Engines.ConPVP
 
 		public bool Contains(Mobile mob)
 		{
-			return (Find(mob) != null);
+			return Find(mob) != null;
 		}
 
 		public void Broadcast(int hue, string message, string nonLocalOverhead, string localOverhead)
 		{
-			for (var i = 0; i < m_Players.Length; ++i)
+			for (var i = 0; i < Players.Length; ++i)
 			{
-				if (m_Players[i] != null)
+				if (Players[i] != null)
 				{
 					if (message != null)
 					{
-						m_Players[i].Mobile.SendMessage(hue, message);
+						Players[i].Mobile.SendMessage(hue, message);
 					}
 
 					if (nonLocalOverhead != null)
 					{
-						m_Players[i].Mobile.NonlocalOverheadMessage(Network.MessageType.Regular, hue, false, String.Format(nonLocalOverhead, m_Players[i].Mobile.Name, m_Players[i].Mobile.Female ? "her" : "his"));
+						Players[i].Mobile.NonlocalOverheadMessage(Network.MessageType.Regular, hue, false, String.Format(nonLocalOverhead, Players[i].Mobile.Name, Players[i].Mobile.Female ? "her" : "his"));
 					}
 
 					if (localOverhead != null)
 					{
-						m_Players[i].Mobile.LocalOverheadMessage(Network.MessageType.Regular, hue, false, localOverhead);
+						Players[i].Mobile.LocalOverheadMessage(Network.MessageType.Regular, hue, false, localOverhead);
 					}
 				}
 			}
@@ -94,9 +90,9 @@ namespace Server.Engines.ConPVP
 			{
 				var count = 0;
 
-				for (var i = 0; i < m_Players.Length; ++i)
+				for (var i = 0; i < Players.Length; ++i)
 				{
-					if (m_Players[i] != null)
+					if (Players[i] != null)
 					{
 						++count;
 					}
@@ -110,9 +106,9 @@ namespace Server.Engines.ConPVP
 		{
 			get
 			{
-				for (var i = 0; i < m_Players.Length; ++i)
+				for (var i = 0; i < Players.Length; ++i)
 				{
-					if (m_Players[i] == null)
+					if (Players[i] == null)
 					{
 						return true;
 					}
@@ -126,9 +122,9 @@ namespace Server.Engines.ConPVP
 		{
 			get
 			{
-				for (var i = 0; i < m_Players.Length; ++i)
+				for (var i = 0; i < Players.Length; ++i)
 				{
-					if (m_Players[i] != null && !m_Players[i].Eliminated)
+					if (Players[i] != null && !Players[i].Eliminated)
 					{
 						return false;
 					}
@@ -144,21 +140,21 @@ namespace Server.Engines.ConPVP
 			{
 				var sb = new StringBuilder();
 
-				for (var i = 0; i < m_Players.Length; ++i)
+				for (var i = 0; i < Players.Length; ++i)
 				{
-					if (m_Players[i] == null)
+					if (Players[i] == null)
 					{
 						continue;
 					}
 
-					var mob = m_Players[i].Mobile;
+					var mob = Players[i].Mobile;
 
 					if (sb.Length > 0)
 					{
-						sb.Append(", ");
+						_ = sb.Append(", ");
 					}
 
-					sb.Append(mob.Name);
+					_ = sb.Append(mob.Name);
 				}
 
 				if (sb.Length == 0)
@@ -177,14 +173,14 @@ namespace Server.Engines.ConPVP
 				return;
 			}
 
-			var index = Array.IndexOf(m_Players, player);
+			var index = Array.IndexOf(Players, player);
 
 			if (index == -1)
 			{
 				return;
 			}
 
-			m_Players[index] = null;
+			Players[index] = null;
 		}
 
 		public void Remove(DuelPlayer player)
@@ -194,24 +190,24 @@ namespace Server.Engines.ConPVP
 				return;
 			}
 
-			var index = Array.IndexOf(m_Players, player);
+			var index = Array.IndexOf(Players, player);
 
 			if (index == -1)
 			{
 				return;
 			}
 
-			var old = m_Players;
-			m_Players = new DuelPlayer[old.Length - 1];
+			var old = Players;
+			Players = new DuelPlayer[old.Length - 1];
 
 			for (var i = 0; i < index; ++i)
 			{
-				m_Players[i] = old[i];
+				Players[i] = old[i];
 			}
 
 			for (var i = index + 1; i < old.Length; ++i)
 			{
-				m_Players[i - 1] = old[i];
+				Players[i - 1] = old[i];
 			}
 		}
 
@@ -227,23 +223,23 @@ namespace Server.Engines.ConPVP
 				return;
 			}
 
-			for (var i = 0; i < m_Players.Length; ++i)
+			for (var i = 0; i < Players.Length; ++i)
 			{
-				if (m_Players[i] == null)
+				if (Players[i] == null)
 				{
-					m_Players[i] = new DuelPlayer(player, this);
+					Players[i] = new DuelPlayer(player, this);
 					return;
 				}
 			}
 
-			Resize(m_Players.Length + 1);
-			m_Players[m_Players.Length - 1] = new DuelPlayer(player, this);
+			Resize(Players.Length + 1);
+			Players[Players.Length - 1] = new DuelPlayer(player, this);
 		}
 
 		public void Resize(int count)
 		{
-			var old = m_Players;
-			m_Players = new DuelPlayer[count];
+			var old = Players;
+			Players = new DuelPlayer[count];
 
 			if (old != null)
 			{
@@ -253,7 +249,7 @@ namespace Server.Engines.ConPVP
 				{
 					if (old[i] != null && ct < count)
 					{
-						m_Players[ct++] = old[i];
+						Players[ct++] = old[i];
 					}
 				}
 			}
@@ -261,7 +257,7 @@ namespace Server.Engines.ConPVP
 
 		public Participant(DuelContext context, int count)
 		{
-			m_Context = context;
+			Context = context;
 			//m_Stakes = new StakesContainer( context, this );
 			Resize(count);
 		}
@@ -269,19 +265,28 @@ namespace Server.Engines.ConPVP
 
 	public class DuelPlayer
 	{
-		private readonly Mobile m_Mobile;
 		private bool m_Eliminated;
-		private bool m_Ready;
 		private Participant m_Participant;
 
-		public Mobile Mobile => m_Mobile;
-		public bool Ready { get => m_Ready; set => m_Ready = value; }
-		public bool Eliminated { get => m_Eliminated; set { m_Eliminated = value; if (m_Participant.Context.m_Tournament != null && m_Eliminated) { m_Participant.Context.m_Tournament.OnEliminated(this); m_Mobile.SendEverything(); } } }
+		public Mobile Mobile { get; }
+		public bool Ready { get; set; }
+		public bool Eliminated
+		{
+			get => m_Eliminated; set
+			{
+				m_Eliminated = value;
+				if (m_Participant.Context.m_Tournament != null && m_Eliminated)
+				{
+					m_Participant.Context.m_Tournament.OnEliminated(this);
+					Mobile.SendEverything();
+				}
+			}
+		}
 		public Participant Participant { get => m_Participant; set => m_Participant = value; }
 
 		public DuelPlayer(Mobile mob, Participant p)
 		{
-			m_Mobile = mob;
+			Mobile = mob;
 			m_Participant = p;
 
 			if (mob is PlayerMobile)
@@ -293,12 +298,10 @@ namespace Server.Engines.ConPVP
 
 	public class ParticipantGump : Gump
 	{
-		private readonly Mobile m_From;
-		private readonly DuelContext m_Context;
 		private readonly Participant m_Participant;
 
-		public Mobile From => m_From;
-		public DuelContext Context => m_Context;
+		public Mobile From { get; }
+		public DuelContext Context { get; }
 		public Participant Participant => m_Participant;
 
 		public string Center(string text)
@@ -320,13 +323,13 @@ namespace Server.Engines.ConPVP
 
 		public ParticipantGump(Mobile from, DuelContext context, Participant p) : base(50, 50)
 		{
-			m_From = from;
-			m_Context = context;
+			From = from;
+			Context = context;
 			m_Participant = p;
 
-			from.CloseGump(typeof(RulesetGump));
-			from.CloseGump(typeof(DuelContextGump));
-			from.CloseGump(typeof(ParticipantGump));
+			_ = from.CloseGump(typeof(RulesetGump));
+			_ = from.CloseGump(typeof(DuelContextGump));
+			_ = from.CloseGump(typeof(ParticipantGump));
 
 			var count = p.Players.Length;
 
@@ -351,24 +354,29 @@ namespace Server.Engines.ConPVP
 			var x = 35;
 			var y = 47;
 
-			AddHtml(x, y, 200, 20, String.Format("Team Size: {0}", p.Players.Length), false, false); y += 22;
+			AddHtml(x, y, 200, 20, String.Format("Team Size: {0}", p.Players.Length), false, false);
+			y += 22;
 
-			AddGoldenButtonLabeled(x + 20, y, 1, "Increase"); y += 22;
-			AddGoldenButtonLabeled(x + 20, y, 2, "Decrease"); y += 30;
+			AddGoldenButtonLabeled(x + 20, y, 1, "Increase");
+			y += 22;
+			AddGoldenButtonLabeled(x + 20, y, 2, "Decrease");
+			y += 30;
 
-			AddHtml(35, y, 230, 20, Center("Players"), false, false); y += 22;
+			AddHtml(35, y, 230, 20, Center("Players"), false, false);
+			y += 22;
 
 			for (var i = 0; i < p.Players.Length; ++i)
 			{
 				var pl = p.Players[i];
 
-				AddGoldenButtonLabeled(x, y, 5 + i, String.Format("{0}: {1}", 1 + i, pl == null ? "Empty" : pl.Mobile.Name)); y += 22;
+				AddGoldenButtonLabeled(x, y, 5 + i, String.Format("{0}: {1}", 1 + i, pl == null ? "Empty" : pl.Mobile.Name));
+				y += 22;
 			}
 		}
 
 		public override void OnResponse(NetState sender, RelayInfo info)
 		{
-			if (!m_Context.Registered)
+			if (!Context.Registered)
 			{
 				return;
 			}
@@ -377,7 +385,7 @@ namespace Server.Engines.ConPVP
 
 			if (bid == 0)
 			{
-				m_From.SendGump(new DuelContextGump(m_From, m_Context));
+				_ = From.SendGump(new DuelContextGump(From, Context));
 			}
 			else if (bid == 1)
 			{
@@ -387,10 +395,10 @@ namespace Server.Engines.ConPVP
 				}
 				else
 				{
-					m_From.SendMessage("You may not raise the team size any further.");
+					From.SendMessage("You may not raise the team size any further.");
 				}
 
-				m_From.SendGump(new ParticipantGump(m_From, m_Context, m_Participant));
+				_ = From.SendGump(new ParticipantGump(From, Context, m_Participant));
 			}
 			else if (bid == 2)
 			{
@@ -400,32 +408,32 @@ namespace Server.Engines.ConPVP
 				}
 				else
 				{
-					m_From.SendMessage("You may not lower the team size any further.");
+					From.SendMessage("You may not lower the team size any further.");
 				}
 
-				m_From.SendGump(new ParticipantGump(m_From, m_Context, m_Participant));
+				_ = From.SendGump(new ParticipantGump(From, Context, m_Participant));
 			}
 			else if (bid == 3)
 			{
 				if (m_Participant.FilledSlots > 0)
 				{
-					m_From.SendMessage("There is at least one currently active player. You must remove them first.");
-					m_From.SendGump(new ParticipantGump(m_From, m_Context, m_Participant));
+					From.SendMessage("There is at least one currently active player. You must remove them first.");
+					_ = From.SendGump(new ParticipantGump(From, Context, m_Participant));
 				}
-				else if (m_Context.Participants.Count > 2)
+				else if (Context.Participants.Count > 2)
 				{
 					/*Container cont = m_Participant.Stakes;
 
 					if ( cont != null )
 						cont.Delete();*/
 
-					m_Context.Participants.Remove(m_Participant);
-					m_From.SendGump(new DuelContextGump(m_From, m_Context));
+					Context.Participants.Remove(m_Participant);
+					_ = From.SendGump(new DuelContextGump(From, Context));
 				}
 				else
 				{
-					m_From.SendMessage("Duels must have at least two participating parties.");
-					m_From.SendGump(new ParticipantGump(m_From, m_Context, m_Participant));
+					From.SendMessage("Duels must have at least two participating parties.");
+					_ = From.SendGump(new ParticipantGump(From, Context, m_Participant));
 				}
 			}
 			/*else if ( bid == 4 )
@@ -456,8 +464,8 @@ namespace Server.Engines.ConPVP
 				{
 					if (m_Participant.Players[bid] == null)
 					{
-						m_From.Target = new ParticipantTarget(m_Context, m_Participant, bid);
-						m_From.SendMessage("Target a player.");
+						From.Target = new ParticipantTarget(Context, m_Participant, bid);
+						From.SendMessage("Target a player.");
 					}
 					else
 					{
@@ -465,12 +473,12 @@ namespace Server.Engines.ConPVP
 
 						if (m_Participant.Players[bid].Mobile is PlayerMobile)
 						{
-							((PlayerMobile)(m_Participant.Players[bid].Mobile)).DuelPlayer = null;
+							((PlayerMobile)m_Participant.Players[bid].Mobile).DuelPlayer = null;
 						}
 
 						m_Participant.Players[bid] = null;
-						m_From.SendMessage("They have been removed from the duel.");
-						m_From.SendGump(new ParticipantGump(m_From, m_Context, m_Participant));
+						From.SendMessage("They have been removed from the duel.");
+						_ = From.SendGump(new ParticipantGump(From, Context, m_Participant));
 					}
 				}
 			}
@@ -503,9 +511,8 @@ namespace Server.Engines.ConPVP
 					return;
 				}
 
-				var mob = targeted as Mobile;
 
-				if (mob == null)
+				if (targeted is not Mobile mob)
 				{
 					from.SendMessage("That is not a player.");
 				}
@@ -526,9 +533,7 @@ namespace Server.Engines.ConPVP
 				}
 				else
 				{
-					var pm = mob as PlayerMobile;
-
-					if (pm == null)
+					if (mob is not PlayerMobile pm)
 					{
 						return;
 					}
@@ -548,14 +553,14 @@ namespace Server.Engines.ConPVP
 					else
 					{
 						from.SendMessage("You send {0} to {1}.", m_Participant.Find(from) == null ? "a challenge" : "an invitation", mob.Name);
-						mob.SendGump(new AcceptDuelGump(from, mob, m_Context, m_Participant, m_Index));
+						_ = mob.SendGump(new AcceptDuelGump(from, mob, m_Context, m_Participant, m_Index));
 					}
 				}
 			}
 
 			protected override void OnTargetFinish(Mobile from)
 			{
-				from.SendGump(new ParticipantGump(from, m_Context, m_Participant));
+				_ = from.SendGump(new ParticipantGump(from, m_Context, m_Participant));
 			}
 		}
 	}
@@ -681,7 +686,7 @@ namespace Server.Engines.ConPVP
 		{
 			base.Deserialize(reader);
 
-			reader.ReadInt();
+			_ = reader.ReadInt();
 		}
 	}
 
@@ -781,14 +786,14 @@ namespace Server.Engines.ConPVP
 					{
 						if (m_Context != null)
 						{
-							m_From.SendGump(new DuelContextGump(m_From, m_Context));
+							_ = m_From.SendGump(new DuelContextGump(m_From, m_Context));
 						}
 
 						break;
 					}
 				case 1: // customize
 					{
-						m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Ruleset.Layout, m_Context));
+						_ = m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Ruleset.Layout, m_Context));
 						break;
 					}
 				default:
@@ -798,7 +803,7 @@ namespace Server.Engines.ConPVP
 						if (idx >= 0 && idx < m_Defaults.Length)
 						{
 							m_Ruleset.ApplyDefault(m_Defaults[idx]);
-							m_From.SendGump(new PickRulesetGump(m_From, m_Context, m_Ruleset));
+							_ = m_From.SendGump(new PickRulesetGump(m_From, m_Context, m_Ruleset));
 						}
 						else
 						{
@@ -815,7 +820,7 @@ namespace Server.Engines.ConPVP
 									m_Ruleset.AddFlavor(m_Flavors[idx]);
 								}
 
-								m_From.SendGump(new PickRulesetGump(m_From, m_Context, m_Ruleset));
+								_ = m_From.SendGump(new PickRulesetGump(m_From, m_Context, m_Ruleset));
 							}
 						}
 
@@ -827,68 +832,63 @@ namespace Server.Engines.ConPVP
 
 	public class Ruleset
 	{
-		private readonly RulesetLayout m_Layout;
-		private BitArray m_Options;
 		private string m_Title;
-
-		private Ruleset m_Base;
-		private readonly ArrayList m_Flavors = new ArrayList();
 		private bool m_Changed;
 
-		public RulesetLayout Layout => m_Layout;
-		public BitArray Options => m_Options;
+		public RulesetLayout Layout { get; }
+		public BitArray Options { get; private set; }
 		public string Title { get => m_Title; set => m_Title = value; }
 
-		public Ruleset Base => m_Base;
-		public ArrayList Flavors => m_Flavors;
+		public Ruleset Base { get; private set; }
+		public ArrayList Flavors { get; } = new ArrayList();
 		public bool Changed { get => m_Changed; set => m_Changed = value; }
 
 		public void ApplyDefault(Ruleset newDefault)
 		{
-			m_Base = newDefault;
+			Base = newDefault;
 			m_Changed = false;
 
-			m_Options = new BitArray(newDefault.m_Options);
+			Options = new BitArray(newDefault.Options);
 
 			ApplyFlavorsTo(this);
 		}
 
 		public void ApplyFlavorsTo(Ruleset ruleset)
 		{
-			for (var i = 0; i < m_Flavors.Count; ++i)
+			for (var i = 0; i < Flavors.Count; ++i)
 			{
-				var flavor = (Ruleset)m_Flavors[i];
+				var flavor = (Ruleset)Flavors[i];
 
-				m_Options.Or(flavor.m_Options);
+				_ = Options.Or(flavor.Options);
 			}
 		}
 
 		public void AddFlavor(Ruleset flavor)
 		{
-			if (m_Flavors.Contains(flavor))
+			if (Flavors.Contains(flavor))
 			{
 				return;
 			}
 
-			m_Flavors.Add(flavor);
-			m_Options.Or(flavor.m_Options);
+			_ = Flavors.Add(flavor);
+			_ = Options.Or(flavor.Options);
 		}
 
 		public void RemoveFlavor(Ruleset flavor)
 		{
-			if (!m_Flavors.Contains(flavor))
+			if (!Flavors.Contains(flavor))
 			{
 				return;
 			}
 
-			m_Flavors.Remove(flavor);
-			m_Options.And(flavor.m_Options.Not());
-			flavor.m_Options.Not();
+			Flavors.Remove(flavor);
+			_ = Options.And(flavor.Options.Not());
+			_ = flavor.Options.Not();
 		}
 
 		public void SetOptionRange(string title, bool value)
 		{
-			var layout = m_Layout.FindByTitle(title);
+			var layout = Layout.FindByTitle(title);
 
 			if (layout == null)
 			{
@@ -897,7 +897,7 @@ namespace Server.Engines.ConPVP
 
 			for (var i = 0; i < layout.TotalLength; ++i)
 			{
-				m_Options[i + layout.Offset] = value;
+				Options[i + layout.Offset] = value;
 			}
 
 			m_Changed = true;
@@ -906,35 +906,35 @@ namespace Server.Engines.ConPVP
 		public bool GetOption(string title, string option)
 		{
 			var index = 0;
-			var layout = m_Layout.FindByOption(title, option, ref index);
+			var layout = Layout.FindByOption(title, option, ref index);
 
 			if (layout == null)
 			{
 				return true;
 			}
 
-			return m_Options[layout.Offset + index];
+			return Options[layout.Offset + index];
 		}
 
 		public void SetOption(string title, string option, bool value)
 		{
 			var index = 0;
-			var layout = m_Layout.FindByOption(title, option, ref index);
+			var layout = Layout.FindByOption(title, option, ref index);
 
 			if (layout == null)
 			{
 				return;
 			}
 
-			m_Options[layout.Offset + index] = value;
+			Options[layout.Offset + index] = value;
 
 			m_Changed = true;
 		}
 
 		public Ruleset(RulesetLayout layout)
 		{
-			m_Layout = layout;
-			m_Options = new BitArray(layout.TotalLength);
+			Layout = layout;
+			Options = new BitArray(layout.TotalLength);
 		}
 	}
 
@@ -971,9 +971,9 @@ namespace Server.Engines.ConPVP
 
 			Dragable = !readOnly;
 
-			from.CloseGump(typeof(RulesetGump));
-			from.CloseGump(typeof(DuelContextGump));
-			from.CloseGump(typeof(ParticipantGump));
+			_ = from.CloseGump(typeof(RulesetGump));
+			_ = from.CloseGump(typeof(DuelContextGump));
+			_ = from.CloseGump(typeof(ParticipantGump));
 
 			var depthCounter = page;
 			var depth = 0;
@@ -1062,11 +1062,11 @@ namespace Server.Engines.ConPVP
 			{
 				if (m_Page.Parent != null)
 				{
-					m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Page.Parent, m_DuelContext, m_ReadOnly));
+					_ = m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Page.Parent, m_DuelContext, m_ReadOnly));
 				}
 				else if (!m_ReadOnly)
 				{
-					m_From.SendGump(new PickRulesetGump(m_From, m_DuelContext, m_Ruleset));
+					_ = m_From.SendGump(new PickRulesetGump(m_From, m_DuelContext, m_Ruleset));
 				}
 			}
 			else
@@ -1075,7 +1075,7 @@ namespace Server.Engines.ConPVP
 
 				if (bid >= 0 && bid < m_Page.Children.Length)
 				{
-					m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Page.Children[bid], m_DuelContext, m_ReadOnly));
+					_ = m_From.SendGump(new RulesetGump(m_From, m_Ruleset, m_Page.Children[bid], m_DuelContext, m_ReadOnly));
 				}
 			}
 		}
@@ -1155,7 +1155,7 @@ namespace Server.Engines.ConPVP
 
 					if (Core.AOS)
 					{
-						entries.Add(new RulesetLayout("Chivalry", new string[]
+						_ = entries.Add(new RulesetLayout("Chivalry", new string[]
 							{
 								"Cleanse by Fire",
 								"Close Wounds",
@@ -1169,7 +1169,7 @@ namespace Server.Engines.ConPVP
 								"Sacred Journey"
 							}));
 
-						entries.Add(new RulesetLayout("Necromancy", new string[]
+						_ = entries.Add(new RulesetLayout("Necromancy", new string[]
 							{
 								"Animate Dead",
 								"Blood Oath",
@@ -1191,7 +1191,7 @@ namespace Server.Engines.ConPVP
 
 						if (Core.SE)
 						{
-							entries.Add(new RulesetLayout("Bushido", new string[]
+							_ = entries.Add(new RulesetLayout("Bushido", new string[]
 							{
 								"Confidence",
 								"Counter Attack",
@@ -1201,7 +1201,7 @@ namespace Server.Engines.ConPVP
 								"Momentum Strike"
 							}));
 
-							entries.Add(new RulesetLayout("Ninjitsu", new string[]
+							_ = entries.Add(new RulesetLayout("Ninjitsu", new string[]
 							{
 								"Animal Form",
 								"Backstab",
@@ -1215,7 +1215,7 @@ namespace Server.Engines.ConPVP
 
 							if (Core.ML)
 							{
-								entries.Add(new RulesetLayout("Spellweaving", new string[]
+								_ = entries.Add(new RulesetLayout("Spellweaving", new string[]
 									{
 										"Arcane Circle",
 										"Arcane Empowerment",
@@ -1242,7 +1242,7 @@ namespace Server.Engines.ConPVP
 					{
 						if (Core.SE)
 						{
-							entries.Add(new RulesetLayout("Combat Abilities", new string[]
+							_ = entries.Add(new RulesetLayout("Combat Abilities", new string[]
 							{
 								"Stun",
 								"Disarm",
@@ -1275,7 +1275,7 @@ namespace Server.Engines.ConPVP
 						}
 						else
 						{
-							entries.Add(new RulesetLayout("Combat Abilities", new string[]
+							_ = entries.Add(new RulesetLayout("Combat Abilities", new string[]
 							{
 								"Stun",
 								"Disarm",
@@ -1297,7 +1297,7 @@ namespace Server.Engines.ConPVP
 					}
 					else
 					{
-						entries.Add(new RulesetLayout("Combat Abilities", new string[]
+						_ = entries.Add(new RulesetLayout("Combat Abilities", new string[]
 							{
 								"Stun",
 								"Disarm",
@@ -1307,7 +1307,7 @@ namespace Server.Engines.ConPVP
 							}));
 					}
 
-					entries.Add(new RulesetLayout("Skills", new string[]
+					_ = entries.Add(new RulesetLayout("Skills", new string[]
 						{
 							"Anatomy",
 							"Detect Hidden",
@@ -1322,7 +1322,7 @@ namespace Server.Engines.ConPVP
 
 					if (Core.AOS)
 					{
-						entries.Add(new RulesetLayout("Weapons", new string[]
+						_ = entries.Add(new RulesetLayout("Weapons", new string[]
 						{
 							"Magical",
 							"Melee",
@@ -1331,7 +1331,7 @@ namespace Server.Engines.ConPVP
 							"Wrestling"
 						}));
 
-						entries.Add(new RulesetLayout("Armor", new string[]
+						_ = entries.Add(new RulesetLayout("Armor", new string[]
 							{
 								"Magical",
 								"Shields"
@@ -1339,7 +1339,7 @@ namespace Server.Engines.ConPVP
 					}
 					else
 					{
-						entries.Add(new RulesetLayout("Weapons", new string[]
+						_ = entries.Add(new RulesetLayout("Weapons", new string[]
 						{
 							"Magical",
 							"Melee",
@@ -1349,7 +1349,7 @@ namespace Server.Engines.ConPVP
 							"Runics"
 						}));
 
-						entries.Add(new RulesetLayout("Armor", new string[]
+						_ = entries.Add(new RulesetLayout("Armor", new string[]
 							{
 								"Magical",
 								"Shields",
@@ -1359,7 +1359,7 @@ namespace Server.Engines.ConPVP
 
 					if (Core.SE)
 					{
-						entries.Add(new RulesetLayout("Items", new RulesetLayout[]
+						_ = entries.Add(new RulesetLayout("Items", new RulesetLayout[]
 						{
 							new RulesetLayout( "Potions", new string[]
 							{
@@ -1388,7 +1388,7 @@ namespace Server.Engines.ConPVP
 					}
 					else
 					{
-						entries.Add(new RulesetLayout("Items", new RulesetLayout[]
+						_ = entries.Add(new RulesetLayout("Items", new RulesetLayout[]
 						{
 							new RulesetLayout( "Potions", new string[]
 							{
@@ -1422,7 +1422,8 @@ namespace Server.Engines.ConPVP
 					if (!Core.AOS)
 					{
 						#region Mage 5x
-						var m5x = new Ruleset(m_Root) {
+						var m5x = new Ruleset(m_Root)
+						{
 							Title = "Mage 5x"
 						};
 
@@ -1470,7 +1471,8 @@ namespace Server.Engines.ConPVP
 						#endregion
 
 						#region Mage 7x
-						var m7x = new Ruleset(m_Root) {
+						var m7x = new Ruleset(m_Root)
+						{
 							Title = "Mage 7x"
 						};
 
@@ -1523,7 +1525,8 @@ namespace Server.Engines.ConPVP
 						#endregion
 
 						#region Standard 7x
-						var s7x = new Ruleset(m_Root) {
+						var s7x = new Ruleset(m_Root)
+						{
 							Title = "Standard 7x"
 						};
 
@@ -1581,10 +1584,10 @@ namespace Server.Engines.ConPVP
 					{
 						#region Standard All Skills
 
-						var all = new Ruleset(m_Root) {
+						var all = new Ruleset(m_Root)
+						{
 							Title = "Standard All Skills"
 						};
-
 
 						all.SetOptionRange("Spells", true);
 
@@ -1670,21 +1673,24 @@ namespace Server.Engines.ConPVP
 
 					// Set up flavors
 
-					var pots = new Ruleset(m_Root) {
+					var pots = new Ruleset(m_Root)
+					{
 						Title = "Potions"
 					};
 
 					pots.SetOptionRange("Potions", true);
 					pots.SetOption("Potions", "Explosion", false);
 
-					var para = new Ruleset(m_Root) {
+					var para = new Ruleset(m_Root)
+					{
 						Title = "Paralyze"
 					};
 					para.SetOption("Spells", "Paralyze", true);
 					para.SetOption("Spells", "Paralyze Field", true);
 					para.SetOption("Combat Abilities", "Paralyzing Blow", true);
 
-					var fields = new Ruleset(m_Root) {
+					var fields = new Ruleset(m_Root)
+					{
 						Title = "Fields"
 					};
 					fields.SetOption("Spells", "Wall of Stone", true);
@@ -1693,7 +1699,8 @@ namespace Server.Engines.ConPVP
 					fields.SetOption("Spells", "Energy Field", true);
 					fields.SetOption("Spells", "Wildfire", true);
 
-					var area = new Ruleset(m_Root) {
+					var area = new Ruleset(m_Root)
+					{
 						Title = "Area Effect"
 					};
 					area.SetOption("Spells", "Earthquake", true);
@@ -1702,7 +1709,8 @@ namespace Server.Engines.ConPVP
 					area.SetOption("Necromancy", "Wither", true);
 					area.SetOption("Necromancy", "Poison Strike", true);
 
-					var summons = new Ruleset(m_Root) {
+					var summons = new Ruleset(m_Root)
+					{
 						Title = "Summons"
 					};
 					summons.SetOption("Spells", "Blade Spirits", true);
@@ -1727,40 +1735,33 @@ namespace Server.Engines.ConPVP
 			}
 		}
 
-		private readonly string m_Title, m_Description;
-		private readonly string[] m_Options;
-
-		private int m_Offset, m_TotalLength;
-
-		private Ruleset[] m_Defaults;
-		private Ruleset[] m_Flavors;
-
+		private readonly string m_Description;
+		private int m_TotalLength;
 		private RulesetLayout m_Parent;
-		private readonly RulesetLayout[] m_Children;
 
-		public string Title => m_Title;
+		public string Title { get; }
 		public string Description => m_Description;
-		public string[] Options => m_Options;
+		public string[] Options { get; }
 
-		public int Offset => m_Offset;
+		public int Offset { get; private set; }
 		public int TotalLength => m_TotalLength;
 
 		public RulesetLayout Parent => m_Parent;
-		public RulesetLayout[] Children => m_Children;
+		public RulesetLayout[] Children { get; }
 
-		public Ruleset[] Defaults { get => m_Defaults; set => m_Defaults = value; }
-		public Ruleset[] Flavors { get => m_Flavors; set => m_Flavors = value; }
+		public Ruleset[] Defaults { get; set; }
+		public Ruleset[] Flavors { get; set; }
 
 		public RulesetLayout FindByTitle(string title)
 		{
-			if (m_Title == title)
+			if (Title == title)
 			{
 				return this;
 			}
 
-			for (var i = 0; i < m_Children.Length; ++i)
+			for (var i = 0; i < Children.Length; ++i)
 			{
-				var layout = m_Children[i].FindByTitle(title);
+				var layout = Children[i].FindByTitle(title);
 
 				if (layout != null)
 				{
@@ -1773,14 +1774,14 @@ namespace Server.Engines.ConPVP
 
 		public string FindByIndex(int index)
 		{
-			if (index >= m_Offset && index < (m_Offset + m_Options.Length))
+			if (index >= Offset && index < (Offset + Options.Length))
 			{
-				return m_Description + ": " + m_Options[index - m_Offset];
+				return m_Description + ": " + Options[index - Offset];
 			}
 
-			for (var i = 0; i < m_Children.Length; ++i)
+			for (var i = 0; i < Children.Length; ++i)
 			{
-				var opt = m_Children[i].FindByIndex(index);
+				var opt = Children[i].FindByIndex(index);
 
 				if (opt != null)
 				{
@@ -1793,7 +1794,7 @@ namespace Server.Engines.ConPVP
 
 		public RulesetLayout FindByOption(string title, string option, ref int index)
 		{
-			if (title == null || m_Title == title)
+			if (title == null || Title == title)
 			{
 				index = GetOptionIndex(option);
 
@@ -1805,9 +1806,9 @@ namespace Server.Engines.ConPVP
 				title = null;
 			}
 
-			for (var i = 0; i < m_Children.Length; ++i)
+			for (var i = 0; i < Children.Length; ++i)
 			{
-				var layout = m_Children[i].FindByOption(title, option, ref index);
+				var layout = Children[i].FindByOption(title, option, ref index);
 
 				if (layout != null)
 				{
@@ -1820,26 +1821,26 @@ namespace Server.Engines.ConPVP
 
 		public int GetOptionIndex(string option)
 		{
-			return Array.IndexOf(m_Options, option);
+			return Array.IndexOf(Options, option);
 		}
 
 		public void ComputeOffsets()
 		{
 			var offset = 0;
 
-			RecurseComputeOffsets(ref offset);
+			_ = RecurseComputeOffsets(ref offset);
 		}
 
 		private int RecurseComputeOffsets(ref int offset)
 		{
-			m_Offset = offset;
+			Offset = offset;
 
-			offset += m_Options.Length;
-			m_TotalLength += m_Options.Length;
+			offset += Options.Length;
+			m_TotalLength += Options.Length;
 
-			for (var i = 0; i < m_Children.Length; ++i)
+			for (var i = 0; i < Children.Length; ++i)
 			{
-				m_TotalLength += m_Children[i].RecurseComputeOffsets(ref offset);
+				m_TotalLength += Children[i].RecurseComputeOffsets(ref offset);
 			}
 
 			return m_TotalLength;
@@ -1867,10 +1868,10 @@ namespace Server.Engines.ConPVP
 
 		public RulesetLayout(string title, string description, RulesetLayout[] children, string[] options)
 		{
-			m_Title = title;
+			Title = title;
 			m_Description = description;
-			m_Children = children;
-			m_Options = options;
+			Children = children;
+			Options = options;
 
 			for (var i = 0; i < children.Length; ++i)
 			{
@@ -1884,31 +1885,23 @@ namespace Server.Engines.ConPVP
 
 	public class DuelContext
 	{
-		private readonly Mobile m_Initiator;
 		private readonly ArrayList m_Participants;
-		private Ruleset m_Ruleset;
-		private Arena m_Arena;
-		private bool m_Registered = true;
-		private bool m_Finished, m_Started;
-
-		private bool m_ReadyWait;
-		private int m_ReadyCount;
-
+		private bool m_Started;
 		private bool m_Rematch;
 
 		public bool Rematch => m_Rematch;
 
-		public bool ReadyWait => m_ReadyWait;
-		public int ReadyCount => m_ReadyCount;
+		public bool ReadyWait { get; private set; }
+		public int ReadyCount { get; private set; }
 
-		public bool Registered => m_Registered;
-		public bool Finished => m_Finished;
+		public bool Registered { get; private set; } = true;
+		public bool Finished { get; private set; }
 		public bool Started => m_Started;
 
-		public Mobile Initiator => m_Initiator;
+		public Mobile Initiator { get; }
 		public ArrayList Participants => m_Participants;
-		public Ruleset Ruleset => m_Ruleset;
-		public Arena Arena => m_Arena;
+		public Ruleset Ruleset { get; private set; }
+		public Arena Arena { get; private set; }
 
 		private bool CantDoAnything(Mobile mob)
 		{
@@ -1924,9 +1917,7 @@ namespace Server.Engines.ConPVP
 
 		public static bool IsFreeConsume(Mobile mob)
 		{
-			var pm = mob as PlayerMobile;
-
-			if (pm == null || pm.DuelContext == null || pm.DuelContext.m_EventGame == null)
+			if (mob is not PlayerMobile pm || pm.DuelContext == null || pm.DuelContext.m_EventGame == null)
 			{
 				return false;
 			}
@@ -1936,27 +1927,24 @@ namespace Server.Engines.ConPVP
 
 		public void DelayBounce(TimeSpan ts, Mobile mob, Container corpse)
 		{
-			Timer.DelayCall(ts, DelayBounce_Callback, new object[] { mob, corpse });
+			_ = Timer.DelayCall(ts, DelayBounce_Callback, new object[] { mob, corpse });
 		}
 
-		public static bool AllowSpecialMove(Mobile from, string name, SpecialMove move)
+		public static bool AllowSpecialMove(Mobile from, string name, ISpecialMove move)
 		{
-			var pm = from as PlayerMobile;
-
-			if (pm == null)
+			if (from is not PlayerMobile pm)
 			{
 				return true;
 			}
 
 			var dc = pm.DuelContext;
 
-			return (dc == null || dc.InstAllowSpecialMove(from, name, move));
+			return dc == null || dc.InstAllowSpecialMove(from, name, move);
 		}
 
-		public bool InstAllowSpecialMove(Mobile from, string name, SpecialMove move)
+		public bool InstAllowSpecialMove(Mobile from, string name, ISpecialMove move)
 		{
-
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -1975,16 +1963,16 @@ namespace Server.Engines.ConPVP
 
 			string title = null;
 
-			if (move is NinjaMove)
+			if (move is NinjitsuAbility)
 			{
 				title = "Bushido";
 			}
-			else if (move is SamuraiMove)
+			else if (move is BushidoAbility)
 			{
 				title = "Ninjitsu";
 			}
 
-			if (title == null || name == null || m_Ruleset.GetOption(title, name))
+			if (title == null || name == null || Ruleset.GetOption(title, name))
 			{
 				return true;
 			}
@@ -1995,7 +1983,7 @@ namespace Server.Engines.ConPVP
 
 		public bool AllowSpellCast(Mobile from, Spell spell)
 		{
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -2012,34 +2000,34 @@ namespace Server.Engines.ConPVP
 				return false;
 			}
 
-			if (spell is Server.Spells.Fourth.RecallSpell)
+			if (spell is Server.Spells.Magery.RecallSpell)
 			{
 				from.SendMessage("You may not cast this spell.");
 			}
 
-			string title = null, option = null;
-
-			if (spell is ArcanistSpell)
+			string title = null;
+			string option;
+			if (spell is SpellweavingSpell)
 			{
 				title = "Spellweaving";
 				option = spell.Name;
 			}
-			else if (spell is PaladinSpell)
+			else if (spell is ChivalrySpell)
 			{
 				title = "Chivalry";
 				option = spell.Name;
 			}
-			else if (spell is NecromancerSpell)
+			else if (spell is NecromancySpell)
 			{
 				title = "Necromancy";
 				option = spell.Name;
 			}
-			else if (spell is NinjaSpell)
+			else if (spell is NinjitsuSpell)
 			{
 				title = "Ninjitsu";
 				option = spell.Name;
 			}
-			else if (spell is SamuraiSpell)
+			else if (spell is BushidoSpell)
 			{
 				title = "Bushido";
 				option = spell.Name;
@@ -2066,7 +2054,7 @@ namespace Server.Engines.ConPVP
 				option = spell.Name;
 			}
 
-			if (title == null || option == null || m_Ruleset.GetOption(title, option))
+			if (title == null || option == null || Ruleset.GetOption(title, option))
 			{
 				return true;
 			}
@@ -2077,7 +2065,7 @@ namespace Server.Engines.ConPVP
 
 		public bool AllowItemEquip(Mobile from, Item item)
 		{
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -2100,21 +2088,19 @@ namespace Server.Engines.ConPVP
 
 		public static bool AllowSpecialAbility(Mobile from, string name, bool message)
 		{
-			var pm = from as PlayerMobile;
-
-			if (pm == null)
+			if (from is not PlayerMobile pm)
 			{
 				return true;
 			}
 
 			var dc = pm.DuelContext;
 
-			return (dc == null || dc.InstAllowSpecialAbility(from, name, message));
+			return dc == null || dc.InstAllowSpecialAbility(from, name, message);
 		}
 
 		public bool InstAllowSpecialAbility(Mobile from, string name, bool message)
 		{
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -2131,7 +2117,7 @@ namespace Server.Engines.ConPVP
 				return false;
 			}
 
-			if (m_Ruleset.GetOption("Combat Abilities", name))
+			if (Ruleset.GetOption("Combat Abilities", name))
 			{
 				return true;
 			}
@@ -2148,60 +2134,56 @@ namespace Server.Engines.ConPVP
 		{
 			if (item is Fists)
 			{
-				if (!m_Ruleset.GetOption("Weapons", "Wrestling"))
+				if (!Ruleset.GetOption("Weapons", "Wrestling"))
 				{
 					return false;
 				}
 			}
-			else if (item is BaseArmor)
+			else if (item is BaseArmor armor)
 			{
-				var armor = (BaseArmor)item;
-
-				if (armor.ProtectionLevel > ArmorProtectionLevel.Regular && !m_Ruleset.GetOption("Armor", "Magical"))
+				if (armor.ProtectionLevel > ArmorProtectionLevel.Regular && !Ruleset.GetOption("Armor", "Magical"))
 				{
 					return false;
 				}
 
-				if (!Core.AOS && armor.Resource != armor.DefaultResource && !m_Ruleset.GetOption("Armor", "Colored"))
+				if (!Core.AOS && armor.Resource != armor.DefaultResource && !Ruleset.GetOption("Armor", "Colored"))
 				{
 					return false;
 				}
 
-				if (armor is BaseShield && !m_Ruleset.GetOption("Armor", "Shields"))
+				if (armor is BaseShield && !Ruleset.GetOption("Armor", "Shields"))
 				{
 					return false;
 				}
 			}
-			else if (item is BaseWeapon)
+			else if (item is BaseWeapon weapon)
 			{
-				var weapon = (BaseWeapon)item;
-
-				if ((weapon.DamageLevel > WeaponDamageLevel.Regular || weapon.AccuracyLevel > WeaponAccuracyLevel.Regular) && !m_Ruleset.GetOption("Weapons", "Magical"))
+				if ((weapon.DamageLevel > WeaponDamageLevel.Regular || weapon.AccuracyLevel > WeaponAccuracyLevel.Regular) && !Ruleset.GetOption("Weapons", "Magical"))
 				{
 					return false;
 				}
 
-				if (!Core.AOS && weapon.Resource != CraftResource.Iron && weapon.Resource != CraftResource.None && !m_Ruleset.GetOption("Weapons", "Runics"))
+				if (!Core.AOS && weapon.Resource != CraftResource.Iron && weapon.Resource != CraftResource.None && !Ruleset.GetOption("Weapons", "Runics"))
 				{
 					return false;
 				}
 
-				if (weapon is BaseRanged && !m_Ruleset.GetOption("Weapons", "Ranged"))
+				if (weapon is BaseRanged && !Ruleset.GetOption("Weapons", "Ranged"))
 				{
 					return false;
 				}
 
-				if (!(weapon is BaseRanged) && !m_Ruleset.GetOption("Weapons", "Melee"))
+				if (weapon is not BaseRanged && !Ruleset.GetOption("Weapons", "Melee"))
 				{
 					return false;
 				}
 
-				if (weapon.PoisonCharges > 0 && weapon.Poison != null && !m_Ruleset.GetOption("Weapons", "Poisoned"))
+				if (weapon.PoisonCharges > 0 && weapon.Poison != null && !Ruleset.GetOption("Weapons", "Poisoned"))
 				{
 					return false;
 				}
 
-				if (weapon is BaseWand && !m_Ruleset.GetOption("Items", "Wands"))
+				if (weapon is BaseWand && !Ruleset.GetOption("Items", "Wands"))
 				{
 					return false;
 				}
@@ -2212,7 +2194,7 @@ namespace Server.Engines.ConPVP
 
 		public bool AllowSkillUse(Mobile from, SkillName skill)
 		{
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -2233,7 +2215,7 @@ namespace Server.Engines.ConPVP
 
 			if (id >= 0 && id < SkillInfo.Table.Length)
 			{
-				if (m_Ruleset.GetOption("Skills", SkillInfo.Table[id].Name))
+				if (Ruleset.GetOption("Skills", SkillInfo.Table[id].Name))
 				{
 					return true;
 				}
@@ -2245,7 +2227,7 @@ namespace Server.Engines.ConPVP
 
 		public bool AllowItemUse(Mobile from, Item item)
 		{
-			if (!m_StartedBeginCountdown)
+			if (!StartedBeginCountdown)
 			{
 				return true;
 			}
@@ -2257,7 +2239,7 @@ namespace Server.Engines.ConPVP
 				return true;
 			}
 
-			if (!(item is BaseRefreshPotion))
+			if (item is not BaseRefreshPotion)
 			{
 				if (CantDoAnything(from))
 				{
@@ -2353,12 +2335,12 @@ namespace Server.Engines.ConPVP
 				option = "Wands";
 			}
 
-			if (title != null && option != null && m_StartedBeginCountdown && !m_Started)
+			if (title != null && option != null && StartedBeginCountdown && !m_Started)
 			{
 				from.SendMessage("You may not use this item before the duel begins.");
 				return false;
 			}
-			else if (item is BasePotion && !(item is BaseExplosionPotion) && !(item is BaseRefreshPotion) && IsSuddenDeath)
+			else if (item is BasePotion && item is not BaseExplosionPotion && item is not BaseRefreshPotion && IsSuddenDeath)
 			{
 				from.SendMessage(0x22, "You may not drink potions in sudden death.");
 				return false;
@@ -2369,7 +2351,7 @@ namespace Server.Engines.ConPVP
 				return false;
 			}
 
-			if (title == null || option == null || m_Ruleset.GetOption(title, option))
+			if (title == null || option == null || Ruleset.GetOption(title, option))
 			{
 				return true;
 			}
@@ -2399,12 +2381,12 @@ namespace Server.Engines.ConPVP
 
 		public void OnLocationChanged(Mobile mob)
 		{
-			if (!m_Registered || !m_StartedBeginCountdown || m_Finished)
+			if (!Registered || !StartedBeginCountdown || Finished)
 			{
 				return;
 			}
 
-			var arena = m_Arena;
+			var arena = Arena;
 
 			if (arena == null)
 			{
@@ -2452,7 +2434,7 @@ namespace Server.Engines.ConPVP
 
 		public void OnDeath(Mobile mob, Container corpse)
 		{
-			if (!m_Registered || !m_Started)
+			if (!Registered || !m_Started)
 			{
 				return;
 			}
@@ -2507,9 +2489,7 @@ namespace Server.Engines.ConPVP
 
 		public void Requip(Mobile from, Container cont)
 		{
-			var corpse = cont as Corpse;
-
-			if (corpse == null)
+			if (cont is not Corpse corpse)
 			{
 				return;
 			}
@@ -2526,7 +2506,7 @@ namespace Server.Engines.ConPVP
 				var item = items[i];
 				var loc = item.Location;
 
-				if ((item.Layer == Layer.Hair || item.Layer == Layer.FacialHair) || !item.Movable)
+				if (item.Layer == Layer.Hair || item.Layer == Layer.FacialHair || !item.Movable)
 				{
 					continue;
 				}
@@ -2556,7 +2536,7 @@ namespace Server.Engines.ConPVP
 
 				if (killer != null && killer.Player)
 				{
-					killer.AddToBackpack(new Head(m_Tournament == null ? HeadType.Duel : HeadType.Tournament, from.Name));
+					_ = killer.AddToBackpack(new Head(m_Tournament == null ? HeadType.Duel : HeadType.Tournament, from.Name));
 				}
 			}
 
@@ -2578,24 +2558,21 @@ namespace Server.Engines.ConPVP
 			{
 				mob.Resurrect();
 
-				var robe = mob.FindItemOnLayer(Layer.OuterTorso) as DeathRobe;
 
-				if (robe != null)
+				if (mob.FindItemOnLayer(Layer.OuterTorso) is DeathRobe robe)
 				{
 					robe.Delete();
 				}
 
-				if (cont is Corpse)
+				if (cont is Corpse corpse)
 				{
-					var corpse = (Corpse)cont;
-
 					for (var i = 0; i < corpse.EquipItems.Count; ++i)
 					{
 						var item = corpse.EquipItems[i];
 
 						if (item.Movable && item.Layer != Layer.Hair && item.Layer != Layer.FacialHair && item.IsChildOf(mob.Backpack))
 						{
-							mob.EquipItem(item);
+							_ = mob.EquipItem(item);
 						}
 					}
 				}
@@ -2610,13 +2587,13 @@ namespace Server.Engines.ConPVP
 
 		public void SendOutside(Mobile mob)
 		{
-			if (m_Arena == null)
+			if (Arena == null)
 			{
 				return;
 			}
 
 			mob.Combatant = null;
-			mob.MoveToWorld(m_Arena.Outside, m_Arena.Facet);
+			mob.MoveToWorld(Arena.Outside, Arena.Facet);
 		}
 
 		private Point3D m_GatePoint;
@@ -2624,7 +2601,7 @@ namespace Server.Engines.ConPVP
 
 		public void Finish(Participant winner)
 		{
-			if (m_Finished)
+			if (Finished)
 			{
 				return;
 			}
@@ -2632,7 +2609,7 @@ namespace Server.Engines.ConPVP
 			EndAutoTie();
 			StopSDTimers();
 
-			m_Finished = true;
+			Finished = true;
 
 			for (var i = 0; i < winner.Players.Length; ++i)
 			{
@@ -2650,7 +2627,7 @@ namespace Server.Engines.ConPVP
 			{
 				m_Match.Winner = winner.TournyPart;
 				winner.TournyPart.WonMatch(m_Match);
-				m_Tournament.HandleWon(m_Arena, m_Match, winner.TournyPart);
+				m_Tournament.HandleWon(Arena, m_Match, winner.TournyPart);
 			}
 
 			for (var i = 0; i < m_Participants.Count; ++i)
@@ -2673,7 +2650,7 @@ namespace Server.Engines.ConPVP
 					{
 						RemoveAggressions(loser.Players[j].Mobile);
 						loser.Players[j].Mobile.Delta(MobileDelta.Noto);
-						loser.Players[j].Mobile.CloseGump(typeof(BeginGump));
+						_ = loser.Players[j].Mobile.CloseGump(typeof(BeginGump));
 
 						if (m_Tournament != null)
 						{
@@ -2700,12 +2677,12 @@ namespace Server.Engines.ConPVP
 				m_EventGame.OnStop();
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(9.0), UnregisterRematch);
+			_ = Timer.DelayCall(TimeSpan.FromSeconds(9.0), UnregisterRematch);
 		}
 
 		public void Award(Mobile us, Mobile them, bool won)
 		{
-			var ladder = (m_Arena == null ? Ladder.Instance : m_Arena.AcquireLadder());
+			var ladder = Arena == null ? Ladder.Instance : Arena.AcquireLadder();
 
 			if (ladder == null)
 			{
@@ -2729,7 +2706,7 @@ namespace Server.Engines.ConPVP
 
 			if (m_Tournament != null)
 			{
-				xpGain *= (xpGain > 0 ? 5 : 2);
+				xpGain *= xpGain > 0 ? 5 : 2;
 			}
 
 			if (won)
@@ -2778,16 +2755,16 @@ namespace Server.Engines.ConPVP
 		{
 			DestroyWall();
 
-			if (!m_Registered)
+			if (!Registered)
 			{
 				return;
 			}
 
-			m_Registered = false;
+			Registered = false;
 
-			if (m_Arena != null)
+			if (Arena != null)
 			{
-				m_Arena.Evict();
+				Arena.Evict();
 			}
 
 			StopSDTimers();
@@ -2814,7 +2791,7 @@ namespace Server.Engines.ConPVP
 
 					for (var k = 0; k < types.Length; ++k)
 					{
-						pl.Mobile.CloseGump(types[k]);
+						_ = pl.Mobile.CloseGump(types[k]);
 					}
 				}
 			}
@@ -2827,8 +2804,9 @@ namespace Server.Engines.ConPVP
 
 		public void QueryRematch()
 		{
-			var dc = new DuelContext(m_Initiator, m_Ruleset.Layout, false) {
-				m_Ruleset = m_Ruleset,
+			var dc = new DuelContext(Initiator, Ruleset.Layout, false)
+			{
+				Ruleset = Ruleset,
 				m_Rematch = true
 			};
 
@@ -2849,7 +2827,7 @@ namespace Server.Engines.ConPVP
 					}
 				}
 
-				dc.m_Participants.Add(newPart);
+				_ = dc.m_Participants.Add(newPart);
 			}
 
 			dc.CloseAllGumps();
@@ -2858,10 +2836,8 @@ namespace Server.Engines.ConPVP
 
 		public DuelPlayer Find(Mobile mob)
 		{
-			if (mob is PlayerMobile)
+			if (mob is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)mob;
-
 				if (pm.DuelContext == this)
 				{
 					return pm.DuelPlayer;
@@ -2889,7 +2865,7 @@ namespace Server.Engines.ConPVP
 			var pl1 = Find(m1);
 			var pl2 = Find(m2);
 
-			return (pl1 != null && pl2 != null && pl1.Participant == pl2.Participant);
+			return pl1 != null && pl2 != null && pl1.Participant == pl2.Participant;
 		}
 
 		public Participant CheckCompletion()
@@ -2920,7 +2896,7 @@ namespace Server.Engines.ConPVP
 
 			if (hasWinner)
 			{
-				return winner == null ? (Participant)m_Participants[0] : winner;
+				return winner ?? (Participant)m_Participants[0];
 			}
 
 			return null;
@@ -2967,13 +2943,10 @@ namespace Server.Engines.ConPVP
 		}
 
 		private Timer m_AutoTieTimer;
-		private bool m_Tied;
 
-		public bool Tied => m_Tied;
+		public bool Tied { get; private set; }
 
-		private bool m_IsSuddenDeath;
-
-		public bool IsSuddenDeath { get => m_IsSuddenDeath; set => m_IsSuddenDeath = value; }
+		public bool IsSuddenDeath { get; set; }
 
 		private Timer m_SDWarnTimer, m_SDActivateTimer;
 
@@ -3034,7 +3007,7 @@ namespace Server.Engines.ConPVP
 
 			if (m_Tournament != null)
 			{
-				m_Tournament.Alert(m_Arena, "Sudden death will be active soon!");
+				m_Tournament.Alert(Arena, "Sudden death will be active soon!");
 			}
 
 			if (m_SDWarnTimer != null)
@@ -3047,10 +3020,8 @@ namespace Server.Engines.ConPVP
 
 		public static bool CheckSuddenDeath(Mobile mob)
 		{
-			if (mob is PlayerMobile)
+			if (mob is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)mob;
-
 				if (pm.DuelPlayer != null && !pm.DuelPlayer.Eliminated && pm.DuelContext != null && pm.DuelContext.IsSuddenDeath)
 				{
 					return true;
@@ -3083,10 +3054,10 @@ namespace Server.Engines.ConPVP
 
 			if (m_Tournament != null)
 			{
-				m_Tournament.Alert(m_Arena, "Sudden death has been activated!");
+				m_Tournament.Alert(Arena, "Sudden death has been activated!");
 			}
 
-			m_IsSuddenDeath = true;
+			IsSuddenDeath = true;
 
 			if (m_SDActivateTimer != null)
 			{
@@ -3124,13 +3095,13 @@ namespace Server.Engines.ConPVP
 		{
 			m_AutoTieTimer = null;
 
-			if (!m_Started || m_Finished)
+			if (!m_Started || Finished)
 			{
 				return;
 			}
 
-			m_Tied = true;
-			m_Finished = true;
+			Tied = true;
+			Finished = true;
 
 			StopSDTimers();
 
@@ -3160,7 +3131,7 @@ namespace Server.Engines.ConPVP
 
 					if (p.TournyPart != null)
 					{
-						remaining.Add(p.TournyPart);
+						_ = remaining.Add(p.TournyPart);
 					}
 				}
 
@@ -3178,10 +3149,10 @@ namespace Server.Engines.ConPVP
 
 			if (m_Tournament != null)
 			{
-				m_Tournament.HandleTie(m_Arena, m_Match, remaining);
+				m_Tournament.HandleTie(Arena, m_Match, remaining);
 			}
 
-			Timer.DelayCall(TimeSpan.FromSeconds(10.0), Unregister);
+			_ = Timer.DelayCall(TimeSpan.FromSeconds(10.0), Unregister);
 		}
 
 		public bool IsOneVsOne
@@ -3217,15 +3188,13 @@ namespace Server.Engines.ConPVP
 
 		private static void vli_oc(CommandEventArgs e)
 		{
-			e.Mobile.BeginTarget(-1, false, Targeting.TargetFlags.None, new TargetCallback(vli_ot));
+			_ = e.Mobile.BeginTarget(-1, false, Targeting.TargetFlags.None, new TargetCallback(vli_ot));
 		}
 
 		private static void vli_ot(Mobile from, object obj)
 		{
-			if (obj is PlayerMobile)
+			if (obj is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)obj;
-
 				var ladder = Ladder.Instance;
 
 				if (ladder == null)
@@ -3237,7 +3206,7 @@ namespace Server.Engines.ConPVP
 
 				if (entry != null)
 				{
-					from.SendGump(new PropertiesGump(from, entry));
+					_ = from.SendGump(new PropertiesGump(from, entry));
 				}
 			}
 		}
@@ -3272,9 +3241,7 @@ namespace Server.Engines.ConPVP
 
 		private static void EventSink_Login(LoginEventArgs e)
 		{
-			var pm = e.Mobile as PlayerMobile;
-
-			if (pm == null)
+			if (e.Mobile is not PlayerMobile pm)
 			{
 				return;
 			}
@@ -3290,27 +3257,26 @@ namespace Server.Engines.ConPVP
 			{
 				if (dc.m_Tournament == null)
 				{
-					pm.SendGump(new ReadyGump(pm, dc, dc.m_ReadyCount));
+					_ = pm.SendGump(new ReadyGump(pm, dc, dc.ReadyCount));
 				}
 			}
 			else if (dc.ReadyWait && !dc.StartedBeginCountdown && !dc.Started && !dc.Finished)
 			{
 				if (dc.m_Tournament == null)
 				{
-					pm.SendGump(new ReadyUpGump(pm, dc));
+					_ = pm.SendGump(new ReadyUpGump(pm, dc));
 				}
 			}
 			else if (dc.Initiator == pm && !dc.ReadyWait && !dc.StartedBeginCountdown && !dc.Started && !dc.Finished)
 			{
-				pm.SendGump(new DuelContextGump(pm, dc));
+				_ = pm.SendGump(new DuelContextGump(pm, dc));
 			}
 		}
 
 		private static void ViewLadder_OnTarget(Mobile from, object obj, object state)
 		{
-			if (obj is PlayerMobile)
+			if (obj is PlayerMobile pm)
 			{
-				var pm = (PlayerMobile)obj;
 				var ladder = (Ladder)state;
 
 				var entry = ladder.Find(pm);
@@ -3324,10 +3290,8 @@ namespace Server.Engines.ConPVP
 
 				pm.PrivateOverheadMessage(MessageType.Regular, pm.SpeechHue, true, String.Format(text, from == pm ? "You" : "They"), from.NetState);
 			}
-			else if (obj is Mobile)
+			else if (obj is Mobile mob)
 			{
-				var mob = (Mobile)obj;
-
 				if (mob.Body.IsHuman)
 				{
 					mob.PrivateOverheadMessage(MessageType.Regular, mob.SpeechHue, false, "I'm not a duelist, and quite frankly, I resent the implication.", from.NetState);
@@ -3350,9 +3314,8 @@ namespace Server.Engines.ConPVP
 				return;
 			}
 
-			var pm = e.Mobile as PlayerMobile;
 
-			if (pm == null)
+			if (e.Mobile is not PlayerMobile pm)
 			{
 				return;
 			}
@@ -3386,7 +3349,7 @@ namespace Server.Engines.ConPVP
 				}
 				else
 				{
-					pm.SendGump(new DuelContextGump(pm, new DuelContext(pm, RulesetLayout.Root)));
+					_ = pm.SendGump(new DuelContextGump(pm, new DuelContext(pm, RulesetLayout.Root)));
 					e.Handled = true;
 				}
 			}
@@ -3401,8 +3364,8 @@ namespace Server.Engines.ConPVP
 
 					if (prefs != null)
 					{
-						e.Mobile.CloseGump(typeof(PreferencesGump));
-						e.Mobile.SendGump(new PreferencesGump(e.Mobile, prefs));
+						_ = e.Mobile.CloseGump(typeof(PreferencesGump));
+						_ = e.Mobile.SendGump(new PreferencesGump(e.Mobile, prefs));
 					}
 				}
 			}
@@ -3457,7 +3420,7 @@ namespace Server.Engines.ConPVP
 					else
 					{
 						pm.SendMessage("Target a player to view their ranking and level.");
-						pm.BeginTarget(16, false, Targeting.TargetFlags.None, new TargetStateCallback(ViewLadder_OnTarget), instance);
+						_ = pm.BeginTarget(16, false, Targeting.TargetFlags.None, new TargetStateCallback(ViewLadder_OnTarget), instance);
 					}
 				}
 			}
@@ -3512,23 +3475,19 @@ namespace Server.Engines.ConPVP
 								{
 									foreach (var g in ns.Gumps)
 									{
-										if (g is ParticipantGump)
+										if (g is ParticipantGump pg)
 										{
-											var pg = (ParticipantGump)g;
-
 											if (pg.Participant == p)
 											{
-												init.SendGump(new ParticipantGump(init, dc, p));
+												_ = init.SendGump(new ParticipantGump(init, dc, p));
 												break;
 											}
 										}
-										else if (g is DuelContextGump)
+										else if (g is DuelContextGump dcg)
 										{
-											var dcg = (DuelContextGump)g;
-
 											if (dcg.Context == dc)
 											{
-												init.SendGump(new DuelContextGump(init, dc));
+												_ = init.SendGump(new DuelContextGump(init, dc));
 												break;
 											}
 										}
@@ -3548,7 +3507,7 @@ namespace Server.Engines.ConPVP
 							{
 								dc.Unregister();
 							}
-							else if (dc.m_Registered)
+							else if (dc.Registered)
 							{
 								p.Nullify(pl);
 								pm.DuelPlayer = null;
@@ -3561,24 +3520,20 @@ namespace Server.Engines.ConPVP
 
 									foreach (var g in ns.Gumps)
 									{
-										if (g is ParticipantGump)
+										if (g is ParticipantGump pg)
 										{
-											var pg = (ParticipantGump)g;
-
 											if (pg.Participant == p)
 											{
-												init.SendGump(new ParticipantGump(init, dc, p));
+												_ = init.SendGump(new ParticipantGump(init, dc, p));
 												send = false;
 												break;
 											}
 										}
-										else if (g is DuelContextGump)
+										else if (g is DuelContextGump dcg)
 										{
-											var dcg = (DuelContextGump)g;
-
 											if (dcg.Context == dc)
 											{
-												init.SendGump(new DuelContextGump(init, dc));
+												_ = init.SendGump(new DuelContextGump(init, dc));
 												send = false;
 												break;
 											}
@@ -3587,7 +3542,7 @@ namespace Server.Engines.ConPVP
 
 									if (send)
 									{
-										init.SendGump(new DuelContextGump(init, dc));
+										_ = init.SendGump(new DuelContextGump(init, dc));
 									}
 								}
 							}
@@ -3612,7 +3567,7 @@ namespace Server.Engines.ConPVP
 							{
 								dc.Unregister();
 							}
-							else if (dc.m_Registered)
+							else if (dc.Registered)
 							{
 								p.Nullify(pl);
 								pm.DuelPlayer = null;
@@ -3625,24 +3580,20 @@ namespace Server.Engines.ConPVP
 
 									foreach (var g in ns.Gumps)
 									{
-										if (g is ParticipantGump)
+										if (g is ParticipantGump pg)
 										{
-											var pg = (ParticipantGump)g;
-
 											if (pg.Participant == p)
 											{
-												init.SendGump(new ParticipantGump(init, dc, p));
+												_ = init.SendGump(new ParticipantGump(init, dc, p));
 												send = false;
 												break;
 											}
 										}
-										else if (g is DuelContextGump)
+										else if (g is DuelContextGump dcg)
 										{
-											var dcg = (DuelContextGump)g;
-
 											if (dcg.Context == dc)
 											{
-												init.SendGump(new DuelContextGump(init, dc));
+												_ = init.SendGump(new DuelContextGump(init, dc));
 												send = false;
 												break;
 											}
@@ -3651,7 +3602,7 @@ namespace Server.Engines.ConPVP
 
 									if (send)
 									{
-										init.SendGump(new DuelContextGump(init, dc));
+										_ = init.SendGump(new DuelContextGump(init, dc));
 									}
 								}
 							}
@@ -3715,15 +3666,15 @@ namespace Server.Engines.ConPVP
 
 		public DuelContext(Mobile initiator, RulesetLayout layout, bool addNew)
 		{
-			m_Initiator = initiator;
+			Initiator = initiator;
 			m_Participants = new ArrayList();
-			m_Ruleset = new Ruleset(layout);
-			m_Ruleset.ApplyDefault(layout.Defaults[0]);
+			Ruleset = new Ruleset(layout);
+			Ruleset.ApplyDefault(layout.Defaults[0]);
 
 			if (addNew)
 			{
-				m_Participants.Add(new Participant(this, 1));
-				m_Participants.Add(new Participant(this, 1));
+				_ = m_Participants.Add(new Participant(this, 1));
+				_ = m_Participants.Add(new Participant(this, 1));
 
 				((Participant)m_Participants[0]).Add(initiator);
 			}
@@ -3751,7 +3702,7 @@ namespace Server.Engines.ConPVP
 
 					for (var k = 0; k < types.Length; ++k)
 					{
-						mob.CloseGump(types[k]);
+						_ = mob.CloseGump(types[k]);
 					}
 					//mob.CloseGump( types[k], defs[k] );
 				}
@@ -3806,7 +3757,7 @@ namespace Server.Engines.ConPVP
 
 					for (var k = 0; k < types.Length; ++k)
 					{
-						mob.CloseGump(types[k]);
+						_ = mob.CloseGump(types[k]);
 					}
 					//mob.CloseGump( types[k], defs[k] );
 				}
@@ -3818,11 +3769,11 @@ namespace Server.Engines.ConPVP
 			}
 			else if (!m_Yielding)
 			{
-				m_Initiator.SendGump(new DuelContextGump(m_Initiator, this));
+				_ = Initiator.SendGump(new DuelContextGump(Initiator, this));
 			}
 
-			m_ReadyWait = false;
-			m_ReadyCount = 0;
+			ReadyWait = false;
+			ReadyCount = 0;
 		}
 
 		public void SendReadyGump()
@@ -3832,12 +3783,12 @@ namespace Server.Engines.ConPVP
 
 		public static void Debuff(Mobile mob)
 		{
-			mob.RemoveStatMod("[Magic] Str Offset");
-			mob.RemoveStatMod("[Magic] Dex Offset");
-			mob.RemoveStatMod("[Magic] Int Offset");
-			mob.RemoveStatMod("Concussion");
-			mob.RemoveStatMod("blood-rose");
-			mob.RemoveStatMod("clarity-potion");
+			_ = mob.RemoveStatMod("[Magic] Str Offset");
+			_ = mob.RemoveStatMod("[Magic] Dex Offset");
+			_ = mob.RemoveStatMod("[Magic] Int Offset");
+			_ = mob.RemoveStatMod("Concussion");
+			_ = mob.RemoveStatMod("blood-rose");
+			_ = mob.RemoveStatMod("clarity-potion");
 
 			OrangePetals.RemoveContext(mob);
 
@@ -3848,27 +3799,22 @@ namespace Server.Engines.ConPVP
 			{
 				mob.MagicDamageAbsorb = 0;
 				mob.MeleeDamageAbsorb = 0;
-				Spells.Second.ProtectionSpell.Registry.Remove(mob);
 
-				Spells.Fourth.ArchProtectionSpell.RemoveEntry(mob);
+				ProtectionSpell.EndProtection(mob);
+				ArchProtectionSpell.RemoveEntry(mob);
 
-				mob.EndAction(typeof(DefensiveSpell));
+				DefensiveState.Nullify(mob, TimeSpan.Zero);
 			}
 
 			TransformationSpellHelper.RemoveContext(mob, true);
-			AnimalForm.RemoveContext(mob, true);
+			AnimalFormSpell.RemoveContext(mob, true);
 
 			if (DisguiseTimers.IsDisguised(mob))
 			{
-				DisguiseTimers.StopTimer(mob);
+				_ = DisguiseTimers.StopTimer(mob);
 			}
 
-			if (!mob.CanBeginAction(typeof(PolymorphSpell)))
-			{
-				mob.BodyMod = 0;
-				mob.HueMod = -1;
-				mob.EndAction(typeof(PolymorphSpell));
-			}
+			PolymorphSpell.EndPolymorph(mob);
 
 			BaseArmor.ValidateMobile(mob);
 			BaseClothing.ValidateMobile(mob);
@@ -3882,18 +3828,17 @@ namespace Server.Engines.ConPVP
 
 		public static void CancelSpell(Mobile mob)
 		{
-			if (mob.Spell is Spells.Spell)
+			if (mob.Spell != null)
 			{
-				((Spells.Spell)mob.Spell).Disturb(Spells.DisturbType.Kill);
+				mob.Spell.Interrupt(SpellInterrupt.Kill);
 			}
 
-			Targeting.Target.Cancel(mob);
+			Target.Cancel(mob);
 		}
 
-		private bool m_StartedBeginCountdown;
 		private bool m_StartedReadyCountdown;
 
-		public bool StartedBeginCountdown => m_StartedBeginCountdown;
+		public bool StartedBeginCountdown { get; private set; }
 		public bool StartedReadyCountdown => m_StartedReadyCountdown;
 
 		private class InternalWall : Item
@@ -3931,7 +3876,7 @@ namespace Server.Engines.ConPVP
 			}
 		}
 
-		private readonly ArrayList m_Walls = new ArrayList();
+		private readonly ArrayList m_Walls = new();
 
 		public void DestroyWall()
 		{
@@ -3945,13 +3890,13 @@ namespace Server.Engines.ConPVP
 
 		public void CreateWall()
 		{
-			if (m_Arena == null)
+			if (Arena == null)
 			{
 				return;
 			}
 
-			var start = m_Arena.Points.EdgeWest;
-			var wall = m_Arena.Wall;
+			var start = Arena.Points.EdgeWest;
+			var wall = Arena.Wall;
 
 			var dx = start.X - wall.X;
 			var dy = start.Y - wall.Y;
@@ -3977,7 +3922,7 @@ namespace Server.Engines.ConPVP
 				eastToWest = false;
 			}
 
-			Effects.PlaySound(wall, m_Arena.Facet, 0x1F6);
+			Effects.PlaySound(wall, Arena.Facet, 0x1F6);
 
 			for (var i = -1; i <= 1; ++i)
 			{
@@ -3985,9 +3930,9 @@ namespace Server.Engines.ConPVP
 
 				var created = new InternalWall();
 
-				created.Appear(loc, m_Arena.Facet);
+				created.Appear(loc, Arena.Facet);
 
-				m_Walls.Add(created);
+				_ = m_Walls.Add(created);
 			}
 		}
 
@@ -4010,7 +3955,7 @@ namespace Server.Engines.ConPVP
 							continue;
 						}
 
-						players.Add(dp.Mobile);
+						_ = players.Add(dp.Mobile);
 					}
 
 					if (players.Count > 1)
@@ -4117,15 +4062,15 @@ namespace Server.Engines.ConPVP
 
 					if (item is BaseWeapon)
 					{
-						mob.SendLocalizedMessage(1062001, item.Name == null ? "#" + item.LabelNumber.ToString() : item.Name); // You can no longer wield your ~1_WEAPON~
+						mob.SendLocalizedMessage(1062001, item.Name ?? "#" + item.LabelNumber.ToString()); // You can no longer wield your ~1_WEAPON~
 					}
-					else if (item is BaseArmor && !(item is BaseShield))
+					else if (item is BaseArmor and not BaseShield)
 					{
-						mob.SendLocalizedMessage(1062002, item.Name == null ? "#" + item.LabelNumber.ToString() : item.Name); // You can no longer wear your ~1_ARMOR~
+						mob.SendLocalizedMessage(1062002, item.Name ?? "#" + item.LabelNumber.ToString()); // You can no longer wear your ~1_ARMOR~
 					}
 					else
 					{
-						mob.SendLocalizedMessage(1062003, item.Name == null ? "#" + item.LabelNumber.ToString() : item.Name); // You can no longer equip your ~1_SHIELD~
+						mob.SendLocalizedMessage(1062003, item.Name ?? "#" + item.LabelNumber.ToString()); // You can no longer equip your ~1_SHIELD~
 					}
 				}
 			}
@@ -4153,12 +4098,12 @@ namespace Server.Engines.ConPVP
 
 		private void MessageRuleset(Mobile mob)
 		{
-			if (m_Ruleset == null)
+			if (Ruleset == null)
 			{
 				return;
 			}
 
-			var ruleset = m_Ruleset;
+			var ruleset = Ruleset;
 			var basedef = ruleset.Base;
 
 			mob.SendMessage("Ruleset: {0}", basedef.Title);
@@ -4171,7 +4116,7 @@ namespace Server.Engines.ConPVP
 
 				for (var i = 0; i < ruleset.Flavors.Count; ++i)
 				{
-					defs.Or(((Ruleset)ruleset.Flavors[i]).Options);
+					_ = defs.Or(((Ruleset)ruleset.Flavors[i]).Options);
 
 					mob.SendMessage(" + {0}", ((Ruleset)ruleset.Flavors[i]).Title);
 				}
@@ -4208,7 +4153,7 @@ namespace Server.Engines.ConPVP
 
 		public void SendBeginGump(int count)
 		{
-			if (!m_Registered || m_Finished)
+			if (!Registered || Finished)
 			{
 				return;
 			}
@@ -4224,7 +4169,7 @@ namespace Server.Engines.ConPVP
 				DestroyWall();
 			}
 
-			m_StartedBeginCountdown = true;
+			StartedBeginCountdown = true;
 
 			if (count == 0)
 			{
@@ -4260,75 +4205,73 @@ namespace Server.Engines.ConPVP
 					}
 					else
 					{
-						mob.CloseGump(typeof(BeginGump));
+						_ = mob.CloseGump(typeof(BeginGump));
 						mob.Frozen = false;
 					}
 				}
 			}
 		}
 
-		private readonly ArrayList m_Entered = new ArrayList();
+		private readonly ArrayList m_Entered = new();
 
 		private class ReturnEntry
 		{
-			private readonly Mobile m_Mobile;
 			private Point3D m_Location;
-			private Map m_Facet;
 			private DateTime m_Expire;
 
-			public Mobile Mobile => m_Mobile;
+			public Mobile Mobile { get; }
 			public Point3D Location => m_Location;
-			public Map Facet => m_Facet;
+			public Map Facet { get; private set; }
 
 			public void Return()
 			{
-				if (m_Facet == Map.Internal || m_Facet == null)
+				if (Facet == Map.Internal || Facet == null)
 				{
 					return;
 				}
 
-				if (m_Mobile.Map == Map.Internal)
+				if (Mobile.Map == Map.Internal)
 				{
-					m_Mobile.LogoutLocation = m_Location;
-					m_Mobile.LogoutMap = m_Facet;
+					Mobile.LogoutLocation = m_Location;
+					Mobile.LogoutMap = Facet;
 				}
 				else
 				{
-					m_Mobile.Location = m_Location;
-					m_Mobile.Map = m_Facet;
+					Mobile.Location = m_Location;
+					Mobile.Map = Facet;
 				}
 			}
 
 			public ReturnEntry(Mobile mob)
 			{
-				m_Mobile = mob;
+				Mobile = mob;
 
 				Update();
 			}
 
 			public ReturnEntry(Mobile mob, Point3D loc, Map facet)
 			{
-				m_Mobile = mob;
+				Mobile = mob;
 				m_Location = loc;
-				m_Facet = facet;
+				Facet = facet;
 				m_Expire = DateTime.UtcNow + TimeSpan.FromMinutes(30.0);
 			}
 
-			public bool Expired => (DateTime.UtcNow >= m_Expire);
+			public bool Expired => DateTime.UtcNow >= m_Expire;
 
 			public void Update()
 			{
 				m_Expire = DateTime.UtcNow + TimeSpan.FromMinutes(30.0);
 
-				if (m_Mobile.Map == Map.Internal)
+				if (Mobile.Map == Map.Internal)
 				{
-					m_Facet = m_Mobile.LogoutMap;
-					m_Location = m_Mobile.LogoutLocation;
+					Facet = Mobile.LogoutMap;
+					m_Location = Mobile.LogoutLocation;
 				}
 				else
 				{
-					m_Facet = m_Mobile.Map;
-					m_Location = m_Mobile.Location;
+					Facet = Mobile.Map;
+					m_Location = Mobile.Location;
 				}
 			}
 		}
@@ -4357,7 +4300,7 @@ namespace Server.Engines.ConPVP
 					return;
 				}
 
-				m_Entries.Add(new ReturnEntry(mob));
+				_ = m_Entries.Add(new ReturnEntry(mob));
 			}
 
 			private ReturnEntry Find(Mobile mob)
@@ -4453,7 +4396,7 @@ namespace Server.Engines.ConPVP
 								var loc = reader.ReadPoint3D();
 								var map = reader.ReadMap();
 
-								m_Entries.Add(new ReturnEntry(mob, loc, map));
+								_ = m_Entries.Add(new ReturnEntry(mob, loc, map));
 							}
 
 							break;
@@ -4482,7 +4425,7 @@ namespace Server.Engines.ConPVP
 				TitleColor = 0x7800;
 				TitleNumber = 1062051; // Gate Warning
 
-				Timer.DelayCall(TimeSpan.FromSeconds(10.0), Delete);
+				_ = Timer.DelayCall(TimeSpan.FromSeconds(10.0), Delete);
 			}
 
 			public override void CheckGate(Mobile m, int range)
@@ -4566,13 +4509,13 @@ namespace Server.Engines.ConPVP
 
 		public void SendReadyUpGump()
 		{
-			if (!m_Registered)
+			if (!Registered)
 			{
 				return;
 			}
 
-			m_ReadyWait = true;
-			m_ReadyCount = -1;
+			ReadyWait = true;
+			ReadyCount = -1;
 
 			var types = new Type[] { typeof(ReadyUpGump) };
 
@@ -4677,7 +4620,7 @@ namespace Server.Engines.ConPVP
 
 		public void SendReadyGump(int count)
 		{
-			if (!m_Registered)
+			if (!Registered)
 			{
 				return;
 			}
@@ -4687,7 +4630,7 @@ namespace Server.Engines.ConPVP
 				m_StartedReadyCountdown = true;
 			}
 
-			m_ReadyCount = count;
+			ReadyCount = count;
 
 			if (count == 0)
 			{
@@ -4715,7 +4658,7 @@ namespace Server.Engines.ConPVP
 					return;
 				}
 
-				m_ReadyWait = false;
+				ReadyWait = false;
 
 				var players = new List<Mobile>();
 
@@ -4736,10 +4679,7 @@ namespace Server.Engines.ConPVP
 
 				var arena = m_OverrideArena;
 
-				if (arena == null)
-				{
-					arena = Arena.FindArena(players);
-				}
+				arena ??= Arena.FindArena(players);
 
 				if (arena == null)
 				{
@@ -4764,22 +4704,21 @@ namespace Server.Engines.ConPVP
 
 				if (!arena.IsOccupied)
 				{
-					m_Arena = arena;
+					Arena = arena;
 
-					if (m_Initiator.Map == Map.Internal)
+					if (Initiator.Map == Map.Internal)
 					{
-						m_GatePoint = m_Initiator.LogoutLocation;
-						m_GateFacet = m_Initiator.LogoutMap;
+						m_GatePoint = Initiator.LogoutLocation;
+						m_GateFacet = Initiator.LogoutMap;
 					}
 					else
 					{
-						m_GatePoint = m_Initiator.Location;
-						m_GateFacet = m_Initiator.Map;
+						m_GatePoint = Initiator.Location;
+						m_GateFacet = Initiator.Map;
 					}
 
-					var tp = arena.Teleporter as ExitTeleporter;
 
-					if (tp == null)
+					if (arena.Teleporter is not ExitTeleporter tp)
 					{
 						arena.Teleporter = tp = new ExitTeleporter();
 						tp.MoveToWorld(arena.GateOut == Point3D.Zero ? arena.Outside : arena.GateOut, arena.Facet);
@@ -4787,7 +4726,7 @@ namespace Server.Engines.ConPVP
 
 					var mg = new ArenaMoongate(arena.GateIn == Point3D.Zero ? arena.Outside : arena.GateIn, arena.Facet, tp);
 
-					m_StartedBeginCountdown = true;
+					StartedBeginCountdown = true;
 
 					for (var i = 0; i < m_Participants.Count; ++i)
 					{
@@ -4848,7 +4787,7 @@ namespace Server.Engines.ConPVP
 				return;
 			}
 
-			m_ReadyWait = true;
+			ReadyWait = true;
 
 			var isAllReady = true;
 
@@ -4904,10 +4843,10 @@ namespace Server.Engines.ConPVP
 				{
 					foreach (var type in types)
 					{
-						mob.CloseGump(type);
+						_ = mob.CloseGump(type);
 					}
 
-					mob.SendGump(g);
+					_ = mob.SendGump(g);
 				}
 			}
 
@@ -4967,10 +4906,9 @@ namespace Server.Engines.ConPVP
 
 	public class DuelContextGump : Gump
 	{
-		private readonly Mobile m_From;
 		private readonly DuelContext m_Context;
 
-		public Mobile From => m_From;
+		public Mobile From { get; }
 		public DuelContext Context => m_Context;
 
 		public string Center(string text)
@@ -4992,12 +4930,12 @@ namespace Server.Engines.ConPVP
 
 		public DuelContextGump(Mobile from, DuelContext context) : base(50, 50)
 		{
-			m_From = from;
+			From = from;
 			m_Context = context;
 
-			from.CloseGump(typeof(RulesetGump));
-			from.CloseGump(typeof(DuelContextGump));
-			from.CloseGump(typeof(ParticipantGump));
+			_ = from.CloseGump(typeof(RulesetGump));
+			_ = from.CloseGump(typeof(DuelContextGump));
+			_ = from.CloseGump(typeof(ParticipantGump));
 
 			var count = context.Participants.Count;
 
@@ -5018,17 +4956,22 @@ namespace Server.Engines.ConPVP
 			var x = 35;
 			var y = 47;
 
-			AddGoldenButtonLabeled(x, y, 1, "Rules"); y += 22;
-			AddGoldenButtonLabeled(x, y, 2, "Start"); y += 22;
-			AddGoldenButtonLabeled(x, y, 3, "Add Participant"); y += 30;
+			AddGoldenButtonLabeled(x, y, 1, "Rules");
+			y += 22;
+			AddGoldenButtonLabeled(x, y, 2, "Start");
+			y += 22;
+			AddGoldenButtonLabeled(x, y, 3, "Add Participant");
+			y += 30;
 
-			AddHtml(35, y, 230, 20, Center("Participants"), false, false); y += 22;
+			AddHtml(35, y, 230, 20, Center("Participants"), false, false);
+			y += 22;
 
 			for (var i = 0; i < context.Participants.Count; ++i)
 			{
 				var p = (Participant)context.Participants[i];
 
-				AddGoldenButtonLabeled(x, y, 4 + i, String.Format(p.Count == 1 ? "Player {0}: {3}" : "Team {0}: {1}/{2}: {3}", 1 + i, p.FilledSlots, p.Count, p.NameList)); y += 22;
+				AddGoldenButtonLabeled(x, y, 4 + i, String.Format(p.Count == 1 ? "Player {0}: {3}" : "Team {0}: {1}/{2}: {3}", 1 + i, p.FilledSlots, p.Count, p.NameList));
+				y += 22;
 			}
 		}
 
@@ -5055,7 +4998,7 @@ namespace Server.Engines.ConPVP
 				case 1: // Rules
 					{
 						//m_From.SendGump( new RulesetGump( m_From, m_Context.Ruleset, m_Context.Ruleset.Layout, m_Context ) );
-						m_From.SendGump(new PickRulesetGump(m_From, m_Context, m_Context.Ruleset));
+						_ = From.SendGump(new PickRulesetGump(From, m_Context, m_Context.Ruleset));
 						break;
 					}
 				case 2: // Start
@@ -5068,8 +5011,8 @@ namespace Server.Engines.ConPVP
 						}
 						else
 						{
-							m_From.SendMessage("You cannot start the duel before all participating players have been assigned.");
-							m_From.SendGump(new DuelContextGump(m_From, m_Context));
+							From.SendMessage("You cannot start the duel before all participating players have been assigned.");
+							_ = From.SendGump(new DuelContextGump(From, m_Context));
 						}
 
 						break;
@@ -5078,14 +5021,14 @@ namespace Server.Engines.ConPVP
 					{
 						if (m_Context.Participants.Count < 10)
 						{
-							m_Context.Participants.Add(new Participant(m_Context, 1));
+							_ = m_Context.Participants.Add(new Participant(m_Context, 1));
 						}
 						else
 						{
-							m_From.SendMessage("The number of participating parties may not be increased further.");
+							From.SendMessage("The number of participating parties may not be increased further.");
 						}
 
-						m_From.SendGump(new DuelContextGump(m_From, m_Context));
+						_ = From.SendGump(new DuelContextGump(From, m_Context));
 
 						break;
 					}
@@ -5095,7 +5038,7 @@ namespace Server.Engines.ConPVP
 
 						if (index >= 0 && index < m_Context.Participants.Count)
 						{
-							m_From.SendGump(new ParticipantGump(m_From, m_Context, (Participant)m_Context.Participants[index]));
+							_ = From.SendGump(new ParticipantGump(From, m_Context, (Participant)m_Context.Participants[index]));
 						}
 
 						break;
@@ -5135,7 +5078,7 @@ namespace Server.Engines.ConPVP
 			m_Participant = p;
 			m_Slot = slot;
 
-			challenged.CloseGump(typeof(AcceptDuelGump));
+			_ = challenged.CloseGump(typeof(AcceptDuelGump));
 
 			Closable = false;
 
@@ -5200,7 +5143,7 @@ namespace Server.Engines.ConPVP
 
 			AddButton(314, 173, 247, 248, 1, GumpButtonType.Reply, 0);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(15.0), AutoReject);
+			_ = Timer.DelayCall(TimeSpan.FromSeconds(15.0), AutoReject);
 		}
 
 		public void AutoReject()
@@ -5212,13 +5155,13 @@ namespace Server.Engines.ConPVP
 
 			m_Active = false;
 
-			m_Challenged.CloseGump(typeof(AcceptDuelGump));
+			_ = m_Challenged.CloseGump(typeof(AcceptDuelGump));
 
 			m_Challenger.SendMessage("{0} seems unresponsive.", m_Challenged.Name);
 			m_Challenged.SendMessage("You decline the challenge.");
 		}
 
-		private static readonly Hashtable m_IgnoreLists = new Hashtable();
+		private static readonly Hashtable m_IgnoreLists = new();
 
 		private class IgnoreEntry
 		{
@@ -5226,7 +5169,7 @@ namespace Server.Engines.ConPVP
 			public DateTime m_Expire;
 
 			public Mobile Ignored => m_Ignored;
-			public bool Expired => (DateTime.UtcNow >= m_Expire);
+			public bool Expired => DateTime.UtcNow >= m_Expire;
 
 			private static readonly TimeSpan ExpireDelay = TimeSpan.FromMinutes(15.0);
 
@@ -5266,7 +5209,7 @@ namespace Server.Engines.ConPVP
 				}
 			}
 
-			list.Add(new IgnoreEntry(toIgnore));
+			_ = list.Add(new IgnoreEntry(toIgnore));
 		}
 
 		public static bool IsIgnored(Mobile source, Mobile check)
@@ -5311,9 +5254,7 @@ namespace Server.Engines.ConPVP
 
 			if (info.IsSwitched(1))
 			{
-				var pm = m_Challenged as PlayerMobile;
-
-				if (pm == null)
+				if (m_Challenged is not PlayerMobile pm)
 				{
 					return;
 				}
@@ -5374,23 +5315,19 @@ namespace Server.Engines.ConPVP
 						{
 							foreach (var g in ns.Gumps)
 							{
-								if (g is ParticipantGump)
+								if (g is ParticipantGump pg)
 								{
-									var pg = (ParticipantGump)g;
-
 									if (pg.Participant == m_Participant)
 									{
-										m_Challenger.SendGump(new ParticipantGump(m_Challenger, m_Context, m_Participant));
+										_ = m_Challenger.SendGump(new ParticipantGump(m_Challenger, m_Context, m_Participant));
 										break;
 									}
 								}
-								else if (g is DuelContextGump)
+								else if (g is DuelContextGump dcg)
 								{
-									var dcg = (DuelContextGump)g;
-
 									if (dcg.Context == m_Context)
 									{
-										m_Challenger.SendGump(new DuelContextGump(m_Challenger, m_Context));
+										_ = m_Challenger.SendGump(new DuelContextGump(m_Challenger, m_Context));
 										break;
 									}
 								}
@@ -5503,7 +5440,7 @@ namespace Server.Engines.ConPVP
 					height += 22;
 				}
 
-				height += (p.Players.Length * 22);
+				height += p.Players.Length * 22;
 			}
 
 			height += 25;
@@ -5559,7 +5496,7 @@ namespace Server.Engines.ConPVP
 						isAllReady = false;
 					}
 
-					var name = (pl == null ? "(Empty)" : pl.Mobile.Name);
+					var name = pl == null ? "(Empty)" : pl.Mobile.Name;
 
 					AddHtml(35 + offset + 14, y, 166, 20, name, false, false);
 
@@ -5634,7 +5571,7 @@ namespace Server.Engines.ConPVP
 						height += 22;
 					}
 
-					height += (p.Players.Length * 22);
+					height += p.Players.Length * 22;
 				}
 
 				height += 10 + 22 + 25;
@@ -5665,7 +5602,7 @@ namespace Server.Engines.ConPVP
 					{
 						var pl = p.Players[j];
 
-						var name = (pl == null ? "(Empty)" : pl.Mobile.Name);
+						var name = pl == null ? "(Empty)" : pl.Mobile.Name;
 
 						AddHtml(35 + offset, y, 166, 20, name, false, false);
 
@@ -5701,7 +5638,7 @@ namespace Server.Engines.ConPVP
 
 					for (var i = 0; i < ruleset.Flavors.Count; ++i)
 					{
-						defs.Or(((Ruleset)ruleset.Flavors[i]).Options);
+						_ = defs.Or(((Ruleset)ruleset.Flavors[i]).Options);
 					}
 
 					height += ruleset.Flavors.Count * 18;
@@ -5721,7 +5658,7 @@ namespace Server.Engines.ConPVP
 					}
 				}
 
-				height += (changes * 22);
+				height += changes * 22;
 
 				height += 10 + 22 + 25;
 
@@ -5791,9 +5728,7 @@ namespace Server.Engines.ConPVP
 			{
 				case 1: // okay
 					{
-						var pm = m_From as PlayerMobile;
-
-						if (pm == null)
+						if (m_From is not PlayerMobile pm)
 						{
 							break;
 						}

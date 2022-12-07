@@ -1,4 +1,5 @@
-﻿using Server.Commands;
+﻿using Server.Accounting;
+using Server.Commands;
 using Server.Commands.Generic;
 using Server.Gumps;
 using Server.HuePickers;
@@ -906,7 +907,7 @@ namespace Server.Commands
 
 			if (isSerial) // mutate back
 			{
-				toSet = (Serial)(int)toSet;
+				toSet = new Serial((int)toSet);
 			}
 
 			constructed = toSet;
@@ -1051,20 +1052,22 @@ namespace Server.Gumps
 	{
 		private static HashSet<PropertiesGump> m_Buffer = new();
 
-		public static Dictionary<INotifyPropertyUpdate, HashSet<PropertiesGump>> Instances { get; } = new();
+		public static Dictionary<object, HashSet<PropertiesGump>> Instances { get; } = new();
 
 		public static void Configure()
 		{
-			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+			PropertyNotifier.PropertyChanged += OnPropertyChanged;
 		}
 
-		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		private static void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			if (sender != null && Instances.TryGetValue(sender, out var gumps))
 			{
 				Instances[sender] = m_Buffer;
 
-				foreach (var gump in gumps)
+				m_Buffer = gumps;
+
+				foreach (var gump in m_Buffer)
 				{
 					var ns = gump.m_Mobile?.NetState;
 
@@ -1073,16 +1076,18 @@ namespace Server.Gumps
 						continue;
 					}
 
+					ns.Send(new CloseGump(gump.TypeID, 0));
+
 					ns.RemoveGump(gump);
+
+					gump.OnServerClose(ns);
 
 					var g = new PropertiesGump(gump.m_Mobile, gump.m_Object, gump.m_Stack, gump.m_List, gump.m_Page);
 
 					g.SendTo(ns);
 				}
 
-				gumps.Clear();
-
-				m_Buffer = gumps;
+				m_Buffer.Clear();
 			}
 		}
 
@@ -1104,8 +1109,8 @@ namespace Server.Gumps
 		private static readonly Type m_TypeOfSkills = typeof(Skills);
 		private static readonly Type m_TypeOfColor = typeof(Color);
 		private static readonly Type m_TypeOfICollection = typeof(ICollection);
+		private static readonly Type m_TypeOfICollectionT = typeof(ICollection<>);
 
-		private static readonly Type m_TypeOfCPA = typeof(CommandPropertyAttribute);
 		private static readonly Type m_TypeOfNoSort = typeof(NoSortAttribute);
 		private static readonly Type m_TypeOfPropertyObject = typeof(PropertyObjectAttribute);
 		private static readonly Type m_TypeOfObject = typeof(object);
@@ -1169,10 +1174,10 @@ namespace Server.Gumps
 		private static readonly int NextLabelOffsetX = -29;
 		private static readonly int NextLabelOffsetY = 0;
 
-		private static readonly int NameWidth = 107;
-		private static readonly int ValueWidth = 128;
+		private static readonly int NameWidth = 150;
+		private static readonly int ValueWidth = 150;
 
-		private static readonly int EntryCount = 15;
+		private static readonly int EntryCount = 20;
 
 		private static readonly int TypeWidth = NameWidth + OffsetSize + ValueWidth;
 
@@ -1194,7 +1199,9 @@ namespace Server.Gumps
 		{
 			m_Mobile = mobile;
 			m_Object = o;
-			m_Type = o.GetType();
+
+			m_Type = m_Object?.GetType();
+
 			m_List = BuildList();
 
 			Initialize(0);
@@ -1204,16 +1211,15 @@ namespace Server.Gumps
 		{
 			m_Mobile = mobile;
 			m_Object = o;
-			m_Type = o.GetType();
+
+			m_Type = m_Object?.GetType();
+
 			m_Stack = stack;
 			m_List = BuildList();
 
 			if (parent != null)
 			{
-				if (m_Stack == null)
-				{
-					m_Stack = new Stack<StackEntry>();
-				}
+				m_Stack ??= new Stack<StackEntry>();
 
 				m_Stack.Push(parent);
 			}
@@ -1226,10 +1232,7 @@ namespace Server.Gumps
 			m_Mobile = mobile;
 			m_Object = o;
 
-			if (o != null)
-			{
-				m_Type = o.GetType();
-			}
+			m_Type = m_Object?.GetType();
 
 			m_List = list;
 			m_Stack = stack;
@@ -1239,13 +1242,34 @@ namespace Server.Gumps
 
 		private void Initialize(int page)
 		{
-			foreach (var e in m_List)
+			if (!m_Type.IsPrimitive)
 			{
-				if (e is INotifyPropertyUpdate u)
+				if (!Instances.TryGetValue(m_Object, out var gumps))
 				{
-					if (!Instances.TryGetValue(u, out var gumps))
+					Instances[m_Object] = gumps = new HashSet<PropertiesGump>();
+				}
+				else
+				{
+					_ = gumps.RemoveWhere(g => g.m_Mobile == m_Mobile);
+				}
+
+				_ = gumps.Add(this);
+			}
+
+			foreach (var o in m_List)
+			{
+				if (o == null)
+				{
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive)
+				{
+					if (!Instances.TryGetValue(o, out var gumps))
 					{
-						Instances[u] = gumps = new HashSet<PropertiesGump>();
+						Instances[o] = gumps = new HashSet<PropertiesGump>();
 					}
 
 					_ = gumps.Add(this);
@@ -1312,7 +1336,7 @@ namespace Server.Gumps
 
 			if (TypeLabel && m_Type != null)
 			{
-				AddHtml(x, y, emptyWidth, EntryHeight, $"<BASEFONT COLOR=#FAFAFA><CENTER>{m_Type.Name}</CENTER></BASEFONT>", false, false);
+				AddHtml(x, y, emptyWidth, EntryHeight, $"<BASEFONT COLOR=#FAFAFA><CENTER>{m_Type.Name}</CENTER>", false, false);
 			}
 
 			x += emptyWidth + OffsetSize;
@@ -1343,6 +1367,37 @@ namespace Server.Gumps
 				{
 					AddImageTiled(x - OffsetSize, y, TotalWidth, EntryHeight, BackGumpID + 4);
 				}
+				else if (o == m_Object)
+				{
+					AddImageTiled(x, y, NameWidth, EntryHeight, EntryGumpID);
+					AddLabelCropped(x + TextOffsetX, y, NameWidth - TextOffsetX, EntryHeight, TextHue, "Entries");
+					x += NameWidth + OffsetSize;
+
+					var subcount = 0;
+
+					if (o is ICollection col)
+					{
+						subcount = col.Count;
+					}
+					else if (o is IEnumerable eable)
+					{
+						foreach (var obj in eable)
+						{
+							++subcount;
+						}
+					}
+
+					AddImageTiled(x, y, ValueWidth, EntryHeight, EntryGumpID);
+					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, $"[{subcount:N0}]...");
+					x += ValueWidth + OffsetSize;
+
+					if (SetGumpID != 0)
+					{
+						AddImageTiled(x, y, SetWidth, EntryHeight, SetGumpID);
+					}
+
+					AddButton(x + SetOffsetX, y + SetOffsetY, SetButtonID1, SetButtonID2, i + 3, GumpButtonType.Reply, 0);
+				}
 				else if (o is Type type)
 				{
 					AddImageTiled(x, y, TypeWidth, EntryHeight, EntryGumpID);
@@ -1359,8 +1414,16 @@ namespace Server.Gumps
 					AddImageTiled(x, y, NameWidth, EntryHeight, EntryGumpID);
 					AddLabelCropped(x + TextOffsetX, y, NameWidth - TextOffsetX, EntryHeight, TextHue, prop.Name);
 					x += NameWidth + OffsetSize;
+
+					var value = ValueToString(prop);
+
+					if (value.Length * 6 >= ValueWidth - TextOffsetX)
+					{
+						value = $"{value[..((ValueWidth - TextOffsetX) / 6)]}";
+					}
+
 					AddImageTiled(x, y, ValueWidth, EntryHeight, EntryGumpID);
-					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, ValueToString(prop));
+					AddLabelCropped(x + TextOffsetX, y, ValueWidth - TextOffsetX, EntryHeight, TextHue, value);
 					x += ValueWidth + OffsetSize;
 
 					if (SetGumpID != 0)
@@ -1370,7 +1433,7 @@ namespace Server.Gumps
 
 					var cpa = GetCPA(prop);
 
-					if (prop.CanWrite && cpa != null && m_Mobile.AccessLevel >= cpa.WriteLevel && !cpa.ReadOnly)
+					if ((prop.CanWrite || prop.SetMethod != null) && cpa != null && m_Mobile.AccessLevel >= cpa.WriteLevel && !cpa.ReadOnly)
 					{
 						AddButton(x + SetOffsetX, y + SetOffsetY, SetButtonID1, SetButtonID2, i + 3, GumpButtonType.Reply, 0);
 					}
@@ -1380,13 +1443,13 @@ namespace Server.Gumps
 
 		public override void OnResponse(NetState state, RelayInfo info)
 		{
-			if (m_Object is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+			if (!m_Type.IsPrimitive && Instances.TryGetValue(m_Object, out var gumps))
 			{
 				_ = gumps.Remove(this);
 
 				if (gumps.Count == 0)
 				{
-					_ = Instances.Remove(u);
+					_ = Instances.Remove(m_Object);
 				}
 			}
 
@@ -1435,9 +1498,33 @@ namespace Server.Gumps
 
 						if (index >= 0 && index < m_List.Count)
 						{
-							var prop = m_List[index] as PropertyInfo;
+							var entry = m_List[index];
 
-							if (prop == null)
+							if (entry == m_Object)
+							{
+								if (entry is ICollection col && col.Count > 0)
+								{
+									_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
+									_ = from.SendGump(new InterfaceGump(from, col));
+								}
+								else if (entry is IEnumerable eable)
+								{
+									var arr = new ArrayList();
+
+									foreach (var o in eable)
+									{
+										arr.Add(o);
+									}
+
+									if (arr.Count > 0)
+									{
+										_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
+										_ = from.SendGump(new InterfaceGump(from, arr));
+									}
+								}
+							}
+
+							if (entry is not PropertyInfo prop)
 							{
 								return;
 							}
@@ -1457,6 +1544,7 @@ namespace Server.Gumps
 							}
 							else if (IsType(type, m_TypeOfType))
 							{
+								from.SendMessage($"Target an object to use its type reference for {prop.Name}...");
 								from.Target = new SetObjectTarget(prop, from, m_Object, m_Stack, type, m_Page, m_List);
 							}
 							else if (IsType(type, m_TypeOfPoint3D))
@@ -1520,23 +1608,55 @@ namespace Server.Gumps
 								{
 									_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
 								}
-
-								if (IsType(type, m_TypeOfICollection))
+								/*
+								if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 								{
-									if (prop.GetValue(m_Object, null) is ICollection col && col.Count > 0)
+									if (obj is ICollection col && col.Count > 0)
 									{
 										_ = from.SendGump(new InterfaceGump(from, col));
 									}
+									else if (obj is IEnumerable eable)
+									{
+										var arr = new ArrayList();
+
+										foreach (var o in eable)
+										{
+											arr.Add(o);
+										}
+
+										if (arr.Count > 0)
+										{
+											_ = from.SendGump(new InterfaceGump(from, arr));
+										}
+									}
 								}
+								*/
 							}
-							else if (IsType(type, m_TypeOfICollection))
+							else if (IsType(type, m_TypeOfICollection) || IsType(type, m_TypeOfICollectionT))
 							{
 								_ = from.SendGump(new PropertiesGump(from, m_Object, m_Stack, m_List, m_Page));
+								/*
+								var subval = prop.GetValue(m_Object, null);
 
-								if (prop.GetValue(m_Object, null) is ICollection col && col.Count > 0)
+								if (subval is ICollection col && col.Count > 0)
 								{
 									_ = from.SendGump(new InterfaceGump(from, col));
 								}
+								else if (subval is IEnumerable eable)
+								{
+									var arr = new ArrayList();
+
+									foreach (var o in eable)
+									{
+										arr.Add(o);
+									}
+
+									if (arr.Count > 0)
+									{
+										_ = from.SendGump(new InterfaceGump(from, arr));
+									}
+								}
+								*/
 							}
 						}
 
@@ -1701,6 +1821,21 @@ namespace Server.Gumps
 				return def.Format(true);
 			}
 
+			if (o is Color color)
+			{
+				if (color.IsEmpty)
+				{
+					return "---";
+				}
+
+				if (color.IsNamedColor)
+				{
+					return color.Name;
+				}
+
+				return $"{color.ToArgb() & 0x00FFFFFF:X6}";
+			}
+
 			if (o is Array arr)
 			{
 				return $"{GetRealTypeName(arr)}";
@@ -1769,30 +1904,35 @@ namespace Server.Gumps
 			{
 				return name;
 			}
-			
+
 			name = name.Substring(0, name.IndexOf('`'));
 
 			return $"{name}<{String.Join(", ", type.GenericTypeArguments.Select(GetRealTypeName))}>";
 		}
 
-		public static void OnValueChanged(object obj, PropertyInfo prop, Stack<StackEntry> stack)
+		public static void OnValueChanged(Stack<StackEntry> stack, object obj, PropertyInfo prop, object oldValue, object newValue)
 		{
-			if (stack == null || stack.Count == 0)
+			if (stack != null && stack.Count != 0 && prop.PropertyType.IsValueType)
 			{
-				return;
+				var o = obj;
+
+				foreach (var e in stack)
+				{
+					if (!e.m_Property.PropertyType.IsValueType)
+					{
+						break;
+					}
+
+					if (e.m_Property.CanWrite)
+					{
+						e.m_Property.SetValue(e.m_Object, o, null);
+					}
+
+					o = e.m_Object;
+				}
 			}
 
-			if (!prop.PropertyType.IsValueType)
-			{
-				return;
-			}
-
-			var peek = stack.Peek();
-
-			if (peek.m_Property.CanWrite)
-			{
-				peek.m_Property.SetValue(peek.m_Object, obj, null);
-			}
+			PropertyNotifier.Notify(obj, prop, oldValue, newValue);
 		}
 
 		private ArrayList BuildList()
@@ -1827,29 +1967,30 @@ namespace Server.Gumps
 				list.AddRange(groupList);
 			}
 
+			if (IsType(m_Type, m_TypeOfICollection) || IsType(m_Type, m_TypeOfICollectionT))
+			{
+				list.Add(m_Object);
+			}
+
 			return list;
 		}
 
 		private static CommandPropertyAttribute GetCPA(PropertyInfo prop)
 		{
-			var attrs = prop.GetCustomAttributes(m_TypeOfCPA, false);
-
-			if (attrs.Length > 0)
+			foreach (var attr in prop.GetCustomAttributes<CommandPropertyAttribute>(false))
 			{
-				return attrs[0] as CommandPropertyAttribute;
+				return attr;
 			}
 
 			return null;
 		}
 
-		private ArrayList GetGroups(Type objectType, PropertyInfo[] props)
+		private ArrayList GetGroups(Type objectType, IEnumerable<PropertyInfo> props)
 		{
 			var groups = new Hashtable();
 
-			for (var i = 0; i < props.Length; ++i)
+			foreach (var prop in props)
 			{
-				var prop = props[i];
-
 				if (prop.CanRead)
 				{
 					var attr = GetCPA(prop);
@@ -1903,7 +2044,7 @@ namespace Server.Gumps
 				return s;
 			}
 
-			if (t == typeof(byte) || t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) || t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong))
+			if (t == typeof(sbyte) || t == typeof(byte) || t == typeof(short) || t == typeof(ushort) || t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong))
 			{
 				if (s.StartsWith("0x"))
 				{
@@ -1923,14 +2064,59 @@ namespace Server.Gumps
 				return Convert.ChangeType(s, t);
 			}
 
+			if (t == typeof(IAccount) || t == typeof(Account))
+			{
+				return Accounts.GetAccount(s);
+			}
+
+			if (t == typeof(Color))
+			{
+				if (String.IsNullOrWhiteSpace(s) || s == "---")
+				{
+					return Color.Empty;
+				}
+
+				if (Insensitive.Equals(s, "None") || Insensitive.Equals(s, "Empty"))
+				{
+					return Color.Empty;
+				}
+
+				if (Insensitive.StartsWith(s, "0x"))
+				{
+					return Color.FromArgb(Convert.ToInt32(s.Substring(2), 16));
+				}
+
+				if (Insensitive.StartsWith(s, "#"))
+				{
+					return Color.FromArgb(Convert.ToInt32(s.Substring(1), 16));
+				}
+
+				if (Int32.TryParse(s, out var val))
+				{
+					return Color.FromArgb(val);
+				}
+
+				var rgb = s.Split(',');
+
+				if (rgb.Length >= 3)
+				{
+					if (Byte.TryParse(rgb[0], out var r) && Byte.TryParse(rgb[1], out var g) && Byte.TryParse(rgb[2], out var b))
+					{
+						return Color.FromArgb(r, g, b);
+					}
+				}
+
+				return Color.FromName(s);
+			}
+
 			if (t.IsDefined(typeof(ParsableAttribute), false))
 			{
-				var parseMethod = t.GetMethod("Parse", new Type[] { typeof(string) });
+				var parseMethod = t.GetMethod("Parse", new[] { typeof(string) });
 
 				return parseMethod.Invoke(null, new object[] { s });
 			}
 
-			throw new FormatException("bad object string format");
+			throw new FormatException();
 		}
 
 		private class PropertySorter : IComparer
@@ -2201,9 +2387,11 @@ namespace Server.Gumps
 
 							CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, entry.Body.ToString());
 
+							var oldValue = m_Property.GetValue(m_Object, null);
+
 							m_Property.SetValue(m_Object, entry.Body, null);
 
-							PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+							PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, entry.Body);
 						}
 						catch
 						{
@@ -2348,20 +2536,23 @@ namespace Server.Gumps
 
 					var result = "";
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+					object newValue = null;
+
 					if (info != null)
 					{
-						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, info.Invoke(null, new object[] { m_Names[index] }), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, newValue = info.Invoke(null, new object[] { m_Names[index] }), true);
 					}
 					else if (m_Property.PropertyType.IsEnum)
 					{
-						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
+						result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, newValue = Enum.Parse(m_Property.PropertyType, m_Names[index], false), true);
 					}
 
 					m_Mobile.SendMessage(result);
 
 					if (result == "Property has been set.")
 					{
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, newValue);
 					}
 				}
 				catch
@@ -2563,9 +2754,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, hue.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, hue, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, hue);
 				}
 				catch
 				{
@@ -2659,9 +2852,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -2847,6 +3042,8 @@ namespace Server.Gumps
 			{
 				try
 				{
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					var toSet = m_Values[index];
 
 					var result = Props.SetDirect(m_Mobile, m_Object, m_Object, m_Property, m_Property.Name, toSet, true);
@@ -2855,7 +3052,7 @@ namespace Server.Gumps
 
 					if (result == "Property has been set.")
 					{
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 				}
 				catch
@@ -3077,9 +3274,11 @@ namespace Server.Gumps
 					{
 						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+						var oldValue = m_Property.GetValue(m_Object, null);
+
 						m_Property.SetValue(m_Object, toSet, null);
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3179,9 +3378,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet == null ? "(null)" : toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3235,17 +3436,30 @@ namespace Server.Gumps
 					targeted = ac.Addon;
 				}
 
-				if (m_Type.IsAssignableFrom(targeted.GetType()))
+				var type = targeted.GetType();
+
+				if (m_Type.IsAssignableFrom(type))
 				{
-					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, targeted.ToString());
+					var state = TypeFilterAttribute.CheckState(m_Property, type);
 
-					m_Property.SetValue(m_Object, targeted, null);
+					if (state == TypeFilterResult.NoFilter || state == TypeFilterResult.Allowed)
+					{
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, targeted.ToString());
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						var oldValue = m_Property.GetValue(m_Object, null);
+
+						m_Property.SetValue(m_Object, targeted, null);
+
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, targeted);
+					}
+					else
+					{
+						m_Mobile.SendMessage("That is not a valid type for this property.");
+					}
 				}
 				else
 				{
-					m_Mobile.SendMessage("That cannot be assigned to a property of type : {0}", m_Type.Name);
+					m_Mobile.SendMessage($"That cannot be assigned to a property of type : {m_Type.Name}");
 				}
 			}
 			catch
@@ -3421,11 +3635,15 @@ namespace Server.Gumps
 				{
 					try
 					{
-						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, new Point2D(p).ToString());
+						var toSet = new Point2D(p);
 
-						m_Property.SetValue(m_Object, new Point2D(p), null);
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						var oldValue = m_Property.GetValue(m_Object, null);
+
+						m_Property.SetValue(m_Object, toSet, null);
+
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3496,9 +3714,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3672,11 +3892,15 @@ namespace Server.Gumps
 				{
 					try
 					{
-						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, new Point3D(p).ToString());
+						var toSet = new Point3D(p);
 
-						m_Property.SetValue(m_Object, new Point3D(p), null);
+						CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
-						PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+						var oldValue = m_Property.GetValue(m_Object, null);
+
+						m_Property.SetValue(m_Object, toSet, null);
+
+						PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 					}
 					catch
 					{
@@ -3748,9 +3972,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -3997,9 +4223,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -4219,9 +4447,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString(CultureInfo.InvariantCulture));
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{
@@ -4427,9 +4657,11 @@ namespace Server.Gumps
 				{
 					CommandLogging.LogChangeProperty(m_Mobile, m_Object, m_Property.Name, toSet.ToString());
 
+					var oldValue = m_Property.GetValue(m_Object, null);
+
 					m_Property.SetValue(m_Object, toSet, null);
 
-					PropertiesGump.OnValueChanged(m_Object, m_Property, m_Stack);
+					PropertiesGump.OnValueChanged(m_Stack, m_Object, m_Property, oldValue, toSet);
 				}
 				catch
 				{

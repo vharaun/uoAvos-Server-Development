@@ -106,7 +106,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 		//List contains an entry for each map, each entry contains all the locations where trees have been chopped down
 		public static Dictionary<int, Dictionary<Point3D, int>> RegrowthMasterLookupTable = new Dictionary<int, Dictionary<Point3D, int>>();
-		public static DateTime LastGrowth = DateTime.Now;
+		public static DateTime LastGrowth = DateTime.UtcNow;
 
 
 		//This is the minimum time between regrowths, but the regrowths will only happen on world saves
@@ -214,7 +214,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				if (RegrowthMasterLookupTable.ContainsKey(m.MapID))
 				{
 					#region Regrowth
-					if (DateTime.Now > LastGrowth + TimeBetweenRegrowth)
+					if (DateTime.UtcNow > LastGrowth + TimeBetweenRegrowth)
 					{
 						updateRegrowthTime = true;
 						Dictionary<Point3D, int> mapLookupTable = RegrowthMasterLookupTable[m.MapID];
@@ -315,7 +315,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 			if (updateRegrowthTime)
 			{
-				LastGrowth = DateTime.Now;
+				LastGrowth = DateTime.UtcNow;
 			}
 		}
 

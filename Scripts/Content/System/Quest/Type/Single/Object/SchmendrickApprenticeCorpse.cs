@@ -55,7 +55,7 @@ namespace Server.Engines.Quests.Items
 				}
 				 * */
 
-				new Spellbook()
+				new BookOfMagery()
 			};
 
 			return list;

@@ -362,7 +362,7 @@ namespace Server.Mobiles
 		protected readonly Dictionary<Mobile, TypeAmount> m_SelectedCurrencies = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Currencies Currencies { get; private set; } = new();
+		public Currencies Currencies { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public bool CurrenciesLocal { get; set; } = true;

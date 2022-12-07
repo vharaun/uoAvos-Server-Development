@@ -2,7 +2,7 @@
 {
 	public class RaceDefinitions
 	{
-		public static void Configure()
+		public static void Prepare()
 		{
 			#region Reserved Race Numbers
 

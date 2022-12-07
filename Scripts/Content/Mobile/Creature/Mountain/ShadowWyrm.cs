@@ -38,6 +38,8 @@
 			Karma = -22500;
 
 			VirtualArmor = 70;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -68,7 +70,6 @@
 		public override int Scales => 10;
 		public override ScaleType ScaleType => ScaleType.Black;
 		public override HideType HideType => HideType.Barbed;
-		public override bool CanFly => true;
 
 		public ShadowWyrm(Serial serial) : base(serial)
 		{

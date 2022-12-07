@@ -38,14 +38,14 @@ namespace Server.Gumps
 
 				if (_Parent is BaseGump opg)
 				{
-					opg.Children.Remove(this);
+					_ = opg.Children.Remove(this);
 				}
 
 				_Parent = value;
 
 				if (_Parent is BaseGump npg)
 				{
-					npg.Children.Add(this);
+					_ = npg.Children.Add(this);
 				}
 			}
 		}
@@ -89,7 +89,7 @@ namespace Server.Gumps
 		{
 			AddGumpLayout();
 			Open = true;
-			User.SendGump(this);
+			_ = User.SendGump(this);
 		}
 
 		public void Dispose()
@@ -149,7 +149,7 @@ namespace Server.Gumps
 				AddGumpLayout();
 			}
 
-			User.SendGump(this);
+			_ = User.SendGump(this);
 			OnAfterRefresh();
 		}
 
@@ -237,7 +237,7 @@ namespace Server.Gumps
 
 			OnServerClose(User.NetState);
 
-			User.Send(new CloseGump(TypeID, 0));
+			_ = User.Send(new CloseGump(TypeID, 0));
 			User.NetState.RemoveGump(this);
 
 			OnClosed();
@@ -287,7 +287,7 @@ namespace Server.Gumps
 				{
 					if (gump.CloseOnMapChange)
 					{
-						pm.CloseGump(gump.GetType());
+						_ = pm.CloseGump(gump.GetType());
 					}
 				}
 
@@ -307,22 +307,16 @@ namespace Server.Gumps
 
 			AddButton(x, y, normalID, pressedID, buttonID, GumpButtonType.Reply, buttonID);
 
-			if (_Buttons == null)
-			{
-				_Buttons = new Dictionary<int, Action<int>>();
-			}
+			_Buttons ??= new Dictionary<int, Action<int>>();
 
 			_Buttons[buttonID] = callback;
 		}
 
 		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar, Color color)
 		{
-			AddHtml(x, y, width, height, text, background, scrollbar, color, Color.Empty);
-		}
+			text = SetColor(color, text);
 
-		public void AddHtml(int x, int y, int width, int height, string text, bool background, bool scrollbar, Color color, Color reset)
-		{
-			AddHtml(x, y, width, height, SetColor(color, reset, text), background, scrollbar);
+			AddHtml(x, y, width, height, text, background, scrollbar);
 		}
 
 		public void AddItemProperty(Item item)
@@ -341,10 +335,21 @@ namespace Server.Gumps
 
 		public void AddProperties(Spoof spoof)
 		{
-			User.Send(spoof.PropertyList);
+			_ = User.Send(spoof.PropertyList);
 
 			AddItemProperty(spoof.Serial.Value);
 		}
+
+		#region Images
+
+		public static Size GetImageSize(int gumpID)
+		{
+			var asset = GumpData.GetGump(gumpID);
+
+			return asset?.Size ?? Size.Empty;
+		}
+
+		#endregion
 
 		#region Formatting
 
@@ -352,9 +357,9 @@ namespace Server.Gumps
 		{
 			c16 &= 0x7FFF;
 
-			var r = (((c16 >> 10) & 0x1F) << 3);
-			var g = (((c16 >> 05) & 0x1F) << 3);
-			var b = (((c16 >> 00) & 0x1F) << 3);
+			var r = ((c16 >> 10) & 0x1F) << 3;
+			var g = ((c16 >> 05) & 0x1F) << 3;
+			var b = ((c16 >> 00) & 0x1F) << 3;
 
 			return (r << 16) | (g << 8) | (b << 0);
 		}
@@ -368,56 +373,39 @@ namespace Server.Gumps
 		{
 			c32 &= 0xFFFFFF;
 
-			var r = (((c32 >> 16) & 0xFF) >> 3);
-			var g = (((c32 >> 08) & 0xFF) >> 3);
-			var b = (((c32 >> 00) & 0xFF) >> 3);
+			var r = ((c32 >> 16) & 0xFF) >> 3;
+			var g = ((c32 >> 08) & 0xFF) >> 3;
+			var b = ((c32 >> 00) & 0xFF) >> 3;
 
 			return (r << 10) | (g << 5) | (b << 0);
 		}
 
-		public static string SetColor(System.Drawing.Color color, string str)
+		public static string SetColor(Color color, string str)
 		{
-			return SetColor(color, Color.White, str);
-		}
-
-		public static string SetColor(Color color, Color reset, string str)
-		{
-			if (!reset.IsEmpty)
-			{
-				return $"{SetColor(color.ToArgb(), str)}{SetColor(reset.ToArgb(), String.Empty)}";
-			}
-
 			return SetColor(color.ToArgb(), str);
-		}
-
-		public static string SetColor(string color, string str)
-		{
-			return $"<basefont color={color}>{str}";
 		}
 
 		public static string SetColor(int color, string str)
 		{
-			return $"<basefont color=#{color & 0x00FFFFFF:X6}>{str}";
+			var r = Math.Max(0x08, (color >> 16) & 0xFF);
+			var g = Math.Max(0x08, (color >> 08) & 0xFF);
+			var b = Math.Max(0x08, (color >> 00) & 0xFF);
+
+			color = (r << 16) | (g << 08) | (b << 00);
+
+			return $"<BASEFONT COLOR=#{color:X6}>{str}";
 		}
 
-		public static string ColorAndCenter(string color, string str)
+		public static string ColorAndCenter(Color color, string str)
 		{
-			return $"<center><basefont color={color}>{str}</center>";
-		}
-
-		public static string ColorAndSize(string color, int size, string str)
-		{
-			return $"<basefont color={color} size={size}>{str}";
-		}
-
-		public static string ColorAndCenterAndSize(string color, int size, string str)
-		{
-			return $"<basefont color={color} size={size}><center>{str}</center>";
+			return ColorAndCenter(color.ToArgb(), str);
 		}
 
 		public static string ColorAndCenter(int color, string str)
 		{
-			return $"<basefont color=#{color:X6}><center>{str}</center>";
+			color &= 0x00FFFFFF;
+
+			return $"<BASEFONT COLOR=#{color:X6}><CENTER>{str}</CENTER>";
 		}
 
 		public static string Center(string str)
@@ -425,14 +413,16 @@ namespace Server.Gumps
 			return $"<CENTER>{str}</CENTER>";
 		}
 
-		public static string ColorAndAlignRight(int color, string str)
+		public static string ColorAndAlignRight(Color color, string str)
 		{
-			return $"<DIV ALIGN=RIGHT><basefont color=#{color:X6}>{str}</DIV>";
+			return ColorAndAlignRight(color.ToArgb(), str);
 		}
 
-		public static string ColorAndAlignRight(string color, string str)
+		public static string ColorAndAlignRight(int color, string str)
 		{
-			return $"<DIV ALIGN=RIGHT><basefont color={color}>{str}</DIV>";
+			color &= 0x00FFFFFF;
+
+			return $"<DIV ALIGN=RIGHT><BASEFONT COLOR=#{color:X6}>{str}</DIV>";
 		}
 
 		public static string AlignRight(string str)
@@ -488,8 +478,8 @@ namespace Server.Gumps
 
 		#region Tooltips
 
-		private readonly Dictionary<string, Spoof> _TextTooltips = new Dictionary<string, Spoof>();
-		private readonly Dictionary<Dictionary<int, string>, Spoof> _ClilocTooltips = new Dictionary<Dictionary<int, string>, Spoof>();
+		private readonly Dictionary<string, Spoof> _TextTooltips = new();
+		private readonly Dictionary<Dictionary<int, string>, Spoof> _ClilocTooltips = new();
 
 		public void AddTooltipTextDefinition(TextDefinition text)
 		{
@@ -503,14 +493,14 @@ namespace Server.Gumps
 			}
 		}
 
-		public void AddTooltip(string text, System.Drawing.Color color)
+		public void AddTooltip(string text, Color color)
 		{
-			AddTooltip(String.Empty, text, System.Drawing.Color.Empty, color);
+			AddTooltip(String.Empty, text, Color.Empty, color);
 		}
 
 		public void AddTooltip(string title, string text)
 		{
-			AddTooltip(title, text, System.Drawing.Color.Empty, System.Drawing.Color.Empty);
+			AddTooltip(title, text, Color.Empty, Color.Empty);
 		}
 
 		public void AddTooltip(int cliloc, string format, params string[] args)
@@ -584,19 +574,19 @@ namespace Server.Gumps
 			AddProperties(spoof);
 		}
 
-		public void AddTooltip(string title, string text, System.Drawing.Color titleColor, System.Drawing.Color textColor)
+		public void AddTooltip(string title, string text, Color titleColor, Color textColor)
 		{
-			title = title ?? String.Empty;
-			text = text ?? String.Empty;
+			title ??= String.Empty;
+			text ??= String.Empty;
 
-			if (titleColor.IsEmpty || titleColor == System.Drawing.Color.Transparent)
+			if (titleColor.IsEmpty || titleColor == Color.Transparent)
 			{
-				titleColor = System.Drawing.Color.White;
+				titleColor = Color.White;
 			}
 
-			if (textColor.IsEmpty || textColor == System.Drawing.Color.Transparent)
+			if (textColor.IsEmpty || textColor == Color.Transparent)
 			{
-				textColor = System.Drawing.Color.White;
+				textColor = Color.White;
 			}
 
 			Spoof spoof;
@@ -647,7 +637,7 @@ namespace Server.Gumps
 			    1153153, // ~1_year~
             };
 
-			private static readonly List<Spoof> _SpoofPool = new List<Spoof>();
+			private static readonly List<Spoof> _SpoofPool = new();
 
 			public static Spoof Acquire()
 			{
@@ -658,7 +648,7 @@ namespace Server.Gumps
 
 				var spoof = _SpoofPool[0];
 
-				_SpoofPool.Remove(spoof);
+				_ = _SpoofPool.Remove(spoof);
 
 				return spoof;
 			}

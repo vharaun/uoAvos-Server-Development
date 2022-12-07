@@ -3,7 +3,7 @@ using Server.ContextMenus;
 using Server.Gumps;
 using Server.Network;
 using Server.Regions;
-using Server.Spells.Sixth;
+using Server.Spells.Magery;
 using Server.Targeting;
 
 using System;

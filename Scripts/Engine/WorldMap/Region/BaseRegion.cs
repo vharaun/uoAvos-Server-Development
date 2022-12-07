@@ -4,7 +4,6 @@ using Server.Gumps;
 using Server.Items;
 using Server.Misc;
 using Server.Mobiles;
-using Server.Spells;
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +24,7 @@ namespace Server.Regions
 	{
 		None = 0ul,
 
+		AllowCombat = 1ul << 0,
 		AllowPvP = 1ul << 1,
 		AllowPvM = 1ul << 2,
 		AllowMvP = 1ul << 3,
@@ -98,22 +98,111 @@ namespace Server.Regions
 		All = ~None,
 
 		/// <summary>
-		/// Default every rule to true except those in this list
+		/// Default rules for new regions
 		/// </summary>
-		DefaultRules = All & ~(AllowYoungAggro | AllowParentSpawns | FreeMovement | FreeReagents | FreeInsurance | 1ul << 63),
+		DefaultRules = AllowCombat
+					 | AllowPvP
+					 | AllowPvM
+					 | AllowMvP
+					 | AllowMvM
+					 //
+					 | AllowDelayLogout
+					 | AllowItemDecay
+					 | AllowLogout
+					 | AllowHouses
+					 | AllowVehicles
+					 | AllowSpawning
+					 | AllowFollowers
+					 | AllowEthereal
+					 | AllowMount
+					 | AllowMagic
+					 | AllowMelee
+					 | AllowRanged
+					 | AllowSkills
+					 //
+					 | AllowPlayerDeath
+					 | AllowPlayerRes
+					 | AllowPlayerHeal
+					 | AllowPlayerHarm
+					 | AllowPlayerLooting
+					 //
+					 | AllowCreatureDeath
+					 | AllowCreatureRes
+					 | AllowCreatureHeal
+					 | AllowCreatureHarm
+					 | AllowCreatureLooting
+					 //
+					 | CanEnter
+					 | CanEnterAlive
+					 | CanEnterDead
+					 | CanEnterYoung
+					 | CanEnterInnocent
+					 | CanEnterCriminal
+					 | CanEnterMurderer
+					 //
+					 | CanExit
+					 | CanExitAlive
+					 | CanExitDead
+					 | CanExitYoung
+					 | CanExitInnocent
+					 | CanExitCriminal
+					 | CanExitMurderer,
 	}
 
-	[PropertyObject]
-	public class RegionRules
+	[NoSort, PropertyObject]
+	public abstract class BaseRegionRules
 	{
 		public RegionFlags Flags { get; set; } = RegionFlags.DefaultRules;
 
 		public bool this[RegionFlags flags] { get => GetFlag(flags); set => SetFlag(flags, value); }
 
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool SetDefaults { get => false; set => Flags = value ? RegionFlags.DefaultRules : Flags; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool SetAllTrue { get => false; set => Flags = value ? RegionFlags.All : Flags; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool SetAllFalse { get => false; set => Flags = value ? RegionFlags.None : Flags; }
+
+		public virtual void Defaults()
+		{
+			Flags = RegionFlags.DefaultRules;
+		}
+
+		public virtual bool GetFlag(RegionFlags flags)
+		{
+			return Flags.HasFlag(flags);
+		}
+
+		public virtual void SetFlag(RegionFlags flags, bool state)
+		{
+			if (state)
+			{
+				Flags |= flags;
+			}
+			else
+			{
+				Flags &= ~flags;
+			}
+		}
+
+		public override string ToString()
+		{
+			return Flags.ToString();
+		}
+	}
+
+	[NoSort, PropertyObject]
+	public class RegionRules : BaseRegionRules
+	{
 		#region General Combat
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public bool AllowPvP { get => GetFlag(RegionFlags.FreeMovement); set => SetFlag(RegionFlags.AllowPvP, value); }
+		public bool AllowCombat { get => GetFlag(RegionFlags.AllowCombat); set => SetFlag(RegionFlags.AllowCombat, value); }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public bool AllowPvP { get => GetFlag(RegionFlags.AllowPvP); set => SetFlag(RegionFlags.AllowPvP, value); }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public bool AllowPvM { get => GetFlag(RegionFlags.AllowPvM); set => SetFlag(RegionFlags.AllowPvM, value); }
@@ -326,28 +415,6 @@ namespace Server.Regions
 		//public bool PLACEHOLDER { get => GetFlag(RegionFlags.PLACEHOLDER); set => SetFlag(RegionFlags.PLACEHOLDER, value); }
 
 		#endregion
-
-		public void Defaults()
-		{
-			Flags = RegionFlags.DefaultRules;
-		}
-
-		public bool GetFlag(RegionFlags flags)
-		{
-			return Flags.HasFlag(flags);
-		}
-
-		public void SetFlag(RegionFlags flags, bool state)
-		{
-			if (state)
-			{
-				Flags |= flags;
-			}
-			else
-			{
-				Flags &= ~flags;
-			}
-		}
 	}
 
 	public class BaseRegion : Region
@@ -418,16 +485,16 @@ namespace Server.Regions
 		public string RuneName { get; set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public Currencies Currencies { get; private set; } = new();
+		public Currencies Currencies { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SkillPermissions SkillPermissions { get; private set; } = new();
+		public SkillPermissions SkillPermissions { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public SpellPermissions SpellPermissions { get; private set; } = new();
+		public SpellPermissions SpellPermissions { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public RegionRules Rules { get; private set; } = new();
+		public RegionRules Rules { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public AccessLevel RulesOverride { get; set; } = AccessLevel.GameMaster;
@@ -542,10 +609,10 @@ namespace Server.Regions
 		{
 			base.DefaultInit();
 
-			SkillPermissions.SetAll(true);
 			SpellPermissions.SetAll(true);
+			SkillPermissions.SetAll(true);
 
-			Rules.Flags = RegionFlags.DefaultRules;
+			Rules.Defaults();
 
 			SpawnZLevel = SpawnZLevel.Lowest;
 
@@ -627,6 +694,14 @@ namespace Server.Regions
 			if (from.AccessLevel >= RulesOverride)
 			{
 				return true;
+			}
+
+			if (!Rules.AllowCombat)
+			{
+				if (!OnRuleEnforced(RegionFlags.AllowCombat, from, target, false))
+				{
+					return false;
+				}
 			}
 
 			if (from.Player && target.Player)
@@ -848,25 +923,28 @@ namespace Server.Regions
 		{
 			if (m.AccessLevel < RulesOverride)
 			{
-				if (o is Corpse c && c.Owner != m)
+				if (o is Corpse c)
 				{
-					if (c.Owner != null && c.Owner.Player)
+					if (c.Owner != m)
 					{
-						if (!Rules.AllowPlayerLooting)
+						if (c.Owner != null && c.Owner.Player)
 						{
-							if (!OnRuleEnforced(RegionFlags.AllowPlayerLooting, m, o, false))
+							if (!Rules.AllowPlayerLooting)
 							{
-								return false;
+								if (!OnRuleEnforced(RegionFlags.AllowPlayerLooting, m, o, false))
+								{
+									return false;
+								}
 							}
 						}
-					}
-					else
-					{
-						if (!Rules.AllowCreatureLooting)
+						else
 						{
-							if (!OnRuleEnforced(RegionFlags.AllowCreatureLooting, m, o, false))
+							if (!Rules.AllowCreatureLooting)
 							{
-								return false;
+								if (!OnRuleEnforced(RegionFlags.AllowCreatureLooting, m, o, false))
+								{
+									return false;
+								}
 							}
 						}
 					}
@@ -881,13 +959,26 @@ namespace Server.Regions
 						}
 					}
 				}
-				else if (o == m)
+				else if (o is BaseMount bm)
 				{
-					if (m.Mount is BaseMount bm)
+					if (bm.Rider == null && (bm.GetMaster() == m || bm.IsPetFriend(m)))
 					{
 						if (!Rules.AllowMount)
 						{
 							if (!OnRuleEnforced(RegionFlags.AllowMount, m, bm, false))
+							{
+								return false;
+							}
+						}
+					}
+				}
+				else if (o == m)
+				{
+					if (m.Mount is IMount im)
+					{
+						if (!Rules.AllowMount)
+						{
+							if (!OnRuleEnforced(RegionFlags.AllowMount, m, im, false))
 							{
 								return false;
 							}
@@ -1012,7 +1103,7 @@ namespace Server.Regions
 					}
 				}
 
-				if (m.Kills > 5)
+				if (m.Murderer)
 				{
 					if (!Rules.CanEnterMurderer)
 					{
@@ -1089,17 +1180,19 @@ namespace Server.Regions
 					{
 						if (!OnRuleEnforced(RegionFlags.AllowEthereal, m, em, false))
 						{
-							return false;
+							em.Rider = null;
+							//return false;
 						}
 					}
 				}
-				else if (m.Mount is BaseMount bm)
+				else if (m.Mount is IMount im)
 				{
 					if (!Rules.AllowMount)
 					{
-						if (!OnRuleEnforced(RegionFlags.AllowMount, m, bm, false))
+						if (!OnRuleEnforced(RegionFlags.AllowMount, m, im, false))
 						{
-							return false;
+							im.Rider = null;
+							//return false;
 						}
 					}
 				}
@@ -1141,7 +1234,7 @@ namespace Server.Regions
 					}
 				}
 
-				if (m.Kills > 5)
+				if (m.Murderer)
 				{
 					if (!Rules.CanExitMurderer)
 					{
@@ -1207,54 +1300,11 @@ namespace Server.Regions
 			}
 		}
 
-		protected virtual bool OnRuleEnforced(RegionFlags rule, object src, object trg, bool result)
+		public virtual bool OnRuleEnforced(RegionFlags rule, object src, object trg, bool result)
 		{
 			if (!result && src is Mobile m && m.NetState != null)
 			{
-				string message = null;
-
-				switch (rule)
-				{
-					case RegionFlags.AllowLogout: message = "You cannot log-out in this area."; break;
-					case RegionFlags.AllowHouses: message = "You cannot place houses in this area."; break;
-					case RegionFlags.AllowVehicles: message = "You cannot place vehicles in this area."; break;
-					case RegionFlags.AllowSpawning: message = "You cannot spawn in this area."; break;
-					case RegionFlags.AllowFollowers: message = "You cannot bring followers to this area."; break;
-					case RegionFlags.AllowEthereal: message = "You cannot ride ethereal mounts in this area."; break;
-					case RegionFlags.AllowMount: message = "You cannot ride mounts in this area."; break;
-					case RegionFlags.AllowMagic: message = "You cannot use magic in this area."; break;
-					case RegionFlags.AllowMelee: message = "You cannot use melee weapons in this area."; break;
-					case RegionFlags.AllowRanged: message = "You cannot use ranged weapons in this area."; break;
-					case RegionFlags.AllowSkills: message = "You cannot directly use skills this area."; break;
-
-					case RegionFlags.AllowPlayerDeath: message = "You cannot kill players this area."; break;
-					case RegionFlags.AllowPlayerRes: message = "You cannot resurrect players this area."; break;
-					case RegionFlags.AllowPlayerHeal: message = "You cannot heal players this area."; break;
-					case RegionFlags.AllowPlayerHarm: message = "You cannot harm players this area."; break;
-					case RegionFlags.AllowPlayerLooting: message = "You cannot loot players this area."; break;
-
-					case RegionFlags.AllowCreatureDeath: message = "You cannot kill creatures in this area."; break;
-					case RegionFlags.AllowCreatureRes: message = "You cannot resurrect creatures in this area."; break;
-					case RegionFlags.AllowCreatureHeal: message = "You cannot heal creatures in this area."; break;
-					case RegionFlags.AllowCreatureHarm: message = "You cannot harm creatures in this area."; break;
-					case RegionFlags.AllowCreatureLooting: message = "You cannot loot creatures this area."; break;
-
-					case RegionFlags.CanEnter: message = "You cannot enter this area."; break;
-					case RegionFlags.CanEnterAlive: message = "You cannot enter this area while alive."; break;
-					case RegionFlags.CanEnterDead: message = "You cannot enter this area while dead."; break;
-					case RegionFlags.CanEnterYoung: message = "You cannot enter this area while young."; break;
-					case RegionFlags.CanEnterInnocent: message = "You cannot enter this area while innocent."; break;
-					case RegionFlags.CanEnterCriminal: message = "You cannot enter this area while criminal."; break;
-					case RegionFlags.CanEnterMurderer: message = "You cannot enter this area while murderer."; break;
-
-					case RegionFlags.CanExit: message = "You cannot leave this area."; break;
-					case RegionFlags.CanExitAlive: message = "You cannot leave this area while alive."; break;
-					case RegionFlags.CanExitDead: message = "You cannot leave this area while dead."; break;
-					case RegionFlags.CanExitYoung: message = "You cannot leave this area while young."; break;
-					case RegionFlags.CanExitInnocent: message = "You cannot leave this area while innocent."; break;
-					case RegionFlags.CanExitCriminal: message = "You cannot leave this area while criminal."; break;
-					case RegionFlags.CanExitMurderer: message = "You cannot leave this area while murderer."; break;
-				}
+				var message = GetRuleEnforcementMessage(rule);
 
 				if (!String.IsNullOrWhiteSpace(message))
 				{
@@ -1263,6 +1313,54 @@ namespace Server.Regions
 			}
 
 			return result;
+		}
+
+		public virtual string GetRuleEnforcementMessage(RegionFlags rule)
+		{
+			return rule switch
+			{
+				RegionFlags.AllowLogout => "You cannot log-out here.",
+				RegionFlags.AllowHouses => "You cannot place houses here.",
+				RegionFlags.AllowVehicles => "You cannot place vehicles here.",
+				RegionFlags.AllowSpawning => "You cannot spawn here.",
+				RegionFlags.AllowFollowers => "You cannot bring followers here.",
+				RegionFlags.AllowEthereal => "You cannot ride ethereal mounts here.",
+				RegionFlags.AllowMount => "You cannot ride mounts here.",
+				RegionFlags.AllowMagic => "You cannot use magic here.",
+				RegionFlags.AllowMelee => "You cannot use melee weapons here.",
+				RegionFlags.AllowRanged => "You cannot use ranged weapons here.",
+				RegionFlags.AllowSkills => "You cannot directly use skills here.",
+
+				RegionFlags.AllowPlayerDeath => "You cannot kill players here.",
+				RegionFlags.AllowPlayerRes => "You cannot resurrect players here.",
+				RegionFlags.AllowPlayerHeal => "You cannot heal players here.",
+				RegionFlags.AllowPlayerHarm => "You cannot harm players here.",
+				RegionFlags.AllowPlayerLooting => "You cannot loot players here.",
+
+				RegionFlags.AllowCreatureDeath => "You cannot kill creatures here.",
+				RegionFlags.AllowCreatureRes => "You cannot resurrect creatures here.",
+				RegionFlags.AllowCreatureHeal => "You cannot heal creatures here.",
+				RegionFlags.AllowCreatureHarm => "You cannot harm creatures here.",
+				RegionFlags.AllowCreatureLooting => "You cannot loot creatures here.",
+
+				RegionFlags.CanEnter => "You cannot enter.",
+				RegionFlags.CanEnterAlive => "You cannot enter while alive.",
+				RegionFlags.CanEnterDead => "You cannot enter while dead.",
+				RegionFlags.CanEnterYoung => "You cannot enter while young.",
+				RegionFlags.CanEnterInnocent => "You cannot enter while innocent.",
+				RegionFlags.CanEnterCriminal => "You cannot enter while criminal.",
+				RegionFlags.CanEnterMurderer => "You cannot enter while murderer.",
+
+				RegionFlags.CanExit => "You cannot leave.",
+				RegionFlags.CanExitAlive => "You cannot leave while alive.",
+				RegionFlags.CanExitDead => "You cannot leave while dead.",
+				RegionFlags.CanExitYoung => "You cannot leave while young.",
+				RegionFlags.CanExitInnocent => "You cannot leave while innocent.",
+				RegionFlags.CanExitCriminal => "You cannot leave while criminal.",
+				RegionFlags.CanExitMurderer => "You cannot leave while murderer.",
+
+				_ => null,
+			};
 		}
 
 		private void InitArea()
@@ -1633,11 +1731,21 @@ namespace Server.Regions
 		{
 			base.Serialize(writer);
 
-			writer.Write(4);
+			writer.Write(5);
 
 			writer.Write(RuneName);
 
-			writer.Write(Rules.Flags);
+			var rules = Rules.Flags;
+
+			if (rules == RegionFlags.DefaultRules)
+			{
+				writer.Write(true);
+			}
+			else
+			{
+				writer.Write(false);
+				writer.Write(rules);
+			}
 
 			writer.Write(SpawnZLevel);
 
@@ -1708,7 +1816,18 @@ namespace Server.Regions
 
 			RuneName = reader.ReadString();
 
-			if (v >= 2)
+			if (v >= 5)
+			{
+				if (reader.ReadBool())
+				{
+					Rules.Defaults();
+				}
+				else
+				{
+					Rules.Flags = reader.ReadEnum<RegionFlags>();
+				}
+			}
+			else if (v >= 2)
 			{
 				Rules.Flags = reader.ReadEnum<RegionFlags>();
 			}

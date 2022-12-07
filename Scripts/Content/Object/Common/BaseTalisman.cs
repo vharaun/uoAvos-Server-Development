@@ -2,12 +2,9 @@
 using Server.ContextMenus;
 using Server.Items;
 using Server.Mobiles;
-using Server.Spells.Fifth;
-using Server.Spells.First;
-using Server.Spells.Fourth;
+using Server.Spells.Magery;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Second;
 using Server.Targeting;
 
 using System;
@@ -1522,7 +1519,7 @@ namespace Server.Items
 			{
 				var m = (Mobile)parent;
 
-				AnimalForm.RemoveContext(m, true);
+				AnimalFormSpell.RemoveContext(m, true);
 			}
 		}
 

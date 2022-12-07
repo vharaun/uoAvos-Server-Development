@@ -499,7 +499,7 @@ namespace Server.Items
 
 				for (var i = 0; i < level * 5; ++i)
 				{
-					cont.DropItem(Loot.RandomScroll(0, 63, SpellbookType.Regular));
+					cont.DropItem(Loot.RandomScroll(SpellSchool.Magery));
 				}
 
 				if (Core.SE)

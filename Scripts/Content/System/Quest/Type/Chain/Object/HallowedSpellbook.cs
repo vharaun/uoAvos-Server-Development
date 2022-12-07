@@ -2,12 +2,12 @@
 
 namespace Server.Engines.ChainQuests.Items
 {
-	public class HallowedSpellbook : Spellbook
+	public class HallowedSpellbook : BookOfMagery
 	{
 		public override int LabelNumber => 1077620;  // Hallowed Spellbook
 
 		[Constructable]
-		public HallowedSpellbook() : base(0x3FFFFFFFF)
+		public HallowedSpellbook() : base(0x3FFFFFFFFUL)
 		{
 			LootType = LootType.Blessed;
 

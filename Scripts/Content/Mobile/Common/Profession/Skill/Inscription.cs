@@ -55,7 +55,7 @@ namespace Server.Engines.Craft
 				if (o is SpellScroll)
 				{
 					var scroll = (SpellScroll)o;
-					var book = Spellbook.Find(from, scroll.SpellID);
+					var book = SpellbookHelper.Find(from, scroll.SpellID);
 
 					var hasSpell = (book != null && book.HasSpell(scroll.SpellID));
 
@@ -261,7 +261,7 @@ namespace Server.Engines.Craft
 			AddSpell(typeof(CureScroll), Reg.Garlic, Reg.Ginseng);
 			AddSpell(typeof(HarmScroll), Reg.Nightshade, Reg.SpidersSilk);
 			AddSpell(typeof(MagicTrapScroll), Reg.Garlic, Reg.SpidersSilk, Reg.SulfurousAsh);
-			AddSpell(typeof(MagicUnTrapScroll), Reg.Bloodmoss, Reg.SulfurousAsh);
+			AddSpell(typeof(RemoveTrapScroll), Reg.Bloodmoss, Reg.SulfurousAsh);
 			AddSpell(typeof(ProtectionScroll), Reg.Garlic, Reg.Ginseng, Reg.SulfurousAsh);
 			AddSpell(typeof(StrengthScroll), Reg.Nightshade, Reg.MandrakeRoot);
 
@@ -272,7 +272,7 @@ namespace Server.Engines.Craft
 			AddSpell(typeof(FireballScroll), Reg.BlackPearl);
 			AddSpell(typeof(MagicLockScroll), Reg.Bloodmoss, Reg.Garlic, Reg.SulfurousAsh);
 			AddSpell(typeof(PoisonScroll), Reg.Nightshade);
-			AddSpell(typeof(TelekinisisScroll), Reg.Bloodmoss, Reg.MandrakeRoot);
+			AddSpell(typeof(TelekinesisScroll), Reg.Bloodmoss, Reg.MandrakeRoot);
 			AddSpell(typeof(TeleportScroll), Reg.Bloodmoss, Reg.MandrakeRoot);
 			AddSpell(typeof(UnlockScroll), Reg.Bloodmoss, Reg.SulfurousAsh);
 			AddSpell(typeof(WallOfStoneScroll), Reg.Bloodmoss, Reg.Garlic);
@@ -318,7 +318,7 @@ namespace Server.Engines.Craft
 
 			AddSpell(typeof(ChainLightningScroll), Reg.BlackPearl, Reg.Bloodmoss, Reg.MandrakeRoot, Reg.SulfurousAsh);
 			AddSpell(typeof(EnergyFieldScroll), Reg.BlackPearl, Reg.MandrakeRoot, Reg.SpidersSilk, Reg.SulfurousAsh);
-			AddSpell(typeof(FlamestrikeScroll), Reg.SpidersSilk, Reg.SulfurousAsh);
+			AddSpell(typeof(FlameStrikeScroll), Reg.SpidersSilk, Reg.SulfurousAsh);
 			AddSpell(typeof(GateTravelScroll), Reg.BlackPearl, Reg.MandrakeRoot, Reg.SulfurousAsh);
 			AddSpell(typeof(ManaVampireScroll), Reg.BlackPearl, Reg.Bloodmoss, Reg.MandrakeRoot, Reg.SpidersSilk);
 			AddSpell(typeof(MassDispelScroll), Reg.BlackPearl, Reg.Garlic, Reg.MandrakeRoot, Reg.SulfurousAsh);
@@ -407,7 +407,7 @@ namespace Server.Engines.Craft
 
 			if (Core.SA)
 			{
-				AddCraft(typeof(MysticSpellbook), 1044294, 1031677, 50.0, 150.0, typeof(BlankScroll), 1044377, 10, 1044378);
+				AddCraft(typeof(BookOfMysticism), 1044294, 1031677, 50.0, 150.0, typeof(BlankScroll), 1044377, 10, 1044378);
 
 				AddMysticismSpell(0, 4, -25.0, 25.0, typeof(NetherBoltScroll), Reagent.BlackPearl, Reagent.SulfurousAsh);
 				AddMysticismSpell(1, 4, -25.0, 25.0, typeof(HealingStoneScroll), Reagent.Bone, Reagent.Garlic, Reagent.Ginseng, Reagent.SpidersSilk);

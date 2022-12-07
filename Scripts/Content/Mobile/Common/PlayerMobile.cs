@@ -17,10 +17,11 @@ using Server.Network;
 using Server.Regions;
 using Server.Spells;
 using Server.Spells.Bushido;
-using Server.Spells.Fifth;
+using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
+using Server.Spells.Racial;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
 
@@ -81,71 +82,46 @@ namespace Server.Mobiles
 		private int m_PreviousMapBlock = -1;
 
 		#region Stygian Abyss
-		public override void ToggleFlying()
+		public override bool CanBeginFlight()
 		{
-			if (Race != Race.Gargoyle)
+			if (Frozen)
 			{
-				return;
-			}
-			else if (Flying)
-			{
-				Freeze(TimeSpan.FromSeconds(1));
-				Animate(61, 10, 1, true, false, 0);
-				Flying = false;
-				BuffInfo.RemoveBuff(this, BuffIcon.Fly);
-				SendMessage("You have landed.");
-
-				BaseMount.Dismount(this);
-				return;
+				SendLocalizedMessage(1060170); // You cannot use this ability while frozen.
+				return false;
 			}
 
-			var type = MountBlockReason;
+			return base.CanBeginFlight();
+		}
 
-			if (!Alive)
+		public override bool CanEndFlight()
+		{
+			if (!base.CanEndFlight())
 			{
-				SendLocalizedMessage(1113082); // You may not fly while dead.
+				LocalOverheadMessage(MessageType.Regular, 0x3B2, 1113081); // You may not land here.
+				return false;
 			}
-			else if (IsBodyMod && !(BodyMod == 666 || BodyMod == 667))
+
+			return true;
+		}
+
+		protected override void OnFlyingChange()
+		{
+			if (Spell?.IsCasting == true)
 			{
-				SendLocalizedMessage(1112453); // You can't fly in your current form!
+				Spell.Interrupt(SpellInterrupt.Unspecified);
 			}
-			else if (type != BlockMountType.None)
+
+			base.OnFlyingChange();
+
+			if (Flying)
 			{
-				switch (type)
-				{
-					case BlockMountType.Dazed:
-						SendLocalizedMessage(1112457);
-						break; // You are still too dazed to fly.
-					case BlockMountType.BolaRecovery:
-						SendLocalizedMessage(1112455);
-						break; // You cannot fly while recovering from a bola throw.
-					case BlockMountType.DismountRecovery:
-						SendLocalizedMessage(1112456);
-						break; // You cannot fly while recovering from a dismount maneuver.
-				}
-				return;
-			}
-			else if (Hits < 25) // TODO confirm
-			{
-				SendLocalizedMessage(1112454); // You must heal before flying.
+				SendSpeedControl(SpeedControlType.MountSpeed);
+				BuffInfo.AddBuff(this, new BuffInfo(BuffIcon.Fly, 1112193, 1112567)); // Flying & You are flying.
 			}
 			else
 			{
-				if (!Flying)
-				{
-					// No message?
-					if (Spell is FlySpell)
-					{
-						var spell = (FlySpell)Spell;
-						spell.Stop();
-					}
-					new FlySpell(this).Cast();
-				}
-				else
-				{
-					Flying = false;
-					BuffInfo.RemoveBuff(this, BuffIcon.Fly);
-				}
+				SendSpeedControl(SpeedControlType.Disable);
+				BuffInfo.RemoveBuff(this, BuffIcon.Fly);
 			}
 		}
 		#endregion
@@ -798,7 +774,14 @@ namespace Server.Mobiles
 		{
 			if (HomeTownsEnabled && HomeTown != null)
 			{
-				suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+				if (suffix?.Length > 0)
+				{
+					suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+				}
+				else
+				{
+					suffix = $"of {HomeTown.Definition.FriendlyName}";
+				}
 			}
 
 			return suffix;
@@ -850,6 +833,10 @@ namespace Server.Mobiles
 				Resizable = false;
 
 				AddNewPage();
+
+				AddEntryHtml(20 + OffsetSize + 160 + 20, SetCenter("Home Town Declaration"));
+
+				AddNewLine();
 
 				if (m_Page > 0)
 				{
@@ -1171,9 +1158,9 @@ namespace Server.Mobiles
 				{
 					Mount.Rider = null;
 				}
-				else if (AnimalForm.UnderTransformation(this))
+				else if (AnimalFormSpell.UnderTransformation(this))
 				{
-					AnimalForm.RemoveContext(this, true);
+					AnimalFormSpell.RemoveContext(this, true);
 				}
 			}
 
@@ -1200,7 +1187,7 @@ namespace Server.Mobiles
 
 			var max = base.GetMaxResistance(type);
 
-			if (type != ResistanceType.Physical && 60 < max && Spells.Fourth.CurseSpell.UnderEffect(this))
+			if (type != ResistanceType.Physical && 60 < max && CurseSpell.UnderEffect(this))
 			{
 				max = 60;
 			}
@@ -1215,6 +1202,17 @@ namespace Server.Mobiles
 
 		protected override void OnRaceChange(Race oldRace)
 		{
+			base.OnRaceChange(oldRace);
+
+			if (oldRace == Race.Gargoyle && Flying)
+			{
+				Flying = false;
+			}
+			else if (oldRace != Race.Gargoyle && Race == Race.Gargoyle && Mounted)
+			{
+				Mount.Rider = null;
+			}
+
 			ValidateEquipment();
 			UpdateResistances();
 		}
@@ -1311,7 +1309,7 @@ namespace Server.Mobiles
 			{
 				if (Mana < m_ExecutesLightningStrike)
 				{
-					LightningStrike.ClearCurrentMove(this);
+					LightningStrikeAbility.ClearCurrentMove(this);
 				}
 			}
 		}
@@ -1751,7 +1749,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			Spells.Sixth.InvisibilitySpell.RemoveTimer(this);
+			InvisibilitySpell.RemoveTimer(this);
 
 			base.RevealingAction();
 
@@ -1914,7 +1912,7 @@ namespace Server.Mobiles
 						strOffs = 25;
 					}
 
-					if (AnimalForm.UnderTransformation(this, typeof(BakeKitsune)) || AnimalForm.UnderTransformation(this, typeof(GreyWolf)))
+					if (AnimalFormSpell.UnderTransformation(this, typeof(BakeKitsune)) || AnimalFormSpell.UnderTransformation(this, typeof(GreyWolf)))
 					{
 						strOffs += 20;
 					}
@@ -2075,7 +2073,7 @@ namespace Server.Mobiles
 
 		public override bool AllowSkillUse(SkillName skill)
 		{
-			if (AnimalForm.UnderTransformation(this))
+			if (AnimalFormSpell.UnderTransformation(this))
 			{
 				for (var i = 0; i < m_AnimalFormRestrictedSkills.Length; i++)
 				{
@@ -2131,7 +2129,7 @@ namespace Server.Mobiles
 
 		public override void SetLocation(Point3D loc, bool isTeleport)
 		{
-			if (!isTeleport && AccessLevel == AccessLevel.Player)
+			if (!isTeleport && !Flying && AccessLevel < AccessLevel.Counselor)
 			{
 				// moving, not teleporting
 				var zDrop = (Location.Z - loc.Z);
@@ -3294,10 +3292,12 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Confidence.IsRegenerating(this))
+			if (ConfidenceSpell.IsRegenerating(this))
 			{
-				Confidence.StopRegenerating(this);
+				ConfidenceSpell.StopRegenerating(this);
 			}
+
+			SleepSpell.OnDamage(this);
 
 			WeightOverloading.FatigueOnDamage(this, amount);
 
@@ -3561,12 +3561,10 @@ namespace Server.Mobiles
 
 			SetHairMods(-1, -1);
 
-			PolymorphSpell.StopTimer(this);
-			IncognitoSpell.StopTimer(this);
 			DisguiseTimers.RemoveTimer(this);
 
-			EndAction(typeof(PolymorphSpell));
-			EndAction(typeof(IncognitoSpell));
+			IncognitoSpell.EndIncognito(this);
+			PolymorphSpell.EndPolymorph(this);
 
 			MeerMage.StopEffect(this, false);
 
@@ -3595,7 +3593,7 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Kills >= 5 && DateTime.UtcNow >= m_NextJustAward)
+			if (Murderer && DateTime.UtcNow >= m_NextJustAward)
 			{
 				var m = FindMostRecentDamager(false);
 
@@ -5166,9 +5164,9 @@ namespace Server.Mobiles
 
 			var running = ((dir & Direction.Running) != 0);
 
-			var onHorse = (Mount != null);
+			var onHorse = Mounted || Flying;
 
-			var animalContext = AnimalForm.GetContext(this);
+			var animalContext = AnimalFormSpell.GetContext(this);
 
 			if (onHorse || (animalContext != null && animalContext.SpeedBoost))
 			{

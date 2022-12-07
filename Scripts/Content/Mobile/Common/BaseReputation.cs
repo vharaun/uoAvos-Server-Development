@@ -9,8 +9,7 @@ using Server.Mobiles;
 using Server.Multis;
 using Server.Network;
 using Server.SkillHandlers;
-using Server.Spells.Seventh;
-using Server.Targeting;
+using Server.Spells.Magery;
 
 using System;
 using System.Collections;
@@ -20,8 +19,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
-
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Server.Misc
 {
@@ -432,7 +429,7 @@ namespace Server.Misc
 
 				var actual = Notoriety.CanBeAttacked;
 
-				if (trgCreature.Kills >= 5)
+				if (trgCreature.Murderer)
 				{
 					actual = Notoriety.Murderer;
 				}
@@ -469,7 +466,7 @@ namespace Server.Misc
 			}
 			else
 			{
-				if (target.Kills >= 5)
+				if (target.Murderer)
 				{
 					return Notoriety.Murderer;
 				}
@@ -630,7 +627,7 @@ namespace Server.Misc
 				}
 			}
 
-			if (target.Kills >= 5)
+			if (target.Murderer)
 			{
 				return Notoriety.Murderer;
 			}
@@ -711,7 +708,7 @@ namespace Server.Misc
 					return Notoriety.CanBeAttacked;
 				}
 
-				if (!Core.ML && !target.CanBeginAction(typeof(PolymorphSpell)))
+				if (!Core.ML && PolymorphSpell.IsPolymorphed(target))
 				{
 					return Notoriety.CanBeAttacked;
 				}
@@ -945,7 +942,7 @@ namespace Server.Misc
 
 			foreach (var definition in GetDefinitions(target))
 			{
-				points += Reputation.DeltaPoints(player, definition, delta, message);
+				points += DeltaPoints(player, definition, delta, message);
 			}
 
 			return points;
@@ -1318,29 +1315,26 @@ namespace Server.Misc
 	[Parsable]
 	public abstract class ReputationDefinition
 	{
-		public static readonly ReputationDefinition Default = Empty.Instance;
-
 		private sealed class Empty : ReputationDefinition
 		{
-			public static readonly Empty Instance;
-
-			static Empty()
-			{
-				var count = Reputation.Levels.Count;
-
-				var values = new int[count];
-
-				for (var i = 1; i < count; i++)
-				{
-					values[i] = (int)Math.Pow(2, i);
-				}
-
-				Instance = new(values);
-			}
-
-			private Empty(int[] levels)
+			public Empty(int[] levels)
 				: base((ReputationCategory)(-1), String.Empty, String.Empty, levels)
 			{ }
+		}
+
+		public static readonly ReputationDefinition Default;
+
+		static ReputationDefinition()
+		{
+			var values = Enum.GetValues<ReputationLevel>();
+			var levels = new int[values.Length];
+
+			for (var i = 1; i < levels.Length; i++)
+			{
+				levels[i] = (1 << (i - 1)) * 1000;
+			}
+
+			Default = new Empty(levels);
 		}
 
 		public static bool TryParse(string input, out ReputationDefinition value)
@@ -1397,11 +1391,18 @@ namespace Server.Misc
 			Name = name;
 			Description = description;
 
-			m_Levels = Default.m_Levels.ToArray();
-
-			if (levels?.Length > 0)
+			if (this is Empty)
 			{
-				Array.Copy(levels, m_Levels, Math.Min(levels.Length, m_Levels.Length));
+				m_Levels = levels;
+			}
+			else
+			{
+				m_Levels = Default.m_Levels.ToArray();
+
+				if (levels?.Length > 0)
+				{
+					Array.Copy(levels, m_Levels, Math.Min(levels.Length, m_Levels.Length));
+				}
 			}
 		}
 
@@ -1562,13 +1563,13 @@ namespace Server.Misc
 	}
 
 	[PropertyObject]
-	public class ReputationState : ICollection<ReputationEntry>, INotifyPropertyUpdate
+	public class ReputationState : ICollection<ReputationEntry>
 	{
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public PlayerMobile Owner { get; private set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public HashSet<ReputationEntry> Entries { get; private set; } = new();
+		public HashSet<ReputationEntry> Entries { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public int Count => Entries.Count;
@@ -1606,24 +1607,17 @@ namespace Server.Misc
 
 			_ = Entries.Add(add);
 
-			PropertyNotifier.Notify(this, Entries);
-
 			return add;
 		}
 
 		void ICollection<ReputationEntry>.Add(ReputationEntry item)
 		{
-			if (Entries.Add(item))
-			{
-				PropertyNotifier.Notify(this, Entries);
-			}
+			_ = Entries.Add(item);
 		}
 
 		public void Clear()
 		{
 			Entries.Clear();
-
-			PropertyNotifier.Notify(this, Entries);
 		}
 
 		public bool Contains(ReputationEntry entry)
@@ -1638,14 +1632,7 @@ namespace Server.Misc
 
 		public bool Remove(ReputationEntry item)
 		{
-			if (Entries.Remove(item))
-			{
-				PropertyNotifier.Notify(this, Entries);
-
-				return true;
-			}
-
-			return false;
+			return Entries.Remove(item);
 		}
 
 		public IEnumerator<ReputationEntry> GetEnumerator()
@@ -1740,7 +1727,7 @@ namespace Server.Misc
 		}
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int PointsPrevReq => Points - PointsPrev;
+		public int PointsPrevReq => PointsPrev - Points;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
 		public int PointsNext
@@ -1783,6 +1770,8 @@ namespace Server.Misc
 		public ReputationEntry(ReputationDefinition definition)
 		{
 			Definition = definition;
+
+			m_Points = PointsDef;
 		}
 
 		public ReputationEntry(GenericReader reader)
@@ -1811,7 +1800,7 @@ namespace Server.Misc
 
 	public class ReputationGump : BaseGridGump
 	{
-		private const int EntriesPerPage = 10;
+		private const int EntriesPerPage = 15;
 
 		private static readonly ImmutableList<ReputationEntry> m_Empty = ImmutableList.Create<ReputationEntry>();
 
@@ -1819,6 +1808,7 @@ namespace Server.Misc
 		{
 			var gump = new ReputationGump(player);
 
+			_ = player.CloseGump(gump.GetType());
 			_ = player.SendGump(gump, false);
 
 			return gump;
@@ -1829,6 +1819,8 @@ namespace Server.Misc
 		private readonly ReputationCategory m_Category;
 
 		private readonly int m_Page, m_PageCount;
+
+		private readonly bool m_Staff;
 
 		private readonly ImmutableList<ReputationEntry> m_View = m_Empty;
 
@@ -1873,7 +1865,7 @@ namespace Server.Misc
 		{ }
 
 		private ReputationGump(PlayerMobile player, ReputationCategory category, int page, ImmutableList<ReputationEntry> view)
-			: base(100, 100)
+			: base(50, 50)
 		{
 			m_Player = player;
 			m_Category = category;
@@ -1896,66 +1888,75 @@ namespace Server.Misc
 
 			m_PageCount = (m_View.Count + EntriesPerPage - 1) / EntriesPerPage;
 
-			Closable = false;
-			Disposable = false;
-			Dragable = false;
-			Resizable = false;
+			m_Staff = m_Player.AccessLevel >= AccessLevel.GameMaster;
+
+			Closable = true;
+			Disposable = true;
+			Dragable = true;
+			Resizable = true;
 
 			var nameWidth = 160;
-			var progWidth = 160;
+			var progWidth = 180;
 
 			AddNewPage();
 
-			if (m_Page > 0)
-			{
-				AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
-			}
-			else
-			{
-				AddEntryHeader(20);
-			}
+			AddEntryHtml(20 + nameWidth + progWidth + 20 + (m_Staff ? 20 : 0) + (OffsetSize * (m_Staff ? 3 : 2)), SetCenter($"{m_Category}"));
 
-			AddEntryHtml(OffsetSize + nameWidth + OffsetSize + progWidth, SetCenter($"{m_Category} - Page {m_Page + 1} of {m_PageCount}"));
+			AddNewLine();
 
-			if ((m_Page + 1) * EntriesPerPage < m_View.Count)
-			{
-				AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
-			}
-			else
-			{
-				AddEntryHeader(20);
-			}
+			AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
 
-			for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_View.Count; ++i, ++line)
+			AddEntryHtml(OffsetSize + nameWidth + progWidth + (m_Staff ? 20 : 0), SetCenter($"Page {m_Page + 1} of {m_PageCount}"));
+
+			AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
+
+			for (int i = m_Page * EntriesPerPage, line = 0, bid = 5 + i; line < EntriesPerPage && i < m_View.Count; ++i, ++line)
 			{
 				AddNewLine();
 
-				AddEntryProgress(20, OffsetSize, nameWidth, progWidth, m_View[i]);
+				AddEntryProgress(20, nameWidth, progWidth, m_View[i]);
 
-				AddEntryButton(20, EntryInfoID1, EntryInfoID2, 5 + i, EntryInfoWidth, EntryInfoHeight);
+				AddEntryButton(20, EntryInfoID1, EntryInfoID2, bid++, EntryInfoWidth, EntryInfoHeight);
+
+				if (m_Staff)
+				{
+					AddEntryButton(20, PageRightID1, PageRightID2, bid++, PageRightWidth, PageRightHeight);
+				}
 			}
 
 			FinishPage();
 		}
 
-		public void AddEntryProgress(int padding, int spacing, int nameWidth, int progWidth, ReputationEntry entry)
+		public void AddEntryProgress(int padding, int nameWidth, int progWidth, ReputationEntry entry)
 		{
-			AddEntryHtml(padding + spacing + nameWidth, SetRight(entry.Name));
-
-			IncreaseX(spacing);
+			AddEntryHtml(padding + nameWidth, entry.Name);
 
 			AddImageTiled(CurrentX, CurrentY, progWidth, EntryHeight, 2624);
 
 			var pointsDelta = entry.Points - entry.PointsPrev;
 			var pointsLimit = entry.PointsNext - entry.PointsPrev;
 
-			var fillWidth = (int)((progWidth - 2) * (pointsDelta / (float)pointsLimit));
+			var fillWidth = (int)(progWidth * (pointsDelta / (float)pointsLimit));
 
-			AddHtml(CurrentX + 1, CurrentY + 1, fillWidth, EntryHeight - 2, SetBGColor(entry.LevelColor), false, false);
+			if (fillWidth <= 0)
+			{
+				fillWidth = progWidth;
+			}
 
-			var text = $"{entry.Level} [{entry.Points:N0} / {entry.PointsNext:N0}]";
+			AddHtml(CurrentX, CurrentY, fillWidth, EntryHeight, SetBGColor(entry.LevelColor), false, false);
 
-			AddHtml(CurrentX + TextOffsetX, CurrentY, progWidth - TextOffsetX, EntryHeight, SetCenter(SetColor(text, Color.White)), false, false);
+			if (fillWidth < progWidth && entry.Level > 0)
+			{
+				var levelColor = Reputation.LevelColors[entry.Level - 1];
+
+				AddHtml(CurrentX + fillWidth, CurrentY, progWidth - fillWidth, EntryHeight, SetBGColor(levelColor), false, false);
+			}
+
+			var text = $"{entry.Level} [{pointsDelta:N0} / {pointsLimit:N0}]";
+
+			text = SetSmall(SetCenter(SetColor(text, Color.White)));
+
+			AddHtml(CurrentX + TextOffsetX, CurrentY, progWidth - TextOffsetX, EntryHeight, text, false, false);
 
 			IncreaseX(progWidth);
 		}
@@ -1989,7 +1990,7 @@ namespace Server.Misc
 
 							if (Reputation.Definitions.TryGetValue(cat, out var defs))
 							{
-								page = (defs.Count + EntriesPerPage - 1) / EntriesPerPage;
+								page = Math.Max(0, ((defs.Count + EntriesPerPage - 1) / EntriesPerPage) - 1);
 							}
 
 							_ = m_Player.SendGump(new ReputationGump(m_Player, cat, page));
@@ -2019,16 +2020,32 @@ namespace Server.Misc
 					}
 			}
 			
-			var v = info.ButtonID - 5;
+			var bid = info.ButtonID - 5;
+			var num = m_Staff ? 2 : 1;
 
-			if (v >= 0 && v < m_View.Count)
+			if (bid >= 0 && bid < m_View.Count * num)
 			{
+				var v = bid / num;
+				var n = bid % num;
+
 				var entry = m_View[v];
 
-				_ = m_Player.SendGump(new NoticeGump<ReputationEntry>(entry.Name, 0xFFFFFF, entry.Description, 0xFFFFFF, 420, 420, (_, _) =>
+				if (m_Staff && n != 0)
 				{
 					_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
-				}, entry));
+
+					if (n == 1)
+					{
+						_ = m_Player.SendGump(new PropertiesGump(m_Player, entry));
+					}
+				}
+				else
+				{
+					_ = m_Player.SendGump(new NoticeGump<ReputationEntry>(entry.Name, 0xFFFFFF, entry.Description, 0xFFFFFF, 420, 420, (_, _) =>
+					{
+						_ = m_Player.SendGump(new ReputationGump(m_Player, m_Category, m_Page, m_View));
+					}, entry));
+				}
 			}
 			else
 			{

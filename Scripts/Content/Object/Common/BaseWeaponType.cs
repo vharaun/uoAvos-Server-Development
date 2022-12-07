@@ -625,37 +625,32 @@ namespace Server.Items
 		{
 		}
 
-		public override TimeSpan OnSwing(Mobile attacker, Mobile defender)
+		public override TimeSpan OnSwing(Mobile attacker, Mobile defender, double damageBonus)
 		{
 			var a = WeaponAbility.GetCurrentAbility(attacker);
 
 			// Make sure we've been standing still for .25/.5/1 second depending on Era
-			if (Core.TickCount - attacker.LastMoveTime >= (Core.SE ? 250 : Core.AOS ? 500 : 1000) || (Core.AOS && WeaponAbility.GetCurrentAbility(attacker) is MovingShot))
+			if (Core.TickCount - attacker.LastMoveTime >= (Core.SE ? 250 : Core.AOS ? 500 : 1000) || (Core.AOS && a is MovingShot))
 			{
 				var canSwing = true;
 
 				if (Core.AOS)
 				{
-					canSwing = (!attacker.Paralyzed && !attacker.Frozen);
+					canSwing = !attacker.Paralyzed && !attacker.Frozen;
 
 					if (canSwing)
 					{
-						var sp = attacker.Spell as Spell;
-
-						canSwing = (sp == null || !sp.IsCasting || !sp.BlocksMovement);
+						canSwing = attacker.Spell is not Spell sp || !sp.IsCasting || !sp.BlocksMovement;
 					}
 				}
 
 				#region Dueling
-				if (attacker is PlayerMobile)
-				{
-					var pm = (PlayerMobile)attacker;
 
-					if (pm.DuelContext != null && !pm.DuelContext.CheckItemEquip(attacker, this))
-					{
-						canSwing = false;
-					}
+				if (attacker is PlayerMobile pm && pm.DuelContext != null && !pm.DuelContext.CheckItemEquip(attacker, this))
+				{
+					canSwing = false;
 				}
+
 				#endregion
 
 				if (canSwing && attacker.HarmfulCheck(defender))
@@ -667,7 +662,7 @@ namespace Server.Items
 					{
 						if (CheckHit(attacker, defender))
 						{
-							OnHit(attacker, defender);
+							OnHit(attacker, defender, damageBonus);
 						}
 						else
 						{
@@ -1007,20 +1002,15 @@ namespace Server.Items
 			}
 		}
 
-		public override TimeSpan OnSwing(Mobile attacker, Mobile defender)
+		public override TimeSpan OnSwing(Mobile attacker, Mobile defender, double damageBonus)
 		{
 			if (!Core.AOS)
 			{
 				CheckPreAOSMoves(attacker, defender);
 			}
 
-			return base.OnSwing(attacker, defender);
+			return base.OnSwing(attacker, defender, damageBonus);
 		}
-
-		/*public override void OnMiss( Mobile attacker, Mobile defender )
-		{
-			base.PlaySwingAnimation( attacker );
-		}*/
 
 		public override void Serialize(GenericWriter writer)
 		{
@@ -1373,7 +1363,7 @@ namespace Server.Items
 				attackValue += 10;
 			}
 
-			if (AnimalForm.UnderTransformation(attacker, typeof(GreyWolf)) || AnimalForm.UnderTransformation(attacker, typeof(BakeKitsune)))
+			if (AnimalFormSpell.UnderTransformation(attacker, typeof(GreyWolf)) || AnimalFormSpell.UnderTransformation(attacker, typeof(BakeKitsune)))
 			{
 				attackValue += 20;
 			}

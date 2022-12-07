@@ -98,26 +98,26 @@ namespace Server.Mobiles
 
 			//----------NPC Auto-Deletion Timer & Server Garbage Collecting----------//
 
-			m_npcAutoDelete = DateTime.Now + TimeSpan.FromSeconds(180);
+			m_npcAutoDelete = DateTime.UtcNow + TimeSpan.FromSeconds(180);
 		}
 
 		private DateTime m_NextPickup;
 
 		public override void OnThink()
 		{
-			if (m_npcAutoDelete <= DateTime.Now)
+			if (m_npcAutoDelete <= DateTime.UtcNow)
 			{
 				Delete();
 			}
 
 			base.OnThink();
 
-			if (DateTime.Now < m_NextPickup)
+			if (DateTime.UtcNow < m_NextPickup)
 			{
 				return;
 			}
 
-			m_NextPickup = DateTime.Now + TimeSpan.FromSeconds(2.5 + (2.5 * Utility.RandomDouble()));
+			m_NextPickup = DateTime.UtcNow + TimeSpan.FromSeconds(2.5 + (2.5 * Utility.RandomDouble()));
 
 			var Trash = new ArrayList();
 			foreach (var item in GetItemsInRange(5))

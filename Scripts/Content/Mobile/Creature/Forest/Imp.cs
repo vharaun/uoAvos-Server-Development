@@ -42,6 +42,8 @@
 			Tamable = true;
 			ControlSlots = 2;
 			MinTameSkill = 83.1;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -55,7 +57,6 @@
 		public override HideType HideType => HideType.Spined;
 		public override FoodType FavoriteFood => FoodType.Meat;
 		public override PackInstinct PackInstinct => PackInstinct.Daemon;
-		public override bool CanFly => true;
 
 		public Imp(Serial serial) : base(serial)
 		{

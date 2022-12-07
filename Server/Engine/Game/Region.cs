@@ -223,6 +223,11 @@ namespace Server
 				return Map.Internal.DefaultRegion;
 			}
 
+			if (p is Item item)
+			{
+				p = item.GetWorldLocation();
+			}
+
 			var sector = map.GetSector(p);
 
 			foreach (var o in sector.RegionRects)
@@ -1607,6 +1612,34 @@ namespace Server
 			if (Parent != null)
 			{
 				return Parent.OnPlayMusic(m, ref music);
+			}
+
+			return true;
+		}
+
+		public static bool CanTransition(Mobile m, Point3D location, Map map)
+		{
+			var oldRegion = m.Region;
+			var newRegion = Find(location, map);
+
+			while (oldRegion != newRegion)
+			{
+				if (!oldRegion.CanExit(m))
+				{
+					return false;
+				}
+
+				if (!newRegion.CanEnter(m))
+				{
+					return false;
+				}
+
+				if (newRegion.Parent == null)
+				{
+					return true;
+				}
+
+				newRegion = newRegion.Parent;
 			}
 
 			return true;

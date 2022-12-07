@@ -39,6 +39,8 @@ namespace Server.Mobiles
 
 			VirtualArmor = 40;
 
+			CanFly = true;
+
 			PackItem(new LesserPoisonPotion());
 		}
 
@@ -58,7 +60,6 @@ namespace Server.Mobiles
 		public override int Meat => 10;
 		public override int Hides => 20;
 		public override HideType HideType => HideType.Horned;
-		public override bool CanFly => true;
 
 		public override int GetAttackSound()
 		{

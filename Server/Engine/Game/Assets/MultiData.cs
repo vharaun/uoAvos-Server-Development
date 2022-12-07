@@ -730,9 +730,10 @@ namespace Server
 				{
 					var xOffset = allTiles[i].m_OffsetX + m_Center.m_X;
 					var yOffset = allTiles[i].m_OffsetY + m_Center.m_Y;
+					var zOffset = allTiles[i].m_OffsetZ;
 					var itemID = (allTiles[i].m_ItemID & TileData.MaxItemValue) | 0x10000;
 
-					tiles[xOffset][yOffset].Add((ushort)itemID, (sbyte)allTiles[i].m_OffsetZ);
+					tiles[xOffset][yOffset].Add((ushort)itemID, (byte)xOffset, (byte)yOffset, (sbyte)zOffset);
 				}
 			}
 
@@ -816,9 +817,10 @@ namespace Server
 				{
 					var xOffset = allTiles[i].m_OffsetX + m_Center.m_X;
 					var yOffset = allTiles[i].m_OffsetY + m_Center.m_Y;
+					var zOffset = allTiles[i].m_OffsetZ;
 					var itemID = (allTiles[i].m_ItemID & TileData.MaxItemValue) | 0x10000;
 
-					tiles[xOffset][yOffset].Add((ushort)itemID, (sbyte)allTiles[i].m_OffsetZ);
+					tiles[xOffset][yOffset].Add((ushort)itemID, (byte)xOffset, (byte)yOffset, (sbyte)zOffset);
 				}
 			}
 
@@ -895,9 +897,10 @@ namespace Server
 				{
 					var xOffset = allTiles[i].m_OffsetX + m_Center.m_X;
 					var yOffset = allTiles[i].m_OffsetY + m_Center.m_Y;
+					var zOffset = allTiles[i].m_OffsetZ;
 					var itemID = (allTiles[i].m_ItemID & TileData.MaxItemValue) | 0x10000;
 
-					tiles[xOffset][yOffset].Add((ushort)itemID, (sbyte)allTiles[i].m_OffsetZ);
+					tiles[xOffset][yOffset].Add((ushort)itemID, (byte)xOffset, (byte)yOffset, (sbyte)zOffset);
 				}
 			}
 

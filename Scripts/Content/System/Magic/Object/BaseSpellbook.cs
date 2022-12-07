@@ -1,6 +1,11 @@
-﻿using Server.Commands;
+﻿using Server.Spells;
+using Server.Commands;
 using Server.ContextMenus;
 using Server.Engines.Craft;
+using Server.Ethics;
+using Server.Gumps;
+using Server.Mobiles;
+using Server.Multis;
 using Server.Network;
 using Server.Spells;
 using Server.Targeting;
@@ -10,73 +15,72 @@ using System.Collections.Generic;
 
 namespace Server.Items
 {
-	public enum SpellbookType
-	{
-		Invalid = -1,
-		Regular,
-		Necromancer,
-		Paladin,
-		Ninja,
-		Samurai,
-		Arcanist,
-		Mystic
-	}
-
 	public enum BookQuality
 	{
 		Regular,
 		Exceptional,
 	}
 
-	public class Spellbook : Item, ICraftable, ISlayer
+	public abstract class Spellbook : Item, ICraftable, ISlayer, ISpellbook
 	{
-		private string m_EngravedText;
-		private BookQuality m_Quality;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public string EngravedText
+		private static readonly int[] m_LegendPropertyCounts = new int[]
 		{
-			get => m_EngravedText;
-			set { m_EngravedText = value; InvalidateProperties(); }
-		}
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// 0 properties : 21/52 : 40%
+			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,					// 1 property   : 15/52 : 29%
+			2, 2, 2, 2, 2, 2, 2, 2, 2, 2,									// 2 properties : 10/52 : 19%
+			3, 3, 3, 3, 3, 3,												// 3 properties :  6/52 : 12%
+		};
 
-		[CommandProperty(AccessLevel.GameMaster)]
-		public BookQuality Quality
+		private static readonly int[] m_ElderPropertyCounts = new int[]
 		{
-			get => m_Quality;
-			set { m_Quality = value; InvalidateProperties(); }
-		}
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// 0 properties : 15/34 : 44%
+			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 					// 1 property   : 10/34 : 29%
+			2, 2, 2, 2, 2, 2,								// 2 properties :  6/34 : 18%
+			3, 3, 3,										// 3 properties :  3/34 :  9%
+		};
+
+		private static readonly int[] m_GrandPropertyCounts = new int[]
+		{
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// 0 properties : 10/20 : 50%
+			1, 1, 1, 1, 1, 1,				// 1 property   :  6/20 : 30%
+			2, 2, 2,						// 2 properties :  3/20 : 15%
+			3,								// 3 properties :  1/20 :  5%
+		};
+
+		private static readonly int[] m_MasterPropertyCounts = new int[]
+		{
+			0, 0, 0, 0, 0, 0,	// 0 properties : 6/10 : 60%
+			1, 1, 1,			// 1 property   : 3/10 : 30%
+			2,					// 2 properties : 1/10 : 10%
+		};
+
+		private static readonly int[] m_AdeptPropertyCounts = new int[]
+		{
+			0, 0, 0,	// 0 properties : 3/4 : 75%
+			1,			// 1 property   : 1/4 : 25%
+		};
 
 		public static void Initialize()
 		{
-			EventSink.OpenSpellbookRequest += new OpenSpellbookRequestEventHandler(EventSink_OpenSpellbookRequest);
-			EventSink.CastSpellRequest += new CastSpellRequestEventHandler(EventSink_CastSpellRequest);
+			EventSink.OpenSpellbookRequest += EventSink_OpenSpellbookRequest;
+			EventSink.CastSpellRequest += EventSink_CastSpellRequest;
 
-			CommandSystem.Register("AllSpells", AccessLevel.GameMaster, new CommandEventHandler(AllSpells_OnCommand));
+			CommandSystem.Register("AllSpells", AccessLevel.GameMaster, AllSpells_OnCommand);
 		}
 
 		[Usage("AllSpells")]
 		[Description("Completely fills a targeted spellbook with scrolls.")]
 		private static void AllSpells_OnCommand(CommandEventArgs e)
 		{
-			e.Mobile.BeginTarget(-1, false, TargetFlags.None, new TargetCallback(AllSpells_OnTarget));
+			e.Mobile.BeginTarget(-1, false, TargetFlags.None, AllSpells_OnTarget);
 			e.Mobile.SendMessage("Target the spellbook to fill.");
 		}
 
-		private static void AllSpells_OnTarget(Mobile from, object obj)
+		public static void AllSpells_OnTarget(Mobile from, object obj)
 		{
-			if (obj is Spellbook)
+			if (obj is ISpellbook book)
 			{
-				var book = (Spellbook)obj;
-
-				if (book.BookCount == 64)
-				{
-					book.Content = UInt64.MaxValue;
-				}
-				else
-				{
-					book.Content = (1ul << book.BookCount) - 1;
-				}
+				book.Fill();
 
 				from.SendMessage("The spellbook has been filled.");
 
@@ -89,57 +93,39 @@ namespace Server.Items
 			}
 		}
 
-		private static void EventSink_OpenSpellbookRequest(OpenSpellbookRequestEventArgs e)
+		public static void EventSink_OpenSpellbookRequest(OpenSpellbookRequestEventArgs e)
 		{
 			var from = e.Mobile;
 
-			if (!Multis.DesignContext.Check(from))
+			if (!DesignContext.Check(from))
 			{
 				return; // They are customizing
 			}
 
-			SpellbookType type;
+			var book = SpellbookHelper.Find(from, SpellName.Invalid, (SpellSchool)(e.Type - 1));
 
-			switch (e.Type)
-			{
-				default:
-				case 1: type = SpellbookType.Regular; break;
-				case 2: type = SpellbookType.Necromancer; break;
-				case 3: type = SpellbookType.Paladin; break;
-				case 4: type = SpellbookType.Ninja; break;
-				case 5: type = SpellbookType.Samurai; break;
-				case 6: type = SpellbookType.Arcanist; break;
-				case 7: type = SpellbookType.Mystic; break;
-			}
-
-			var book = Spellbook.Find(from, -1, type);
-
-			if (book != null)
-			{
-				book.DisplayTo(from);
-			}
+			book?.DisplayTo(from);
 		}
 
-		private static void EventSink_CastSpellRequest(CastSpellRequestEventArgs e)
+		public static void EventSink_CastSpellRequest(CastSpellRequestEventArgs e)
 		{
 			var from = e.Mobile;
 
-			if (!Multis.DesignContext.Check(from))
+			if (!DesignContext.Check(from))
 			{
 				return; // They are customizing
 			}
 
-			var book = e.Spellbook as Spellbook;
-			var spellID = e.SpellID;
+			var book = e.Spellbook;
 
-			if (book == null || !book.HasSpell(spellID))
+			if (book == null || !book.HasSpell(e.SpellID))
 			{
-				book = Find(from, spellID);
+				book = SpellbookHelper.Find(from, e.SpellID);
 			}
 
-			if (book != null && book.HasSpell(spellID))
+			if (book != null && book.HasSpell(e.SpellID))
 			{
-				var move = SpellRegistry.GetSpecialMove(spellID);
+				var move = SpellRegistry.GetSpecialMove(e.SpellID);
 
 				if (move != null)
 				{
@@ -147,7 +133,7 @@ namespace Server.Items
 				}
 				else
 				{
-					var spell = SpellRegistry.NewSpell(spellID, from, null);
+					var spell = SpellRegistry.NewSpell(e.SpellID, from, null);
 
 					if (spell != null)
 					{
@@ -165,191 +151,29 @@ namespace Server.Items
 			}
 		}
 
-		private static readonly Dictionary<Mobile, List<Spellbook>> m_Table = new Dictionary<Mobile, List<Spellbook>>();
+		public List<SpellbookGump> Gumps { get; } = new();
 
-		public static SpellbookType GetTypeForSpell(int spellID)
+		[Hue, CommandProperty(AccessLevel.GameMaster)]
+		public override int Hue
 		{
-			if (spellID >= 0 && spellID < 64)
+			get => base.Hue;
+			set
 			{
-				return SpellbookType.Regular;
-			}
-			else if (spellID >= 100 && spellID < 117)
-			{
-				return SpellbookType.Necromancer;
-			}
-			else if (spellID >= 200 && spellID < 210)
-			{
-				return SpellbookType.Paladin;
-			}
-			else if (spellID >= 400 && spellID < 406)
-			{
-				return SpellbookType.Samurai;
-			}
-			else if (spellID >= 500 && spellID < 508)
-			{
-				return SpellbookType.Ninja;
-			}
-			else if (spellID >= 600 && spellID < 617)
-			{
-				return SpellbookType.Arcanist;
-			}
-			else if (spellID >= 677 && spellID < 693)
-			{
-				return SpellbookType.Mystic;
-			}
-
-			return SpellbookType.Invalid;
-		}
-
-		public static Spellbook FindRegular(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Regular);
-		}
-
-		public static Spellbook FindNecromancer(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Necromancer);
-		}
-
-		public static Spellbook FindPaladin(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Paladin);
-		}
-
-		public static Spellbook FindSamurai(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Samurai);
-		}
-
-		public static Spellbook FindNinja(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Ninja);
-		}
-
-		public static Spellbook FindArcanist(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Arcanist);
-		}
-
-		public static Spellbook FindMystic(Mobile from)
-		{
-			return Find(from, -1, SpellbookType.Mystic);
-		}
-
-		public static Spellbook Find(Mobile from, int spellID)
-		{
-			return Find(from, spellID, GetTypeForSpell(spellID));
-		}
-
-		public static Spellbook Find(Mobile from, int spellID, SpellbookType type)
-		{
-			if (from == null)
-			{
-				return null;
-			}
-
-			if (from.Deleted)
-			{
-				m_Table.Remove(from);
-				return null;
-			}
-
-			List<Spellbook> list = null;
-
-			m_Table.TryGetValue(from, out list);
-
-			var searchAgain = false;
-
-			if (list == null)
-			{
-				m_Table[from] = list = FindAllSpellbooks(from);
-			}
-			else
-			{
-				searchAgain = true;
-			}
-
-			var book = FindSpellbookInList(list, from, spellID, type);
-
-			if (book == null && searchAgain)
-			{
-				m_Table[from] = list = FindAllSpellbooks(from);
-
-				book = FindSpellbookInList(list, from, spellID, type);
-			}
-
-			return book;
-		}
-
-		public static Spellbook FindSpellbookInList(List<Spellbook> list, Mobile from, int spellID, SpellbookType type)
-		{
-			var pack = from.Backpack;
-
-			for (var i = list.Count - 1; i >= 0; --i)
-			{
-				if (i >= list.Count)
+				if (value <= 0)
 				{
-					continue;
+					value = Theme.BookHue;
 				}
 
-				var book = list[i];
-
-				if (!book.Deleted && (book.Parent == from || (pack != null && book.Parent == pack)) && ValidateSpellbook(book, spellID, type))
+				if (base.Hue != value)
 				{
-					return book;
-				}
+					base.Hue = value;
 
-				list.RemoveAt(i);
-			}
-
-			return null;
-		}
-
-		public static List<Spellbook> FindAllSpellbooks(Mobile from)
-		{
-			var list = new List<Spellbook>();
-
-			var item = from.FindItemOnLayer(Layer.OneHanded);
-
-			if (item is Spellbook)
-			{
-				list.Add((Spellbook)item);
-			}
-
-			var pack = from.Backpack;
-
-			if (pack == null)
-			{
-				return list;
-			}
-
-			for (var i = 0; i < pack.Items.Count; ++i)
-			{
-				item = pack.Items[i];
-
-				if (item is Spellbook)
-				{
-					list.Add((Spellbook)item);
+					_ = UpdateGumps();
 				}
 			}
-
-			return list;
 		}
-
-		public static Spellbook FindEquippedSpellbook(Mobile from)
-		{
-			return (from.FindItemOnLayer(Layer.OneHanded) as Spellbook);
-		}
-
-		public static bool ValidateSpellbook(Spellbook book, int spellID, SpellbookType type)
-		{
-			return (book.SpellbookType == type && (spellID == -1 || book.HasSpell(spellID)));
-		}
-
-		public override bool DisplayWeight => false;
 
 		private AosAttributes m_AosAttributes;
-		private AosSkillBonuses m_AosSkillBonuses;
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public AosAttributes Attributes
@@ -358,6 +182,8 @@ namespace Server.Items
 			set { }
 		}
 
+		private AosSkillBonuses m_AosSkillBonuses;
+
 		[CommandProperty(AccessLevel.GameMaster)]
 		public AosSkillBonuses SkillBonuses
 		{
@@ -365,16 +191,182 @@ namespace Server.Items
 			set { }
 		}
 
-		public virtual SpellbookType SpellbookType => SpellbookType.Regular;
-		public virtual int BookOffset => 0;
-		public virtual int BookCount => 64;
+		private string m_EngravedText;
 
-		private ulong m_Content;
-		private int m_Count;
+		[CommandProperty(AccessLevel.GameMaster)]
+		public string EngravedText
+		{
+			get => m_EngravedText;
+			set
+			{
+				m_EngravedText = value;
+
+				InvalidateProperties();
+			}
+		}
+
+		private BookQuality m_Quality;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public BookQuality Quality
+		{
+			get => m_Quality;
+			set
+			{
+				m_Quality = value;
+
+				InvalidateProperties();
+			}
+		}
+
+		private Mobile m_Crafter;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public Mobile Crafter
+		{
+			get => m_Crafter;
+			set
+			{
+				m_Crafter = value;
+
+				InvalidateProperties();
+			}
+		}
+
+		private SlayerName m_Slayer;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SlayerName Slayer
+		{
+			get => m_Slayer;
+			set
+			{
+				m_Slayer = value;
+
+				InvalidateProperties();
+			}
+		}
+
+		private SlayerName m_Slayer2;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SlayerName Slayer2
+		{
+			get => m_Slayer2;
+			set
+			{
+				m_Slayer2 = value;
+
+				InvalidateProperties();
+			}
+		}
+
+		public override bool DisplayWeight => false;
+
+		public override bool DisplayLootType => Core.AOS;
+
+		public virtual bool DisplaySpellCount => true;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public abstract SpellSchool School { get; }
+
+		protected ulong m_Content;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public virtual ulong Content
+		{
+			get => m_Content;
+			set
+			{
+				if (m_Content != value)
+				{
+					m_Content = value;
+
+					SpellCount = 0;
+
+					while (value > 0)
+					{
+						SpellCount += (int)(value & 0x1);
+
+						value >>= 1;
+					}
+
+					InvalidateProperties();
+
+					_ = UpdateGumps();
+				}
+			}
+		}
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public int SpellCount { get; protected set; }
+
+		public int BookOffset => SpellbookHelper.GetSchoolOffset(School);
+		public int BookCount => SpellbookHelper.GetSchoolCount(School);
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SpellbookTheme Theme => SpellbookTheme.GetTheme(School);
+
+		public override string DefaultName => $"{Theme.Name} {Theme.Summary}";
+
+		public virtual bool UseGumps => true;
+		public virtual bool FillSpells => false;
+		public virtual bool AllowEquip => Core.ML;
+
+		[Constructable]
+		public Spellbook() 
+			: this(0UL)
+		{
+		}
+
+		[Constructable]
+		public Spellbook(ulong content) 
+			: this(content, 0xEFA)
+		{
+		}
+
+		[Constructable]
+		public Spellbook(ulong content, int itemID) 
+			: base(itemID)
+		{
+			m_AosAttributes = new AosAttributes(this);
+			m_AosSkillBonuses = new AosSkillBonuses(this);
+
+			Weight = 3.0;
+			Layer = Layer.OneHanded;
+			LootType = LootType.Blessed;
+
+			Content = content;
+
+			Hue = 0;
+
+			if (FillSpells)
+			{
+				Fill();
+			}
+		}
+
+		public Spellbook(Serial serial) 
+			: base(serial)
+		{
+		}
+
+		public virtual void Fill()
+		{
+			if (Deleted)
+			{
+				return;
+			}
+
+			foreach (var spell in SpellRegistry.GetSpells(School))
+			{
+				_ = AddSpell(spell);
+			}
+		}
 
 		public override bool AllowSecureTrade(Mobile from, Mobile to, Mobile newOwner, bool accepted)
 		{
-			if (!Ethics.Ethic.CheckTrade(from, to, newOwner, this))
+			if (!Ethic.CheckTrade(from, to, newOwner, this))
 			{
 				return false;
 			}
@@ -384,11 +376,17 @@ namespace Server.Items
 
 		public override bool CanEquip(Mobile from)
 		{
-			if (!Ethics.Ethic.CheckEquip(from, this))
+			if (!AllowEquip)
 			{
 				return false;
 			}
-			else if (!from.CanBeginAction(typeof(BaseWeapon)))
+
+			if (!Ethic.CheckEquip(from, this))
+			{
+				return false;
+			}
+
+			if (!from.CanBeginAction(typeof(BaseWeapon)))
 			{
 				return false;
 			}
@@ -401,116 +399,23 @@ namespace Server.Items
 			return true;
 		}
 
-		public override bool OnDragDrop(Mobile from, Item dropped)
-		{
-			if (dropped is SpellScroll && dropped.Amount == 1)
-			{
-				var scroll = (SpellScroll)dropped;
-
-				var type = GetTypeForSpell(scroll.SpellID);
-
-				if (type != SpellbookType)
-				{
-					return false;
-				}
-				else if (HasSpell(scroll.SpellID))
-				{
-					from.SendLocalizedMessage(500179); // That spell is already present in that spellbook.
-					return false;
-				}
-				else
-				{
-					var val = scroll.SpellID - BookOffset;
-
-					if (val >= 0 && val < BookCount)
-					{
-						m_Content |= (ulong)1 << val;
-						++m_Count;
-
-						InvalidateProperties();
-
-						scroll.Delete();
-
-						from.Send(new PlaySound(0x249, GetWorldLocation()));
-						return true;
-					}
-
-					return false;
-				}
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public ulong Content
-		{
-			get => m_Content;
-			set
-			{
-				if (m_Content != value)
-				{
-					m_Content = value;
-
-					m_Count = 0;
-
-					while (value > 0)
-					{
-						m_Count += (int)(value & 0x1);
-						value >>= 1;
-					}
-
-					InvalidateProperties();
-				}
-			}
-		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public int SpellCount => m_Count;
-
-		[Constructable]
-		public Spellbook() : this((ulong)0)
-		{
-		}
-
-		[Constructable]
-		public Spellbook(ulong content) : this(content, 0xEFA)
-		{
-		}
-
-		public Spellbook(ulong content, int itemID) : base(itemID)
-		{
-			m_AosAttributes = new AosAttributes(this);
-			m_AosSkillBonuses = new AosSkillBonuses(this);
-
-			Weight = 3.0;
-			Layer = Layer.OneHanded;
-			LootType = LootType.Blessed;
-
-			Content = content;
-		}
-
 		public override void OnAfterDuped(Item newItem)
 		{
-			var book = newItem as Spellbook;
+			base.OnAfterDuped(newItem);
 
-			if (book == null)
+			if (newItem is Spellbook book)
 			{
-				return;
+				book.m_AosAttributes = new AosAttributes(newItem, m_AosAttributes);
+				book.m_AosSkillBonuses = new AosSkillBonuses(newItem, m_AosSkillBonuses);
 			}
-
-			book.m_AosAttributes = new AosAttributes(newItem, m_AosAttributes);
-			book.m_AosSkillBonuses = new AosSkillBonuses(newItem, m_AosSkillBonuses);
 		}
 
 		public override void OnAdded(IEntity parent)
 		{
-			if (Core.AOS && parent is Mobile)
-			{
-				var from = (Mobile)parent;
+			base.OnAdded(parent);
 
+			if (Core.AOS && parent is Mobile from)
+			{
 				m_AosSkillBonuses.AddTo(from);
 
 				var strBonus = m_AosAttributes.BonusStr;
@@ -543,10 +448,10 @@ namespace Server.Items
 
 		public override void OnRemoved(IEntity parent)
 		{
-			if (Core.AOS && parent is Mobile)
-			{
-				var from = (Mobile)parent;
+			base.OnRemoved(parent);
 
+			if (Core.AOS && parent is Mobile from)
+			{
 				m_AosSkillBonuses.Remove();
 
 				var modName = Serial.ToString();
@@ -559,100 +464,88 @@ namespace Server.Items
 			}
 		}
 
-		public bool HasSpell(int spellID)
+		public override void OnDelete()
 		{
-			spellID -= BookOffset;
+			base.OnDelete();
 
-			return (spellID >= 0 && spellID < BookCount && (m_Content & ((ulong)1 << spellID)) != 0);
+			_ = CloseGumps();
 		}
 
-		public Spellbook(Serial serial) : base(serial)
+		public override void OnAfterDelete()
 		{
+			base.OnAfterDelete();
+
+			_ = CloseGumps();
 		}
 
-		public void DisplayTo(Mobile to)
+		public override bool OnDragDrop(Mobile from, Item dropped)
 		{
-			// The client must know about the spellbook or it will crash!
-
-			var ns = to.NetState;
-
-			if (ns == null)
-			{
-				return;
-			}
-
-			if (Parent == null)
-			{
-				to.Send(WorldPacket);
-			}
-			else if (Parent is Item)
-			{
-				// What will happen if the client doesn't know about our parent?
-				if (ns.ContainerGridLines)
-				{
-					to.Send(new ContainerContentUpdate6017(this));
-				}
-				else
-				{
-					to.Send(new ContainerContentUpdate(this));
-				}
-			}
-			else if (Parent is Mobile)
-			{
-				// What will happen if the client doesn't know about our parent?
-				to.Send(new EquipUpdate(this));
-			}
-
-			if (ns.HighSeas)
-			{
-				to.Send(new DisplaySpellbookHS(this));
-			}
-			else
-			{
-				to.Send(new DisplaySpellbook(this));
-			}
-
-			if (ObjectPropertyList.Enabled)
-			{
-				if (ns.NewSpellbook)
-				{
-					to.Send(new NewSpellbookContent(this, ItemID, BookOffset + 1, m_Content));
-				}
-				else
-				{
-					if (ns.ContainerGridLines)
-					{
-						to.Send(new SpellbookContent6017(m_Count, BookOffset + 1, m_Content, this));
-					}
-					else
-					{
-						to.Send(new SpellbookContent(m_Count, BookOffset + 1, m_Content, this));
-					}
-				}
-			}
-			else
-			{
-				if (ns.ContainerGridLines)
-				{
-					to.Send(new SpellbookContent6017(m_Count, BookOffset + 1, m_Content, this));
-				}
-				else
-				{
-					to.Send(new SpellbookContent(m_Count, BookOffset + 1, m_Content, this));
-				}
-			}
+			return dropped is SpellScroll scroll && AddScroll(from, scroll);
 		}
 
-		private Mobile m_Crafter;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public Mobile Crafter
+		public virtual bool HasSpell(SpellName spell)
 		{
-			get => m_Crafter;
-			set { m_Crafter = value; InvalidateProperties(); }
+			var spellID = SpellbookHelper.GetSpellIndex(spell);
+
+			return spellID >= 0 && spellID < BookCount && (m_Content & (1UL << spellID)) != 0;
 		}
 
-		public override bool DisplayLootType => Core.AOS;
+		public virtual bool AddSpell(SpellName spell)
+		{
+			if (Deleted || spell == SpellName.Invalid)
+			{
+				return false;
+			}
+
+			if (HasSpell(spell))
+			{
+				return false;
+			}
+
+			var index = SpellbookHelper.GetSpellIndex(spell);
+
+			if (index >= 0)
+			{
+				Content |= 1ul << index;
+
+				return true;
+			}
+
+			return false;
+		}
+
+		public virtual bool AddScroll(Mobile from, SpellScroll scroll)
+		{
+			if (scroll?.Deleted != false || !scroll.Movable || scroll.SpellID == SpellName.Invalid || !scroll.CheckItemUse(from))
+			{
+				return false;
+			}
+
+			var school = SpellRegistry.GetSchool(scroll.SpellID);
+
+			if (school != School)
+			{
+				from?.SendMessage("That spell does not belong in that spellbook.");
+				return false;
+			}
+
+			if (HasSpell(scroll.SpellID))
+			{
+				from?.SendLocalizedMessage(500179); // That spell is already present in that spellbook.
+				return false;
+			}
+
+			if (!AddSpell(scroll.SpellID))
+			{
+				return false;
+			}
+
+			scroll.Delete();
+
+			from?.SendSound(0x249, GetWorldLocation());
+
+			return true;
+		}
 
 		public override void GetProperties(ObjectPropertyList list)
 		{
@@ -678,6 +571,7 @@ namespace Server.Items
 			if (m_Slayer != SlayerName.None)
 			{
 				var entry = SlayerGroup.GetEntryByName(m_Slayer);
+
 				if (entry != null)
 				{
 					list.Add(entry.Title);
@@ -687,6 +581,7 @@ namespace Server.Items
 			if (m_Slayer2 != SlayerName.None)
 			{
 				var entry = SlayerGroup.GetEntryByName(m_Slayer2);
+
 				if (entry != null)
 				{
 					list.Add(entry.Title);
@@ -765,7 +660,7 @@ namespace Server.Items
 				list.Add(1060440, prop.ToString()); // mana regeneration ~1_val~
 			}
 
-			if ((prop = m_AosAttributes.NightSight) != 0)
+			if (m_AosAttributes.NightSight != 0)
 			{
 				list.Add(1060441); // night sight
 			}
@@ -785,7 +680,7 @@ namespace Server.Items
 				list.Add(1060444, prop.ToString()); // hit point regeneration ~1_val~
 			}
 
-			if ((prop = m_AosAttributes.SpellChanneling) != 0)
+			if (m_AosAttributes.SpellChanneling != 0)
 			{
 				list.Add(1060482); // spell channeling
 			}
@@ -815,207 +710,11 @@ namespace Server.Items
 				list.Add(1075210, prop.ToString()); // Increased Karma Loss ~1val~%
 			}
 
-			list.Add(1042886, m_Count.ToString()); // ~1_NUMBERS_OF_SPELLS~ Spells
-		}
-
-		public override void OnSingleClick(Mobile from)
-		{
-			base.OnSingleClick(from);
-
-			if (m_Crafter != null)
+			if (DisplaySpellCount)
 			{
-				LabelTo(from, 1050043, m_Crafter.Name); // crafted by ~1_NAME~
-			}
-
-			LabelTo(from, 1042886, m_Count.ToString());
-		}
-
-		public override void OnDoubleClick(Mobile from)
-		{
-			var pack = from.Backpack;
-
-			if (Parent == from || (pack != null && Parent == pack))
-			{
-				DisplayTo(from);
-			}
-			else
-			{
-				from.SendLocalizedMessage(500207); // The spellbook must be in your backpack (and not in a container within) to open.
+				list.Add(1042886, SpellCount.ToString()); // ~1_NUMBERS_OF_SPELLS~ Spells
 			}
 		}
-
-
-		private SlayerName m_Slayer;
-		private SlayerName m_Slayer2;
-		//Currently though there are no dual slayer spellbooks, OSI has a habit of putting dual slayer stuff in later
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public SlayerName Slayer
-		{
-			get => m_Slayer;
-			set { m_Slayer = value; InvalidateProperties(); }
-		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public SlayerName Slayer2
-		{
-			get => m_Slayer2;
-			set { m_Slayer2 = value; InvalidateProperties(); }
-		}
-
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(5); // version
-
-			writer.Write((byte)m_Quality);
-
-			writer.Write(m_EngravedText);
-
-			writer.Write(m_Crafter);
-
-			writer.Write((int)m_Slayer);
-			writer.Write((int)m_Slayer2);
-
-			m_AosAttributes.Serialize(writer);
-			m_AosSkillBonuses.Serialize(writer);
-
-			writer.Write(m_Content);
-			writer.Write(m_Count);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-
-			var version = reader.ReadInt();
-
-			switch (version)
-			{
-				case 5:
-					{
-						m_Quality = (BookQuality)reader.ReadByte();
-
-						goto case 4;
-					}
-				case 4:
-					{
-						m_EngravedText = reader.ReadString();
-
-						goto case 3;
-					}
-				case 3:
-					{
-						m_Crafter = reader.ReadMobile();
-						goto case 2;
-					}
-				case 2:
-					{
-						m_Slayer = (SlayerName)reader.ReadInt();
-						m_Slayer2 = (SlayerName)reader.ReadInt();
-						goto case 1;
-					}
-				case 1:
-					{
-						m_AosAttributes = new AosAttributes(this, reader);
-						m_AosSkillBonuses = new AosSkillBonuses(this, reader);
-
-						goto case 0;
-					}
-				case 0:
-					{
-						m_Content = reader.ReadULong();
-						m_Count = reader.ReadInt();
-
-						break;
-					}
-			}
-
-			if (m_AosAttributes == null)
-			{
-				m_AosAttributes = new AosAttributes(this);
-			}
-
-			if (m_AosSkillBonuses == null)
-			{
-				m_AosSkillBonuses = new AosSkillBonuses(this);
-			}
-
-			if (Core.AOS && Parent is Mobile)
-			{
-				m_AosSkillBonuses.AddTo((Mobile)Parent);
-			}
-
-			var strBonus = m_AosAttributes.BonusStr;
-			var dexBonus = m_AosAttributes.BonusDex;
-			var intBonus = m_AosAttributes.BonusInt;
-
-			if (Parent is Mobile && (strBonus != 0 || dexBonus != 0 || intBonus != 0))
-			{
-				var m = (Mobile)Parent;
-
-				var modName = Serial.ToString();
-
-				if (strBonus != 0)
-				{
-					m.AddStatMod(new StatMod(StatType.Str, modName + "Str", strBonus, TimeSpan.Zero));
-				}
-
-				if (dexBonus != 0)
-				{
-					m.AddStatMod(new StatMod(StatType.Dex, modName + "Dex", dexBonus, TimeSpan.Zero));
-				}
-
-				if (intBonus != 0)
-				{
-					m.AddStatMod(new StatMod(StatType.Int, modName + "Int", intBonus, TimeSpan.Zero));
-				}
-			}
-
-			if (Parent is Mobile)
-			{
-				((Mobile)Parent).CheckStatTimers();
-			}
-		}
-
-		private static readonly int[] m_LegendPropertyCounts = new int[]
-			{
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// 0 properties : 21/52 : 40%
-				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,					// 1 property   : 15/52 : 29%
-				2, 2, 2, 2, 2, 2, 2, 2, 2, 2,									// 2 properties : 10/52 : 19%
-				3, 3, 3, 3, 3, 3												// 3 properties :  6/52 : 12%
-
-			};
-
-		private static readonly int[] m_ElderPropertyCounts = new int[]
-			{
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,// 0 properties : 15/34 : 44%
-				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 				// 1 property   : 10/34 : 29%
-				2, 2, 2, 2, 2, 2,							// 2 properties :  6/34 : 18%
-				3, 3, 3										// 3 properties :  3/34 :  9%
-			};
-
-		private static readonly int[] m_GrandPropertyCounts = new int[]
-			{
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// 0 properties : 10/20 : 50%
-				1, 1, 1, 1, 1, 1,				// 1 property   :  6/20 : 30%
-				2, 2, 2,						// 2 properties :  3/20 : 15%
-				3								// 3 properties :  1/20 :  5%
-			};
-
-		private static readonly int[] m_MasterPropertyCounts = new int[]
-			{
-				0, 0, 0, 0, 0, 0,				// 0 properties : 6/10 : 60%
-				1, 1, 1,						// 1 property   : 3/10 : 30%
-				2								// 2 properties : 1/10 : 10%
-			};
-
-		private static readonly int[] m_AdeptPropertyCounts = new int[]
-			{
-				0, 0, 0,						// 0 properties : 3/4 : 75%
-				1								// 1 property   : 1/4 : 25%
-			};
 
 		public virtual int OnCraft(int quality, bool makersMark, Mobile from, CraftSystem craftSystem, Type typeRes, BaseTool tool, CraftItem craftItem, int resHue)
 		{
@@ -1072,19 +771,404 @@ namespace Server.Items
 
 			return quality;
 		}
+
+		protected override void OnParentChanged(IEntity oldParent)
+		{
+			base.OnParentChanged(oldParent);
+
+			_ = UpdateGumps();
+		}
+
+		public override void OnSingleClick(Mobile from)
+		{
+			base.OnSingleClick(from);
+
+			if (m_Crafter != null)
+			{
+				LabelTo(from, 1050043, m_Crafter.Name); // crafted by ~1_NAME~
+			}
+
+			LabelTo(from, 1042886, SpellCount.ToString());
+		}
+
+		public override void OnDoubleClick(Mobile from)
+		{
+			var pack = from.Backpack;
+
+			if (Parent == from || (pack != null && Parent == pack))
+			{
+				DisplayTo(from);
+			}
+			else
+			{
+				from.SendLocalizedMessage(500207); // The spellbook must be in your backpack (and not in a container within) to open.
+			}
+		}
+
+		public virtual bool CanDisplayTo(Mobile user, bool message)
+		{
+			if (Deleted || user == null || user.Deleted || user.NetState?.Running != true)
+			{
+				return false;
+			}
+
+			if (Parent != user && Parent != user.Backpack)
+			{
+				if (message)
+				{
+					user.SendMessage("The spellbook must be in your backpack [and not in a container within] to open.");
+				}
+
+				return false;
+			}
+
+			if (!DesignContext.Check(user))
+			{
+				if (message)
+				{
+					user.SendMessage("You cannot do that while customizing.");
+				}
+
+				return false;
+			}
+
+			return true;
+		}
+
+		public void DisplayTo(Mobile user)
+		{
+			if (user == null)
+			{
+				return;
+			}
+
+			var ns = user.NetState;
+
+			if (Deleted || user.Deleted || !user.Player || ns == null)
+			{
+				_ = CloseGump(user);
+				return;
+			}
+
+			if (!CanDisplayTo(user, false))
+			{
+				_ = CloseGump(user);
+				return;
+			}
+
+			OnDisplayTo(user, false);
+		}
+
+		protected virtual void OnDisplayTo(Mobile user, bool refreshOnly)
+		{
+			if (UseGumps && user is PlayerMobile pm)
+			{
+				if (!UpdateGump(user) && !refreshOnly)
+				{
+					_ = BaseGump.SendGump(new SpellbookGump(pm, this));
+				}
+			}
+			else
+			{
+				_ = CloseGump(user);
+
+				var ns = user.NetState;
+
+				if (ns == null)
+				{
+					return;
+				}
+
+				if (Parent == null)
+				{
+					ns.Send(WorldPacket);
+				}
+				else if (Parent is Item)
+				{
+					// What will happen if the client doesn't know about our parent?
+					if (ns.ContainerGridLines)
+					{
+						ns.Send(new ContainerContentUpdate6017(this));
+					}
+					else
+					{
+						ns.Send(new ContainerContentUpdate(this));
+					}
+				}
+				else if (Parent is Mobile)
+				{
+					// What will happen if the client doesn't know about our parent?
+					ns.Send(new EquipUpdate(this));
+				}
+
+				if (ns.HighSeas)
+				{
+					ns.Send(new DisplaySpellbookHS(this));
+				}
+				else
+				{
+					ns.Send(new DisplaySpellbook(this));
+				}
+
+				if (ObjectPropertyList.Enabled)
+				{
+					if (ns.NewSpellbook)
+					{
+						ns.Send(new NewSpellbookContent(this, ItemID, BookOffset + 1, m_Content));
+					}
+					else if (ns.ContainerGridLines)
+					{
+						ns.Send(new SpellbookContent6017(SpellCount, BookOffset + 1, m_Content, this));
+					}
+					else
+					{
+						ns.Send(new SpellbookContent(SpellCount, BookOffset + 1, m_Content, this));
+					}
+				}
+				else if (ns.ContainerGridLines)
+				{
+					ns.Send(new SpellbookContent6017(SpellCount, BookOffset + 1, m_Content, this));
+				}
+				else
+				{
+					ns.Send(new SpellbookContent(SpellCount, BookOffset + 1, m_Content, this));
+				}
+			}
+		}
+
+		public bool UpdateGump(Mobile user)
+		{
+			if (user == null)
+			{
+				return false;
+			}
+
+			if (!CanDisplayTo(user, false))
+			{
+				return CloseGump(user);
+			}
+
+			var index = Gumps.Count;
+			var affected = 0;
+
+			while (--index >= 0)
+			{
+				if (index < Gumps.Count && Gumps[index].User == user)
+				{
+					if (affected == 0)
+					{
+						Gumps[index].Refresh();
+					}
+					else
+					{
+						Gumps[index].Close();
+					}
+
+					++affected;
+				}
+			}
+
+			return affected > 0;
+		}
+
+		public int UpdateGumps()
+		{
+			if (Deleted || Parent == null)
+			{
+				return CloseGumps();
+			}
+
+			var index = Gumps.Count;
+			var affected = 0;
+
+			while (--index >= 0)
+			{
+				if (index < Gumps.Count)
+				{
+					if (CanDisplayTo(Gumps[index].User, false))
+					{
+						Gumps[index].Refresh();
+					}
+					else
+					{
+						Gumps[index].Close();
+					}
+
+					++affected;
+				}
+			}
+
+			return affected;
+		}
+
+		public bool CloseGump(Mobile user)
+		{
+			if (user == null)
+			{
+				return false;
+			}
+
+			var index = Gumps.Count;
+			var affected = 0;
+
+			while (--index >= 0)
+			{
+				if (index < Gumps.Count && Gumps[index].User == user)
+				{
+					Gumps[index].Close();
+
+					++affected;
+				}
+			}
+
+			return affected > 0;
+		}
+
+		public int CloseGumps()
+		{
+			var index = Gumps.Count;
+			var affected = 0;
+
+			while (--index >= 0)
+			{
+				if (index < Gumps.Count)
+				{
+					Gumps[index].Close();
+
+					++affected;
+				}
+			}
+
+			return affected;
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(5); // version
+
+			writer.Write((byte)m_Quality);
+
+			writer.Write(m_EngravedText);
+
+			writer.Write(m_Crafter);
+
+			writer.Write((int)m_Slayer);
+			writer.Write((int)m_Slayer2);
+
+			m_AosAttributes.Serialize(writer);
+			m_AosSkillBonuses.Serialize(writer);
+
+			writer.Write(m_Content);
+			writer.Write(SpellCount);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+
+			switch (version)
+			{
+				case 5:
+					{
+						m_Quality = (BookQuality)reader.ReadByte();
+
+						goto case 4;
+					}
+				case 4:
+					{
+						m_EngravedText = reader.ReadString();
+
+						goto case 3;
+					}
+				case 3:
+					{
+						m_Crafter = reader.ReadMobile();
+
+						goto case 2;
+					}
+				case 2:
+					{
+						m_Slayer = (SlayerName)reader.ReadInt();
+						m_Slayer2 = (SlayerName)reader.ReadInt();
+
+						goto case 1;
+					}
+				case 1:
+					{
+						m_AosAttributes = new AosAttributes(this, reader);
+						m_AosSkillBonuses = new AosSkillBonuses(this, reader);
+
+						goto case 0;
+					}
+				case 0:
+					{
+						m_Content = reader.ReadULong();
+						SpellCount = reader.ReadInt();
+
+						break;
+					}
+			}
+
+			m_AosAttributes ??= new AosAttributes(this);
+			m_AosSkillBonuses ??= new AosSkillBonuses(this);
+			
+			if (Parent is Mobile m)
+			{
+				if (Core.AOS)
+				{
+					m_AosSkillBonuses.AddTo(m);
+				}
+
+				var strBonus = m_AosAttributes.BonusStr;
+				var dexBonus = m_AosAttributes.BonusDex;
+				var intBonus = m_AosAttributes.BonusInt;
+
+				if (strBonus != 0 || dexBonus != 0 || intBonus != 0)
+				{
+					var modName = Serial.ToString();
+
+					if (strBonus != 0)
+					{
+						m.AddStatMod(new StatMod(StatType.Str, modName + "Str", strBonus, TimeSpan.Zero));
+					}
+
+					if (dexBonus != 0)
+					{
+						m.AddStatMod(new StatMod(StatType.Dex, modName + "Dex", dexBonus, TimeSpan.Zero));
+					}
+
+					if (intBonus != 0)
+					{
+						m.AddStatMod(new StatMod(StatType.Int, modName + "Int", intBonus, TimeSpan.Zero));
+					}
+				}
+
+				m.CheckStatTimers();
+			}
+
+			if (FillSpells && SpellCount != BookCount)
+			{
+				Timer.DelayCall(Fill);
+			}
+		}
 	}
 
 	public class AddToSpellbookEntry : ContextMenuEntry
 	{
-		public AddToSpellbookEntry() : base(6144, 3)
+		public AddToSpellbookEntry() 
+			: base(6144, 3)
 		{
 		}
 
 		public override void OnClick()
 		{
-			if (Owner.From.CheckAlive() && Owner.Target is SpellScroll)
+			if (Owner.From.CheckAlive() && Owner.Target is SpellScroll ss)
 			{
-				Owner.From.Target = new InternalTarget((SpellScroll)Owner.Target);
+				Owner.From.Target = new InternalTarget(ss);
 			}
 		}
 
@@ -1092,42 +1176,22 @@ namespace Server.Items
 		{
 			private readonly SpellScroll m_Scroll;
 
-			public InternalTarget(SpellScroll scroll) : base(3, false, TargetFlags.None)
+			public InternalTarget(SpellScroll scroll) 
+				: base(3, false, TargetFlags.None)
 			{
 				m_Scroll = scroll;
 			}
 
 			protected override void OnTarget(Mobile from, object targeted)
 			{
-				if (targeted is Spellbook)
+				if (!from.CheckAlive())
 				{
-					if (from.CheckAlive() && !m_Scroll.Deleted && m_Scroll.Movable && m_Scroll.Amount >= 1 && m_Scroll.CheckItemUse(from))
-					{
-						var book = (Spellbook)targeted;
+					return;
+				}
 
-						var type = Spellbook.GetTypeForSpell(m_Scroll.SpellID);
-
-						if (type != book.SpellbookType)
-						{
-						}
-						else if (book.HasSpell(m_Scroll.SpellID))
-						{
-							from.SendLocalizedMessage(500179); // That spell is already present in that spellbook.
-						}
-						else
-						{
-							var val = m_Scroll.SpellID - book.BookOffset;
-
-							if (val >= 0 && val < book.BookCount)
-							{
-								book.Content |= (ulong)1 << val;
-
-								m_Scroll.Consume();
-
-								from.Send(new Network.PlaySound(0x249, book.GetWorldLocation()));
-							}
-						}
-					}
+				if (targeted is Spellbook book)
+				{
+					book.AddScroll(from, m_Scroll);
 				}
 			}
 		}

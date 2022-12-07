@@ -166,7 +166,7 @@ namespace Server.Engines.Quests.Items
 				return;
 			}
 
-			var animalContext = AnimalForm.GetContext(from);
+			var animalContext = AnimalFormSpell.GetContext(from);
 
 			if (Core.ML && animalContext != null)
 			{
@@ -415,10 +415,26 @@ namespace Server.Engines.Quests.Items
 
 		private class PetSummoningSpell : Spell
 		{
-			private static readonly SpellInfo m_Info = new SpellInfo("Ball Of Summoning", "", 230);
+			private static readonly SpellInfo m_Info = new(typeof(PetSummoningSpell))
+			{
+				Name = "Ball Of Summoning",
+				Action = 230,
+			};
 
 			private readonly BallOfSummoning m_Ball;
 			private readonly Mobile m_Caster;
+
+			private bool m_Stop;
+
+			public override double CastDelayFastScalar => 0;
+
+			public override TimeSpan CastDelayBase => TimeSpan.FromSeconds(2.0);
+
+			public override bool ClearHandsOnCast => false;
+			public override bool RevealOnCast => true;
+
+			public override SkillName CastSkill => SkillName.Focus;
+			public override SkillName DamageSkill => SkillName.Focus;
 
 			public PetSummoningSpell(BallOfSummoning ball, Mobile caster)
 				: base(caster, null, m_Info)
@@ -427,21 +443,9 @@ namespace Server.Engines.Quests.Items
 				m_Ball = ball;
 			}
 
-			public override bool ClearHandsOnCast => false;
-			public override bool RevealOnCast => true;
-
 			public override TimeSpan GetCastRecovery()
 			{
 				return TimeSpan.Zero;
-			}
-
-			public override double CastDelayFastScalar => 0;
-
-			public override TimeSpan CastDelayBase => TimeSpan.FromSeconds(2.0);
-
-			public override int GetMana()
-			{
-				return 0;
 			}
 
 			public override bool ConsumeReagents()
@@ -454,22 +458,16 @@ namespace Server.Engines.Quests.Items
 				return true;
 			}
 
-			private bool m_Stop;
-
 			public void Stop()
 			{
 				m_Stop = true;
-				Disturb(DisturbType.Hurt, false, false);
+
+				Interrupt(SpellInterrupt.Hurt);
 			}
 
-			public override bool CheckDisturb(DisturbType type, bool checkFirst, bool resistable)
+			public override bool CheckInterrupt(SpellInterrupt type, bool resistable)
 			{
-				if (type == DisturbType.EquipRequest || type == DisturbType.UseRequest/* || type == DisturbType.Hurt*/ )
-				{
-					return false;
-				}
-
-				return true;
+				return type != SpellInterrupt.EquipRequest && type != SpellInterrupt.UseRequest;
 			}
 
 			public override void DoHurtFizzle()
@@ -488,7 +486,7 @@ namespace Server.Engines.Quests.Items
 				}
 			}
 
-			public override void OnDisturb(DisturbType type, bool message)
+			public override void OnInterrupt(SpellInterrupt type, bool message)
 			{
 				if (message && !m_Stop)
 				{

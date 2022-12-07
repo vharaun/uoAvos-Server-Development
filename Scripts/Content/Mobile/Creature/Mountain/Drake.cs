@@ -40,6 +40,8 @@
 			ControlSlots = 2;
 			MinTameSkill = 84.3;
 
+			CanFly = true;
+
 			PackReg(3);
 		}
 
@@ -58,7 +60,6 @@
 		public override int Scales => 2;
 		public override ScaleType ScaleType => (Body == 60 ? ScaleType.Yellow : ScaleType.Red);
 		public override FoodType FavoriteFood => FoodType.Meat | FoodType.Fish;
-		public override bool CanFly => true;
 
 		public Drake(Serial serial) : base(serial)
 		{

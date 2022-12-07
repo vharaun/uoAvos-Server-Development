@@ -34,6 +34,8 @@
 			Karma = -18000;
 
 			VirtualArmor = 60;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -45,7 +47,6 @@
 
 		public override int TreasureMapLevel => 4;
 		public override int Meat => 1;
-		public override bool CanFly => true;
 
 		public IceFiend(Serial serial) : base(serial)
 		{

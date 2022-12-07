@@ -258,7 +258,9 @@ namespace Server
 
 								loaded = true;
 
-								if (t.m_Count != 0 && (++t.m_Index >= t.m_Count))
+								++t.m_Index;
+
+								if (t.m_Count != 0 && t.m_Index >= t.m_Count)
 								{
 									t.Stop();
 								}
@@ -373,7 +375,11 @@ namespace Server
 
 		private int m_Index;
 
+		public int TickIndex => m_Index;
+
 		private readonly int m_Count;
+
+		public int TickCount => m_Count;
 
 		private bool m_PrioritySet;
 

@@ -435,7 +435,7 @@ namespace Server.Engines.CannedEvil
 			{
 				var prot = pm.JusticeProtectors[j];
 
-				if (prot.Map != killer.Map || prot.Kills >= 5 || prot.Criminal || !JusticeVirtue.CheckMapRegion(killer, prot))
+				if (prot.Map != killer.Map || prot.Murderer || prot.Criminal || !JusticeVirtue.CheckMapRegion(killer, prot))
 				{
 					continue;
 				}
@@ -1734,7 +1734,7 @@ namespace Server.Mobiles
 				{
 					var prot = pm.JusticeProtectors[j];
 
-					if (prot.Map != m.Map || prot.Kills >= 5 || prot.Criminal || !JusticeVirtue.CheckMapRegion(m, prot))
+					if (prot.Map != m.Map || prot.Murderer || prot.Criminal || !JusticeVirtue.CheckMapRegion(m, prot))
 					{
 						continue;
 					}

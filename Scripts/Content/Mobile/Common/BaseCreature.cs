@@ -10,6 +10,8 @@ using Server.Regions;
 using Server.SkillHandlers;
 using Server.Spells;
 using Server.Spells.Bushido;
+using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
@@ -793,7 +795,7 @@ namespace Server.Mobiles
 
 		public virtual void BreathDealDamage(Mobile target)
 		{
-			if (!Evasion.CheckSpellEvasion(target))
+			if (!EvasionSpell.CheckSpellEvasion(target))
 			{
 				var physDamage = BreathPhysicalDamage;
 				var fireDamage = BreathFireDamage;
@@ -843,7 +845,71 @@ namespace Server.Mobiles
 
 		#endregion
 
-		public virtual bool CanFly => false;
+		#region Flying
+
+		public static double FlyingPassiveSpeed => WalkMount / 1000.0;
+		public static double FlyingActiveSpeed => RunMount / 1000.0;
+
+		private double m_cPassiveSpeed;
+		private double m_cActiveSpeed;
+
+		private int m_FlyingHeightCur, m_FlyingHeightMin = 20, m_FlyingHeightMax = 40;
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public int FlyingHeightCur { get => m_FlyingHeightCur; set => m_FlyingHeightCur = Math.Clamp(value, 0, m_FlyingHeightMax); }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMin
+		{
+			get => m_FlyingHeightMin; 
+			set
+			{
+				m_FlyingHeightMin = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMin > m_FlyingHeightMax)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMax
+		{
+			get => m_FlyingHeightMax;
+			set
+			{
+				m_FlyingHeightMax = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMax < m_FlyingHeightMin)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		public override bool CanBeginFlight()
+		{
+			return CanFly && (World.Loading || base.CanBeginFlight());
+		}
+
+		protected override void OnFlyingChange()
+		{
+			base.OnFlyingChange();
+
+			if (Flying)
+			{
+				(m_dPassiveSpeed, m_cPassiveSpeed) = (FlyingPassiveSpeed, m_dPassiveSpeed);
+				(m_dActiveSpeed, m_cActiveSpeed) = (FlyingActiveSpeed, m_dActiveSpeed);
+			}
+			else
+			{
+				m_dPassiveSpeed = m_cPassiveSpeed;
+				m_dActiveSpeed = m_cActiveSpeed;
+			}
+		}
+
+		#endregion
 
 		#region Spill Acid
 
@@ -1647,10 +1713,12 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Confidence.IsRegenerating(this))
+			if (ConfidenceSpell.IsRegenerating(this))
 			{
-				Confidence.StopRegenerating(this);
+				ConfidenceSpell.StopRegenerating(this);
 			}
+
+			SleepSpell.OnDamage(this);
 
 			WeightOverloading.FatigueOnDamage(this, amount);
 
@@ -1962,7 +2030,7 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(18); // version
+			writer.Write(19); // version
 
 			writer.Write((int)m_CurrentAI);
 			writer.Write((int)m_DefaultAI);
@@ -2089,6 +2157,16 @@ namespace Server.Mobiles
 
 			// Version 18
 			writer.Write(m_CorpseNameOverride);
+
+			// Version 19
+			writer.Write(m_cActiveSpeed);
+			writer.Write(m_cPassiveSpeed);
+
+			writer.WriteEncodedInt(m_FlyingHeightCur);
+			writer.WriteEncodedInt(m_FlyingHeightMin);
+			writer.WriteEncodedInt(m_FlyingHeightMax);
+
+			writer.Write(Flying);
 		}
 
 		private static readonly double[] m_StandardActiveSpeeds = new double[]
@@ -2186,7 +2264,10 @@ namespace Server.Mobiles
 				if (m_bSummoned)
 				{
 					m_SummonEnd = reader.ReadDeltaTime();
-					new UnsummonTimer(m_ControlMaster, this, m_SummonEnd - DateTime.UtcNow).Start();
+
+					var t = new UnsummonTimer(this, m_SummonEnd - DateTime.UtcNow);
+					
+					t.Start();
 				}
 
 				m_iControlSlots = reader.ReadInt();
@@ -2359,6 +2440,18 @@ namespace Server.Mobiles
 			if (version >= 18)
 			{
 				m_CorpseNameOverride = reader.ReadString();
+			}
+
+			if (version >= 19)
+			{
+				m_cActiveSpeed = reader.ReadDouble();
+				m_cPassiveSpeed = reader.ReadDouble();
+
+				m_FlyingHeightCur = reader.ReadEncodedInt();
+				m_FlyingHeightMin = reader.ReadEncodedInt();
+				m_FlyingHeightMax = reader.ReadEncodedInt();
+
+				Flying = reader.ReadBool();
 			}
 
 			if (version <= 14 && m_Paragon && Hue == 0x31)
@@ -2890,7 +2983,7 @@ namespace Server.Mobiles
 
 		public override void RevealingAction()
 		{
-			Spells.Sixth.InvisibilitySpell.RemoveTimer(this);
+			InvisibilitySpell.RemoveTimer(this);
 
 			base.RevealingAction();
 		}
@@ -3815,6 +3908,11 @@ namespace Server.Mobiles
 
 		public virtual bool CheckIdle()
 		{
+			if (Flying || FlyingHeightCur > 0)
+			{
+				return false;
+			}
+
 			if (Combatant != null)
 			{
 				return false; // in combat.. not idling
@@ -3994,7 +4092,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (!Body.IsHuman || Kills >= 5 || AlwaysMurderer || AlwaysAttackable || m.Kills < 5 || !m.InRange(Location, 12) || !m.Alive)
+			if (!Body.IsHuman || Murderer || AlwaysMurderer || AlwaysAttackable || !m.Murderer || !m.InRange(Location, 12) || !m.Alive)
 			{
 				return;
 			}
@@ -4309,7 +4407,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 		#endregion
 
@@ -4325,7 +4423,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 
 		public void PackNecroScroll(int index)
@@ -4338,16 +4436,14 @@ namespace Server.Mobiles
 			PackItem(Loot.Construct(Loot.NecromancyScrollTypes, index));
 		}
 
-		public void PackScroll(int minCircle, int maxCircle)
+		public void PackScroll(SpellCircle minCircle, SpellCircle maxCircle)
 		{
-			PackScroll(Utility.RandomMinMax(minCircle, maxCircle));
+			PackItem(Loot.RandomScroll(minCircle, maxCircle));
 		}
 
-		public void PackScroll(int circle)
+		public void PackScroll(SpellCircle circle)
 		{
-			var min = (circle - 1) * 8;
-
-			PackItem(Loot.RandomScroll(min, min + 7, SpellbookType.Regular));
+			PackItem(Loot.RandomScroll(circle));
 		}
 
 		public void PackMagicItems(int minLevel, int maxLevel)
@@ -5363,8 +5459,6 @@ namespace Server.Mobiles
 					OwnerAbandonTime = DateTime.MinValue;
 				}
 
-				GiftOfLifeSpell.HandleDeath(this);
-
 				CheckStatTimers();
 			}
 			else
@@ -5687,10 +5781,32 @@ namespace Server.Mobiles
 				}
 			}
 
-			new UnsummonTimer(caster, creature, duration).Start();
 			creature.m_SummonEnd = DateTime.UtcNow + duration;
 
+			creature.OnBeforeSpawn(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
 			creature.MoveToWorld(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			creature.OnAfterSpawn();
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			var t = new UnsummonTimer(creature, duration);
+
+			t.Start();
 
 			Effects.PlaySound(p, creature.Map, sound);
 

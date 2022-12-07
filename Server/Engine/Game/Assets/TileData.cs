@@ -10,6 +10,18 @@ namespace Server
 		public string Name { get; set; }
 		public TileFlag Flags { get; set; }
 
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Background => Flags.HasFlag(TileFlag.Background);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Impassable => Flags.HasFlag(TileFlag.Impassable);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Surface => Flags.HasFlag(TileFlag.Surface);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Wet => Flags.HasFlag(TileFlag.Wet);
+
 		public LandData(string name, TileFlag flags)
 		{
 			Name = name;
@@ -73,6 +85,12 @@ namespace Server
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public bool Roof { get => this[TileFlag.Roof]; set => this[TileFlag.Roof] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public bool Door { get => this[TileFlag.Door]; set => this[TileFlag.Door] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public bool Wet { get => this[TileFlag.Wet]; set => this[TileFlag.Wet] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public bool LightSource { get => this[TileFlag.LightSource]; set => this[TileFlag.LightSource] = value; }

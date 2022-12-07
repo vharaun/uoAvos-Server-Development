@@ -48,6 +48,8 @@ namespace Server.Mobiles
 			VirtualArmor = 34;
 
 			Tamable = false;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -128,9 +130,6 @@ namespace Server.Mobiles
 		public override MeatType MeatType => MeatType.Bird;
 		public override int Feathers => 36;
 		public override FoodType FavoriteFood => FoodType.Meat | FoodType.Fish;
-
-		//Ofcourse A Bird Can Fly!
-		public override bool CanFly => true;
 
 		//Reward Drops After Kill
 		public override bool GivesMLMinorArtifact => true;

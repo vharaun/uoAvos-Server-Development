@@ -154,6 +154,14 @@ namespace Server
 			return "...";
 		}
 
+		public virtual void SetAll(TVal value)
+		{
+			foreach (var o in EnumValues)
+			{
+				this[o] = value;
+			}
+		}
+
 		public virtual void Clear()
 		{
 			Array.Clear(m_Data, 0, m_Data.Length);
@@ -224,13 +232,7 @@ namespace Server
 			}
 		}
 
-		protected virtual TVal ReadData(GenericReader reader, TKey key)
-		{
-			return default;
-		}
-
-		protected virtual void WriteData(GenericWriter writer, TKey key, TVal value)
-		{
-		}
+		protected abstract TVal ReadData(GenericReader reader, TKey key);
+		protected abstract void WriteData(GenericWriter writer, TKey key, TVal value);
 	}
 }

@@ -39,6 +39,8 @@
 			Karma = 20000;
 
 			VirtualArmor = 50;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -48,7 +50,6 @@
 
 		public override OppositionGroup OppositionGroup => OppositionGroup.FeyAndUndead;
 
-		public override bool CanFly => true;
 		public override bool Unprovokable => true;
 		public override Poison PoisonImmune => Poison.Regular;
 		public override int TreasureMapLevel => 5;
