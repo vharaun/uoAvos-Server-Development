@@ -121,7 +121,7 @@ namespace Server.Commands.Generic
 
 		private readonly object m_Select;
 
-		private const int EntriesPerPage = 25;
+		private const int EntriesPerPage = 20;
 
 		public InterfaceGump(Mobile from, IEnumerable list)
 			: this(from, list.Cast<object>().ToArray())

@@ -1177,7 +1177,7 @@ namespace Server.Gumps
 		private static readonly int NameWidth = 150;
 		private static readonly int ValueWidth = 150;
 
-		private static readonly int EntryCount = 25;
+		private static readonly int EntryCount = 20;
 
 		private static readonly int TypeWidth = NameWidth + OffsetSize + ValueWidth;
 
