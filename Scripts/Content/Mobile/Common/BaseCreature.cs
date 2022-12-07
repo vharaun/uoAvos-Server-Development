@@ -2740,6 +2740,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionWander()
 		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				FlyingWander();
+			}
 		}
 
 		public virtual void OnActionCombat()
@@ -2752,6 +2756,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionFlee()
 		{
+			if (CanFly && !Flying)
+			{
+				FlyingFlee();
+			}
 		}
 
 		public virtual void OnActionInteract()
@@ -2763,6 +2771,51 @@ namespace Server.Mobiles
 		}
 
 		#endregion
+
+		protected long m_NextFlyingAction;
+
+		protected virtual void FlyingWander()
+		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				if (!Flying)
+				{
+					if (Utility.RandomDouble() < 0.25)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+						Flying = true;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+					}
+				}
+				else
+				{
+					if (Utility.RandomDouble() < 0.05)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+
+						Flying = false;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+					}
+				}
+			}
+		}
+
+		protected virtual void FlyingFlee()
+		{
+			if (CanFly && !Flying)
+			{
+				m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+				Flying = true;
+			}
+		}
 
 		public override bool OnDragDrop(Mobile from, Item dropped)
 		{
