@@ -2200,6 +2200,8 @@ namespace Server.Mobiles
 
 		public long NextMove { get; set; }
 
+		private readonly bool[] m_BlockedMoves = new bool[8];
+
 		public virtual bool CheckMove()
 		{
 			return Core.TickCount - NextMove >= 0;
@@ -2212,6 +2214,17 @@ namespace Server.Mobiles
 
 		public virtual bool DoMove(Direction d, bool badStateOk)
 		{
+			if (Array.IndexOf(m_BlockedMoves, false) < 0)
+			{
+				m_Mobile.GoHome();
+
+				Array.Fill(m_BlockedMoves, false);
+
+				return false;
+			}
+
+			var dir = (int)(d & Direction.Mask);
+
 			var res = DoMoveImpl(d);
 
 			if (res == MoveResult.Success || res == MoveResult.SuccessAutoTurn || (badStateOk && res == MoveResult.BadState))
@@ -2246,8 +2259,12 @@ namespace Server.Mobiles
 					m_Mobile.FlyingHeightCur = Math.Max(0, m_Mobile.FlyingHeightCur - Movement.Movement.StepHeight);
 				}
 
+				Array.Fill(m_BlockedMoves, false);
+
 				return true;
 			}
+
+			m_BlockedMoves[dir] = true;
 
 			return false;
 		}

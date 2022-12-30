@@ -8665,7 +8665,7 @@ namespace Server
 
 		public virtual bool CanEndFlight()
 		{
-			return !CanFly || !Player || Map == null || Map == Map.Internal || Map.CanFit(X, Y, Z, 16, false, false);
+			return !CanFly || /*!Player || */Map == null || Map == Map.Internal || Map.CanFit(X, Y, Z, 16, false, false);
 		}
 
 		protected virtual void OnFlyingChange()

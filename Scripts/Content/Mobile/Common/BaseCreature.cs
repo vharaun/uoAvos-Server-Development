@@ -847,8 +847,8 @@ namespace Server.Mobiles
 
 		#region Flying
 
-		public static double FlyingPassiveSpeed => WalkMount / 1000.0;
-		public static double FlyingActiveSpeed => RunMount / 1000.0;
+		public static double FlyingPassiveSpeed => (WalkMount / 1000.0) + 0.100;
+		public static double FlyingActiveSpeed => (RunMount / 1000.0) + 0.100;
 
 		private double m_cPassiveSpeed;
 		private double m_cActiveSpeed;
@@ -6445,9 +6445,13 @@ namespace Server.Mobiles
 		{
 			if (!Deleted && ReturnsToHome && IsSpawnerBound() && !InRange(Home, (RangeHome + 5)))
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds((Utility.Random(45) + 15)), GoHome_Callback);
-
-				m_ReturnQueued = true;
+				Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(45, 60)), () =>
+				{
+					if (m_ReturnQueued)
+					{
+						GoHome(false);
+					}
+				});
 			}
 			else if (PlayerRangeSensitive && m_AI != null)
 			{
@@ -6457,18 +6461,32 @@ namespace Server.Mobiles
 			base.OnSectorDeactivate();
 		}
 
-		public void GoHome_Callback()
+		public void GoHome()
 		{
-			if (m_ReturnQueued && IsSpawnerBound())
+			GoHome(true);
+		}
+
+		public void GoHome(bool force)
+		{
+			if (force)
 			{
-				if (!((Map.GetSector(X, Y)).Active))
+				if (ReturnsToHome)
 				{
 					SetLocation(Home, true);
 
-					if (!((Map.GetSector(X, Y)).Active) && m_AI != null)
+					if (!Map.GetSector(X, Y).Active && m_AI != null)
 					{
 						m_AI.Deactivate();
 					}
+				}
+			}
+			else if (IsSpawnerBound() && !Map.GetSector(X, Y).Active)
+			{
+				SetLocation(Home, true);
+
+				if (!Map.GetSector(X, Y).Active && m_AI != null)
+				{
+					m_AI.Deactivate();
 				}
 			}
 
