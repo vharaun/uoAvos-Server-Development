@@ -884,93 +884,106 @@ namespace Server.Engines.Harvest
 
 		protected override void OnTarget(Mobile from, object targeted)
 		{
-			if (m_System is Mining && targeted is StaticTarget)
+			if (m_System is Mining)
 			{
-				var itemID = ((StaticTarget)targeted).ItemID;
-
-				// grave
-				if (itemID == 0xED3 || itemID == 0xEDF || itemID == 0xEE0 || itemID == 0xEE1 || itemID == 0xEE2 || itemID == 0xEE8)
+				if (from is PlayerMobile player && targeted is StaticTarget item)
 				{
-					var player = from as PlayerMobile;
+					var itemID = item.ItemID;
 
-					if (player != null)
+					// grave
+					if (itemID is 0xED3 or 0xEDF or 0xEE0 or 0xEE1 or 0xEE2 or 0xEE8)
 					{
 						var qs = player.Quest;
 
-						if (qs is WitchApprenticeQuest)
+						if (qs is WitchApprenticeQuest waq)
 						{
-							var obj = qs.FindObjective(typeof(FindIngredientObjective_WitchApprenticeQuest)) as FindIngredientObjective_WitchApprenticeQuest;
+							var obj = waq.FindObjective(typeof(FindIngredientObjective_WitchApprenticeQuest));
 
-							if (obj != null && !obj.Completed && obj.Ingredient == Ingredient.Bones)
+							if (obj is FindIngredientObjective_WitchApprenticeQuest fi && !fi.Completed && fi.Ingredient == Ingredient.Bones)
 							{
 								player.SendLocalizedMessage(1055037); // You finish your grim work, finding some of the specific bones listed in the Hag's recipe.
-								obj.Complete();
+								
+								fi.Complete();
 
 								return;
 							}
 						}
 					}
 				}
-			}
 
-			if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is IChopable)
-			{
-				((IChopable)targeted).OnChop(from);
-			}
-			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is IAxe && m_Tool is BaseAxe)
-			{
-				var obj = (IAxe)targeted;
-				var item = (Item)targeted;
-
-				if (!item.IsChildOf(from.Backpack))
+				if (targeted is TreasureMap tmap)
 				{
-					from.SendLocalizedMessage(1062334); // This item must be in your backpack to be used.
-				}
-				else if (obj.Axe(from, (BaseAxe)m_Tool))
-				{
-					from.PlaySound(0x13E);
+					tmap.OnBeginDig(from);
+					return;
 				}
 			}
-			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && targeted is ICarvable)
+			else if (m_System is Lumberjacking or FacetModule_Lumberjacking)
 			{
-				((ICarvable)targeted).Carve(from, m_Tool);
-			}
-			else if (m_System is Lumberjacking && m_System is FacetModule_Lumberjacking && FurnitureAttribute.Check(targeted as Item))
-			{
-				DestroyFurniture(from, (Item)targeted);
-			}
-			else if (m_System is Mining && targeted is TreasureMap)
-			{
-				((TreasureMap)targeted).OnBeginDig(from);
-			}
-			else
-			{
-				m_System.StartHarvesting(from, m_Tool, targeted);
-			}
+				if (targeted is IChopable chop)
+				{
+					chop.OnChop(from);
+					return;
+				}
+
+				if (targeted is ICarvable carvable)
+				{
+					carvable.Carve(from, m_Tool);
+					return;
+				}
+
+				if (targeted is Item item)
+				{
+					if (targeted is IAxe axable && m_Tool is BaseAxe axe)
+					{
+						if (!item.IsChildOf(from.Backpack))
+						{
+							from.SendLocalizedMessage(1062334); // This item must be in your backpack to be used.
+						}
+						else if (axable.Axe(from, axe))
+						{
+							from.PlaySound(0x13E);
+						}
+
+						return;
+					}
+
+					if (FurnitureAttribute.Check(item))
+					{
+						DestroyFurniture(from, item);
+						return;
+					}
+				}
+			}			
+
+			m_System.StartHarvesting(from, m_Tool, targeted);			
 		}
 
-		private void DestroyFurniture(Mobile from, Item item)
+		private static void DestroyFurniture(Mobile from, Item item)
 		{
 			if (!from.InRange(item.GetWorldLocation(), 3))
 			{
 				from.SendLocalizedMessage(500446); // That is too far away.
 				return;
 			}
-			else if (!item.IsChildOf(from.Backpack) && !item.Movable)
+			
+			if (!item.IsChildOf(from.Backpack) && !item.Movable)
 			{
 				from.SendLocalizedMessage(500462); // You can't destroy that while it is here.
 				return;
 			}
 
 			from.SendLocalizedMessage(500461); // You destroy the item.
+
 			Effects.PlaySound(item.GetWorldLocation(), item.Map, 0x3B3);
 
-			if (item is Container)
+			if (item is Container c)
 			{
-				if (item is TrapableContainer)
+				if (c is TrapableContainer tc)
 				{
-					(item as TrapableContainer).ExecuteTrap(from);
-				} ((Container)item).Destroy();
+					tc.ExecuteTrap(from);
+				}
+				
+				c.Destroy();
 			}
 			else
 			{

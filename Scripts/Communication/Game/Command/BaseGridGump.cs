@@ -257,9 +257,36 @@ namespace Server.Gumps
 		{
 			AddImageTiled(CurrentX, CurrentY, width, (EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)), HeaderGumpID);
 			IncreaseX(width);
+        }
+
+		public void AddEntryItem(int width, int itemID)
+		{
+			AddEntryItem(width, itemID, 0);
 		}
 
-		public void AddBlankLine()
+		public void AddEntryItem(int width, int itemID, int hue)
+        {
+			AddImageTiled(CurrentX, CurrentY, width, EntryHeight, HeaderGumpID);
+
+			var bmp = ArtData.GetStatic(itemID);
+
+			if (bmp != null)
+			{
+				ArtData.Measure(bmp, out var x1, out var y1, out var x2, out var y2);
+
+				var artWidth = x2 - x1;
+				var artHeight = y2 - y1;
+
+				var artX = Math.Max(CurrentX, CurrentX + (width / 2) - (artWidth / 2));
+				var artY = Math.Max(CurrentY, CurrentY + (EntryHeight / 2) - (artHeight / 2));
+
+				AddItem(artX, artY, itemID, hue);
+			}
+
+            IncreaseX(width);
+        }
+
+        public void AddBlankLine()
 		{
 			if (m_Offset != null)
 			{

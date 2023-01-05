@@ -1248,9 +1248,9 @@ namespace Server.Multis
 			{
 				return true;
 			}
-			else if (item is ISecurable)
+			else if (item is ISecurable sec)
 			{
-				return HasSecureAccess(from, ((ISecurable)item).Level);
+				return HasSecureAccess(from, sec.Level);
 			}
 			else if (item is Container)
 			{
@@ -1325,6 +1325,11 @@ namespace Server.Multis
 				return false;
 			}
 
+			if (p.Z < Z)
+			{
+				return Addons.Any(a => a is CellarAddon);
+			}
+
 			if (this is HouseFoundation && y < (mcl.Height - 1) && p.Z >= Z)
 			{
 				return true;
@@ -1363,20 +1368,69 @@ namespace Server.Multis
 
 		public SecureAccessResult CheckSecureAccess(Mobile m, Item item)
 		{
-			if (Secures == null || item is not Container)
-			{
-				return SecureAccessResult.Insecure;
-			}
+			var sec = GetSecurable(m, item);
 
-			foreach (var info in Secures)
+			if (sec != null)
 			{
-				if (info.Item == item)
-				{
-					return HasSecureAccess(m, info.Level) ? SecureAccessResult.Accessible : SecureAccessResult.Inaccessible;
-				}
+				return HasSecureAccess(m, sec.Level) ? SecureAccessResult.Accessible : SecureAccessResult.Inaccessible;
 			}
 
 			return SecureAccessResult.Insecure;
+		}
+
+		public ISecurable GetSecurable(Mobile from, Item item)
+		{
+			if (!IsOwner(from) || !IsAosRules)
+			{
+				return null;
+			}
+
+			if (item is not Container && item is ISecurable sec)
+			{
+				var isOwned = Addons.Contains(item);
+
+				if (!isOwned)
+				{
+					isOwned = sec is AddonComponent ac && ac.Addon != null && Addons.Contains(ac.Addon);
+				}
+
+				if (!isOwned)
+				{
+					isOwned = sec is BaseDoor door && Doors.Contains(door);
+				}
+
+				if (!isOwned)
+				{
+					isOwned = this is HouseFoundation hf && hf.IsFixture(item);
+				}
+
+				if (!isOwned)
+				{
+					isOwned = IsLockedDown(item);
+				}
+
+				if (isOwned)
+				{
+					return sec;
+				}
+			}
+			else
+			{
+				var list = Secures;
+
+				if (list != null)
+				{
+					foreach (var si in list)
+					{
+						if (si.Item == item)
+						{
+							return si;
+						}
+					}
+				}
+			}
+
+			return null;
 		}
 
 		public static List<BaseHouse> AllHouses { get; } = new();
@@ -1737,7 +1791,7 @@ namespace Server.Multis
 			Sign.MoveToWorld(new Point3D(X + xoff, Y + yoff, Z + zoff), Map);
 		}
 
-		private void SetLockdown(Item i, bool locked)
+		public void SetLockdown(Item i, bool locked)
 		{
 			if (LockDowns == null)
 			{
@@ -3942,9 +3996,12 @@ namespace Server.Multis
 
 						Delete();
 
-						foreach (var o in toMove)
+						if (toMove?.Count > 0)
 						{
-							o.Location = house.BanLocation;
+							foreach (var o in toMove)
+							{
+								o.Location = house.BanLocation;
+							}
 						}
 
 						return true;
@@ -7810,9 +7867,12 @@ namespace Server.Multis
 
 						house.MoveToWorld(center, from.Map);
 
-						foreach (var o in toMove)
+						if (toMove?.Count > 0)
 						{
-							o.Location = house.BanLocation;
+							foreach (var o in toMove)
+							{
+								o.Location = house.BanLocation;
+							}
 						}
 
 						break;
@@ -7891,9 +7951,12 @@ namespace Server.Multis
 							}
 						}
 
-						foreach (var o in toMove)
+						if (toMove?.Count > 0)
 						{
-							o.Location = banLoc;
+							foreach (var o in toMove)
+							{
+								o.Location = banLoc;
+							}
 						}
 
 						prev.MoveToWorld(center, from.Map);
@@ -8285,79 +8348,34 @@ namespace Server.Multis
 	public class SetSecureLevelEntry : ContextMenuEntry
 	{
 		private readonly Item m_Item;
-		private readonly ISecurable m_Securable;
 
-		public SetSecureLevelEntry(Item item, ISecurable securable) : base(6203, 6)
+		public SetSecureLevelEntry(Item item) : base(6203, 6)
 		{
 			m_Item = item;
-			m_Securable = securable;
-		}
-
-		public static ISecurable GetSecurable(Mobile from, Item item)
-		{
-			var house = BaseHouse.FindHouseAt(item);
-
-			if (house == null || !house.IsOwner(from) || !house.IsAosRules)
-			{
-				return null;
-			}
-
-			if (item is ISecurable sec)
-			{
-				var isOwned = sec is BaseDoor door && house.Doors.Contains(door);
-
-				if (!isOwned)
-				{
-					isOwned = house is HouseFoundation hf && hf.IsFixture(item);
-				}
-
-				if (!isOwned)
-				{
-					isOwned = house.IsLockedDown(item);
-				}
-
-				if (isOwned)
-				{
-					return sec;
-				}
-			}
-			else
-			{
-				var list = house.Secures;
-
-				if (list != null)
-				{
-					foreach (var si in list)
-					{
-						if (si.Item == item)
-						{
-							return si;
-						}
-					}
-				}
-			}
-
-			return null;
-		}
-
-		public static void AddTo(Mobile from, Item item, List<ContextMenuEntry> list)
-		{
-			var sec = GetSecurable(from, item);
-
-			if (sec != null)
-			{
-				list.Add(new SetSecureLevelEntry(item, sec));
-			}
 		}
 
 		public override void OnClick()
 		{
-			var sec = GetSecurable(Owner.From, m_Item);
+			var house = BaseHouse.FindHouseAt(m_Item);
+
+			var sec = house?.GetSecurable(Owner.From, m_Item);
 
 			if (sec != null)
 			{
 				_ = Owner.From.CloseGump(typeof(SetSecureLevelGump));
-				_ = Owner.From.SendGump(new SetSecureLevelGump(Owner.From, sec, BaseHouse.FindHouseAt(m_Item)));
+				_ = Owner.From.SendGump(new SetSecureLevelGump(Owner.From, sec, house));
+			}
+		}
+
+		public static void AddTo(Mobile from, Item item, List<ContextMenuEntry> list)
+		{
+			var house = BaseHouse.FindHouseAt(item);
+
+			var sec = house?.GetSecurable(from, item);
+
+			if (sec != null)
+			{
+				list.Add(new SetSecureLevelEntry(item));
 			}
 		}
 	}

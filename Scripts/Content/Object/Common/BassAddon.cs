@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace Server.Items
 {
-	public interface IAddon
+	public interface IAddon : IEntity
 	{
 		Item Deed { get; }
 

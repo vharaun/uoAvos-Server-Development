@@ -432,9 +432,12 @@ namespace Server.Items
 
 						house.MoveToWorld(center, from.Map);
 
-						foreach (var o in toMove)
+						if (toMove?.Count > 0)
 						{
-							o.Location = house.BanLocation;
+							foreach (var o in toMove)
+							{
+								o.Location = house.BanLocation;
+							}
 						}
 
 						break;
@@ -512,9 +515,12 @@ namespace Server.Items
 							}
 						}
 
-						foreach (var o in toMove)
+						if (toMove?.Count > 0)
 						{
-							o.Location = banLoc;
+							foreach (var o in toMove)
+							{
+								o.Location = banLoc;
+							}
 						}
 
 						prev.MoveToWorld(center, from.Map);
