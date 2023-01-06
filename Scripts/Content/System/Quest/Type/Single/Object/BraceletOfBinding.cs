@@ -1,5 +1,4 @@
 ﻿using Server.ContextMenus;
-using Server.Items;
 using Server.Mobiles;
 using Server.Network;
 using Server.Prompts;
@@ -9,7 +8,7 @@ using Server.Targeting;
 using System;
 using System.Collections.Generic;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class BraceletOfBinding : BaseBracelet, TranslocationItem
 	{

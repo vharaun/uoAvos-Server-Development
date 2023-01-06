@@ -1,6 +1,6 @@
 ﻿using Server.Items;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	[Flipable(0x312D, 0x312E)]
 	public class SeveredElfEars : Item

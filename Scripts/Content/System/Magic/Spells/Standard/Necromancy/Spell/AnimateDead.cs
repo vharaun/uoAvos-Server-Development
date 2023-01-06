@@ -1,5 +1,4 @@
 ﻿using Server.Engines.Quests.Definitions;
-using Server.Engines.Quests.Items;
 using Server.Items;
 using Server.Mobiles;
 using Server.Targeting;
@@ -147,36 +146,6 @@ namespace Server.Spells.Necromancy
 
 		public void Target(object obj)
 		{
-			var comp = obj as MaabusCoffinComponent;
-
-			if (comp != null)
-			{
-				var addon = comp.Addon as MaabusCoffin;
-
-				if (addon != null)
-				{
-					var pm = Caster as PlayerMobile;
-
-					if (pm != null)
-					{
-						var qs = pm.Quest;
-
-						if (qs is DarkTidesQuest)
-						{
-							var objective = qs.FindObjective(typeof(AnimateMaabusCorpseObjective_DarkTidesQuest));
-
-							if (objective != null && !objective.Completed)
-							{
-								addon.Awake(Caster);
-								objective.Complete();
-							}
-						}
-					}
-
-					return;
-				}
-			}
-
 			var c = obj as Corpse;
 
 			if (c == null)

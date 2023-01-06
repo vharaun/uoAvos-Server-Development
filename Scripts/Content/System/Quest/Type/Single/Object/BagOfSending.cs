@@ -1,12 +1,11 @@
 ﻿using Server.ContextMenus;
-using Server.Items;
 using Server.Network;
 using Server.Targeting;
 
 using System;
 using System.Collections.Generic;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public enum BagOfSendingHue
 	{

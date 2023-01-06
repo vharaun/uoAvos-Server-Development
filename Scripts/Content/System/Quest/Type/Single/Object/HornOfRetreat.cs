@@ -1,8 +1,6 @@
-﻿using Server.Items;
+﻿using System;
 
-using System;
-
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class HornOfRetreat : Item
 	{

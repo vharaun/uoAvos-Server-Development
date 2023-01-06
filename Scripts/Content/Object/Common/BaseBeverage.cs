@@ -306,40 +306,6 @@ namespace Server.Items
 					from.SendLocalizedMessage(1080197); // You fill the container with milk.
 				}
 			}
-			else if (targ is LandTarget)
-			{
-				var tileID = ((LandTarget)targ).TileID;
-
-				var player = from as PlayerMobile;
-
-				if (player != null)
-				{
-					var qs = player.Quest;
-
-					if (qs is WitchApprenticeQuest)
-					{
-						var obj = qs.FindObjective(typeof(FindIngredientObjective_WitchApprenticeQuest)) as FindIngredientObjective_WitchApprenticeQuest;
-
-						if (obj != null && !obj.Completed && obj.Ingredient == Ingredient.SwampWater)
-						{
-							var contains = false;
-
-							for (var i = 0; !contains && i < m_SwampTiles.Length; i += 2)
-							{
-								contains = (tileID >= m_SwampTiles[i] && tileID <= m_SwampTiles[i + 1]);
-							}
-
-							if (contains)
-							{
-								Delete();
-
-								player.SendLocalizedMessage(1055035); // You dip the container into the disgusting swamp water, collecting enough for the Hag's vile stew.
-								obj.Complete();
-							}
-						}
-					}
-				}
-			}
 		}
 
 		private static readonly int[] m_SwampTiles = new int[]
@@ -573,44 +539,6 @@ namespace Server.Items
 			else if (targ is PlantItem)
 			{
 				((PlantItem)targ).Pour(from, this);
-			}
-			else if (targ is AddonComponent &&
-				(((AddonComponent)targ).Addon is WaterVatEast || ((AddonComponent)targ).Addon is WaterVatSouth) &&
-				Content == BeverageType.Water)
-			{
-				var player = from as PlayerMobile;
-
-				if (player != null)
-				{
-					var qs = player.Quest as SolenMatriarchQuest;
-
-					if (qs != null)
-					{
-						var obj = qs.FindObjective(typeof(GatherWaterObjective_SolenMatriarchQuest));
-
-						if (obj != null && !obj.Completed)
-						{
-							var vat = ((AddonComponent)targ).Addon;
-
-							if (vat.X > 5784 && vat.X < 5814 && vat.Y > 1903 && vat.Y < 1934 &&
-								((qs.RedSolen && vat.Map == Map.Trammel) || (!qs.RedSolen && vat.Map == Map.Felucca)))
-							{
-								if (obj.CurProgress + Quantity > obj.MaxProgress)
-								{
-									var delta = obj.MaxProgress - obj.CurProgress;
-
-									Quantity -= delta;
-									obj.CurProgress = obj.MaxProgress;
-								}
-								else
-								{
-									obj.CurProgress += Quantity;
-									Quantity = 0;
-								}
-							}
-						}
-					}
-				}
 			}
 			else
 			{

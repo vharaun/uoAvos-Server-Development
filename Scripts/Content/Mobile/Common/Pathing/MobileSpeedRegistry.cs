@@ -305,7 +305,6 @@ namespace Server
 					typeof( Hiryu ),
 					typeof( Ronin ),
 					typeof( LadyMarai ),
-					typeof( MasterTheophilus ),
 					typeof( Miasma ),
 					typeof( Gnaw ),
 					typeof( Spite ),

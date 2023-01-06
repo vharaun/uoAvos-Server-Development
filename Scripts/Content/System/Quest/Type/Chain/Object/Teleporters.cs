@@ -1,9 +1,10 @@
-﻿using Server.Items;
+﻿using Server.Engines.ChainQuests;
+using Server.Items;
 using Server.Mobiles;
 
 using System;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	public class ChainQuestTeleporter : Teleporter
 	{

@@ -1,5 +1,4 @@
-﻿using Server.Engines.Quests.Items;
-using Server.Gumps;
+﻿using Server.Gumps;
 using Server.Mobiles;
 using Server.Network;
 
@@ -521,7 +520,6 @@ namespace Server.Items
 
 		public static List<Tuple<Type, Type, int, int, string>> Weapon_Legendary = new List<Tuple<Type, Type, int, int, string>>
 		{
-			(new Tuple<Type,Type,int,int,string>( typeof(HaochisKatana), null, 0, 0, "Haochi's Katana" ) ),
 			(new Tuple<Type,Type,int,int,string>( typeof(AxeOfTheHeavens), null, 0, 0, "Axe of the Heavens" ) ),
 			(new Tuple<Type,Type,int,int,string>( typeof(TheTaskmaster), null, 0, 0, "The Taskmaster" ) )
 		};

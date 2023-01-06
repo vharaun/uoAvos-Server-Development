@@ -1,6 +1,4 @@
-﻿using Server.Items;
-
-namespace Server.Engines.Quests.Items
+﻿namespace Server.Items
 {
 	public class ZoogiFungus : Item, ICommodity
 	{

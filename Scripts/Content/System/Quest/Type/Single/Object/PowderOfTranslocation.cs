@@ -1,8 +1,7 @@
-﻿using Server.Items;
-using Server.Network;
+﻿using Server.Network;
 using Server.Targeting;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class PowderOfTranslocation : Item
 	{

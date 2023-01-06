@@ -1,9 +1,8 @@
-﻿using Server.Items;
-using Server.Network;
+﻿using Server.Network;
 
 using System;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class EnchantedSextant : Item
 	{

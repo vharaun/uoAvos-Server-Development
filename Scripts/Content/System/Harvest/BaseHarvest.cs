@@ -886,31 +886,6 @@ namespace Server.Engines.Harvest
 		{
 			if (m_System is Mining)
 			{
-				if (from is PlayerMobile player && targeted is StaticTarget item)
-				{
-					var itemID = item.ItemID;
-
-					// grave
-					if (itemID is 0xED3 or 0xEDF or 0xEE0 or 0xEE1 or 0xEE2 or 0xEE8)
-					{
-						var qs = player.Quest;
-
-						if (qs is WitchApprenticeQuest waq)
-						{
-							var obj = waq.FindObjective(typeof(FindIngredientObjective_WitchApprenticeQuest));
-
-							if (obj is FindIngredientObjective_WitchApprenticeQuest fi && !fi.Completed && fi.Ingredient == Ingredient.Bones)
-							{
-								player.SendLocalizedMessage(1055037); // You finish your grim work, finding some of the specific bones listed in the Hag's recipe.
-								
-								fi.Complete();
-
-								return;
-							}
-						}
-					}
-				}
-
 				if (targeted is TreasureMap tmap)
 				{
 					tmap.OnBeginDig(from);

@@ -1,4 +1,4 @@
-﻿using Server.Engines.Quests.Items;
+﻿using Server.Items;
 
 namespace Server.Mobiles
 {
@@ -41,7 +41,6 @@ namespace Server.Mobiles
 			SolenHelper.PackPicnicBasket(this);
 
 			PackItem(new ZoogiFungus((0.05 < Utility.RandomDouble()) ? 3 : 13));
-
 		}
 
 		public override int GetAngerSound()

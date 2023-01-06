@@ -1193,7 +1193,7 @@ namespace Server.Mobiles
 				return a == Allegiance.Enemy;
 			}
 
-			if (m is not BaseCreature c || c is Server.Engines.Quests.Mobiles.MilitiaFighter)
+			if (m is not BaseCreature c)
 			{
 				return true;
 			}

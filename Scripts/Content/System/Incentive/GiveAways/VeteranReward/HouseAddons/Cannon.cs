@@ -1,5 +1,4 @@
-﻿using Server.Engines.Quests.Items;
-using Server.Engines.VeteranRewards;
+﻿using Server.Engines.VeteranRewards;
 using Server.Gumps;
 using Server.Network;
 using Server.Targeting;
