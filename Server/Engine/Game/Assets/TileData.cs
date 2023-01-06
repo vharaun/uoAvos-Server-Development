@@ -63,11 +63,6 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public int Height { get => m_Height; set => m_Height = (byte)value; }
 
-		// computed properties
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
-		public int CalcHeight => Bridge ? m_Height / 2 : m_Height;
-
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public bool Bridge { get => this[TileFlag.Bridge]; set => this[TileFlag.Bridge] = value; }
 
@@ -110,6 +105,11 @@ namespace Server
 				}
 			}
 		}
+
+		// computed properties
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public int CalcHeight => Bridge ? m_Height / 2 : m_Height;
 
 		public ItemData(ItemData d)
 			: this(d.Name, d.Flags, d.Weight, d.Quality, d.Animation, d.Quantity, d.Value, d.Height)

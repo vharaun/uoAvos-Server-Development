@@ -3,7 +3,7 @@ using Server.Items;
 
 using System;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	public abstract class BaseCraftmansSatchel : Backpack
 	{

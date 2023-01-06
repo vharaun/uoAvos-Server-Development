@@ -1,5 +1,4 @@
-﻿using Server.Factions;
-using Server.Items;
+﻿using Server.Items;
 using Server.Misc;
 
 using System;
@@ -10,9 +9,6 @@ namespace Server.Mobiles
 	public class Wisp : BaseCreature
 	{
 		public override InhumanSpeech SpeechType => InhumanSpeech.Wisp;
-
-		public override Faction FactionAllegiance => CouncilOfMages.Instance;
-		public override Ethics.Ethic EthicAllegiance => Ethics.Ethic.Hero;
 
 		public override TimeSpan ReacquireDelay => TimeSpan.FromSeconds(1.0);
 

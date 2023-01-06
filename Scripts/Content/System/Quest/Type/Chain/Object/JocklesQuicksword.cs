@@ -1,6 +1,6 @@
 ﻿using Server.Items;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	public class JocklesQuicksword : Longsword
 	{

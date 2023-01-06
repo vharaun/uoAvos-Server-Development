@@ -1,6 +1,5 @@
 ﻿using Server.ContextMenus;
 using Server.Engines.Quests.Definitions;
-using Server.Engines.Quests.Items;
 using Server.Items;
 using Server.Misc;
 using Server.Mobiles;
@@ -1355,25 +1354,6 @@ namespace Server.Mobiles
 
 			if (distance is < 1 or > 15)
 			{
-				if (distance < 1 && target.X == 1076 && target.Y == 450 && (m_Mobile is HordeMinionFamiliar))
-				{
-					if (m_Mobile.ControlMaster is PlayerMobile pm)
-					{
-						var qs = pm.Quest;
-
-						if (qs is DarkTidesQuest)
-						{
-							var obj = qs.FindObjective(typeof(FetchAbraxusScrollObjective_DarkTidesQuest));
-
-							if (obj != null && !obj.Completed)
-							{
-								_ = m_Mobile.AddToBackpack(new ScrollOfAbraxus());
-								obj.Complete();
-							}
-						}
-					}
-				}
-
 				m_Mobile.TargetLocation = null;
 				return false; // At the target or too far away
 			}
@@ -2200,6 +2180,8 @@ namespace Server.Mobiles
 
 		public long NextMove { get; set; }
 
+		private readonly bool[] m_BlockedMoves = new bool[8];
+
 		public virtual bool CheckMove()
 		{
 			return Core.TickCount - NextMove >= 0;
@@ -2212,6 +2194,17 @@ namespace Server.Mobiles
 
 		public virtual bool DoMove(Direction d, bool badStateOk)
 		{
+			if (Array.IndexOf(m_BlockedMoves, false) < 0)
+			{
+				m_Mobile.GoHome();
+
+				Array.Fill(m_BlockedMoves, false);
+
+				return false;
+			}
+
+			var dir = (int)(d & Direction.Mask);
+
 			var res = DoMoveImpl(d);
 
 			if (res == MoveResult.Success || res == MoveResult.SuccessAutoTurn || (badStateOk && res == MoveResult.BadState))
@@ -2246,8 +2239,12 @@ namespace Server.Mobiles
 					m_Mobile.FlyingHeightCur = Math.Max(0, m_Mobile.FlyingHeightCur - Movement.Movement.StepHeight);
 				}
 
+				Array.Fill(m_BlockedMoves, false);
+
 				return true;
 			}
+
+			m_BlockedMoves[dir] = true;
 
 			return false;
 		}

@@ -1,7 +1,4 @@
-﻿using Server.Engines.Quests.Mobiles;
-using Server.Items;
-
-namespace Server.Engines.Quests.Items
+﻿namespace Server.Items
 {
 	public enum CannonDirection
 	{
@@ -14,13 +11,13 @@ namespace Server.Engines.Quests.Items
 	public class Cannon : BaseAddon
 	{
 		private CannonDirection m_CannonDirection;
-		private MilitiaCanoneer m_Canoneer;
+		private Mobile m_Canoneer;
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public CannonDirection CannonDirection => m_CannonDirection;
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public MilitiaCanoneer Canoneer { get => m_Canoneer; set => m_Canoneer = value; }
+		public Mobile Canoneer { get => m_Canoneer; set => m_Canoneer = value; }
 
 		[Constructable]
 		public Cannon(CannonDirection direction)
@@ -93,11 +90,11 @@ namespace Server.Engines.Quests.Items
 			target.Damage(9999, from);
 		}
 
-		public override bool HandlesOnMovement => m_Canoneer != null && !m_Canoneer.Deleted && m_Canoneer.Active;
+		public override bool HandlesOnMovement => m_Canoneer != null && !m_Canoneer.Deleted && m_Canoneer.Alive;
 
 		public override void OnMovement(Mobile m, Point3D oldLocation)
 		{
-			if (m_Canoneer == null || m_Canoneer.Deleted || !m_Canoneer.Active)
+			if (m_Canoneer == null || m_Canoneer.Deleted || !m_Canoneer.Alive)
 			{
 				return;
 			}
@@ -119,7 +116,7 @@ namespace Server.Engines.Quests.Items
 					break;
 			}
 
-			if (canFire && m_Canoneer.WillFire(this, m))
+			if (canFire && m_Canoneer.CanBeHarmful(m))
 			{
 				Fire(m_Canoneer, m);
 			}
@@ -147,14 +144,14 @@ namespace Server.Engines.Quests.Items
 			var version = reader.ReadInt();
 
 			m_CannonDirection = (CannonDirection)reader.ReadEncodedInt();
-			m_Canoneer = (MilitiaCanoneer)reader.ReadMobile();
+			m_Canoneer = reader.ReadMobile();
 		}
 	}
 
 	public class CannonComponent : AddonComponent
 	{
 		[CommandProperty(AccessLevel.GameMaster)]
-		public MilitiaCanoneer Canoneer
+		public Mobile Canoneer
 		{
 			get => Addon is Cannon ? ((Cannon)Addon).Canoneer : null;
 			set

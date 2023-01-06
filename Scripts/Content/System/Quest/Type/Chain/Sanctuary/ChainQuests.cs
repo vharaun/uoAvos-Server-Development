@@ -1,5 +1,4 @@
-﻿using Server.Engines.ChainQuests.Items;
-using Server.Engines.ChainQuests.Mobiles;
+﻿using Server.Engines.ChainQuests.Mobiles;
 using Server.Items;
 using Server.Mobiles;
 
@@ -586,41 +585,6 @@ namespace Server.Engines.ChainQuests.Definitions
 			Objectives.Add(new KillObjective(3, new Type[] { typeof(Titan) }, "titans", new QuestArea(1074807, "Sanctuary"))); // Sanctuary
 
 			Rewards.Add(ItemReward.LargeBagOfTreasure);
-		}
-	}
-
-	public class TroubleOnTheWing : ChainQuest
-	{
-		public TroubleOnTheWing()
-		{
-			Activated = true;
-			Title = 1072371; // Trouble on the Wing
-			Description = 1072593; // Those gargoyles need to get knocked down a peg or two, if you ask me.  They're always flying over here and lobbing things at us. What a nuisance.  Drop a dozen of them for me, would you?
-			RefusalMessage = 1072594; // Don't tell me you're a gargoyle sympathizer? *spits*
-			InProgressMessage = 1072595; // Those blasted gargoyles hang around the old tower.  That's the best place to hunt them down.
-
-			Objectives.Add(new KillObjective(12, new Type[] { typeof(Gargoyle) }, "gargoyles", new QuestArea(1074807, "Sanctuary"))); // Sanctuary
-
-			Rewards.Add(ItemReward.BagOfTrinkets);
-		}
-	}
-
-	public class BrotherlyLove : ChainQuest
-	{
-		public BrotherlyLove()
-		{
-			Activated = true;
-			OneTimeOnly = true;
-			Title = 1072369; // Brotherly Love
-			Description = 1072585; // *looks around nervously*  Do you travel to The Heartwood?  I have an urgent letter that must be delivered there in the next 30 minutes -- to Ahie the Cloth Weaver.  Will you undertake this journey?
-			RefusalMessage = 1072587; // *looks disappointed* Let me know if you change your mind.
-			InProgressMessage = 1072588; // You haven't lost the letter have you?  It must be delivered to Ahie directly.  Give it into no other hands.
-			CompletionMessage = 1074579; // Yes, can I help you?
-			CompletionNotice = CompletionNoticeShort;
-
-			Objectives.Add(new DeliverObjective(typeof(APersonalLetterAddressedToAhie), 1, "letter", typeof(Ahie)));
-
-			Rewards.Add(ItemReward.BagOfTrinkets);
 		}
 	}
 

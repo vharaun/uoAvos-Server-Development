@@ -1,4 +1,4 @@
-﻿namespace Server.Engines.Quests.Items
+﻿namespace Server.Items
 {
 	public class GoldenSkull : Item
 	{

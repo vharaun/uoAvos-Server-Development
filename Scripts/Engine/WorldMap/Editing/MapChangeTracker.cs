@@ -122,7 +122,7 @@ namespace Server.Engine.Facet
 							blocktiles[j] = lt;
 						}
 
-						List<int> associated;
+						HashSet<int> associated;
 						MapRegistry.MapAssociations.TryGetValue(MapNumber, out associated);
 
 						foreach (int integer in associated)
@@ -217,7 +217,7 @@ namespace Server.Engine.Facet
 							}
 						}
 
-						List<int> associated;
+						HashSet<int> associated;
 						MapRegistry.MapAssociations.TryGetValue(MapNumber, out associated);
 
 						foreach (int integer in associated)

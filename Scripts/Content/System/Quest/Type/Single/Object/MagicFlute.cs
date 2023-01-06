@@ -1,7 +1,4 @@
-﻿using Server.Engines.Quests.Definitions;
-using Server.Mobiles;
-
-namespace Server.Engines.Quests.Items
+﻿namespace Server.Items
 {
 	public class MagicFlute : Item
 	{
@@ -22,36 +19,6 @@ namespace Server.Engines.Quests.Items
 			}
 
 			from.PlaySound(0x3D);
-
-			var player = from as PlayerMobile;
-
-			if (player != null)
-			{
-				var qs = player.Quest;
-
-				if (qs is WitchApprenticeQuest)
-				{
-					var obj = qs.FindObjective(typeof(FindZeefzorpulObjective_WitchApprenticeQuest)) as FindZeefzorpulObjective_WitchApprenticeQuest;
-
-					if (obj != null && !obj.Completed)
-					{
-						if ((player.Map != Map.Trammel && player.Map != Map.Felucca) || !player.InRange(obj.ImpLocation, 8))
-						{
-							player.SendLocalizedMessage(1055053); // Nothing happens. Zeefzorpul must not be hiding in this area.
-						}
-						else if (player.InRange(obj.ImpLocation, 4))
-						{
-							Delete();
-
-							obj.Complete();
-						}
-						else
-						{
-							player.SendLocalizedMessage(1055052); // The flute sparkles. Zeefzorpul must be in a good hiding place nearby.
-						}
-					}
-				}
-			}
 		}
 
 		public MagicFlute(Serial serial) : base(serial)

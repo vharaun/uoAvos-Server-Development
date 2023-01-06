@@ -5100,6 +5100,7 @@ namespace Server
 			return false;
 		}
 
+		[CommandProperty(AccessLevel.Counselor)]
 		public ItemData ItemData => TileData.ItemTable[m_ItemID & TileData.MaxItemValue];
 
 		public virtual void OnItemUsed(Mobile from, Item item)

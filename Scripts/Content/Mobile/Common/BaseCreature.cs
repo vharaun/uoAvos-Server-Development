@@ -847,8 +847,8 @@ namespace Server.Mobiles
 
 		#region Flying
 
-		public static double FlyingPassiveSpeed => WalkMount / 1000.0;
-		public static double FlyingActiveSpeed => RunMount / 1000.0;
+		public static double FlyingPassiveSpeed => (WalkMount / 1000.0) + 0.100;
+		public static double FlyingActiveSpeed => (RunMount / 1000.0) + 0.100;
 
 		private double m_cPassiveSpeed;
 		private double m_cActiveSpeed;
@@ -1193,7 +1193,7 @@ namespace Server.Mobiles
 				return a == Allegiance.Enemy;
 			}
 
-			if (m is not BaseCreature c || c is Server.Engines.Quests.Mobiles.MilitiaFighter)
+			if (m is not BaseCreature c)
 			{
 				return true;
 			}
@@ -2740,6 +2740,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionWander()
 		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				FlyingWander();
+			}
 		}
 
 		public virtual void OnActionCombat()
@@ -2752,6 +2756,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionFlee()
 		{
+			if (CanFly && !Flying)
+			{
+				FlyingFlee();
+			}
 		}
 
 		public virtual void OnActionInteract()
@@ -2763,6 +2771,51 @@ namespace Server.Mobiles
 		}
 
 		#endregion
+
+		protected long m_NextFlyingAction;
+
+		protected virtual void FlyingWander()
+		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				if (!Flying)
+				{
+					if (Utility.RandomDouble() < 0.25)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+						Flying = true;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+					}
+				}
+				else
+				{
+					if (Utility.RandomDouble() < 0.05)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+
+						Flying = false;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+					}
+				}
+			}
+		}
+
+		protected virtual void FlyingFlee()
+		{
+			if (CanFly && !Flying)
+			{
+				m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+				Flying = true;
+			}
+		}
 
 		public override bool OnDragDrop(Mobile from, Item dropped)
 		{
@@ -6392,9 +6445,13 @@ namespace Server.Mobiles
 		{
 			if (!Deleted && ReturnsToHome && IsSpawnerBound() && !InRange(Home, (RangeHome + 5)))
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds((Utility.Random(45) + 15)), GoHome_Callback);
-
-				m_ReturnQueued = true;
+				Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(45, 60)), () =>
+				{
+					if (m_ReturnQueued)
+					{
+						GoHome(false);
+					}
+				});
 			}
 			else if (PlayerRangeSensitive && m_AI != null)
 			{
@@ -6404,18 +6461,32 @@ namespace Server.Mobiles
 			base.OnSectorDeactivate();
 		}
 
-		public void GoHome_Callback()
+		public void GoHome()
 		{
-			if (m_ReturnQueued && IsSpawnerBound())
+			GoHome(true);
+		}
+
+		public void GoHome(bool force)
+		{
+			if (force)
 			{
-				if (!((Map.GetSector(X, Y)).Active))
+				if (ReturnsToHome)
 				{
 					SetLocation(Home, true);
 
-					if (!((Map.GetSector(X, Y)).Active) && m_AI != null)
+					if (!Map.GetSector(X, Y).Active && m_AI != null)
 					{
 						m_AI.Deactivate();
 					}
+				}
+			}
+			else if (IsSpawnerBound() && !Map.GetSector(X, Y).Active)
+			{
+				SetLocation(Home, true);
+
+				if (!Map.GetSector(X, Y).Active && m_AI != null)
+				{
+					m_AI.Deactivate();
 				}
 			}
 

@@ -1665,7 +1665,7 @@ namespace Server
 
 		public static List<TOutput> CastConvertList<TInput, TOutput>(List<TInput> list) where TOutput : TInput
 		{
-			return list.ConvertAll<TOutput>(new Converter<TInput, TOutput>(delegate (TInput value) { return (TOutput)value; }));
+			return list.ConvertAll(value => (TOutput)value);
 		}
 
 		public static List<TOutput> SafeConvertList<TInput, TOutput>(List<TInput> list) where TOutput : class
@@ -1681,6 +1681,107 @@ namespace Server
 			}
 
 			return output;
+		}
+
+		public static bool CheckUse(Item item, Mobile from, bool handle = true, bool allowDead = false, int range = -1, bool packOnly = false, bool inTrade = false, bool inDisplay = true, AccessLevel access = AccessLevel.Player)
+		{
+			if (item == null || item.Deleted || from == null || from.Deleted)
+			{
+				return false;
+			}
+
+			if (from.AccessLevel < access)
+			{
+				if (handle)
+				{
+					from.SendMessage("You do not have sufficient access to use this item.");
+				}
+
+				return false;
+			}
+
+			if (!from.CanSee(item))
+			{
+				if (handle)
+				{
+					from.SendMessage("This item can't be seen.");
+					item.OnDoubleClickCantSee(from);
+				}
+
+				return false;
+			}
+
+			if (!item.IsAccessibleTo(from))
+			{
+				if (handle)
+				{
+					item.OnDoubleClickNotAccessible(from);
+				}
+
+				return false;
+			}
+
+			if (item.InSecureTrade && !inTrade)
+			{
+				if (handle)
+				{
+					item.OnDoubleClickSecureTrade(from);
+				}
+
+				return false;
+			}
+
+			if (item.Parent == null && !item.Movable && !item.IsLockedDown && !item.IsSecure && !item.InSecureTrade && !inDisplay)
+			{
+				if (handle)
+				{
+					from.SendMessage("This item can not be accessed because it is part of a display.");
+				}
+
+				return false;
+			}
+
+			if (!from.Alive && !allowDead)
+			{
+				if (handle)
+				{
+					item.OnDoubleClickDead(from);
+				}
+
+				return false;
+			}
+
+			if (range >= 0 && !packOnly && !from.InRange(item, range))
+			{
+				if (handle)
+				{
+					if (range > 0)
+					{
+						from.SendMessage("You must be within {0:#,0} paces to use this item.", range);
+					}
+					else
+					{
+						from.SendMessage("You must be standing on this item to use it.");
+					}
+
+					item.OnDoubleClickOutOfRange(from);
+				}
+
+				return false;
+			}
+
+			if (packOnly && item.RootParent != from)
+			{
+				if (handle)
+				{
+					// This item must be in your backpack.
+					from.SendLocalizedMessage(1054107);
+				}
+
+				return false;
+			}
+
+			return true;
 		}
 	}
 }

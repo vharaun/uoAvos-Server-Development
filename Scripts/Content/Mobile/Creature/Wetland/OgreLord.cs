@@ -1,14 +1,10 @@
-﻿using Server.Factions;
-using Server.Items;
+﻿using Server.Items;
 
 namespace Server.Mobiles
 {
 	[CorpseName("an ogre lords corpse")]
 	public class OgreLord : BaseCreature
 	{
-		public override Faction FactionAllegiance => Minax.Instance;
-		public override Ethics.Ethic EthicAllegiance => Ethics.Ethic.Evil;
-
 		[Constructable]
 		public OgreLord() : base(AIType.AI_Melee, FightMode.Closest, 10, 1, 0.2, 0.4)
 		{

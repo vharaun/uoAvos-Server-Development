@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	public class CrateForSledge : TransientItem
 	{

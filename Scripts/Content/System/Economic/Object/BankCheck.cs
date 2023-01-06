@@ -239,33 +239,6 @@ namespace Server.Items
 
 			// Gold was deposited in your account:
 			from.SendLocalizedMessage(1042672, true, deposited.ToString("#,0"));
-
-			var pm = from as PlayerMobile;
-
-			if (pm != null)
-			{
-				var qs = pm.Quest;
-
-				if (qs is Engines.Quests.Definitions.DarkTidesQuest)
-				{
-					var obj = qs.FindObjective(typeof(Engines.Quests.Definitions.CashBankCheckObjective_DarkTidesQuest));
-
-					if (obj != null && !obj.Completed)
-					{
-						obj.Complete();
-					}
-				}
-
-				if (qs is Engines.Quests.Definitions.UzeraanTurmoilQuest)
-				{
-					var obj = qs.FindObjective(typeof(Engines.Quests.Definitions.CashBankCheckObjective_UzeraanTurmoilQuest));
-
-					if (obj != null && !obj.Completed)
-					{
-						obj.Complete();
-					}
-				}
-			}
 		}
 	}
 }

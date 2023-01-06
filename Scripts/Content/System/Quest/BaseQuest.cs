@@ -42,16 +42,6 @@ namespace Server.Engines.Quests
 		public static readonly Type[] QuestTypes = new Type[]
 			{
 				typeof( TheSummoningQuest ),
-				typeof( DarkTidesQuest ),
-				typeof( UzeraanTurmoilQuest ),
-				typeof( CollectorQuest ),
-				typeof( WitchApprenticeQuest ),
-				typeof( StudyOfSolenQuest ),
-				typeof( SolenMatriarchQuest ),
-				typeof( AmbitiousQueenQuest ),
-				typeof( EminosUndertakingQuest ),
-				typeof( HaochisTrialsQuest ),
-				typeof( TerribleHatchlingsQuest )
 			};
 
 		public abstract object Name { get; }
@@ -475,26 +465,6 @@ namespace Server.Engines.Quests
 			}
 
 			if (pm.HasGump(typeof(QuestOfferGump)))
-			{
-				return false;
-			}
-
-			if (questType == typeof(DarkTidesQuest) && pm.Profession != 4) // necromancer
-			{
-				return false;
-			}
-
-			if (questType == typeof(UzeraanTurmoilQuest) && pm.Profession != 1 && pm.Profession != 2 && pm.Profession != 5) // warrior / magician / paladin
-			{
-				return false;
-			}
-
-			if (questType == typeof(HaochisTrialsQuest) && pm.Profession != 6) // samurai
-			{
-				return false;
-			}
-
-			if (questType == typeof(EminosUndertakingQuest) && pm.Profession != 7) // ninja
 			{
 				return false;
 			}
