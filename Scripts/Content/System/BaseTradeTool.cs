@@ -1,4 +1,6 @@
 ﻿using Server.ContextMenus;
+using Server.Engine.Facet;
+using Server.Engine.Facet.Module.LumberHarvest;
 using Server.Engines.Craft;
 using Server.Engines.Harvest;
 using Server.Engines.Quests.Definitions;
@@ -1279,8 +1281,8 @@ namespace Server.Targets
 			}
 			else
 			{
-				HarvestSystem system = Lumberjacking.System;
-				var def = Lumberjacking.System.Definition;
+				HarvestSystem system = FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
+				var def = FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System.Definition : Lumberjacking.System.Definition;
 
 				int tileID;
 				Map map;

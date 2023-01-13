@@ -1,4 +1,5 @@
 ﻿using Server.ContextMenus;
+using Server.Engine.Facet;
 using Server.Engine.Facet.Module.LumberHarvest;
 using Server.Engines.Harvest;
 using Server.Mobiles;
@@ -41,7 +42,7 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Axe;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => FacetModule_Lumberjacking.System; // public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
 
 		private int m_UsesRemaining;
 		private bool m_ShowUsesRemaining;
