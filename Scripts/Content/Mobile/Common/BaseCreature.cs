@@ -1,5 +1,4 @@
 ﻿using Server.ContextMenus;
-using Server.Engines.ChainQuests;
 using Server.Engines.Events;
 using Server.Factions;
 using Server.Items;
@@ -162,7 +161,7 @@ namespace Server.Mobiles
 		}
 	}
 
-	public partial class BaseCreature : Mobile, IHonorTarget, IQuestGiver
+	public partial class BaseCreature : Mobile, IHonorTarget
 	{
 		public const int MaxLoyalty = 100;
 
@@ -345,88 +344,6 @@ namespace Server.Mobiles
 		public virtual Faction FactionAllegiance => null;
 		public virtual int FactionSilverWorth => 30;
 
-		#region ChainQuestSystem
-
-		private List<ChainQuest> m_ChainQuests;
-
-		public List<ChainQuest> ChainQuests
-		{
-			get
-			{
-				if (m_ChainQuests == null)
-				{
-					if (StaticChainQuester)
-					{
-						m_ChainQuests = ChainQuestSystem.FindQuestList(GetType());
-					}
-					else
-					{
-						m_ChainQuests = ConstructQuestList();
-					}
-
-					if (m_ChainQuests == null)
-					{
-						return ChainQuestSystem.EmptyList; // return EmptyList, but don't cache it (run construction again next time)
-					}
-				}
-
-				return m_ChainQuests;
-			}
-		}
-
-		public virtual bool CanGiveChainQuest => (ChainQuests.Count != 0);
-		public virtual bool StaticChainQuester => true;
-
-		protected virtual List<ChainQuest> ConstructQuestList()
-		{
-			return null;
-		}
-
-		public virtual bool CanShout => false;
-
-		public const int ShoutRange = 8;
-		public static readonly TimeSpan ShoutDelay = TimeSpan.FromMinutes(1);
-
-		private DateTime m_NextShout; // Changed "m_MLNextShout" to "m_NextShout"
-
-		private void CheckShout(PlayerMobile pm, Point3D oldLocation)
-		{
-			if (m_NextShout > DateTime.UtcNow || pm.Hidden || !pm.Alive)
-			{
-				return;
-			}
-
-			var shoutRange = ShoutRange;
-
-			if (!InRange(pm.Location, shoutRange) || InRange(oldLocation, shoutRange) || !CanSee(pm) || !InLOS(pm))
-			{
-				return;
-			}
-
-			var context = ChainQuestSystem.GetContext(pm);
-
-			if (context != null && context.IsFull)
-			{
-				return;
-			}
-
-			var quest = ChainQuestSystem.RandomStarterQuest(this, pm, context);
-
-			if (quest == null || !quest.Activated || (context != null && context.IsDoingQuest(quest)))
-			{
-				return;
-			}
-
-			Shout(pm);
-			m_NextShout = DateTime.UtcNow + ShoutDelay;
-		}
-
-		public virtual void Shout(PlayerMobile pm)
-		{
-		}
-
-		#endregion
-
 		#region Bonding
 		public const bool BondingEnabled = true;
 
@@ -505,7 +422,7 @@ namespace Server.Mobiles
 		#endregion
 
 		#region Delete Previously Tamed Timer
-		private DeleteTimer m_DeleteTimer;
+		private Timer m_DeleteTimer;
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public TimeSpan DeleteTimeLeft
@@ -521,39 +438,30 @@ namespace Server.Mobiles
 			}
 		}
 
-		private class DeleteTimer : Timer
+		protected virtual bool OnBeginDeleteTimer(ref TimeSpan delay)
 		{
-			private readonly Mobile m;
-
-			public DeleteTimer(Mobile creature, TimeSpan delay) : base(delay)
-			{
-				m = creature;
-				Priority = TimerPriority.OneMinute;
-			}
-
-			protected override void OnTick()
-			{
-				m.Delete();
-			}
+			return !Deleted && !Summoned && !IsStabled;
 		}
 
 		public void BeginDeleteTimer()
 		{
-			if (!(this is BaseEscortable) && !Summoned && !Deleted && !IsStabled)
+			BeginDeleteTimer(TimeSpan.FromDays(3.0));
+		}
+
+		public void BeginDeleteTimer(TimeSpan delay)
+		{
+			if (OnBeginDeleteTimer(ref delay))
 			{
-				StopDeleteTimer();
-				m_DeleteTimer = new DeleteTimer(this, TimeSpan.FromDays(3.0));
+				m_DeleteTimer?.Stop();
+				m_DeleteTimer = Timer.DelayCall(delay, Delete);
 				m_DeleteTimer.Start();
 			}
 		}
 
 		public void StopDeleteTimer()
 		{
-			if (m_DeleteTimer != null)
-			{
-				m_DeleteTimer.Stop();
-				m_DeleteTimer = null;
-			}
+			m_DeleteTimer?.Stop();
+			m_DeleteTimer = null;
 		}
 
 		#endregion
@@ -2433,8 +2341,7 @@ namespace Server.Mobiles
 					deleteTime = TimeSpan.FromDays(3.0);
 				}
 
-				m_DeleteTimer = new DeleteTimer(this, deleteTime);
-				m_DeleteTimer.Start();
+				BeginDeleteTimer(deleteTime);
 			}
 
 			if (version >= 18)
@@ -2823,17 +2730,10 @@ namespace Server.Mobiles
 			{
 				return true;
 			}
-			else if (CheckGold(from, dropped))
+			
+			if (CheckGold(from, dropped))
 			{
 				return true;
-			}
-
-			// Note: Yes, this happens for all questers (regardless of type, e.g. escorts),
-			// even if they can't offer you anything at the moment
-			if (ChainQuestSystem.Enabled && CanGiveChainQuest && from is PlayerMobile)
-			{
-				ChainQuestSystem.Tell(this, (PlayerMobile)from, 1074893); // You need to mark your quest items so I don't take the wrong object.  Then speak to me.
-				return false;
 			}
 
 			return base.OnDragDrop(from, dropped);
@@ -3311,7 +3211,7 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (AutoDispel && defender is BaseCreature && ((BaseCreature)defender).IsDispellable && AutoDispelChance > Utility.RandomDouble())
+			if (AutoDispel && defender is BaseCreature bcd && bcd.IsDispellable && AutoDispelChance > Utility.RandomDouble())
 			{
 				Dispel(defender);
 			}
@@ -3319,32 +3219,16 @@ namespace Server.Mobiles
 
 		public override void OnAfterDelete()
 		{
-			if (m_AI != null)
-			{
-				if (m_AI.m_Timer != null)
-				{
-					m_AI.m_Timer.Stop();
-				}
+			m_AI?.m_Timer?.Stop();
+			m_AI = null;
 
-				m_AI = null;
-			}
-
-			if (m_DeleteTimer != null)
-			{
-				m_DeleteTimer.Stop();
-				m_DeleteTimer = null;
-			}
+			StopDeleteTimer();
 
 			FocusMob = null;
 
 			if (IsAnimatedDead)
 			{
-				Spells.Necromancy.AnimateDeadSpell.Unregister(m_SummonMaster, this);
-			}
-
-			if (ChainQuestSystem.Enabled)
-			{
-				ChainQuestSystem.HandleDeletion(this);
+				AnimateDeadSpell.Unregister(m_SummonMaster, this);
 			}
 
 			base.OnAfterDelete();
@@ -4134,11 +4018,6 @@ namespace Server.Mobiles
 				}
 			}
 			/* End notice sound */
-
-			if (ChainQuestSystem.Enabled && CanShout && m is PlayerMobile)
-			{
-				CheckShout((PlayerMobile)m, oldLocation);
-			}
 
 			if (m_NoDupeGuards == m)
 			{
@@ -4985,28 +4864,16 @@ namespace Server.Mobiles
 		{
 			if (from.AccessLevel >= AccessLevel.GameMaster && !Body.IsHuman)
 			{
-				var pack = Backpack;
-
-				if (pack != null)
-				{
-					pack.DisplayTo(from);
-				}
+				Backpack?.DisplayTo(from);
 			}
 
 			if (DeathAdderCharmable && from.CanBeHarmful(this, false))
 			{
-				var da = Spells.Necromancy.SummonFamiliarSpell.Table[from] as DeathAdder;
-
-				if (da != null && !da.Deleted)
+				if (SummonFamiliarSpell.Table[from] is DeathAdder da && !da.Deleted)
 				{
 					from.SendAsciiMessage("You charm the snake.  Select a target to attack.");
 					from.Target = new DeathAdderCharmTarget(this);
 				}
-			}
-
-			if (ChainQuestSystem.Enabled && CanGiveChainQuest && from is PlayerMobile)
-			{
-				ChainQuestSystem.OnDoubleClick(this, (PlayerMobile)from);
 			}
 
 			base.OnDoubleClick(from);
@@ -5028,14 +4895,12 @@ namespace Server.Mobiles
 					return;
 				}
 
-				var da = Spells.Necromancy.SummonFamiliarSpell.Table[from] as DeathAdder;
-				if (da == null || da.Deleted)
+				if (SummonFamiliarSpell.Table[from] is not DeathAdder da || da.Deleted)
 				{
 					return;
 				}
 
-				var targ = targeted as Mobile;
-				if (targ == null || !from.CanBeHarmful(targ, false))
+				if (targeted is not Mobile targ || !from.CanBeHarmful(targ, false))
 				{
 					return;
 				}
@@ -5062,11 +4927,6 @@ namespace Server.Mobiles
 		public override void GetProperties(ObjectPropertyList list)
 		{
 			base.GetProperties(list);
-
-			if (ChainQuestSystem.Enabled && CanGiveChainQuest)
-			{
-				list.Add(1072269); // Quest Giver
-			}
 
 			if (Core.ML)
 			{
@@ -5177,16 +5037,6 @@ namespace Server.Mobiles
 			{
 				m_HasGeneratedLoot = true;
 				GenerateLoot(false);
-			}
-
-			if (!NoKillAwards && Region.IsPartOf("Doom"))
-			{
-				var bones = Engines.Quests.Definitions.TheSummoningQuest.GetDaemonBonesFor(this);
-
-				if (bones > 0)
-				{
-					PackItem(new DaemonBone(bones));
-				}
 			}
 
 			if (IsAnimatedDead)
@@ -5532,7 +5382,6 @@ namespace Server.Mobiles
 					var fame = new List<int>();
 					var karma = new List<int>();
 
-					var givenQuestKill = false;
 					var givenFactionKill = false;
 					var givenToTKill = false;
 
@@ -5595,32 +5444,6 @@ namespace Server.Mobiles
 						{
 							givenToTKill = true;
 							TreasuresOfTokuno.HandleKill(this, ds.m_Mobile);
-						}
-
-						var pm = ds.m_Mobile as PlayerMobile;
-
-						if (pm != null)
-						{
-							if (ChainQuestSystem.Enabled)
-							{
-								ChainQuestSystem.HandleKill(pm, this);
-
-								// Kills are given to *everyone* with looting right in the ML quest system
-								//givenQuestKill = true;
-							}
-
-							if (givenQuestKill)
-							{
-								continue;
-							}
-
-							var qs = pm.Quest;
-
-							if (qs != null)
-							{
-								qs.OnKill(this, c);
-								givenQuestKill = true;
-							}
 						}
 					}
 

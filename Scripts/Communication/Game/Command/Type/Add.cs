@@ -1377,12 +1377,6 @@ namespace Server.Commands
 					typeof(BaseShieldGuard),
 				},
 				#endregion
-				#region Escortables
-				new CategoryNode("Escortables")
-				{
-					typeof(BaseEscortable),
-				},
-				#endregion
 				#region Vendors
 				new CategoryNode("Vendors")
 				{
