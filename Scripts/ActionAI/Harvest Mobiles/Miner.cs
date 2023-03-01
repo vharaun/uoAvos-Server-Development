@@ -170,15 +170,30 @@ namespace Server.Mobiles
 
 					// Mountain side mining
 					LandTile lt = map.Tiles.GetLandTile(xx, yy);
+					//TileFlag ImpassableSurface = TileFlag.Impassable | TileFlag.Surface;
+					TileFlag landFlags = TileData.LandTable[lt.ID & TileData.MaxLandValue].Flags;
+
+					var tiles = map.Tiles.GetStaticTiles(xx, yy, true);
+
+					for (var k = 0; k < tiles.Length; ++k)
+					{
+						var tile = tiles[0];
+						var id = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
+
+						//var top = tile.Z; // Confirmed : no height checks here
+
+						if (id.Surface && !id.Impassable)
+						{
+							continue;
+						}
+					}
+					
+					//if ((landFlags & TileFlag.Impassable) == 0 & (landFlags & !TileFlag.Surface) == 0)
+					//if (id.Surface && !id.Impassable)
 
 					if (m_MountainSideTiles.Contains(lt.ID))
 					{
-						Console.WriteLine(lt.ID);
-						Console.WriteLine(" ");
-
 						Direction d = this.GetDirectionTo( pointsToCheck[i].X, pointsToCheck[i].Y );
-
-						
 
 						int xxDirectional = pointsToCheck[i].X;
 						int yyDirectional = pointsToCheck[i].Y;
@@ -241,7 +256,8 @@ namespace Server.Mobiles
 				if (pointsList.Count > 1)
 					pointsList.RemoveAt(1);
 
-				Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+				// use this for debugging, it add an item in game for each point in the mobile's path
+				//TestView();
 			}
 			catch
 			{ }
@@ -280,8 +296,18 @@ namespace Server.Mobiles
 				m_waypointFirst.MoveToWorld(pointsList[0], Map);
 
             CurrentWayPoint = m_waypointFirst;
-            Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+			//Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+			
         }
+
+		private void TestView()
+		{
+			foreach (Point3D p in pointsList)
+			{
+				Item item = new Item(0x0111);
+				item.MoveToWorld(p, Map);
+			}
+		}
 
         private static readonly int[] m_CaveTiles = new int[]
         {
@@ -299,17 +325,25 @@ namespace Server.Mobiles
 
 		private static readonly int[] m_MountainSideTiles = new int[]
 		{
-			220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
-				230, 231, 236, 237, 238, 239, 240, 241, 242, 243,
+			220, 221, 222, 223, 224, 225, 226, //227, 
+			
+				/*228, 229,
+				230, 231, */
+			
+			236, 237, 238, 239, 240, 241, 242, 243,
 				244, 245, 246, 247, 252, 253, 254, 255, 256, 257,
 				258, 259, 260, 261, 262, 263, 268, 269, 270, 271,
 				272, 273, 274, 275, 276, 277, 278, 279, 286, 287,
 				288, 289, 290, 291, 292, 293, 294, 296, 296, 297,
 				321, 322, 323, 324, 467, 468, 469, 470, 471, 472,
 				473, 474, 476, 477, 478, 479, 480, 481, 482, 483,
-				484, 485, 486, 487, 492, 493, 494, 495, 543, 544,
+				484, 485, 486, 487, 492, 493, 494, 495, 
+			
+				/*543, 544,
 				545, 546, 547, 548, 549, 550, 551, 552, 553, 554,
-				555, 556, 557, 558, 559, 560, 561, 562, 563, 564,
+				555, 556, 557, 558, 559, 560, */
+			
+				561, 562, 563, 564,
 				565, 566, 567, 568, 569, 570, 571, 572, 573, 574,
 				575, 576, 577, 578, 579, 581, 582, 583, 584, 585,
 				586, 587, 588, 589, 590, 591, 592, 593, 594, 595,
@@ -347,17 +381,17 @@ namespace Server.Mobiles
 
             if (Alive && !Deleted /* && m_waypointFirst != null && m_MobilePath != null */)
             {
-                if (m_waypointFirst.Location == Home)
+				if (!this.InLOS(new Point3D(m_waypointFirst.X, m_waypointFirst.Y, m_waypointFirst.Z)))
+				{
+					NextWayPoint();
+				}
+
+				if (m_waypointFirst.Location == Home)
                 {
                     CurrentSpeed = 2.0;
 
                     Timer.DelayCall(TimeSpan.FromMinutes(5.0), MoveWayPoint);
                 }
-
-				if(!this.InLOS(new Point3D(m_waypointFirst.X, m_waypointFirst.Y, m_waypointFirst.Z)))
-				{
-					MoveWayPoint();
-				}
 
                 if (Location != Home && m_waypointFirst != null && (m_waypointFirst.X == Location.X & m_waypointFirst.Y == Location.Y))
                 {
@@ -412,8 +446,40 @@ namespace Server.Mobiles
             }
         }
 
-        // separate method in case mobile isn't on a way point at startup, this will force them to start moving again
-        public void MoveWayPointOnDeserialize()
+		public void NextWayPoint()
+		{
+			if (!Alive && Deleted)
+			{
+				return;
+			}
+
+			if (Alive && !Deleted)
+			{
+				/*if (waypointFirst != null && (waypointFirst.X == Location.X & waypointFirst.Y == Location.Y))
+				{*/
+					CantWalk = false;
+
+					//if ((m_Index + 1) < m_MobilePath.Count)
+					if ((m_Index + 1) < pointsList.Count)
+					{
+						m_Index++;
+						//waypointFirst.Location = m_MobilePath[m_Index].Item1;
+						waypointFirst.Location = pointsList[m_Index];
+						CurrentWayPoint = waypointFirst;
+						Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+					}
+					else
+					{
+						m_Index = 0;
+						waypointFirst.Location = Home;
+						CurrentWayPoint = waypointFirst;
+					}
+				//}
+			}
+		}
+
+		// separate method in case mobile isn't on a way point at startup, this will force them to start moving again
+		public void MoveWayPointOnDeserialize()
         {
             if (!Alive && Deleted)
             {
