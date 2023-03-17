@@ -13,6 +13,7 @@
 >**What To Expect From Using This Repository?**
 -   What everyone should understand is that the uoAvos game engine was designed to be generic; it follows where creativity leads. This project is a foundation to developing a truly custom  [mmo/ mmorpg](https://en.wikipedia.org/wiki/Massively_multiplayer_online_game)  experience. uoAvos DOES NOT follow the RunUO, ServUO, and ModernUO standard of Ultima Online™ emulation; we have deviated from it.
 ***
+
 ## uoAvos Features:
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Poly3D Regions and In-Game Region Editor**
