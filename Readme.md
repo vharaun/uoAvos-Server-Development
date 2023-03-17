@@ -15,22 +15,20 @@
 ***
 ## uoAvos Features:
 
-<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">
-
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Poly3D Regions and In-Game Region Editor**
 - region independent weather.
 - create parent and child regions of any shape and size.
 - add rules for each region; child regions can adopt their parent region conditions or they can have their own.
 - new regions can be added immediately (without server restart).
 
-![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)**Multiple Currency Trading with Vendor Compatibility!**
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Multiple Currency Trading with Vendor Compatibility!**
 - regions can have their own independent currency.
 - vendors can be assigned to take specific currency.
 - regions can be assigned RED, BLUE, or NEUTRAL: this provides safe havens for criminals and murderers. It is also a great way to set up a gladiatorial arena in a much more efficient way (you can set the seating to <a href="https://en.wikipedia.org/wiki/Player_versus_environment">PvE</a> and the center of the arena to <a href="https://en.wikipedia.org/wiki/Player_versus_player">PvP</a>). This allows the fight to go on without the spectator(s) becoming mincemeat. 
 
-![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)**Assigned Home Cities and City Loyalty**
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Assigned Home Cities and City Loyalty**
 - When players initially log in they will be asked to choose a home city; this can be modified for custom facets and custom cities so this system works for everyone with a little tweaking. 
 - Home city loyalty can be used as a flag to a condition, or series of conditions, that must be met with other systems and quests added to your servers. This addition has a lot of possibilities for expansion.
 
-![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)**And Many More Expansions To Come...**
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**And Many More Expansions To Come...**
 - uoAvos will always be a work-in-progress project. That means that as long as we are alive and kicking, we will continue to find ways to improve the game engine to allow users to create game servers that could potentially compete with any pixel-art-oriented isometric games on the market!
