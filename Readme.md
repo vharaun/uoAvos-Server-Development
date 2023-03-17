@@ -32,4 +32,4 @@
 - Home city loyalty can be used as a flag to a condition, or series of conditions, that must be met with other systems and quests added to your servers. This addition has a lot of possibilities for expansion.
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**And Many More Expansions To Come...**
-- uoAvos will always be a work-in-progress project. That means, that as long as we are alive and kicking, we will continue to find ways to improve the uoAvos game engine to allow our users to create game servers that could potentially compete with any pixel-art-oriented isometric game on the market!
+- uoAvos will always be a work-in-progress project. That means, that as long as we are alive and kicking we will continue to find ways to improve the uoAvos game engine to allow our users to create game servers that could potentially compete with any pixel-art-oriented isometric game on the market!
