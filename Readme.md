@@ -15,7 +15,8 @@
 ***
 ## uoAvos Features:
 
-﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png)]
+
+<img src="[https://mma.prnewswire.com/media/1513369/Educative_Logo.jpg](http://www.uoavocation.net/portal/site_image/github/checkmark.png)"  width="24" height="24">
 
 ﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)]**Poly3D Regions and In-Game Region Editor**
 - region independent weather.
