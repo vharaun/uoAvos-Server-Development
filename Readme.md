@@ -15,7 +15,7 @@
 ***
 ## uoAvos Features:
 
-﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/logos/logo_0001a.png)]
+﻿[![N|Solid]((http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)]
 
 ﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)]**Poly3D Regions and In-Game Region Editor**
 - region independent weather.
