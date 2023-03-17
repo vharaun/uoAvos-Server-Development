@@ -15,9 +15,9 @@
 ***
 ## uoAvos Features:
 
-<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png"  width="24" height="24">
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">
 
-﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/github/checkmark.png =24x24)]**Poly3D Regions and In-Game Region Editor**
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Poly3D Regions and In-Game Region Editor**
 - region independent weather.
 - create parent and child regions of any shape and size.
 - add rules for each region; child regions can adopt their parent region conditions or they can have their own.
