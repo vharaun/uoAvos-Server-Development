@@ -16,10 +16,14 @@
 
 ## uoAvos Features:
 
+<img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**The Servers Data Folder Has Been Integrated**
+- uoAvos no longer uses a Data folder with its server. The reason is because we have taken its contents, hardcoded it in C#, and merged it with the server code.
+
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Poly3D Regions and In-Game Region Editor**
 - region independent weather.
 - create parent and child regions of any shape and size.
 - add rules for each region; child regions can adopt their parent region conditions or they can have their own.
+- Regions now have entry restrictions added for Creatures, NPCs, and vehicles
 - new regions can be added immediately (without server restart).
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Multiple Currency Trading with Vendor Compatibility!**
