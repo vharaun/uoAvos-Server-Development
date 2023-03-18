@@ -27,13 +27,13 @@
 - new regions can be added immediately (without server restart).
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Multiple Currency Trading with Vendor Compatibility!**
-- regions can have their own independent currency.
-- vendors can be assigned to take specific currency.
+- regions and vendors can have their own independent currency from one another; there is a heirarchy though. if a vendor is within a region which has a currency set, that regions currency type will override the vendors within its borders.
 - regions can be assigned RED, BLUE, or NEUTRAL: this provides safe havens for criminals and murderers. It is also a great way to set up a gladiatorial arena in a much more efficient way (you can set the seating to <a href="https://en.wikipedia.org/wiki/Player_versus_environment">PvE</a> and the center of the arena to <a href="https://en.wikipedia.org/wiki/Player_versus_player">PvP</a>). This allows the fight to go on without the spectator(s) becoming mincemeat. 
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**Assigned Home Cities and City Loyalty**
 - When players initially log in they will be asked to choose a home city; this can be modified for custom facets and custom cities so this system works for everyone with a little tweaking. 
 - Home city loyalty can be used as a flag to a condition, or series of conditions, that must be met with other systems and quests added to your servers. This addition has a lot of possibilities for expansion.
+- All town guards now have their own AI and have been converted to BaseCreature. There is no longer an insta-kill for commiting crimes; guards will chase and fight.
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**And Many More Expansions To Come...**
 - uoAvos will always be a work-in-progress project. That means, that as long as we are alive and kicking we will continue to find ways to improve the uoAvos game engine to allow our users to create game servers that could potentially compete with any pixel-art-oriented isometric game on the market!
