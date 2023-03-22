@@ -393,6 +393,21 @@ namespace Server.Mobiles
                     Timer.DelayCall(TimeSpan.FromMinutes(5.0), MoveWayPoint);
                 }
 
+				if (Location != Home && m_waypointFirst != null && (m_waypointFirst.X != Location.X & m_waypointFirst.Y != Location.Y))
+				{
+					Timer.DelayCall(TimeSpan.FromSeconds(5.0), delegate
+						{
+							if (m_waypointFirst != null && (m_waypointFirst.X != Location.X & m_waypointFirst.Y != Location.Y) && (m_Index + 1) < pointsList.Count)
+								MoveWayPoint();
+							else
+							{
+								m_Index = 0;
+								waypointFirst.Location = Home;
+								CurrentWayPoint = waypointFirst;
+							}
+						});
+				}
+
                 if (Location != Home && m_waypointFirst != null && (m_waypointFirst.X == Location.X & m_waypointFirst.Y == Location.Y))
                 {
                     CantWalk = true;
@@ -423,19 +438,31 @@ namespace Server.Mobiles
 
             if (Alive && !Deleted)
             {
-                if (waypointFirst != null && (waypointFirst.X == Location.X & waypointFirst.Y == Location.Y))
+				
+
+				if (waypointFirst != null && (waypointFirst.X == Location.X & waypointFirst.Y == Location.Y))
                 {
                     CantWalk = false;
 
                     //if ((m_Index + 1) < m_MobilePath.Count)
                     if ( (m_Index + 1) < pointsList.Count )
                     {
-                        m_Index++;
-						//waypointFirst.Location = m_MobilePath[m_Index].Item1;
-						waypointFirst.Location = pointsList[m_Index];
-                        CurrentWayPoint = waypointFirst;
-                        Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
-                    }
+						if (TryNextPoint())
+						{
+							m_Index++;
+
+							//waypointFirst.Location = m_MobilePath[m_Index].Item1;
+							waypointFirst.Location = pointsList[m_Index];
+							CurrentWayPoint = waypointFirst;
+							Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+						}
+						else
+						{
+							Console.WriteLine("path failed");
+							MoveWayPoint();
+						}
+
+					}
                     else
                     {
                         m_Index = 0;
@@ -462,11 +489,23 @@ namespace Server.Mobiles
 					//if ((m_Index + 1) < m_MobilePath.Count)
 					if ((m_Index + 1) < pointsList.Count)
 					{
-						m_Index++;
-						//waypointFirst.Location = m_MobilePath[m_Index].Item1;
-						waypointFirst.Location = pointsList[m_Index];
-						CurrentWayPoint = waypointFirst;
-						Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+						if (TryNextPoint())
+						{
+							Console.WriteLine("path succeeded");
+							m_Index++;
+
+							//waypointFirst.Location = m_MobilePath[m_Index].Item1;
+							waypointFirst.Location = pointsList[m_Index];
+							CurrentWayPoint = waypointFirst;
+							Timer.DelayCall(TimeSpan.FromSeconds(10.0), MoveWayPoint);
+
+						}
+						else
+						{
+							Console.WriteLine("path failed");
+							NextWayPoint();
+						}
+
 					}
 					else
 					{
@@ -475,6 +514,20 @@ namespace Server.Mobiles
 						CurrentWayPoint = waypointFirst;
 					}
 				//}
+			}
+		}
+
+		private bool TryNextPoint()
+		{
+			var path = new MovementPath(this, pointsList[m_Index++]);
+
+			if (!path.Success)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
 			}
 		}
 
