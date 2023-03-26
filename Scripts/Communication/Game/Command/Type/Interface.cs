@@ -5,6 +5,7 @@ using Server.Targets;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Server.Commands.Generic
 {
@@ -55,28 +56,37 @@ namespace Server.Commands.Generic
 
 	public class InterfaceGump : BaseGridGump
 	{
-		public static Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>> Instances { get; } = new Dictionary<INotifyPropertyUpdate, HashSet<InterfaceGump>>();
+		public static Dictionary<object, HashSet<InterfaceGump>> Instances { get; } = new();
 
-		private static HashSet<InterfaceGump> m_Buffer = new HashSet<InterfaceGump>();
+		private static HashSet<InterfaceGump> m_Buffer = new();
 
 		public static void Configure()
 		{
-			PropertyNotifier.OnPropertyChanged += OnPropertyChanged;
+			PropertyNotifier.PropertyChanged += OnPropertyChanged;
 		}
 
-		private static void OnPropertyChanged(INotifyPropertyUpdate sender, object _)
+		private static void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
 			if (sender != null && Instances.TryGetValue(sender, out var gumps))
 			{
 				Instances[sender] = m_Buffer;
 
-				foreach (var gump in gumps)
+				m_Buffer = gumps;
+
+				foreach (var gump in m_Buffer)
 				{
 					foreach (var o in gump.m_List)
 					{
-						if (o != sender && o is INotifyPropertyUpdate u)
+						if (o == null)
 						{
-							Instances.Remove(u);
+							continue;
+						}
+
+						var t = o.GetType();
+
+						if (!t.IsPrimitive)
+						{
+							Instances.Remove(o);
 						}
 					}
 
@@ -87,16 +97,18 @@ namespace Server.Commands.Generic
 						continue;
 					}
 
+					ns.Send(new CloseGump(gump.TypeID, 0));
+
 					ns.RemoveGump(gump);
+
+					gump.OnServerClose(ns);
 
 					var g = new InterfaceGump(gump.m_From, gump.m_Columns, gump.m_List, gump.m_Page, gump.m_Select);
 
 					g.SendTo(ns);
 				}
 
-				gumps.Clear();
-
-				m_Buffer = gumps;
+				m_Buffer.Clear();
 			}
 		}
 
@@ -109,9 +121,18 @@ namespace Server.Commands.Generic
 
 		private readonly object m_Select;
 
-		private const int EntriesPerPage = 15;
+		private const int EntriesPerPage = 20;
 
-		public InterfaceGump(Mobile from, string[] columns, ArrayList list, int page, object select) : base(30, 30)
+		public InterfaceGump(Mobile from, IEnumerable list)
+			: this(from, list.Cast<object>().ToArray())
+		{ }
+
+		public InterfaceGump(Mobile from, ICollection list)
+			: this(from, new[] { "Object" }, new(list), 0, null)
+		{ }
+
+		public InterfaceGump(Mobile from, string[] columns, ArrayList list, int page, object select) 
+			: base(30, 30)
 		{
 			m_From = from;
 
@@ -124,11 +145,22 @@ namespace Server.Commands.Generic
 
 			foreach (var o in m_List)
 			{
-				if (o is INotifyPropertyUpdate u)
+				if (o == null)
 				{
-					if (!Instances.TryGetValue(u, out var gumps))
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive)
+				{
+					if (!Instances.TryGetValue(o, out var gumps))
 					{
-						Instances[u] = gumps = new HashSet<InterfaceGump>();
+						Instances[o] = gumps = new HashSet<InterfaceGump>();
+					}
+					else
+					{
+						_ = gumps.RemoveWhere(g => g.m_From == m_From && Enumerable.SequenceEqual(g.m_List.Cast<object>(), m_List.Cast<object>()));
 					}
 
 					gumps.Add(this);
@@ -151,7 +183,7 @@ namespace Server.Commands.Generic
 				AddEntryHeader(20);
 			}
 
-			AddEntryHtml(40 + (m_Columns.Length * 130) - 20 + ((m_Columns.Length - 2) * OffsetSize), Center(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
+			AddEntryHtml(40 + (m_Columns.Length * 130) - 20 + ((m_Columns.Length - 2) * OffsetSize), SetCenter(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
 
 			if ((m_Page + 1) * EntriesPerPage < m_List.Count)
 			{
@@ -205,28 +237,40 @@ namespace Server.Commands.Generic
 				AddNewLine();
 
 				var obj = m_List[i];
+				var isNull = obj == null;
 				var isDeleted = false;
 
-				if (obj is Item)
+				if (obj is Item item)
 				{
-					var item = (Item)obj;
-
 					if (!(isDeleted = item.Deleted))
 					{
 						AddEntryHtml(40 + 130, item.GetType().Name);
 					}
 				}
-				else if (obj is Mobile)
+				else if (obj is Mobile mob)
 				{
-					var mob = (Mobile)obj;
-
 					if (!(isDeleted = mob.Deleted))
 					{
 						AddEntryHtml(40 + 130, mob.Name);
 					}
 				}
+				else if (!isNull)
+				{
+					AddEntryHtml(40 + 130, obj.ToString());
+				}
 
-				if (isDeleted)
+				if (isNull)
+				{
+					AddEntryHtml(40 + 130, "(null)");
+
+					for (var j = 1; j < m_Columns.Length; ++j)
+					{
+						AddEntryHtml(130, "---");
+					}
+
+					AddEntryHeader(20);
+				}
+				else if (isDeleted)
 				{
 					AddEntryHtml(40 + 130, "(deleted)");
 
@@ -282,13 +326,20 @@ namespace Server.Commands.Generic
 		{
 			foreach (var o in m_List)
 			{
-				if (o is INotifyPropertyUpdate u && Instances.TryGetValue(u, out var gumps))
+				if (o == null)
+				{
+					continue;
+				}
+
+				var t = o.GetType();
+
+				if (!t.IsPrimitive && Instances.TryGetValue(o, out var gumps))
 				{
 					gumps.Remove(this);
 
 					if (gumps.Count == 0)
 					{
-						Instances.Remove(u);
+						Instances.Remove(o);
 					}
 				}
 			}
@@ -328,17 +379,31 @@ namespace Server.Commands.Generic
 								break;
 							}
 
-							if (obj is Item && !((Item)obj).Deleted)
+							if (obj is Item i && !i.Deleted)
 							{
-								m_From.SendGump(new InterfaceItemGump(m_From, m_Columns, m_List, m_Page, (Item)obj));
+								m_From.SendGump(new InterfaceItemGump(m_From, m_Columns, m_List, m_Page, i));
 							}
-							else if (obj is Mobile && !((Mobile)obj).Deleted)
+							else if (obj is Mobile m && !m.Deleted)
 							{
-								m_From.SendGump(new InterfaceMobileGump(m_From, m_Columns, m_List, m_Page, (Mobile)obj));
+								m_From.SendGump(new InterfaceMobileGump(m_From, m_Columns, m_List, m_Page, m));
+							}
+							else if (obj != null)
+							{
+								m_From.SendGump(new InterfaceGump(m_From, m_Columns, m_List, m_Page, obj));
+
+								if (Attribute.IsDefined(obj.GetType(), typeof(PropertyObjectAttribute)))
+								{
+									m_From.SendGump(new PropertiesGump(m_From, obj));
+								}
+
+								if (obj is ICollection col)
+								{
+									_ = m_From.SendGump(new InterfaceGump(m_From, col));
+								}
 							}
 							else
 							{
-								m_From.SendGump(new InterfaceGump(m_From, m_Columns, m_List, m_Page, m_Select));
+								m_From.SendGump(new InterfaceGump(m_From, m_Columns, m_List, m_Page, obj ?? m_Select));
 							}
 						}
 

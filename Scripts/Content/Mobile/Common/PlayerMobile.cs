@@ -7,7 +7,6 @@ using Server.Engines.Craft;
 using Server.Engines.Help;
 using Server.Engines.PartySystem;
 using Server.Engines.Quests;
-using Server.Engines.Quests.Items;
 using Server.Factions;
 using Server.Gumps;
 using Server.Items;
@@ -17,10 +16,11 @@ using Server.Network;
 using Server.Regions;
 using Server.Spells;
 using Server.Spells.Bushido;
-using Server.Spells.Fifth;
+using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
+using Server.Spells.Racial;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
 
@@ -31,6 +31,7 @@ using System.Collections.Generic;
 namespace Server.Mobiles
 {
 	#region Enums
+
 	[Flags]
 	public enum PlayerFlag // First 16 bits are reserved for default-distro use, start custom flags at 0x00010000
 	{
@@ -50,23 +51,6 @@ namespace Server.Mobiles
 		DisplayChampionTitle = 0x00001000,
 		HasStatReward = 0x00002000,
 		RefuseTrades = 0x00004000
-	}
-
-	public enum NpcGuild
-	{
-		None,
-		MagesGuild,
-		WarriorsGuild,
-		ThievesGuild,
-		RangersGuild,
-		HealersGuild,
-		MinersGuild,
-		MerchantsGuild,
-		TinkersGuild,
-		TailorsGuild,
-		FishermensGuild,
-		BardsGuild,
-		BlacksmithsGuild
 	}
 
 	public enum SolenFriendship
@@ -97,71 +81,46 @@ namespace Server.Mobiles
 		private int m_PreviousMapBlock = -1;
 
 		#region Stygian Abyss
-		public override void ToggleFlying()
+		public override bool CanBeginFlight()
 		{
-			if (Race != Race.Gargoyle)
+			if (Frozen)
 			{
-				return;
-			}
-			else if (Flying)
-			{
-				Freeze(TimeSpan.FromSeconds(1));
-				Animate(61, 10, 1, true, false, 0);
-				Flying = false;
-				BuffInfo.RemoveBuff(this, BuffIcon.Fly);
-				SendMessage("You have landed.");
-
-				BaseMount.Dismount(this);
-				return;
+				SendLocalizedMessage(1060170); // You cannot use this ability while frozen.
+				return false;
 			}
 
-			var type = MountBlockReason;
+			return base.CanBeginFlight();
+		}
 
-			if (!Alive)
+		public override bool CanEndFlight()
+		{
+			if (!base.CanEndFlight())
 			{
-				SendLocalizedMessage(1113082); // You may not fly while dead.
+				LocalOverheadMessage(MessageType.Regular, 0x3B2, 1113081); // You may not land here.
+				return false;
 			}
-			else if (IsBodyMod && !(BodyMod == 666 || BodyMod == 667))
+
+			return true;
+		}
+
+		protected override void OnFlyingChange()
+		{
+			if (Spell?.IsCasting == true)
 			{
-				SendLocalizedMessage(1112453); // You can't fly in your current form!
+				Spell.Interrupt(SpellInterrupt.Unspecified);
 			}
-			else if (type != BlockMountType.None)
+
+			base.OnFlyingChange();
+
+			if (Flying)
 			{
-				switch (type)
-				{
-					case BlockMountType.Dazed:
-						SendLocalizedMessage(1112457);
-						break; // You are still too dazed to fly.
-					case BlockMountType.BolaRecovery:
-						SendLocalizedMessage(1112455);
-						break; // You cannot fly while recovering from a bola throw.
-					case BlockMountType.DismountRecovery:
-						SendLocalizedMessage(1112456);
-						break; // You cannot fly while recovering from a dismount maneuver.
-				}
-				return;
-			}
-			else if (Hits < 25) // TODO confirm
-			{
-				SendLocalizedMessage(1112454); // You must heal before flying.
+				SendSpeedControl(SpeedControlType.MountSpeed);
+				BuffInfo.AddBuff(this, new BuffInfo(BuffIcon.Fly, 1112193, 1112567)); // Flying & You are flying.
 			}
 			else
 			{
-				if (!Flying)
-				{
-					// No message?
-					if (Spell is FlySpell)
-					{
-						var spell = (FlySpell)Spell;
-						spell.Stop();
-					}
-					new FlySpell(this).Cast();
-				}
-				else
-				{
-					Flying = false;
-					BuffInfo.RemoveBuff(this, BuffIcon.Fly);
-				}
+				SendSpeedControl(SpeedControlType.Disable);
+				BuffInfo.RemoveBuff(this, BuffIcon.Fly);
 			}
 		}
 		#endregion
@@ -520,6 +479,16 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public TimeSpan NpcGuildGameTime
+		{
+			get => m_NpcGuildGameTime;
+			set => m_NpcGuildGameTime = value;
+		}
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public NpcGuildInfo NpcGuildInfo => NpcGuilds.Find(this);
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime NextBODTurnInTime
 		{
 			get => m_NextBODTurnInTime;
@@ -535,13 +504,6 @@ namespace Server.Mobiles
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public long LastMoved => LastMoveTime;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public TimeSpan NpcGuildGameTime
-		{
-			get => m_NpcGuildGameTime;
-			set => m_NpcGuildGameTime = value;
-		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public DateTime PromoGiftLast
@@ -792,6 +754,185 @@ namespace Server.Mobiles
 		}
 		#endregion
 
+		#region Home Town
+
+		public static bool HomeTownsEnabled { get; set; } = true;
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Town HomeTown { get; set; }
+
+		public void CheckHomeTown(bool requestChange)
+		{
+			if (HomeTownsEnabled && NetState?.Running == true && (HomeTown == null || requestChange))
+			{
+				SendGump(new HomeTownGump(this, 0, Town.Towns));
+			}
+		}
+
+		public string ApplyTownSuffix(string suffix)
+		{
+			if (HomeTownsEnabled && HomeTown != null)
+			{
+				if (suffix?.Length > 0)
+				{
+					suffix = $"{suffix} of {HomeTown.Definition.FriendlyName}";
+				}
+				else
+				{
+					suffix = $"of {HomeTown.Definition.FriendlyName}";
+				}
+			}
+
+			return suffix;
+		}
+
+		public sealed class HomeTownGump : BaseGridGump
+		{
+			private const int EntriesPerPage = 10;
+
+			private readonly PlayerMobile m_Player;
+
+			private readonly int m_Page;
+
+			private readonly List<Town> m_Towns;
+
+			public override int BorderSize => 10;
+			public override int OffsetSize => 1;
+
+			public override int EntryHeight => 20;
+
+			public override int OffsetGumpID => 0x2430;
+			public override int HeaderGumpID => 0x243A;
+			public override int EntryGumpID => 0x2458;
+			public override int BackGumpID => 0x2486;
+
+			public override int TextHue => 0;
+			public override int TextOffsetX => 2;
+			
+			public const int PageLeftID1 = 0x25EA;
+			public const int PageLeftID2 = 0x25EB;
+			public const int PageLeftWidth = 16;
+			public const int PageLeftHeight = 16;
+
+			public const int PageRightID1 = 0x25E6;
+			public const int PageRightID2 = 0x25E7;
+			public const int PageRightWidth = 16;
+			public const int PageRightHeight = 16;
+			
+			public HomeTownGump(PlayerMobile player, int page, List<Town> towns) 
+				: base(100, 100)
+			{
+				m_Player = player;
+				m_Page = page;
+				m_Towns = towns;
+
+				Closable = false;
+				Disposable = false;
+				Dragable = false;
+				Resizable = false;
+
+				AddNewPage();
+
+				AddEntryHtml(20 + OffsetSize + 160 + 20, SetCenter("Home Town Declaration"));
+
+				AddNewLine();
+
+				if (m_Page > 0)
+				{
+					AddEntryButton(20, PageLeftID1, PageLeftID2, 1, PageLeftWidth, PageLeftHeight);
+				}
+				else
+				{
+					AddEntryHeader(20);
+				}
+
+				AddEntryHtml(160, SetCenter($"Page {m_Page + 1} of {(m_Towns.Count + EntriesPerPage - 1) / EntriesPerPage}"));
+
+				if ((m_Page + 1) * EntriesPerPage < m_Towns.Count)
+				{
+					AddEntryButton(20, PageRightID1, PageRightID2, 2, PageRightWidth, PageRightHeight);
+				}
+				else
+				{
+					AddEntryHeader(20);
+				}
+
+				for (int i = m_Page * EntriesPerPage, line = 0; line < EntriesPerPage && i < m_Towns.Count; ++i, ++line)
+				{
+					AddNewLine();
+
+					AddEntryHtml(20 + OffsetSize + 160, m_Towns[i].Definition.FriendlyName);
+
+					AddEntryButton(20, PageRightID1, PageRightID2, 3 + i, PageRightWidth, PageRightHeight);
+				}
+
+				FinishPage();
+			}
+
+			public override void OnResponse(NetState sender, RelayInfo info)
+			{
+				switch (info.ButtonID)
+				{
+					case 0:
+						{
+							m_Player.CloseGump(typeof(HomeTownGump));
+
+							return;
+						}
+					case 1:
+						{
+							if (m_Page > 0)
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page - 1, m_Towns));
+							}
+							else
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+							}
+
+							return;
+						}
+					case 2:
+						{
+							if ((m_Page + 1) * EntriesPerPage < m_Towns.Count)
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page + 1, m_Towns));
+							}
+							else
+							{
+								m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+							}
+
+							return;
+						}
+				}
+
+				var v = info.ButtonID - 3;
+
+				if (v >= 0 && v < m_Towns.Count)
+				{
+					var town = m_Towns[v];
+
+					if (m_Player.HomeTown != town)
+					{
+						m_Player.HomeTown = town;
+
+						m_Player.SendMessage($"You declare {town.Definition.FriendlyName} as your home town.");
+					}
+					else
+					{
+						m_Player.SendMessage($"{town.Definition.FriendlyName} is your home town.");
+					}
+				}
+				else
+				{
+					m_Player.SendGump(new HomeTownGump(m_Player, m_Page, m_Towns));
+				}
+			}
+		}
+
+		#endregion
+
 		public static Direction GetDirection4(Point3D from, Point3D to)
 		{
 			var dx = from.X - to.X;
@@ -1016,9 +1157,9 @@ namespace Server.Mobiles
 				{
 					Mount.Rider = null;
 				}
-				else if (AnimalForm.UnderTransformation(this))
+				else if (AnimalFormSpell.UnderTransformation(this))
 				{
-					AnimalForm.RemoveContext(this, true);
+					AnimalFormSpell.RemoveContext(this, true);
 				}
 			}
 
@@ -1045,7 +1186,7 @@ namespace Server.Mobiles
 
 			var max = base.GetMaxResistance(type);
 
-			if (type != ResistanceType.Physical && 60 < max && Spells.Fourth.CurseSpell.UnderEffect(this))
+			if (type != ResistanceType.Physical && 60 < max && CurseSpell.UnderEffect(this))
 			{
 				max = 60;
 			}
@@ -1060,6 +1201,17 @@ namespace Server.Mobiles
 
 		protected override void OnRaceChange(Race oldRace)
 		{
+			base.OnRaceChange(oldRace);
+
+			if (oldRace == Race.Gargoyle && Flying)
+			{
+				Flying = false;
+			}
+			else if (oldRace != Race.Gargoyle && Race == Race.Gargoyle && Mounted)
+			{
+				Mount.Rider = null;
+			}
+
 			ValidateEquipment();
 			UpdateResistances();
 		}
@@ -1156,7 +1308,7 @@ namespace Server.Mobiles
 			{
 				if (Mana < m_ExecutesLightningStrike)
 				{
-					LightningStrike.ClearCurrentMove(this);
+					LightningStrikeAbility.ClearCurrentMove(this);
 				}
 			}
 		}
@@ -1199,9 +1351,10 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (from is PlayerMobile)
+			if (from is PlayerMobile player)
 			{
-				((PlayerMobile)from).ClaimAutoStabledPets();
+				player.ClaimAutoStabledPets();
+				player.CheckHomeTown(false);
 			}
 		}
 
@@ -1595,7 +1748,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			Spells.Sixth.InvisibilitySpell.RemoveTimer(this);
+			InvisibilitySpell.RemoveTimer(this);
 
 			base.RevealingAction();
 
@@ -1758,7 +1911,7 @@ namespace Server.Mobiles
 						strOffs = 25;
 					}
 
-					if (AnimalForm.UnderTransformation(this, typeof(BakeKitsune)) || AnimalForm.UnderTransformation(this, typeof(GreyWolf)))
+					if (AnimalFormSpell.UnderTransformation(this, typeof(BakeKitsune)) || AnimalFormSpell.UnderTransformation(this, typeof(GreyWolf)))
 					{
 						strOffs += 20;
 					}
@@ -1919,7 +2072,7 @@ namespace Server.Mobiles
 
 		public override bool AllowSkillUse(SkillName skill)
 		{
-			if (AnimalForm.UnderTransformation(this))
+			if (AnimalFormSpell.UnderTransformation(this))
 			{
 				for (var i = 0; i < m_AnimalFormRestrictedSkills.Length; i++)
 				{
@@ -1975,7 +2128,7 @@ namespace Server.Mobiles
 
 		public override void SetLocation(Point3D loc, bool isTeleport)
 		{
-			if (!isTeleport && AccessLevel == AccessLevel.Player)
+			if (!isTeleport && !Flying && AccessLevel < AccessLevel.Counselor)
 			{
 				// moving, not teleporting
 				var zDrop = (Location.Z - loc.Z);
@@ -3138,10 +3291,12 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Confidence.IsRegenerating(this))
+			if (ConfidenceSpell.IsRegenerating(this))
 			{
-				Confidence.StopRegenerating(this);
+				ConfidenceSpell.StopRegenerating(this);
 			}
+
+			SleepSpell.OnDamage(this);
 
 			WeightOverloading.FatigueOnDamage(this, amount);
 
@@ -3405,12 +3560,10 @@ namespace Server.Mobiles
 
 			SetHairMods(-1, -1);
 
-			PolymorphSpell.StopTimer(this);
-			IncognitoSpell.StopTimer(this);
 			DisguiseTimers.RemoveTimer(this);
 
-			EndAction(typeof(PolymorphSpell));
-			EndAction(typeof(IncognitoSpell));
+			IncognitoSpell.EndIncognito(this);
+			PolymorphSpell.EndPolymorph(this);
 
 			MeerMage.StopEffect(this, false);
 
@@ -3439,7 +3592,7 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Kills >= 5 && DateTime.UtcNow >= m_NextJustAward)
+			if (Murderer && DateTime.UtcNow >= m_NextJustAward)
 			{
 				var m = FindMostRecentDamager(false);
 
@@ -3511,6 +3664,11 @@ namespace Server.Mobiles
 			if (m_DuelContext == null || !m_DuelContext.Registered || !m_DuelContext.Started || m_DuelPlayer == null || m_DuelPlayer.Eliminated)
 			{
 				Faction.HandleDeath(this, killer);
+			}
+
+			if (killer is PlayerMobile pk)
+			{
+				Reputation.HandleDeath(this, pk);
 			}
 
 			Server.Guilds.Guild.HandleDeath(this, killer);
@@ -3990,6 +4148,11 @@ namespace Server.Mobiles
 
 			switch (version)
 			{
+				case 32:
+					{
+						HomeTown = Town.ReadReference(reader);
+						goto case 31;
+					}
 				case 31:
 					{
 						m_PromoGiftLast = reader.ReadDateTime();
@@ -4350,7 +4513,9 @@ namespace Server.Mobiles
 
 			base.Serialize(writer);
 
-			writer.Write(31); // version
+			writer.Write(32); // version
+
+			Town.WriteReference(writer, HomeTown);
 
 			writer.Write(m_PromoGiftLast);
 
@@ -4600,12 +4765,9 @@ namespace Server.Mobiles
 		{
 			base.OnAfterDelete();
 
-			var faction = Faction.Find(this);
+			Faction.HandleDeletion(this);
 
-			if (faction != null)
-			{
-				faction.RemoveMember(this);
-			}
+			Reputation.HandleDeletion(this);
 
 			ChainQuestSystem.HandleDeletion(this);
 
@@ -4650,6 +4812,8 @@ namespace Server.Mobiles
 					}
 				}
 			}
+
+			Reputation.AddProperties(this, list);
 
 			if (Core.ML)
 			{
@@ -4999,9 +5163,9 @@ namespace Server.Mobiles
 
 			var running = ((dir & Direction.Running) != 0);
 
-			var onHorse = (Mount != null);
+			var onHorse = Mounted || Flying;
 
-			var animalContext = AnimalForm.GetContext(this);
+			var animalContext = AnimalFormSpell.GetContext(this);
 
 			if (onHorse || (animalContext != null && animalContext.SpeedBoost))
 			{
@@ -5229,6 +5393,8 @@ namespace Server.Mobiles
 
 		public override string ApplyNameSuffix(string suffix)
 		{
+			suffix = ApplyTownSuffix(suffix);
+
 			if (Young)
 			{
 				if (suffix.Length == 0)

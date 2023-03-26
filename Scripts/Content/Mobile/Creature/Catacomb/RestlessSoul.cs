@@ -82,23 +82,6 @@ namespace Server.Mobiles
 			return 0xFD;
 		}
 
-		public override bool IsEnemy(Mobile m)
-		{
-			var player = m as PlayerMobile;
-
-			if (player != null && Map == Map.Trammel && X >= 5199 && X <= 5271 && Y >= 1812 && Y <= 1865) // Schmendrick's cave
-			{
-				var qs = player.Quest;
-
-				if (qs is UzeraanTurmoilQuest && qs.IsObjectiveInProgress(typeof(FindSchmendrickObjective_UzeraanTurmoilQuest)))
-				{
-					return false;
-				}
-			}
-
-			return base.IsEnemy(m);
-		}
-
 		public RestlessSoul(Serial serial) : base(serial)
 		{
 		}

@@ -113,13 +113,13 @@ namespace Server.Mobiles
 
 			//----------NPC Auto-Deletion Timer (Timer Set At 5min)----------//
 
-			m_npcAutoDelete = DateTime.Now + TimeSpan.FromSeconds(180);
+			m_npcAutoDelete = DateTime.UtcNow + TimeSpan.FromSeconds(180);
 		}
 
 		public override void OnThink()
 		{
 			base.OnThink();
-			if (m_npcAutoDelete <= DateTime.Now)
+			if (m_npcAutoDelete <= DateTime.UtcNow)
 			{
 				Delete();
 			}
@@ -748,7 +748,7 @@ namespace Server.Mobiles
 			var ns = from.NetState;
 			var v = ns.Version;
 
-			var totalTime = (DateTime.Now - acct.Created);
+			var totalTime = (DateTime.UtcNow - acct.Created);
 
 			Closable = true;
 			Disposable = true;
@@ -1694,7 +1694,7 @@ namespace Server.Mobiles
 
 							if (pm.AccessLevel >= AccessLevel.Counselor)
 							{
-								if (DateTime.Now >= pm.PromoGiftLast + m_UseDelay)
+								if (DateTime.UtcNow >= pm.PromoGiftLast + m_UseDelay)
 								{
 									from.AddToBackpack(new PromotionalDeed_GM());
 									from.CloseGump(typeof(GameMaster_Talk));
@@ -1705,7 +1705,7 @@ namespace Server.Mobiles
 
 									from.SendMessage("Check Back Every Thirty (30) Days To Obtain New Promotional Offers");
 
-									pm.PromoGiftLast = DateTime.Now;
+									pm.PromoGiftLast = DateTime.UtcNow;
 								}
 								else
 								{

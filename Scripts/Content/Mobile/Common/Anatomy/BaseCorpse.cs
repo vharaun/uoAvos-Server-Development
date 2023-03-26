@@ -1,8 +1,6 @@
 ﻿using Server.ContextMenus;
 using Server.Engines.PartySystem;
 using Server.Engines.Quests.Definitions;
-using Server.Engines.Quests.Items;
-using Server.Engines.Quests.Mobiles;
 using Server.Guilds;
 using Server.Items;
 using Server.Misc;
@@ -80,6 +78,11 @@ namespace Server.Items
 		/// Has this corpse been self looted?
 		/// </summary>
 		SelfLooted = 0x00000080,
+
+		/// <summary>
+		/// Was the owner a murderer when he died?
+		/// </summary>
+		Murderer = 0x00000100,
 	}
 
 	public class Corpse : Container, ICarvable
@@ -380,6 +383,13 @@ namespace Server.Items
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
+		public bool Murderer
+		{
+			get => GetFlag(CorpseFlag.Murderer);
+			set => SetFlag(CorpseFlag.Murderer, value);
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public Mobile Owner => m_Owner;
 
 		public void TurnToBones()
@@ -494,16 +504,8 @@ namespace Server.Items
 			//if ( owner is BaseCreature )
 			//	shouldFillCorpse = !((BaseCreature)owner).IsBonded;
 
-			Corpse c;
-			if (owner is MilitiaFighter)
-			{
-				c = new MilitiaFighterCorpse(owner, hair, facialhair, shouldFillCorpse ? equipItems : new List<Item>());
-			}
-			else
-			{
-				c = new Corpse(owner, hair, facialhair, shouldFillCorpse ? equipItems : new List<Item>());
-			}
-
+			Corpse c = new Corpse(owner, hair, facialhair, shouldFillCorpse ? equipItems : new List<Item>());
+			
 			owner.Corpse = c;
 
 			if (shouldFillCorpse)
@@ -589,7 +591,9 @@ namespace Server.Items
 			m_AccessLevel = owner.AccessLevel;
 			m_Guild = owner.Guild as Guild;
 			m_Kills = owner.Kills;
+
 			SetFlag(CorpseFlag.Criminal, owner.Criminal);
+			SetFlag(CorpseFlag.Murderer, owner.Murderer);
 
 			m_Hair = hair;
 			m_FacialHair = facialhair;
@@ -1267,34 +1271,7 @@ namespace Server.Items
 				{
 					var qs = player.Quest;
 
-					if (qs is UzeraanTurmoilQuest)
-					{
-						var obj = qs.FindObjective(typeof(GetDaemonBoneObjective_UzeraanTurmoilQuest)) as GetDaemonBoneObjective_UzeraanTurmoilQuest;
-
-						if (obj != null && obj.CorpseWithBone == this && (!obj.Completed || UzeraanTurmoilQuest.HasLostDaemonBone(player)))
-						{
-							Item bone = new QuestDaemonBone();
-
-							if (player.PlaceInBackpack(bone))
-							{
-								obj.CorpseWithBone = null;
-								player.SendLocalizedMessage(1049341, "", 0x22); // You rummage through the bones and find a Daemon Bone!  You quickly place the item in your pack.
-
-								if (!obj.Completed)
-								{
-									obj.Complete();
-								}
-							}
-							else
-							{
-								bone.Delete();
-								player.SendLocalizedMessage(1049342, "", 0x22); // Rummaging through the bones you find a Daemon Bone, but can't pick it up because your pack is too full.  Come back when you have more room in your pack.
-							}
-
-							return;
-						}
-					}
-					else if (qs is TheSummoningQuest)
+					if (qs is TheSummoningQuest)
 					{
 						var obj = qs.FindObjective(typeof(VanquishDaemonObjective_TheSummoningQuest)) as VanquishDaemonObjective_TheSummoningQuest;
 

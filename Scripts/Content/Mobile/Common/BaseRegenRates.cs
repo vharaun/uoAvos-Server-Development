@@ -49,7 +49,7 @@ namespace Server.Misc
 
 		private static bool CheckAnimal(Mobile m, Type type)
 		{
-			return AnimalForm.UnderTransformation(m, type);
+			return AnimalFormSpell.UnderTransformation(m, type);
 		}
 
 		private static TimeSpan Mobile_HitsRegenRate(Mobile from)

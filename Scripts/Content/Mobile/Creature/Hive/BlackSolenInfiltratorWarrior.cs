@@ -1,10 +1,10 @@
-﻿using Server.Engines.Quests.Items;
+﻿using Server.Items;
 
 namespace Server.Mobiles
 {
 	[CorpseName("a solen infiltrator corpse")]
-	public class BlackSolenInfiltratorWarrior : BaseCreature
-	{
+	public class BlackSolenInfiltratorWarrior : BaseCreature, IBlackSolenMember
+    {
 		[Constructable]
 		public BlackSolenInfiltratorWarrior() : base(AIType.AI_Melee, FightMode.Closest, 10, 1, 0.2, 0.4)
 		{

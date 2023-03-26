@@ -10,7 +10,7 @@ namespace Server.Gumps
 
 	public class NoticeGump : NoticeGump<object>
 	{
-		public NoticeGump(int header, int headerColor, object content, int contentColor, int width, int height, NoticeGumpCallback callback, object state)
+		public NoticeGump(TextDefinition header, int headerColor, TextDefinition content, int contentColor, int width, int height, NoticeGumpCallback callback, object state)
 			: base(header, headerColor, content, contentColor, width, height, (m, s) => callback?.Invoke(m, s), state)
 		{
 		}
@@ -21,13 +21,16 @@ namespace Server.Gumps
 		private readonly NoticeGumpCallback<T> m_Callback;
 		private readonly T m_State;
 
-		public NoticeGump(int header, int headerColor, object content, int contentColor, int width, int height, NoticeGumpCallback<T> callback, T state) 
+		public NoticeGump(TextDefinition header, int headerColor, TextDefinition content, int contentColor, int width, int height, NoticeGumpCallback<T> callback, T state) 
 			: base((640 - width) / 2, (480 - height) / 2)
 		{
 			m_Callback = callback;
 			m_State = state;
 
 			Closable = false;
+			Disposable = false;
+			Resizable = true;
+			Dragable = true;
 
 			AddPage(0);
 
@@ -35,19 +38,13 @@ namespace Server.Gumps
 
 			AddImageTiled(10, 10, width - 20, 20, 2624);
 			AddAlphaRegion(10, 10, width - 20, 20);
-			AddHtmlLocalized(10, 10, width - 20, 20, header, headerColor, false, false);
+
+			TextDefinition.AddHtmlText(this, 15, 10, width - 25, 20, header, false, false, headerColor, headerColor);
 
 			AddImageTiled(10, 40, width - 20, height - 80, 2624);
 			AddAlphaRegion(10, 40, width - 20, height - 80);
 
-			if (content is int)
-			{
-				AddHtmlLocalized(10, 40, width - 20, height - 80, (int)content, contentColor, false, true);
-			}
-			else if (content is string)
-			{
-				AddHtml(10, 40, width - 20, height - 80, String.Format("<BASEFONT COLOR=#{0:X6}>{1}</BASEFONT>", contentColor, content), false, true);
-			}
+			TextDefinition.AddHtmlText(this, 15, 40, width - 25, height - 80, content, false, true, contentColor, contentColor);
 
 			AddImageTiled(10, height - 30, width - 20, 20, 2624);
 			AddAlphaRegion(10, height - 30, width - 20, 20);

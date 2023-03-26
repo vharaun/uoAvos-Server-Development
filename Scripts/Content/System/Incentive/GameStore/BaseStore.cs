@@ -205,7 +205,7 @@ namespace Server.Engines.UOStore
 
 	public static class PromoCodes
 	{
-		public static readonly string FilePath = Path.Combine(Core.BaseDirectory, "Export/Saves/Current", "GameStore", "PromoCodes.bin");
+		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "GameStore", "PromoCodes.bin");
 
 		public static readonly Dictionary<string, PromoCodeHandler> Codes = new Dictionary<string, PromoCodeHandler>(StringComparer.InvariantCultureIgnoreCase);
 
@@ -402,15 +402,10 @@ namespace Server.Engines.UOStore
 
 		public static void OnSave(WorldSaveEventArgs e)
 		{
-			Persistence.Serialize(FilePath, Serialize);
+			Persistence.Serialize(FilePath, OnSerialize);
 		}
 
-		public static void OnLoad()
-		{
-			Persistence.Deserialize(FilePath, Deserialize);
-		}
-
-		private static void Serialize(GenericWriter writer)
+		private static void OnSerialize(GenericWriter writer)
 		{
 			writer.Write(0);
 
@@ -429,7 +424,12 @@ namespace Server.Engines.UOStore
 			}
 		}
 
-		private static void Deserialize(GenericReader reader)
+		public static void OnLoad()
+		{
+			Persistence.Deserialize(FilePath, OnDeserialize);
+		}
+
+		private static void OnDeserialize(GenericReader reader)
 		{
 			reader.ReadInt();
 
@@ -1561,7 +1561,7 @@ namespace Server.Engines.UOStore
 						}
 						else
 						{
-							AddHtml(x, y + (j * 14) + 4, 183, 25, ColorAndCenter("#FFFFFF", entry.Name[j].String), false, false);
+							AddHtml(x, y + (j * 14) + 4, 183, 25, ColorAndCenter(0xFFFFFF, entry.Name[j].String), false, false);
 						}
 					}
 
@@ -1599,8 +1599,8 @@ namespace Server.Engines.UOStore
 
 			if (Configuration.CurrencyDisplay)
 			{
-				AddHtml(43, 496, 120, 16, SetColor("#FFFFFF", "Currency:"), false, false);
-				AddHtml(43, 518, 120, 16, SetColor("#FFFFFF", Configuration.CurrencyName), false, false);
+				AddHtml(43, 496, 120, 16, SetColor(0xFFFFFF, "Currency:"), false, false);
+				AddHtml(43, 518, 120, 16, SetColor(0xFFFFFF, Configuration.CurrencyName), false, false);
 			}
 		}
 
@@ -2007,12 +2007,12 @@ namespace Server.Engines.UOStore
 			AddBackground(0, 0, 410, 200, 0x9C40);
 			AddHtmlLocalized(10, 10, 400, 20, 1114513, "#1156747", 0x7FFF, false, false); // Insufficient Funds
 
-			AddHtml(30, 60, 350, 60, SetColor("#DA0000", String.Format("This transaction cannot be completed due to insufficient funds available. Visit your shards website for more information on how to obtain {0}.", Configuration.CurrencyName)), false, false);
+			AddHtml(30, 60, 350, 60, SetColor(0xDA0000, String.Format("This transaction cannot be completed due to insufficient funds available. Visit your shards website for more information on how to obtain {0}.", Configuration.CurrencyName)), false, false);
 
 			AddECHandleInput();
 
 			AddButton(45, 150, 0x9C53, 0x9C5D, 195, GumpButtonType.Reply, 0);
-			AddHtml(45, 153, 126, 25, ColorAndCenter("#FFFFFF", "Information"), false, false); // Information
+			AddHtml(45, 153, 126, 25, ColorAndCenter(0xFFFFFF, "Information"), false, false); // Information
 
 			AddECHandleInput();
 			AddECHandleInput();
@@ -2081,7 +2081,7 @@ namespace Server.Engines.UOStore
 			AddECHandleInput();
 			AddECHandleInput();
 
-			AddButton(234, 260, 0x9C53, 0x9C5D, 1, GumpButtonType.Reply, 0);
+			AddButton(234, 260, 0x9C53, 0x9C5D, 0, GumpButtonType.Reply, 0);
 			AddHtmlLocalized(234, 262, 126, 25, 1114513, "#1006045", 0x7FFF, false, false);
 
 			AddECHandleInput();
@@ -2151,7 +2151,7 @@ namespace Server.Engines.UOStore
 				}
 				else
 				{
-					AddHtml(76, 92 + (j * 14) + 4, 183, 25, ColorAndCenter("#FFFFFF", Entry.Name[j].String), false, false);
+					AddHtml(76, 92 + (j * 14) + 4, 183, 25, ColorAndCenter(0xFFFFFF, Entry.Name[j].String), false, false);
 				}
 			}
 

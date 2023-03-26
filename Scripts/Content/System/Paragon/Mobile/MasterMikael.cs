@@ -44,7 +44,7 @@
 			}
 			else
 			{
-				PackScroll(4, 7);
+				PackScroll(SpellCircle.Fourth, SpellCircle.Seventh);
 			}
 
 			PackReg(3);

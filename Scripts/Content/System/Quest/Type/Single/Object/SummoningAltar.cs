@@ -1,7 +1,6 @@
-﻿using Server.Items;
-using Server.Mobiles;
+﻿using Server.Mobiles;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class SummoningAltar : AbbatoirAddon
 	{

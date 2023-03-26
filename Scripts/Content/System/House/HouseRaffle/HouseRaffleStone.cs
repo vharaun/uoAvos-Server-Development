@@ -3,7 +3,7 @@ using Server.ContextMenus;
 using Server.Gumps;
 using Server.Network;
 using Server.Regions;
-using Server.Spells.Sixth;
+using Server.Spells.Magery;
 using Server.Targeting;
 
 using System;
@@ -1197,6 +1197,7 @@ namespace Server.Items
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override bool AllowHousing(Mobile from, Point3D p)

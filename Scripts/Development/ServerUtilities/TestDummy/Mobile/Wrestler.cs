@@ -1,5 +1,7 @@
 ﻿using Server.Items;
 
+using System;
+
 namespace Server.Mobiles
 {
 	public class DummyStun : Dummy
@@ -27,10 +29,9 @@ namespace Server.Mobiles
 			Name = "Stun Mage";
 
 			// Equip
-			var book = new Spellbook {
+			var book = new BookOfMagery(UInt64.MaxValue) {
 				Movable = false,
-				LootType = LootType.Newbied,
-				Content = 0xFFFFFFFFFFFFFFFF
+				LootType = LootType.Newbied
 			};
 			AddItem(book);
 
@@ -77,11 +78,11 @@ namespace Server.Mobiles
 			AddItem(cap);
 
 			// Spells
-			AddSpellAttack(typeof(Spells.First.MagicArrowSpell));
-			AddSpellAttack(typeof(Spells.First.WeakenSpell));
-			AddSpellAttack(typeof(Spells.Third.FireballSpell));
-			AddSpellDefense(typeof(Spells.Third.WallOfStoneSpell));
-			AddSpellDefense(typeof(Spells.First.HealSpell));
+			AddSpellAttack(typeof(Spells.Magery.MagicArrowSpell));
+			AddSpellAttack(typeof(Spells.Magery.WeakenSpell));
+			AddSpellAttack(typeof(Spells.Magery.FireballSpell));
+			AddSpellDefense(typeof(Spells.Magery.WallOfStoneSpell));
+			AddSpellDefense(typeof(Spells.Magery.HealSpell));
 		}
 
 		public DummyStun(Serial serial) : base(serial)

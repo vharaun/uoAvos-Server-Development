@@ -1,5 +1,6 @@
 ﻿using Server.Engines.VeteranRewards;
 using Server.Items;
+using Server.Multis;
 using Server.Spells;
 using Server.Targeting;
 
@@ -424,55 +425,33 @@ namespace Server.Mobiles
 	/// Ethereal Mounts
 	public class EtherealMount : Item, IMount, IMountItem, Engines.VeteranRewards.IRewardItem
 	{
-		private int m_MountedID;
-		private int m_RegularID;
-		private Mobile m_Rider;
-		private bool m_IsRewardItem;
-		private bool m_IsDonationItem;
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public bool IsRewardItem
+		public static void StopMounting(Mobile mob)
 		{
-			get => m_IsRewardItem;
-			set => m_IsRewardItem = value;
+			if (mob.Spell is EtherealSpell s)
+			{
+				s.Stop();
+			}
 		}
 
-		public override double DefaultWeight => 1.0;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public bool IsRewardItem { get; set; }
+
+		private bool m_IsDonationItem;
 
 		[CommandProperty(AccessLevel.GameMaster, AccessLevel.Administrator)]
 		public bool IsDonationItem
 		{
 			get => m_IsDonationItem;
-			set { m_IsDonationItem = value; InvalidateProperties(); }
-		}
-
-		[Constructable]
-		public EtherealMount(int itemID, int mountID)
-			: base(itemID)
-		{
-			m_MountedID = mountID;
-			m_RegularID = itemID;
-			m_Rider = null;
-
-			Layer = Layer.Invalid;
-
-			LootType = LootType.Blessed;
-		}
-
-		public override void GetProperties(ObjectPropertyList list)
-		{
-			base.GetProperties(list);
-
-			if (m_IsDonationItem)
+			set
 			{
-				list.Add("Donation Ethereal");
-				list.Add("7.5 sec slower cast time if not a 9mo. Veteran");
-			}
-			if (Core.ML && m_IsRewardItem)
-			{
-				list.Add(RewardSystem.GetRewardYearLabel(this, new object[] { })); // X Year Veteran Reward
+				m_IsDonationItem = value;
+
+				InvalidateProperties();
 			}
 		}
+
+		private int m_MountedID;
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int MountedID
@@ -492,6 +471,8 @@ namespace Server.Mobiles
 			}
 		}
 
+		private int m_RegularID;
+
 		[CommandProperty(AccessLevel.GameMaster)]
 		public int RegularID
 		{
@@ -510,25 +491,97 @@ namespace Server.Mobiles
 			}
 		}
 
+		private Mobile m_Rider;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public Mobile Rider
+		{
+			get => m_Rider;
+			set
+			{
+				if (value != m_Rider)
+				{
+					if (value == null)
+					{
+						Internalize();
+						UnmountMe();
+						RemoveFollowers();
+
+						m_Rider = value;
+					}
+					else
+					{
+						if (m_Rider != null)
+						{
+							Dismount(m_Rider);
+						}
+
+						Dismount(value);
+						RemoveFollowers();
+
+						m_Rider = value;
+
+						AddFollowers();
+						MountMe();
+					}
+				}
+			}
+		}
+
+		public virtual int EtherealHue => 0x4001;
+
+		public virtual int FollowerSlots => 1;
+
+		public override bool DisplayLootType => false;
+
+		public override double DefaultWeight => 1.0;
+
+		IMount IMountItem.Mount => this;
+
+		[Constructable]
+		public EtherealMount(int itemID, int mountID)
+			: base(itemID)
+		{
+			m_MountedID = mountID;
+			m_RegularID = itemID;
+			m_Rider = null;
+
+			Layer = Layer.Invalid;
+
+			LootType = LootType.Blessed;
+		}
+
 		public EtherealMount(Serial serial)
 			: base(serial)
 		{
 		}
 
-		public override bool DisplayLootType => false;
+		public override void GetProperties(ObjectPropertyList list)
+		{
+			base.GetProperties(list);
 
-		public virtual int FollowerSlots => 1;
+			if (m_IsDonationItem)
+			{
+				list.Add("Donation Ethereal");
+				list.Add("7.5 sec slower cast time if not a 9mo. Veteran");
+			}
+
+			if (Core.ML && IsRewardItem)
+			{
+				list.Add(RewardSystem.GetRewardYearLabel(this, Array.Empty<object>())); // X Year Veteran Reward
+			}
+		}
 
 		public void RemoveFollowers()
 		{
 			if (m_Rider != null)
 			{
 				m_Rider.Followers -= FollowerSlots;
-			}
 
-			if (m_Rider != null && m_Rider.Followers < 0)
-			{
-				m_Rider.Followers = 0;
+				if (m_Rider.Followers < 0)
+				{
+					m_Rider.Followers = 0;
+				}
 			}
 		}
 
@@ -547,37 +600,44 @@ namespace Server.Mobiles
 				from.SayTo(from, 1010095); // This must be on your person to use.
 				return false;
 			}
-			else if (m_IsRewardItem && !RewardSystem.CheckIsUsableBy(from, this, null))
+			
+			if (IsRewardItem && !RewardSystem.CheckIsUsableBy(from, this, null))
 			{
 				// CheckIsUsableBy sends the message
 				return false;
 			}
-			else if (!BaseMount.CheckMountAllowed(from))
+			
+			if (!BaseMount.CheckMountAllowed(from))
 			{
 				// CheckMountAllowed sends the message
 				return false;
 			}
-			else if (from.Mounted)
+			
+			if (from.Mounted)
 			{
 				from.SendLocalizedMessage(1005583); // Please dismount first.
 				return false;
 			}
-			else if (from.IsBodyMod && !from.Body.IsHuman)
+			
+			if (from.IsBodyMod && !from.Body.IsHuman)
 			{
 				from.SendLocalizedMessage(1061628); // You can't do that while polymorphed.
 				return false;
 			}
-			else if (from.HasTrade)
+			
+			if (from.HasTrade)
 			{
 				from.SendLocalizedMessage(1042317, "", 0x41); // You may not ride at this time
 				return false;
 			}
-			else if ((from.Followers + FollowerSlots) > from.FollowersMax)
+			
+			if ((from.Followers + FollowerSlots) > from.FollowersMax)
 			{
 				from.SendLocalizedMessage(1049679); // You have too many followers to summon your mount.
 				return false;
 			}
-			else if (!Multis.DesignContext.Check(from))
+			
+			if (!DesignContext.Check(from))
 			{
 				// Check sends the message
 				return false;
@@ -590,7 +650,9 @@ namespace Server.Mobiles
 		{
 			if (Validate(from))
 			{
-				new EtherealSpell(this, from).Cast();
+				var s = new EtherealSpell(this, from);
+				
+				s.Cast();
 			}
 		}
 
@@ -608,66 +670,9 @@ namespace Server.Mobiles
 			}
 		}
 
-		public override void Serialize(GenericWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.Write(3); // version
-
-			writer.Write(m_IsDonationItem);
-			writer.Write(m_IsRewardItem);
-
-			writer.Write(m_MountedID);
-			writer.Write(m_RegularID);
-			writer.Write(m_Rider);
-		}
-
-		public override void Deserialize(GenericReader reader)
-		{
-			base.Deserialize(reader);
-			LootType = LootType.Blessed;
-
-			var version = reader.ReadInt();
-
-			switch (version)
-			{
-				case 3:
-					{
-						m_IsDonationItem = reader.ReadBool();
-						goto case 2;
-					}
-				case 2:
-					{
-						m_IsRewardItem = reader.ReadBool();
-						goto case 0;
-					}
-				case 1: reader.ReadInt(); goto case 0;
-				case 0:
-					{
-						m_MountedID = reader.ReadInt();
-						m_RegularID = reader.ReadInt();
-						m_Rider = reader.ReadMobile();
-
-						if (m_MountedID == 0x3EA2)
-						{
-							m_MountedID = 0x3EAA;
-						}
-
-						break;
-					}
-			}
-
-			AddFollowers();
-
-			if (version < 3 && Weight == 0)
-			{
-				Weight = -1;
-			}
-		}
-
 		public override DeathMoveResult OnParentDeath(Mobile parent)
 		{
-			Rider = null;//get off, move to pack
+			Rider = null; // get off, move to pack
 
 			return DeathMoveResult.RemainEquiped;
 		}
@@ -681,43 +686,6 @@ namespace Server.Mobiles
 				mount.Rider = null;
 			}
 		}
-
-		[CommandProperty(AccessLevel.GameMaster)]
-		public Mobile Rider
-		{
-			get => m_Rider;
-			set
-			{
-				if (value != m_Rider)
-				{
-					if (value == null)
-					{
-						Internalize();
-						UnmountMe();
-
-						RemoveFollowers();
-						m_Rider = value;
-					}
-					else
-					{
-						if (m_Rider != null)
-						{
-							Dismount(m_Rider);
-						}
-
-						Dismount(value);
-
-						RemoveFollowers();
-						m_Rider = value;
-						AddFollowers();
-
-						MountMe();
-					}
-				}
-			}
-		}
-
-		public virtual int EtherealHue => 0x4001;
 
 		public void UnmountMe()
 		{
@@ -763,55 +731,128 @@ namespace Server.Mobiles
 			}
 
 			ProcessDelta();
+
 			m_Rider.ProcessDelta();
 			m_Rider.EquipItem(this);
 			m_Rider.ProcessDelta();
+
 			ProcessDelta();
 		}
 
-		public IMount Mount => this;
-
-		public static void StopMounting(Mobile mob)
+		void IMount.OnRiderDamaged(int amount, Mobile from, bool willKill)
 		{
-			if (mob.Spell is EtherealSpell)
-			{
-				((EtherealSpell)mob.Spell).Stop();
-			}
 		}
 
-		public void OnRiderDamaged(int amount, Mobile from, bool willKill)
+		public override void Serialize(GenericWriter writer)
 		{
+			base.Serialize(writer);
+
+			writer.Write(3); // version
+
+			writer.Write(m_IsDonationItem);
+			writer.Write(IsRewardItem);
+
+			writer.Write(m_MountedID);
+			writer.Write(m_RegularID);
+			writer.Write(m_Rider);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			var version = reader.ReadInt();
+
+			switch (version)
+			{
+				case 3:
+					{
+						m_IsDonationItem = reader.ReadBool();
+						goto case 2;
+					}
+				case 2:
+					{
+						IsRewardItem = reader.ReadBool();
+						goto case 0;
+					}
+				case 1:
+					{
+						_ = reader.ReadInt();
+						goto case 0;
+					}
+				case 0:
+					{
+						m_MountedID = reader.ReadInt();
+						m_RegularID = reader.ReadInt();
+						m_Rider = reader.ReadMobile();
+						break;
+					}
+			}
+
+			if (m_MountedID == 0x3EA2)
+			{
+				m_MountedID = 0x3EAA;
+			}
+
+			LootType = LootType.Blessed;
+
+			AddFollowers();
+
+			if (version < 3 && Weight == 0)
+			{
+				Weight = -1;
+			}
 		}
 
 		private class EtherealSpell : Spell
 		{
-			private static readonly SpellInfo m_Info = new SpellInfo("Ethereal Mount", "", 230);
+			public override SkillName CastSkill => SkillName.Focus;
+			public override SkillName DamageSkill => SkillName.Focus;
+
+			private static SpellInfo ResolveInfo(EtherealMount mount)
+			{
+				return new(mount.GetType())
+				{
+					Name = Utility.FriendlyName(mount),
+					Action = 230,
+				};
+			}
+
+			private TimeSpan ComputeCastDelay()
+			{
+				var delay = Core.AOS ? 3.0 : 2.0;
+
+				if (m_Mount.IsDonationItem && RewardSystem.GetRewardLevel(m_Rider) < 3)
+				{
+					delay += 7.5;
+				}
+
+				return TimeSpan.FromSeconds(delay);
+			}
 
 			private readonly EtherealMount m_Mount;
 			private readonly Mobile m_Rider;
 
+			private bool m_Stop;
+
+			public override double CastDelayFastScalar => 0;
+
+			public override TimeSpan CastDelayBase => ComputeCastDelay();
+
+			public override bool ClearHandsOnCast => false;
+
+			public override bool RevealOnCast => false;
+
 			public EtherealSpell(EtherealMount mount, Mobile rider)
-				: base(rider, null, m_Info)
+				: base(rider, null, ResolveInfo(mount))
 			{
 				m_Rider = rider;
 				m_Mount = mount;
 			}
 
-			public override bool ClearHandsOnCast => false;
-			public override bool RevealOnCast => false;
-
 			public override TimeSpan GetCastRecovery()
 			{
 				return TimeSpan.Zero;
-			}
-
-			public override double CastDelayFastScalar => 0;
-
-			public override TimeSpan CastDelayBase => TimeSpan.FromSeconds(((m_Mount.IsDonationItem && RewardSystem.GetRewardLevel(m_Rider) < 3) ? (7.5 + (Core.AOS ? 3.0 : 2.0)) : (Core.AOS ? 3.0 : 2.0)));
-
-			public override int GetMana()
-			{
-				return 0;
 			}
 
 			public override bool ConsumeReagents()
@@ -824,22 +865,16 @@ namespace Server.Mobiles
 				return true;
 			}
 
-			private bool m_Stop;
-
 			public void Stop()
 			{
 				m_Stop = true;
-				Disturb(DisturbType.Hurt, false, false);
+
+				Interrupt(SpellInterrupt.Hurt);
 			}
 
-			public override bool CheckDisturb(DisturbType type, bool checkFirst, bool resistable)
+			public override bool CheckInterrupt(SpellInterrupt type, bool resistable)
 			{
-				if (type == DisturbType.EquipRequest || type == DisturbType.UseRequest/* || type == DisturbType.Hurt*/ )
-				{
-					return false;
-				}
-
-				return true;
+				return type != SpellInterrupt.EquipRequest && type != SpellInterrupt.UseRequest;
 			}
 
 			public override void DoHurtFizzle()
@@ -858,14 +893,12 @@ namespace Server.Mobiles
 				}
 			}
 
-			public override void OnDisturb(DisturbType type, bool message)
+			public override void OnInterrupt(SpellInterrupt type, bool message)
 			{
 				if (message && !m_Stop)
 				{
 					Caster.SendLocalizedMessage(1049455); // You have been disrupted while attempting to summon your ethereal mount!
 				}
-
-				//m_Mount.UnmountMe();
 			}
 
 			public override void OnCast()

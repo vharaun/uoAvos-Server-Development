@@ -2,9 +2,8 @@
 using Server.Items;
 using Server.Mobiles;
 using Server.Spells;
-using Server.Spells.Fifth;
+using Server.Spells.Magery;
 using Server.Spells.Ninjitsu;
-using Server.Spells.Seventh;
 using Server.Targeting;
 
 using System;
@@ -105,7 +104,7 @@ namespace Server.SkillHandlers
 					}
 					else if (faction != null)
 					{
-						if (!m_Thief.CanBeginAction(typeof(IncognitoSpell)))
+						if (IncognitoSpell.IsIncognito(m_Thief))
 						{
 							m_Thief.SendLocalizedMessage(1010581); //	You cannot steal the sigil when you are incognito
 						}
@@ -113,7 +112,7 @@ namespace Server.SkillHandlers
 						{
 							m_Thief.SendLocalizedMessage(1010583); //	You cannot steal the sigil while disguised
 						}
-						else if (!m_Thief.CanBeginAction(typeof(PolymorphSpell)))
+						else if (PolymorphSpell.IsPolymorphed(m_Thief))
 						{
 							m_Thief.SendLocalizedMessage(1010582); //	You cannot steal the sigil while polymorphed				
 						}
@@ -121,7 +120,7 @@ namespace Server.SkillHandlers
 						{
 							m_Thief.SendLocalizedMessage(1061622); // You cannot steal the sigil while in that form.
 						}
-						else if (AnimalForm.UnderTransformation(m_Thief))
+						else if (AnimalFormSpell.UnderTransformation(m_Thief))
 						{
 							m_Thief.SendLocalizedMessage(1063222); // You cannot steal the sigil while mimicking an animal.
 						}

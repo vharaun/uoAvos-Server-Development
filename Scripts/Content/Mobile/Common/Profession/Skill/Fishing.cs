@@ -187,34 +187,6 @@ namespace Server.Engines.Harvest
 
 		public override bool SpecialHarvest(Mobile from, Item tool, HarvestDefinition def, Map map, Point3D loc)
 		{
-			var player = from as PlayerMobile;
-
-			if (player != null)
-			{
-				var qs = player.Quest;
-
-				if (qs is CollectorQuest)
-				{
-					var obj = qs.FindObjective(typeof(FishPearlsObjective_CollectorQuest));
-
-					if (obj != null && !obj.Completed)
-					{
-						if (Utility.RandomDouble() < 0.5)
-						{
-							player.SendLocalizedMessage(1055086, "", 0x59); // You pull a shellfish out of the water, and find a rainbow pearl inside of it.
-
-							obj.CurProgress++;
-						}
-						else
-						{
-							player.SendLocalizedMessage(1055087, "", 0x2C); // You pull a shellfish out of the water, but it doesn't have a rainbow pearl.
-						}
-
-						return true;
-					}
-				}
-			}
-
 			return false;
 		}
 		

@@ -10,6 +10,8 @@ using Server.Regions;
 using Server.SkillHandlers;
 using Server.Spells;
 using Server.Spells.Bushido;
+using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 using Server.Spells.Necromancy;
 using Server.Spells.Spellweaving;
 using Server.Targeting;
@@ -164,13 +166,52 @@ namespace Server.Mobiles
 	{
 		public const int MaxLoyalty = 100;
 
+		#region Troop Formations
+
+		// NOTE: Serialization is handled externally in the Formation class
+
+		private Formation m_Formation;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public Formation Formation
+		{
+			get => m_Formation;
+			set
+			{
+				if (m_Formation == value)
+				{
+					return;
+				}
+
+				var old = m_Formation;
+
+				m_Formation = value;
+
+				old?.Remove(this);
+
+				m_Formation?.Add(this);
+
+				if (!World.Loading)
+				{
+					OnFormationChange(old);
+				}
+			}
+		}
+
+		protected virtual void OnFormationChange(Formation old)
+		{
+			AIObject?.Activate();
+		}
+
+		#endregion
+
 		#region Var declarations
 		private BaseAI m_AI;                    // THE AI
 
 		private AIType m_CurrentAI;             // The current AI
 		private AIType m_DefaultAI;             // The default AI
 
-		private Mobile m_FocusMob;              // Use focus mob instead of combatant, maybe we don't whan to fight
+		protected Mobile m_FocusMob;              // Use focus mob instead of combatant, maybe we don't whan to fight
 		private FightMode m_FightMode;          // The style the mob uses
 
 		private int m_iRangePerception;         // The view area
@@ -754,7 +795,7 @@ namespace Server.Mobiles
 
 		public virtual void BreathDealDamage(Mobile target)
 		{
-			if (!Evasion.CheckSpellEvasion(target))
+			if (!EvasionSpell.CheckSpellEvasion(target))
 			{
 				var physDamage = BreathPhysicalDamage;
 				var fireDamage = BreathFireDamage;
@@ -804,7 +845,71 @@ namespace Server.Mobiles
 
 		#endregion
 
-		public virtual bool CanFly => false;
+		#region Flying
+
+		public static double FlyingPassiveSpeed => (WalkMount / 1000.0) + 0.100;
+		public static double FlyingActiveSpeed => (RunMount / 1000.0) + 0.100;
+
+		private double m_cPassiveSpeed;
+		private double m_cActiveSpeed;
+
+		private int m_FlyingHeightCur, m_FlyingHeightMin = 20, m_FlyingHeightMax = 40;
+
+		[CommandProperty(AccessLevel.GameMaster, true)]
+		public int FlyingHeightCur { get => m_FlyingHeightCur; set => m_FlyingHeightCur = Math.Clamp(value, 0, m_FlyingHeightMax); }
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMin
+		{
+			get => m_FlyingHeightMin; 
+			set
+			{
+				m_FlyingHeightMin = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMin > m_FlyingHeightMax)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public int FlyingHeightMax
+		{
+			get => m_FlyingHeightMax;
+			set
+			{
+				m_FlyingHeightMax = Math.Clamp(value, 0, 100);
+
+				if (m_FlyingHeightMax < m_FlyingHeightMin)
+				{
+					(m_FlyingHeightMin, m_FlyingHeightMax) = (m_FlyingHeightMax, m_FlyingHeightMin);
+				}
+			}
+		}
+
+		public override bool CanBeginFlight()
+		{
+			return CanFly && (World.Loading || base.CanBeginFlight());
+		}
+
+		protected override void OnFlyingChange()
+		{
+			base.OnFlyingChange();
+
+			if (Flying)
+			{
+				(m_dPassiveSpeed, m_cPassiveSpeed) = (FlyingPassiveSpeed, m_dPassiveSpeed);
+				(m_dActiveSpeed, m_cActiveSpeed) = (FlyingActiveSpeed, m_dActiveSpeed);
+			}
+			else
+			{
+				m_dPassiveSpeed = m_cPassiveSpeed;
+				m_dActiveSpeed = m_cActiveSpeed;
+			}
+		}
+
+		#endregion
 
 		#region Spill Acid
 
@@ -908,6 +1013,7 @@ namespace Server.Mobiles
 		public virtual OppositionGroup OppositionGroup => null;
 
 		#region Friends
+
 		public List<Mobile> Friends => m_Friends;
 
 		public virtual bool AllowNewPetFriend => (m_Friends == null || m_Friends.Count < 5);
@@ -933,25 +1039,6 @@ namespace Server.Mobiles
 			{
 				m_Friends.Remove(m);
 			}
-		}
-
-		public virtual bool IsFriend(Mobile m)
-		{
-			var g = OppositionGroup;
-
-			if (g != null && g.IsEnemy(this, m))
-			{
-				return false;
-			}
-
-			if (!(m is BaseCreature))
-			{
-				return false;
-			}
-
-			var c = (BaseCreature)m;
-
-			return (m_iTeam == c.m_iTeam && ((m_bSummoned || m_bControlled) == (c.m_bSummoned || c.m_bControlled))/* && c.Combatant != this */);
 		}
 
 		#endregion
@@ -1002,6 +1089,72 @@ namespace Server.Mobiles
 
 		#endregion
 
+		public virtual bool IsAlly(Mobile m)
+		{
+			var g = OppositionGroup;
+
+			if (g != null && g.IsEnemy(this, m))
+			{
+				return false;
+			}
+
+			if (!m.Player && Formation?.IsMember(m) == true)
+			{
+				return true;
+			}
+
+			Allegiance a;
+
+			if ((a = GetFactionAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Ally;
+			}
+
+			var pm = m as PlayerMobile ?? (m as BaseCreature)?.GetRootMaster<PlayerMobile>();
+
+			if (pm != null)
+			{
+				var ourEthic = EthicAllegiance;
+				var pl = Ethics.Player.Find(pm);
+
+				if (pl?.Ethic != null && ourEthic != null && pl.Ethic != ourEthic)
+				{
+					return false;
+				}
+			}
+			else if ((a = GetEthicAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Ally;
+			}
+
+			if (m is not BaseCreature c)
+			{
+				return false;
+			}
+
+			if (FightMode == FightMode.Evil && c.Karma < 0)
+			{
+				return false;
+			}
+
+			if (c.FightMode == FightMode.Evil && Karma < 0)
+			{
+				return false;
+			}
+
+			if (m_iTeam != 0 && c.m_iTeam != 0)
+			{
+				return m_iTeam == c.m_iTeam;
+			}
+
+			if ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		public virtual bool IsEnemy(Mobile m)
 		{
 			var g = OppositionGroup;
@@ -1011,47 +1164,71 @@ namespace Server.Mobiles
 				return true;
 			}
 
-			if (m is BaseGuard)
+			if (!m.Player && Formation?.IsMember(m) == true)
 			{
 				return false;
 			}
 
-			if (GetFactionAllegiance(m) == Allegiance.Ally)
+			Allegiance a;
+
+			if ((a = GetFactionAllegiance(m)) != Allegiance.None)
 			{
-				return false;
+				return a == Allegiance.Enemy;
 			}
 
-			var ourEthic = EthicAllegiance;
-			var pl = Ethics.Player.Find(m, true);
+			var pm = m as PlayerMobile ?? (m as BaseCreature)?.GetRootMaster<PlayerMobile>();
 
-			if (pl != null && pl.IsShielded && (ourEthic == null || ourEthic == pl.Ethic))
+			if (pm != null)
 			{
-				return false;
+				var ourEthic = EthicAllegiance;
+				var pl = Ethics.Player.Find(pm);
+
+				if (pl?.IsShielded == true && (ourEthic == null || ourEthic == pl.Ethic))
+				{
+					return false;
+				}
+			}
+			else if ((a = GetEthicAllegiance(m)) != Allegiance.None)
+			{
+				return a == Allegiance.Enemy;
 			}
 
-			if (!(m is BaseCreature) || m is Server.Engines.Quests.Mobiles.MilitiaFighter)
+			if (m is not BaseCreature c)
 			{
 				return true;
 			}
 
-			if (TransformationSpellHelper.UnderTransformation(m, typeof(EtherealVoyageSpell)))
+			if (TransformationSpellHelper.UnderTransformation(c, typeof(EtherealVoyageSpell)))
 			{
 				return false;
 			}
 
-			if (m is PlayerMobile && ((PlayerMobile)m).HonorActive)
+			if (pm != null && pm.HonorActive)
 			{
 				return false;
 			}
 
-			var c = (BaseCreature)m;
-
-			if ((FightMode == FightMode.Evil && m.Karma < 0) || (c.FightMode == FightMode.Evil && Karma < 0))
+			if (FightMode == FightMode.Evil && c.Karma < 0)
 			{
 				return true;
 			}
 
-			return (m_iTeam != c.m_iTeam || ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))/* || c.Combatant == this*/ );
+			if (c.FightMode == FightMode.Evil && Karma < 0)
+			{
+				return true;
+			}
+
+			if (m_iTeam != 0 && c.m_iTeam != 0)
+			{
+				return m_iTeam != c.m_iTeam;
+			}
+
+			if ((m_bSummoned || m_bControlled) != (c.m_bSummoned || c.m_bControlled))
+			{
+				return true;
+			}
+
+			return false;
 		}
 
 		public override string ApplyNameSuffix(string suffix)
@@ -1494,6 +1671,16 @@ namespace Server.Mobiles
 			}
 		}
 
+		public override bool CheckShove(Mobile shoved)
+		{
+			if (Combatant == null && Formation?.IsMember(shoved) == true)
+			{
+				return true;
+			}
+
+			return base.CheckShove(shoved);
+		}
+
 		public override void OnDamage(int amount, Mobile from, bool willKill)
 		{
 			if (BardPacified && (HitsMax - Hits) * 0.001 > Utility.RandomDouble())
@@ -1526,10 +1713,12 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (Confidence.IsRegenerating(this))
+			if (ConfidenceSpell.IsRegenerating(this))
 			{
-				Confidence.StopRegenerating(this);
+				ConfidenceSpell.StopRegenerating(this);
 			}
+
+			SleepSpell.OnDamage(this);
 
 			WeightOverloading.FatigueOnDamage(this, amount);
 
@@ -1841,7 +2030,7 @@ namespace Server.Mobiles
 		{
 			base.Serialize(writer);
 
-			writer.Write(18); // version
+			writer.Write(19); // version
 
 			writer.Write((int)m_CurrentAI);
 			writer.Write((int)m_DefaultAI);
@@ -1968,6 +2157,16 @@ namespace Server.Mobiles
 
 			// Version 18
 			writer.Write(m_CorpseNameOverride);
+
+			// Version 19
+			writer.Write(m_cActiveSpeed);
+			writer.Write(m_cPassiveSpeed);
+
+			writer.WriteEncodedInt(m_FlyingHeightCur);
+			writer.WriteEncodedInt(m_FlyingHeightMin);
+			writer.WriteEncodedInt(m_FlyingHeightMax);
+
+			writer.Write(Flying);
 		}
 
 		private static readonly double[] m_StandardActiveSpeeds = new double[]
@@ -2065,7 +2264,10 @@ namespace Server.Mobiles
 				if (m_bSummoned)
 				{
 					m_SummonEnd = reader.ReadDeltaTime();
-					new UnsummonTimer(m_ControlMaster, this, m_SummonEnd - DateTime.UtcNow).Start();
+
+					var t = new UnsummonTimer(this, m_SummonEnd - DateTime.UtcNow);
+					
+					t.Start();
 				}
 
 				m_iControlSlots = reader.ReadInt();
@@ -2238,6 +2440,18 @@ namespace Server.Mobiles
 			if (version >= 18)
 			{
 				m_CorpseNameOverride = reader.ReadString();
+			}
+
+			if (version >= 19)
+			{
+				m_cActiveSpeed = reader.ReadDouble();
+				m_cPassiveSpeed = reader.ReadDouble();
+
+				m_FlyingHeightCur = reader.ReadEncodedInt();
+				m_FlyingHeightMin = reader.ReadEncodedInt();
+				m_FlyingHeightMax = reader.ReadEncodedInt();
+
+				Flying = reader.ReadBool();
 			}
 
 			if (version <= 14 && m_Paragon && Hue == 0x31)
@@ -2526,6 +2740,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionWander()
 		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				FlyingWander();
+			}
 		}
 
 		public virtual void OnActionCombat()
@@ -2538,6 +2756,10 @@ namespace Server.Mobiles
 
 		public virtual void OnActionFlee()
 		{
+			if (CanFly && !Flying)
+			{
+				FlyingFlee();
+			}
 		}
 
 		public virtual void OnActionInteract()
@@ -2549,6 +2771,51 @@ namespace Server.Mobiles
 		}
 
 		#endregion
+
+		protected long m_NextFlyingAction;
+
+		protected virtual void FlyingWander()
+		{
+			if (CanFly && m_NextFlyingAction <= Core.TickCount)
+			{
+				if (!Flying)
+				{
+					if (Utility.RandomDouble() < 0.25)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+						Flying = true;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+					}
+				}
+				else
+				{
+					if (Utility.RandomDouble() < 0.05)
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(9000, 27000);
+
+						Flying = false;
+					}
+					else
+					{
+						m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+					}
+				}
+			}
+		}
+
+		protected virtual void FlyingFlee()
+		{
+			if (CanFly && !Flying)
+			{
+				m_NextFlyingAction = Core.TickCount + Utility.RandomMinMax(3000, 9000);
+
+				Flying = true;
+			}
+		}
 
 		public override bool OnDragDrop(Mobile from, Item dropped)
 		{
@@ -2675,7 +2942,7 @@ namespace Server.Mobiles
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public Mobile FocusMob
+		public virtual Mobile FocusMob
 		{
 			get => m_FocusMob;
 			set => m_FocusMob = value;
@@ -2776,7 +3043,7 @@ namespace Server.Mobiles
 
 		public override void RevealingAction()
 		{
-			Spells.Sixth.InvisibilitySpell.RemoveTimer(this);
+			InvisibilitySpell.RemoveTimer(this);
 
 			base.RevealingAction();
 		}
@@ -3701,6 +3968,11 @@ namespace Server.Mobiles
 
 		public virtual bool CheckIdle()
 		{
+			if (Flying || FlyingHeightCur > 0)
+			{
+				return false;
+			}
+
 			if (Combatant != null)
 			{
 				return false; // in combat.. not idling
@@ -3880,7 +4152,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			if (!Body.IsHuman || Kills >= 5 || AlwaysMurderer || AlwaysAttackable || m.Kills < 5 || !m.InRange(Location, 12) || !m.Alive)
+			if (!Body.IsHuman || Murderer || AlwaysMurderer || AlwaysAttackable || !m.Murderer || !m.InRange(Location, 12) || !m.Alive)
 			{
 				return;
 			}
@@ -4195,7 +4467,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 		#endregion
 
@@ -4211,7 +4483,7 @@ namespace Server.Mobiles
 				return;
 			}
 
-			PackItem(Loot.Construct(Loot.ArcanistScrollTypes));
+			PackItem(Loot.Construct(Loot.MysticismScrolls));
 		}
 
 		public void PackNecroScroll(int index)
@@ -4224,16 +4496,14 @@ namespace Server.Mobiles
 			PackItem(Loot.Construct(Loot.NecromancyScrollTypes, index));
 		}
 
-		public void PackScroll(int minCircle, int maxCircle)
+		public void PackScroll(SpellCircle minCircle, SpellCircle maxCircle)
 		{
-			PackScroll(Utility.RandomMinMax(minCircle, maxCircle));
+			PackItem(Loot.RandomScroll(minCircle, maxCircle));
 		}
 
-		public void PackScroll(int circle)
+		public void PackScroll(SpellCircle circle)
 		{
-			var min = (circle - 1) * 8;
-
-			PackItem(Loot.RandomScroll(min, min + 7, SpellbookType.Regular));
+			PackItem(Loot.RandomScroll(circle));
 		}
 
 		public void PackMagicItems(int minLevel, int maxLevel)
@@ -4793,6 +5063,13 @@ namespace Server.Mobiles
 		{
 			base.AddNameProperties(list);
 
+			Reputation.AddProperties(this, list);
+		}
+
+		public override void GetProperties(ObjectPropertyList list)
+		{
+			base.GetProperties(list);
+
 			if (ChainQuestSystem.Enabled && CanGiveChainQuest)
 			{
 				list.Add(1072269); // Quest Giver
@@ -4972,6 +5249,28 @@ namespace Server.Mobiles
 			}
 
 			return bonus;
+		}
+
+		public Mobile GetRootMaster()
+		{
+			return GetRootMaster<Mobile>();
+		}
+
+		public T GetRootMaster<T>()
+		{
+			var mobile = GetMaster();
+
+			if (mobile is T player)
+			{
+				return player;
+			}
+
+			if (mobile is BaseCreature creature)
+			{
+				return creature.GetRootMaster<T>();
+			}
+
+			return default;
 		}
 
 		public Mobile GetMaster()
@@ -5220,8 +5519,6 @@ namespace Server.Mobiles
 					OwnerAbandonTime = DateTime.MinValue;
 				}
 
-				GiftOfLifeSpell.HandleDeath(this);
-
 				CheckStatTimers();
 			}
 			else
@@ -5369,6 +5666,8 @@ namespace Server.Mobiles
 
 		public override void OnDelete()
 		{
+			Formation = null;
+
 			var m = m_ControlMaster;
 
 			SetControlMaster(null);
@@ -5542,10 +5841,32 @@ namespace Server.Mobiles
 				}
 			}
 
-			new UnsummonTimer(caster, creature, duration).Start();
 			creature.m_SummonEnd = DateTime.UtcNow + duration;
 
+			creature.OnBeforeSpawn(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
 			creature.MoveToWorld(p, caster.Map);
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			creature.OnAfterSpawn();
+
+			if (creature.Deleted)
+			{
+				return false;
+			}
+
+			var t = new UnsummonTimer(creature, duration);
+
+			t.Start();
 
 			Effects.PlaySound(p, creature.Map, sound);
 
@@ -6100,11 +6421,9 @@ namespace Server.Mobiles
 
 			return base.CanBeDamaged();
 		}
-
-		public virtual bool PlayerRangeSensitive => (CurrentWayPoint == null);  //If they are following a waypoint, they'll continue to follow it even if players aren't around
-
-		/* until we are sure about who should be getting deleted, move them instead */
-		/* On OSI, they despawn */
+		
+		// If they are following a waypoint, they'll continue to follow it even if players aren't around
+		public virtual bool PlayerRangeSensitive => CurrentWayPoint == null && Formation == null; 
 
 		private bool m_ReturnQueued;
 
@@ -6133,9 +6452,13 @@ namespace Server.Mobiles
 		{
 			if (!Deleted && ReturnsToHome && IsSpawnerBound() && !InRange(Home, (RangeHome + 5)))
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds((Utility.Random(45) + 15)), GoHome_Callback);
-
-				m_ReturnQueued = true;
+				Timer.DelayCall(TimeSpan.FromSeconds(Utility.RandomMinMax(45, 60)), () =>
+				{
+					if (m_ReturnQueued)
+					{
+						GoHome(false);
+					}
+				});
 			}
 			else if (PlayerRangeSensitive && m_AI != null)
 			{
@@ -6145,18 +6468,32 @@ namespace Server.Mobiles
 			base.OnSectorDeactivate();
 		}
 
-		public void GoHome_Callback()
+		public void GoHome()
 		{
-			if (m_ReturnQueued && IsSpawnerBound())
+			GoHome(true);
+		}
+
+		public void GoHome(bool force)
+		{
+			if (force)
 			{
-				if (!((Map.GetSector(X, Y)).Active))
+				if (ReturnsToHome)
 				{
 					SetLocation(Home, true);
 
-					if (!((Map.GetSector(X, Y)).Active) && m_AI != null)
+					if (!Map.GetSector(X, Y).Active && m_AI != null)
 					{
 						m_AI.Deactivate();
 					}
+				}
+			}
+			else if (IsSpawnerBound() && !Map.GetSector(X, Y).Active)
+			{
+				SetLocation(Home, true);
+
+				if (!Map.GetSector(X, Y).Active && m_AI != null)
+				{
+					m_AI.Deactivate();
 				}
 			}
 

@@ -4,7 +4,7 @@ namespace Server.Factions
 {
 	public class FactionHenchman : BaseFactionGuard
 	{
-		public override GuardAI GuardAI => GuardAI.Melee;
+		public override FactionGuardAIType GuardAI => FactionGuardAIType.Melee;
 
 		[Constructable]
 		public FactionHenchman() : base("the henchman")

@@ -196,7 +196,7 @@ namespace Server.Items
 
 					return false;
 				}
-				else
+				else 
 				{
 					var maxWeight = MaxWeight;
 

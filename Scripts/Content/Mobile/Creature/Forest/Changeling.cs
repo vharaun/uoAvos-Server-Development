@@ -47,7 +47,7 @@ namespace Server.Mobiles
 			Fame = 15000;
 			Karma = -15000;
 
-			PackScroll(1, 7);
+			PackScroll(SpellCircle.First, SpellCircle.Seventh);
 			PackItem(new Arrow(35));
 			PackItem(new Bolt(25));
 			PackGem(2);

@@ -5,6 +5,10 @@ namespace Server
 {
 	public partial class OppositionGroup
 	{
+		public static readonly OppositionGroup[] EmptyArray = Array.Empty<OppositionGroup>();
+
+		public static readonly OppositionGroup None = new(Array.Empty<Type[]>());
+
 		private readonly Type[][] m_Types;
 
 		public OppositionGroup(Type[][] types)

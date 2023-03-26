@@ -2,7 +2,7 @@
 
 namespace Server.Engines.ChainQuests.Definitions
 {
-	public class TownEscort : BaseEscort
+	public class TownEscort : EscortQuest
 	{
 		// Escort reward
 		private static readonly BaseReward m_Reward = new ItemReward("Gold", typeof(Gold), 500);
@@ -21,11 +21,8 @@ namespace Server.Engines.ChainQuests.Definitions
 		}
 	}
 
-	public class NewHavenEscort : BaseEscort
+	public class NewHavenEscort : EscortQuest
 	{
-		// New Haven escorts do not count for 'helping a human in need'
-		public override bool AwardHumanInNeed => false;
-
 		// Escort reward
 		private static readonly BaseReward m_Reward = new ItemReward("Gold", typeof(Gold), 500);
 

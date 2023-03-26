@@ -2,7 +2,7 @@
 using Server.Mobiles;
 using Server.Network;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	public class PrismaticCrystal : Item
 	{
@@ -30,15 +30,12 @@ namespace Server.Engines.ChainQuests.Items
 
 			if (pm.InRange(GetWorldLocation(), 2))
 			{
-				var context = ChainQuestSystem.GetContext(pm);
-
-				if (context != null && context.IsDoingQuest(typeof(UnfadingMemoriesPartOne)) && pm.Backpack.FindItemByType(typeof(PrismaticAmber), false) == null)
+				if (pm.Backpack.FindItemByType(typeof(PrismaticAmber), false) == null)
 				{
 					Item amber = new PrismaticAmber();
 
 					if (pm.PlaceInBackpack(amber))
 					{
-						ChainQuestSystem.MarkQuestItem(pm, amber);
 						Delete();
 					}
 					else

@@ -1,10 +1,10 @@
-﻿using Server.Engines.Quests.Items;
+﻿using Server.Items;
 
 namespace Server.Mobiles
 {
 	[CorpseName("a solen worker corpse")]
-	public class RedSolenWorker : BaseCreature
-	{
+	public class RedSolenWorker : BaseCreature, IRedSolenMember
+    {
 		[Constructable]
 		public RedSolenWorker() : base(AIType.AI_Melee, FightMode.Closest, 10, 1, 0.2, 0.4)
 		{

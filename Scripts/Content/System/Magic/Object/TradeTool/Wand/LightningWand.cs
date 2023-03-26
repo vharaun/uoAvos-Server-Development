@@ -1,4 +1,4 @@
-﻿using Server.Spells.Fourth;
+﻿using Server.Spells.Magery;
 
 namespace Server.Items
 {

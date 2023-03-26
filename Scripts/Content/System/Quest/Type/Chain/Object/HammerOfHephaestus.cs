@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Server.Engines.ChainQuests.Items
+namespace Server.Items
 {
 	[FlipableAttribute(0x13E3, 0x13E4)]
 	public class HammerOfHephaestus : SmithHammer

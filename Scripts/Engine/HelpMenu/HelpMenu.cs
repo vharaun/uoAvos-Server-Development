@@ -62,7 +62,7 @@ namespace Server.Engines.Help
 
 			if (AutoStaffTeamToggle.Enabled)
 			{
-				if (((pm.LastTimePaged + CanHelpAgain) <= DateTime.Now))
+				if (((pm.LastTimePaged + CanHelpAgain) <= DateTime.UtcNow))
 				{
 					if (e.Mobile.HasGump(typeof(GM_StaffKeywords)))
 					{
@@ -83,7 +83,7 @@ namespace Server.Engines.Help
 						case 5: sm.MoveToWorld(new Point3D(e.Mobile.X, e.Mobile.Y + 3, e.Mobile.Z), e.Mobile.Map); break;
 					}
 
-					pm.LastTimePaged = DateTime.Now;
+					pm.LastTimePaged = DateTime.UtcNow;
 					return;
 				}
 				e.Mobile.SendMessage("You May Only Page Staff Once Every Thirty Minutes. If You Need Assistance Now, Please Visit Our Website At: www.yoursitename.com");
@@ -286,7 +286,7 @@ namespace Server.Engines.Help
 						{
 							from.SendLocalizedMessage(1061632); // You can't do that while carrying the sigil.
 						}
-						else if (from is PlayerMobile && ((PlayerMobile)from).CanUseStuckMenu() && from.Region.CanUseStuckMenu(from) && !CheckCombat(from) && !from.Frozen && !from.Criminal && (Core.AOS || from.Kills < 5))
+						else if (from is PlayerMobile && ((PlayerMobile)from).CanUseStuckMenu() && from.Region.CanUseStuckMenu(from) && !CheckCombat(from) && !from.Frozen && !from.Criminal && (Core.AOS || !from.Murderer))
 						{
 							var menu = new StuckMenu(from, from, true);
 
@@ -736,7 +736,7 @@ namespace Server.Menus.Questions
 					}
 					else
 					{
-						destMap = m_Mobile.Kills >= 5 ? Map.Felucca : Map.Trammel;
+						destMap = m_Mobile.Murderer ? Map.Felucca : Map.Trammel;
 					}
 
 					Mobiles.BaseCreature.TeleportPets(m_Mobile, dest, destMap);

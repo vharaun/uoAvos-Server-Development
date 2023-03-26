@@ -24,7 +24,7 @@ namespace Server.Items
 		{
 			if (IsChildOf(from.Backpack))
 			{
-				from.SendGump(new HousePlacementCategoryGump(from));
+				_ = from.SendGump(new HousePlacementCategoryGump(from));
 			}
 			else
 			{
@@ -46,8 +46,7 @@ namespace Server.Items
 		public override void Deserialize(GenericReader reader)
 		{
 			base.Deserialize(reader);
-
-			var version = reader.ReadInt();
+			_ = reader.ReadInt();
 
 			if (Weight == 0.0)
 			{
@@ -67,8 +66,8 @@ namespace Server.Items
 		{
 			m_From = from;
 
-			from.CloseGump(typeof(HousePlacementCategoryGump));
-			from.CloseGump(typeof(HousePlacementListGump));
+			_ = from.CloseGump(typeof(HousePlacementCategoryGump));
+			_ = from.CloseGump(typeof(HousePlacementListGump));
 
 			AddPage(0);
 
@@ -103,17 +102,17 @@ namespace Server.Items
 			{
 				case 1: // Classic Houses
 					{
-						m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.ClassicHouses));
+						_ = m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.ClassicHouses));
 						break;
 					}
 				case 2: // 2-Story Customizable Houses
 					{
-						m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.TwoStoryFoundations));
+						_ = m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.TwoStoryFoundations));
 						break;
 					}
 				case 3: // 3-Story Customizable Houses
 					{
-						m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.ThreeStoryFoundations));
+						_ = m_From.SendGump(new HousePlacementListGump(m_From, HousePlacementEntry.ThreeStoryFoundations));
 						break;
 					}
 			}
@@ -133,8 +132,8 @@ namespace Server.Items
 			m_From = from;
 			m_Entries = entries;
 
-			from.CloseGump(typeof(HousePlacementCategoryGump));
-			from.CloseGump(typeof(HousePlacementListGump));
+			_ = from.CloseGump(typeof(HousePlacementCategoryGump));
+			_ = from.CloseGump(typeof(HousePlacementListGump));
 
 			AddPage(0);
 
@@ -224,7 +223,7 @@ namespace Server.Items
 			}
 			else
 			{
-				m_From.SendGump(new HousePlacementCategoryGump(m_From));
+				_ = m_From.SendGump(new HousePlacementCategoryGump(m_From));
 			}
 		}
 	}
@@ -251,24 +250,18 @@ namespace Server.Items
 				return;
 			}
 
-			var ip = o as IPoint3D;
-
-			if (ip != null)
+			if (o is IPoint3D ip)
 			{
-				if (ip is Item)
+				if (ip is Item item)
 				{
-					ip = ((Item)ip).GetWorldTop();
+					ip = item.GetWorldTop();
 				}
 
 				var p = new Point3D(ip);
 
-				var reg = Region.Find(new Point3D(p), from.Map);
+				var reg = Region.Find(p, from.Map);
 
-				if (from.AccessLevel >= AccessLevel.GameMaster || reg.AllowHousing(from, p))
-				{
-					m_Placed = m_Entry.OnPlacement(from, p);
-				}
-				else if (reg.IsPartOf(typeof(TempNoHousingRegion)))
+				if (reg.IsPartOf(typeof(TempNoHousingRegion)))
 				{
 					from.SendLocalizedMessage(501270); // Lord British has decreed a 'no build' period, thus you cannot build this house at this time.
 				}
@@ -280,9 +273,13 @@ namespace Server.Items
 				{
 					from.SendLocalizedMessage(1150493); // You must have a deed for this plot of land in order to build here.
 				}
-				else
+				else if (!reg.AllowHousing(from, p))
 				{
 					from.SendLocalizedMessage(501265); // Housing can not be created in this area.
+				}
+				else
+				{
+					m_Placed = m_Entry.OnPlacement(from, p);
 				}
 			}
 		}
@@ -296,49 +293,44 @@ namespace Server.Items
 
 			if (!m_Placed)
 			{
-				from.SendGump(new HousePlacementListGump(from, m_Entries));
+				_ = from.SendGump(new HousePlacementListGump(from, m_Entries));
 			}
 		}
 	}
 
 	public partial class HousePlacementEntry
 	{
-		private readonly Type m_Type;
-		private readonly int m_Description;
 		private readonly int m_Storage;
 		private readonly int m_Lockdowns;
 		private readonly int m_NewStorage;
 		private readonly int m_NewLockdowns;
-		private readonly int m_Vendors;
-		private readonly int m_Cost;
-		private readonly int m_MultiID;
 		private Point3D m_Offset;
 
-		public Type Type => m_Type;
+		public Type Type { get; }
 
-		public int Description => m_Description;
+		public int Description { get; }
 		public int Storage => BaseHouse.NewVendorSystem ? m_NewStorage : m_Storage;
 		public int Lockdowns => BaseHouse.NewVendorSystem ? m_NewLockdowns : m_Lockdowns;
-		public int Vendors => m_Vendors;
-		public int Cost => m_Cost;
+		public int Vendors { get; }
+		public int Cost { get; }
 
-		public int MultiID => m_MultiID;
+		public int MultiID { get; }
 		public Point3D Offset => m_Offset;
 
 		public HousePlacementEntry(Type type, int description, int storage, int lockdowns, int newStorage, int newLockdowns, int vendors, int cost, int xOffset, int yOffset, int zOffset, int multiID)
 		{
-			m_Type = type;
-			m_Description = description;
+			Type = type;
+			Description = description;
 			m_Storage = storage;
 			m_Lockdowns = lockdowns;
 			m_NewStorage = newStorage;
 			m_NewLockdowns = newLockdowns;
-			m_Vendors = vendors;
-			m_Cost = cost;
+			Vendors = vendors;
+			Cost = cost;
 
 			m_Offset = new Point3D(xOffset, yOffset, zOffset);
 
-			m_MultiID = multiID;
+			MultiID = multiID;
 		}
 
 		public BaseHouse ConstructHouse(Mobile from)
@@ -347,20 +339,20 @@ namespace Server.Items
 			{
 				object[] args;
 
-				if (m_Type == typeof(HouseFoundation))
+				if (Type == typeof(HouseFoundation))
 				{
-					args = new object[4] { from, m_MultiID, m_Storage, m_Lockdowns };
+					args = new object[4] { from, MultiID, m_Storage, m_Lockdowns };
 				}
-				else if (m_Type == typeof(SmallOldHouse) || m_Type == typeof(SmallShop) || m_Type == typeof(TwoStoryHouse))
+				else if (Type == typeof(SmallOldHouse) || Type == typeof(SmallShop) || Type == typeof(TwoStoryHouse))
 				{
-					args = new object[2] { from, m_MultiID };
+					args = new object[2] { from, MultiID };
 				}
 				else
 				{
 					args = new object[1] { from };
 				}
 
-				return Activator.CreateInstance(m_Type, args) as BaseHouse;
+				return Activator.CreateInstance(Type, args) as BaseHouse;
 			}
 			catch
 			{
@@ -389,19 +381,17 @@ namespace Server.Items
 				/* Too much time has passed and the test house you created has been deleted.
 				 * Please try again!
 				 */
-				from.SendGump(new NoticeGump(1060637, 30720, 1060647, 32512, 320, 180, null, null));
+				_ = from.SendGump(new NoticeGump(1060637, 30720, 1060647, 32512, 320, 180, null, null));
 
 				return;
 			}
 
 			var center = prevHouse.Location;
-			var map = prevHouse.Map;
 
 			prevHouse.Delete();
 
-			ArrayList toMove;
 			//Point3D center = new Point3D( p.X - m_Offset.X, p.Y - m_Offset.Y, p.Z - m_Offset.Z );
-			var res = HousePlacement.Check(from, m_MultiID, center, out toMove);
+			var res = HousePlacement.Check(from, MultiID, center, out var toMove);
 
 			switch (res)
 			{
@@ -410,51 +400,43 @@ namespace Server.Items
 						if (from.AccessLevel < AccessLevel.GameMaster && BaseHouse.HasAccountHouse(from))
 						{
 							from.SendLocalizedMessage(501271); // You already own a house, you may not place another!
+							break;
+						}
+
+						var house = ConstructHouse(from);
+
+						if (house == null)
+						{
+							break;
+						}
+
+						house.Price = Cost;
+
+						if (from.AccessLevel >= AccessLevel.GameMaster)
+						{
+							from.SendMessage("{0} gold would have been withdrawn from your bank if you were not a GM.", Cost.ToString());
+						}
+						else if (Banker.Withdraw(from, Cost))
+						{
+							from.SendLocalizedMessage(1060398, Cost.ToString()); // ~1_AMOUNT~ gold has been withdrawn from your bank box.
 						}
 						else
 						{
-							var house = ConstructHouse(from);
+							house.RemoveKeys(from);
+							house.Delete();
 
-							if (house == null)
+							from.SendLocalizedMessage(1060646); // You do not have the funds available in your bank box to purchase this house.  Try placing a smaller house, or adding gold or checks to your bank box.
+
+							break;
+						}
+
+						house.MoveToWorld(center, from.Map);
+
+						if (toMove?.Count > 0)
+						{
+							foreach (var o in toMove)
 							{
-								return;
-							}
-
-							house.Price = m_Cost;
-
-							if (from.AccessLevel >= AccessLevel.GameMaster)
-							{
-								from.SendMessage("{0} gold would have been withdrawn from your bank if you were not a GM.", m_Cost.ToString());
-							}
-							else
-							{
-								if (Banker.Withdraw(from, m_Cost))
-								{
-									from.SendLocalizedMessage(1060398, m_Cost.ToString()); // ~1_AMOUNT~ gold has been withdrawn from your bank box.
-								}
-								else
-								{
-									house.RemoveKeys(from);
-									house.Delete();
-									from.SendLocalizedMessage(1060646); // You do not have the funds available in your bank box to purchase this house.  Try placing a smaller house, or adding gold or checks to your bank box.
-									return;
-								}
-							}
-
-							house.MoveToWorld(center, from.Map);
-
-							for (var i = 0; i < toMove.Count; ++i)
-							{
-								var o = toMove[i];
-
-								if (o is Mobile)
-								{
-									((Mobile)o).Location = house.BanLocation;
-								}
-								else if (o is Item)
-								{
-									((Item)o).Location = house.BanLocation;
-								}
+								o.Location = house.BanLocation;
 							}
 						}
 
@@ -499,9 +481,8 @@ namespace Server.Items
 				return false;
 			}
 
-			ArrayList toMove;
 			var center = new Point3D(p.X - m_Offset.X, p.Y - m_Offset.Y, p.Z - m_Offset.Z);
-			var res = HousePlacement.Check(from, m_MultiID, center, out toMove);
+			var res = HousePlacement.Check(from, MultiID, center, out var toMove);
 
 			switch (res)
 			{
@@ -510,93 +491,88 @@ namespace Server.Items
 						if (from.AccessLevel < AccessLevel.GameMaster && BaseHouse.HasAccountHouse(from))
 						{
 							from.SendLocalizedMessage(501271); // You already own a house, you may not place another!
+							return false;
 						}
-						else
+
+						from.SendLocalizedMessage(1011576); // This is a valid location.
+
+						var prev = new PreviewHouse(MultiID);
+
+						var mcl = prev.Components;
+
+						var banLoc = new Point3D(center.X + mcl.Min.X, center.Y + mcl.Max.Y + 1, center.Z);
+
+						for (var i = 0; i < mcl.List.Length; ++i)
 						{
-							from.SendLocalizedMessage(1011576); // This is a valid location.
+							var entry = mcl.List[i];
 
-							var prev = new PreviewHouse(m_MultiID);
+							int itemID = entry.m_ItemID;
 
-							var mcl = prev.Components;
-
-							var banLoc = new Point3D(center.X + mcl.Min.X, center.Y + mcl.Max.Y + 1, center.Z);
-
-							for (var i = 0; i < mcl.List.Length; ++i)
+							if (itemID is >= 0xBA3 and <= 0xC0E)
 							{
-								var entry = mcl.List[i];
-
-								int itemID = entry.m_ItemID;
-
-								if (itemID >= 0xBA3 && itemID <= 0xC0E)
-								{
-									banLoc = new Point3D(center.X + entry.m_OffsetX, center.Y + entry.m_OffsetY, center.Z);
-									break;
-								}
+								banLoc = new Point3D(center.X + entry.m_OffsetX, center.Y + entry.m_OffsetY, center.Z);
+								break;
 							}
-
-							for (var i = 0; i < toMove.Count; ++i)
-							{
-								var o = toMove[i];
-
-								if (o is Mobile)
-								{
-									((Mobile)o).Location = banLoc;
-								}
-								else if (o is Item)
-								{
-									((Item)o).Location = banLoc;
-								}
-							}
-
-							prev.MoveToWorld(center, from.Map);
-
-							/* You are about to place a new house.
-							 * Placing this house will condemn any and all of your other houses that you may have.
-							 * All of your houses on all shards will be affected.
-							 * 
-							 * In addition, you will not be able to place another house or have one transferred to you for one (1) real-life week.
-							 * 
-							 * Once you accept these terms, these effects cannot be reversed.
-							 * Re-deeding or transferring your new house will not uncondemn your other house(s) nor will the one week timer be removed.
-							 * 
-							 * If you are absolutely certain you wish to proceed, click the button next to OKAY below.
-							 * If you do not wish to trade for this house, click CANCEL.
-							 */
-							from.SendGump(new WarningGump(1060635, 30720, 1049583, 32512, 420, 280, new WarningGumpCallback(PlacementWarning_Callback), prev));
-
-							return true;
 						}
 
-						break;
+						if (toMove?.Count > 0)
+						{
+							foreach (var o in toMove)
+							{
+								o.Location = banLoc;
+							}
+						}
+
+						prev.MoveToWorld(center, from.Map);
+
+						/* You are about to place a new house.
+						 * Placing this house will condemn any and all of your other houses that you may have.
+						 * All of your houses on all shards will be affected.
+						 * 
+						 * In addition, you will not be able to place another house or have one transferred to you for one (1) real-life week.
+						 * 
+						 * Once you accept these terms, these effects cannot be reversed.
+						 * Re-deeding or transferring your new house will not uncondemn your other house(s) nor will the one week timer be removed.
+						 * 
+						 * If you are absolutely certain you wish to proceed, click the button next to OKAY below.
+						 * If you do not wish to trade for this house, click CANCEL.
+						 */
+						_ = from.SendGump(new WarningGump(1060635, 30720, 1049583, 32512, 420, 280, new WarningGumpCallback(PlacementWarning_Callback), prev));
+
+						return true;
 					}
 				case HousePlacementResult.BadItem:
 				case HousePlacementResult.BadLand:
 				case HousePlacementResult.BadStatic:
 				case HousePlacementResult.BadRegionHidden:
-				case HousePlacementResult.NoSurface:
 					{
 						from.SendLocalizedMessage(1043287); // The house could not be created here.  Either something is blocking the house, or the house would not be on valid terrain.
-						break;
+						return false;
+					}
+				case HousePlacementResult.NoSurface:
+					{
+						from.SendMessage("The house could not be created here.  Part of the foundation would not be on any surface.");
+						return false;
 					}
 				case HousePlacementResult.BadRegion:
 					{
 						from.SendLocalizedMessage(501265); // Housing cannot be created in this area.
-						break;
+						return false;
 					}
 				case HousePlacementResult.BadRegionTemp:
 					{
 						from.SendLocalizedMessage(501270); //Lord British has decreed a 'no build' period, thus you cannot build this house at this time.
-						break;
+						return false;
 					}
 				case HousePlacementResult.BadRegionRaffle:
 					{
 						from.SendLocalizedMessage(1150493); // You must have a deed for this plot of land in order to build here.
-						break;
+						return false;
 					}
 				case HousePlacementResult.InvalidCastleKeep:
 					{
 						from.SendLocalizedMessage(1061122); // Castles and keeps cannot be created here.
-						break;
+						return false;
 					}
 			}
 
@@ -620,26 +596,22 @@ namespace Server.Items
 
 			if (obj is HousePlacementEntry)
 			{
-				return ((HousePlacementEntry)obj);
+				return (HousePlacementEntry)obj;
 			}
-			else if (obj is ArrayList)
+			else if (obj is ArrayList list)
 			{
-				var list = (ArrayList)obj;
-
 				for (var i = 0; i < list.Count; ++i)
 				{
 					var e = (HousePlacementEntry)list[i];
 
-					if (e.m_MultiID == house.ItemID)
+					if (e.MultiID == house.ItemID)
 					{
 						return e;
 					}
 				}
 			}
-			else if (obj is Hashtable)
+			else if (obj is Hashtable table)
 			{
-				var table = (Hashtable)obj;
-
 				obj = table[house.ItemID];
 
 				if (obj is HousePlacementEntry)
@@ -657,11 +629,11 @@ namespace Server.Items
 			{
 				var e = entries[i];
 
-				var obj = m_Table[e.m_Type];
+				var obj = m_Table[e.Type];
 
 				if (obj == null)
 				{
-					m_Table[e.m_Type] = e;
+					m_Table[e.Type] = e;
 				}
 				else if (obj is HousePlacementEntry)
 				{
@@ -670,33 +642,31 @@ namespace Server.Items
 						e
 					};
 
-					m_Table[e.m_Type] = list;
+					m_Table[e.Type] = list;
 				}
-				else if (obj is ArrayList)
+				else if (obj is ArrayList list)
 				{
-					var list = (ArrayList)obj;
-
 					if (list.Count == 8)
 					{
 						var table = new Hashtable();
 
 						for (var j = 0; j < list.Count; ++j)
 						{
-							table[((HousePlacementEntry)list[j]).m_MultiID] = list[j];
+							table[((HousePlacementEntry)list[j]).MultiID] = list[j];
 						}
 
-						table[e.m_MultiID] = e;
+						table[e.MultiID] = e;
 
-						m_Table[e.m_Type] = table;
+						m_Table[e.Type] = table;
 					}
 					else
 					{
-						list.Add(e);
+						_ = list.Add(e);
 					}
 				}
 				else if (obj is Hashtable)
 				{
-					((Hashtable)obj)[e.m_MultiID] = e;
+					((Hashtable)obj)[e.MultiID] = e;
 				}
 			}
 		}

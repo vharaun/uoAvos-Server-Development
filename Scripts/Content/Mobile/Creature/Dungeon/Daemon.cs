@@ -8,9 +8,6 @@ namespace Server.Mobiles
 		public override double DispelDifficulty => 125.0;
 		public override double DispelFocus => 45.0;
 
-		public override Faction FactionAllegiance => Shadowlords.Instance;
-		public override Ethics.Ethic EthicAllegiance => Ethics.Ethic.Evil;
-
 		[Constructable]
 		public Daemon() : base(AIType.AI_Mage, FightMode.Closest, 10, 1, 0.2, 0.4)
 		{
@@ -45,6 +42,8 @@ namespace Server.Mobiles
 
 			VirtualArmor = 58;
 			ControlSlots = Core.SE ? 4 : 5;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -58,7 +57,6 @@ namespace Server.Mobiles
 		public override Poison PoisonImmune => Poison.Regular;
 		public override int TreasureMapLevel => 4;
 		public override int Meat => 1;
-		public override bool CanFly => true;
 
 		public Daemon(Serial serial) : base(serial)
 		{

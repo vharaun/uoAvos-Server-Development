@@ -29,11 +29,11 @@ namespace Server.Items
 				{
 					from.SendLocalizedMessage(1010465); // You cannot disguise yourself while holding a sigil.
 				}
-				else if (!from.CanBeginAction(typeof(Spells.Fifth.IncognitoSpell)))
+				else if (!from.CanBeginAction(typeof(Spells.Magery.IncognitoSpell)))
 				{
 					from.SendLocalizedMessage(501698); // You cannot disguise yourself while incognitoed.
 				}
-				else if (!from.CanBeginAction(typeof(Spells.Seventh.PolymorphSpell)))
+				else if (!from.CanBeginAction(typeof(Spells.Magery.PolymorphSpell)))
 				{
 					from.SendLocalizedMessage(501699); // You cannot disguise yourself while polymorphed.
 				}
@@ -41,7 +41,7 @@ namespace Server.Items
 				{
 					from.SendLocalizedMessage(501699); // You cannot disguise yourself while polymorphed.
 				}
-				else if (Spells.Ninjitsu.AnimalForm.UnderTransformation(from))
+				else if (Spells.Ninjitsu.AnimalFormSpell.UnderTransformation(from))
 				{
 					from.SendLocalizedMessage(1061634); // You cannot disguise yourself while in that form.
 				}

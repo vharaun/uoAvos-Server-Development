@@ -10,6 +10,18 @@ namespace Server
 		public string Name { get; set; }
 		public TileFlag Flags { get; set; }
 
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Background => Flags.HasFlag(TileFlag.Background);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Impassable => Flags.HasFlag(TileFlag.Impassable);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Surface => Flags.HasFlag(TileFlag.Surface);
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public bool Wet => Flags.HasFlag(TileFlag.Wet);
+
 		public LandData(string name, TileFlag flags)
 		{
 			Name = name;
@@ -51,11 +63,6 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public int Height { get => m_Height; set => m_Height = (byte)value; }
 
-		// computed properties
-
-		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
-		public int CalcHeight => Bridge ? m_Height / 2 : m_Height;
-
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public bool Bridge { get => this[TileFlag.Bridge]; set => this[TileFlag.Bridge] = value; }
 
@@ -75,6 +82,12 @@ namespace Server
 		public bool Roof { get => this[TileFlag.Roof]; set => this[TileFlag.Roof] = value; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public bool Door { get => this[TileFlag.Door]; set => this[TileFlag.Door] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public bool Wet { get => this[TileFlag.Wet]; set => this[TileFlag.Wet] = value; }
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
 		public bool LightSource { get => this[TileFlag.LightSource]; set => this[TileFlag.LightSource] = value; }
 
 		public bool this[TileFlag flag]
@@ -92,6 +105,11 @@ namespace Server
 				}
 			}
 		}
+
+		// computed properties
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.Administrator)]
+		public int CalcHeight => Bridge ? m_Height / 2 : m_Height;
 
 		public ItemData(ItemData d)
 			: this(d.Name, d.Flags, d.Weight, d.Quality, d.Animation, d.Quantity, d.Value, d.Height)

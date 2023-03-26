@@ -126,6 +126,8 @@ namespace Server.Commands.Generic
 			Register(new AliasedSetCommand(AccessLevel.GameMaster, "Squelch", "squelched", "true", ObjectTypes.Mobiles));
 			Register(new AliasedSetCommand(AccessLevel.GameMaster, "Unsquelch", "squelched", "false", ObjectTypes.Mobiles));
 
+			Register(new SwitchCommand());
+
 			Register(new TeleCommand());
 			Register(new TellCommand(true));
 			Register(new TellCommand(false));

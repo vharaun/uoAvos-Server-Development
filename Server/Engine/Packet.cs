@@ -696,19 +696,49 @@ namespace Server.Network
 		}
 	}
 
+	public enum SpeedControlType : byte
+	{
+		Disable,
+		MountSpeed,
+		WalkSpeed,
+		WalkSpeedFast,
+		TeleportSpeed
+	}
+
 	public sealed class SpeedControl : Packet
 	{
-		public static readonly Packet WalkSpeed = Packet.SetStatic(new SpeedControl(2));
-		public static readonly Packet MountSpeed = Packet.SetStatic(new SpeedControl(1));
-		public static readonly Packet Disable = Packet.SetStatic(new SpeedControl(0));
+		public static readonly Packet Disable = SetStatic(new SpeedControl(SpeedControlType.Disable));
+		public static readonly Packet MountSpeed = SetStatic(new SpeedControl(SpeedControlType.MountSpeed));
+		public static readonly Packet WalkSpeed = SetStatic(new SpeedControl(SpeedControlType.WalkSpeed));
+		public static readonly Packet WalkSpeedFast = SetStatic(new SpeedControl(SpeedControlType.WalkSpeedFast));
+		public static readonly Packet TeleportSpeed = SetStatic(new SpeedControl(SpeedControlType.TeleportSpeed));
 
-		public SpeedControl(int speedControl)
+		public static bool Send(NetState ns, SpeedControlType speed)
+		{
+			if (ns == null)
+			{
+				return false;
+			}
+
+			switch (speed)
+			{
+				case SpeedControlType.Disable: ns.Send(Disable); return true;
+				case SpeedControlType.MountSpeed: ns.Send(MountSpeed); return true;
+				case SpeedControlType.WalkSpeed: ns.Send(WalkSpeed); return true;
+				case SpeedControlType.WalkSpeedFast: ns.Send(WalkSpeedFast); return true;
+				case SpeedControlType.TeleportSpeed: ns.Send(TeleportSpeed); return true;
+			}
+
+			return false;
+		}
+
+		public SpeedControl(SpeedControlType type)
 			: base(0xBF)
 		{
 			EnsureCapacity(3);
 
 			m_Stream.Write((short)0x26);
-			m_Stream.Write((byte)speedControl);
+			m_Stream.Write((byte)type);
 		}
 	}
 
@@ -3117,18 +3147,20 @@ namespace Server.Network
 		}
 	}
 
-	public sealed class NewMobileAnimation : Packet
-	{
-		public NewMobileAnimation(Mobile m, int action, int frameCount, int delay) : base(0xE2, 10)
-		{
-			m_Stream.Write(m.Serial);
-			m_Stream.Write((short)action);
-			m_Stream.Write((short)frameCount);
-			m_Stream.Write((byte)delay);
-		}
-	}
+    public sealed class NewMobileAnimation : Packet
+    {
+        public NewMobileAnimation(Mobile m, AnimationType type, int action, int delay)
+            : base(0xE2, 10)
+        {
+            m_Stream.Write(m.Serial);
 
-	public sealed class MobileStatusCompact : Packet
+            m_Stream.Write((short)type);
+            m_Stream.Write((short)action);
+            m_Stream.Write((byte)delay);
+        }
+    }
+
+    public sealed class MobileStatusCompact : Packet
 	{
 		public MobileStatusCompact(bool canBeRenamed, Mobile m) : base(0x11)
 		{

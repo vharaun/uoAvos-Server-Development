@@ -1,11 +1,11 @@
-﻿using Server.Engines.Quests.Items;
+﻿using Server.Items;
 using Server.Network;
 
 namespace Server.Mobiles
 {
 	[CorpseName("a solen warrior corpse")]
-	public class RedSolenWarrior : BaseCreature
-	{
+	public class RedSolenWarrior : BaseCreature, IRedSolenMember
+    {
 		private bool m_BurstSac;
 		public bool BurstSac => m_BurstSac;
 

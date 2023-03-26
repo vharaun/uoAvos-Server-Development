@@ -55,7 +55,7 @@ namespace Server.Mobiles
 				case 2: AddItem(new Bandana(Utility.RandomBrightHue())); break;
 			}
 
-			AddItem(new Spellbook());
+			AddItem(new BookOfMagery());
 		}
 
 		public FortuneTeller(Serial serial) : base(serial)

@@ -1730,7 +1730,7 @@ namespace Server.Items
 				return true;
 			}
 
-			return (m_AosAttributes.SpellChanneling != 0);
+			return m_AosAttributes.SpellChanneling != 0 || Enhancement.GetValue(from, AosAttribute.SpellChanneling) != 0;
 		}
 
 		public virtual int GetLuckBonus()

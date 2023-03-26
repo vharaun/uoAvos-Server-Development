@@ -229,6 +229,8 @@ namespace Server
 						for (var i = 0; i < t.Length; i++)
 						{
 							r[i] = t[i];
+							r[i].X += o.X;
+							r[i].Y += o.Y;
 							r[i].Z += o.Z;
 						}
 
@@ -398,8 +400,9 @@ namespace Server
 #endif
 		#endregion
 
-		public const int SectorSize = 16;
 		public const int SectorShift = 4;
+		public const int SectorSize = 1 << SectorShift;
+		
 		public static int SectorActiveRange = 2;
 
 		private static readonly Map[] m_Maps = new Map[0x100];
@@ -409,15 +412,10 @@ namespace Server
 		#region Facet (Map) Definitions Registry 
 
 		public static Map Felucca => m_Maps[0];
-
 		public static Map Trammel => m_Maps[1];
-
 		public static Map Ilshenar => m_Maps[2];
-
 		public static Map Malas => m_Maps[3];
-
 		public static Map Tokuno => m_Maps[4];
-
 		public static Map TerMur => m_Maps[5];
 
 		#endregion
@@ -3048,6 +3046,7 @@ namespace Server
 			return GetMapImage(x, y, width, height, land, statics, true);
 		}
 
+		[MethodImpl(MethodImplOptions.Synchronized)]
 		public unsafe Bitmap GetMapImage(int x, int y, int width, int height, bool land, bool statics, bool useCache)
 		{
 			try
@@ -3108,6 +3107,7 @@ namespace Server
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.Synchronized)]
 		private int[] GetRenderedBlock(int x, int y, bool land, bool statics, bool useCache)
 		{
 			var matrix = Tiles;
@@ -3287,48 +3287,43 @@ namespace Server
 		private StaticTile[] m_Tiles;
 		private int m_Count;
 
+		public int Count => m_Count;
+
 		public TileList()
 		{
 			m_Tiles = new StaticTile[8];
 			m_Count = 0;
 		}
 
-		public int Count => m_Count;
-
 		public void AddRange(StaticTile[] tiles)
 		{
-			if ((m_Count + tiles.Length) > m_Tiles.Length)
-			{
-				var old = m_Tiles;
-				m_Tiles = new StaticTile[(m_Count + tiles.Length) * 2];
-
-				for (var i = 0; i < old.Length; ++i)
-				{
-					m_Tiles[i] = old[i];
-				}
-			}
-
 			for (var i = 0; i < tiles.Length; ++i)
 			{
-				m_Tiles[m_Count++] = tiles[i];
+				Add(tiles[i]);
 			}
 		}
 
-		public void Add(ushort id, sbyte z)
+		public void Add(StaticTile tile)
 		{
-			if ((m_Count + 1) > m_Tiles.Length)
+			Add(tile.m_ID, tile.m_X, tile.m_Y, tile.m_Z);
+		}
+
+		public void Add(ushort id, byte x, byte y, sbyte z)
+		{
+			if (m_Count + 1 > m_Tiles.Length)
 			{
 				var old = m_Tiles;
+
 				m_Tiles = new StaticTile[old.Length * 2];
 
-				for (var i = 0; i < old.Length; ++i)
-				{
-					m_Tiles[i] = old[i];
-				}
+				Array.Copy(old, m_Tiles, old.Length);
 			}
 
 			m_Tiles[m_Count].m_ID = id;
+			m_Tiles[m_Count].m_X = x;
+			m_Tiles[m_Count].m_Y = y;
 			m_Tiles[m_Count].m_Z = z;
+
 			++m_Count;
 		}
 
@@ -3343,10 +3338,7 @@ namespace Server
 
 			var tiles = new StaticTile[m_Count];
 
-			for (var i = 0; i < m_Count; ++i)
-			{
-				tiles[i] = m_Tiles[i];
-			}
+			Array.Copy(m_Tiles, tiles, m_Count);
 
 			m_Count = 0;
 
@@ -3746,7 +3738,7 @@ namespace Server
 
 					while (pCur < pEnd)
 					{
-						lists[pCur->m_X & 0x7][pCur->m_Y & 0x7].Add(pCur->m_ID, pCur->m_Z);
+						lists[pCur->m_X & 0x7][pCur->m_Y & 0x7].Add(*pCur);
 
 						++pCur;
 					}
@@ -4214,7 +4206,7 @@ namespace Server
 
 								while (pCur < pEnd)
 								{
-									lists[pCur->m_X & 0x7][pCur->m_Y & 0x7].Add(pCur->m_ID, pCur->m_Z);
+									lists[pCur->m_X & 0x7][pCur->m_Y & 0x7].Add(*pCur);
 
 									++pCur;
 								}

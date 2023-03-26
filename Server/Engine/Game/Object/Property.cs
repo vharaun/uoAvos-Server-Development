@@ -475,23 +475,7 @@ namespace Server
 				var map = reader.ReadMap();
 				var loc = reader.ReadPoint3D();
 				var worldLoc = reader.ReadPoint3D();
-
-				IEntity parent;
-
-				Serial serial = reader.ReadInt();
-
-				if (serial.IsItem)
-				{
-					parent = World.FindItem(serial);
-				}
-				else if (serial.IsMobile)
-				{
-					parent = World.FindMobile(serial);
-				}
-				else
-				{
-					parent = null;
-				}
+				var parent = reader.ReadEntity();
 
 				return new BounceInfo(map, loc, worldLoc, parent);
 			}
@@ -515,18 +499,7 @@ namespace Server
 				writer.Write(info.m_Location);
 				writer.Write(info.m_WorldLoc);
 
-				if (info.m_Parent is Mobile)
-				{
-					writer.Write((Mobile)info.m_Parent);
-				}
-				else if (info.m_Parent is Item)
-				{
-					writer.Write((Item)info.m_Parent);
-				}
-				else
-				{
-					writer.Write((Serial)0);
-				}
+				writer.Write(info.m_Parent);
 			}
 		}
 	}
@@ -1367,7 +1340,7 @@ namespace Server
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
-			else if (CheckNewbied() && parent.Kills < 5)
+			else if (CheckNewbied() && !parent.Murderer)
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
@@ -1395,7 +1368,7 @@ namespace Server
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
-			else if (CheckNewbied() && parent.Kills < 5)
+			else if (CheckNewbied() && !parent.Murderer)
 			{
 				return DeathMoveResult.MoveToBackpack;
 			}
@@ -1676,34 +1649,52 @@ namespace Server
 			return StackWith(from, dropped, true);
 		}
 
+		public virtual bool CanStackWith(Mobile from, Item dropped, bool playSound)
+		{
+			return dropped.Stackable && Stackable 
+				&& dropped.GetType() == GetType() 
+				&& dropped.ItemID == ItemID 
+				&& dropped.Hue == Hue 
+				&& dropped.Name == Name 
+				&& (dropped.Amount + Amount) <= 60000 
+				&& dropped != this 
+				&& !dropped.Nontransferable && !Nontransferable;
+		}
+
 		public virtual bool StackWith(Mobile from, Item dropped, bool playSound)
 		{
-			if (dropped.Stackable && Stackable && dropped.GetType() == GetType() && dropped.ItemID == ItemID && dropped.Hue == Hue && dropped.Name == Name && (dropped.Amount + Amount) <= 60000 && dropped != this && !dropped.Nontransferable && !Nontransferable)
+			if (CanStackWith(from, dropped, playSound))
 			{
-				if (m_LootType != dropped.m_LootType)
-				{
-					m_LootType = LootType.Regular;
-				}
-
-				Amount += dropped.Amount;
-				dropped.Delete();
-
-				if (playSound && from != null)
-				{
-					var soundID = GetDropSound();
-
-					if (soundID == -1)
-					{
-						soundID = 0x42;
-					}
-
-					from.SendSound(soundID, GetWorldLocation());
-				}
+				OnStackWith(from, dropped, playSound);
 
 				return true;
 			}
 
 			return false;
+		}
+
+		protected virtual void OnStackWith(Mobile from, Item dropped, bool playSound)
+		{
+			if (m_LootType != dropped.m_LootType)
+			{
+				m_LootType = LootType.Regular;
+			}
+
+			Amount += dropped.Amount;
+
+			dropped.Delete();
+
+			if (playSound && from != null)
+			{
+				var soundID = GetDropSound();
+
+				if (soundID == -1)
+				{
+					soundID = 0x42;
+				}
+
+				from.SendSound(soundID, GetWorldLocation());
+			}
 		}
 
 		public virtual bool OnDragDrop(Mobile from, Item dropped)
@@ -4277,6 +4268,8 @@ namespace Server
 
 				m_Parent = value;
 
+				OnParentChanged(oldParent);
+
 				if (m_Map != null)
 				{
 					if (oldParent != null && m_Parent == null)
@@ -4290,6 +4283,9 @@ namespace Server
 				}
 			}
 		}
+
+		protected virtual void OnParentChanged(IEntity oldParent)
+		{ }
 
 		[CommandProperty(AccessLevel.GameMaster)]
 		public LightType Light
@@ -5104,6 +5100,7 @@ namespace Server
 			return false;
 		}
 
+		[CommandProperty(AccessLevel.Counselor)]
 		public ItemData ItemData => TileData.ItemTable[m_ItemID & TileData.MaxItemValue];
 
 		public virtual void OnItemUsed(Mobile from, Item item)

@@ -1,5 +1,7 @@
 ﻿using Server.Items;
 
+using System;
+
 namespace Server.Mobiles
 {
 	public class DummyAssassin : Dummy
@@ -25,7 +27,7 @@ namespace Server.Mobiles
 			Name = "Hybrid Assassin";
 
 			// Equip
-			var book = new Spellbook {
+			var book = new BookOfMagery(UInt64.MaxValue) {
 				Movable = false,
 				LootType = LootType.Newbied,
 				Content = 0xFFFFFFFFFFFFFFFF
@@ -159,10 +161,9 @@ namespace Server.Mobiles
 			Name = "Nox Mage";
 
 			// Equip
-			var book = new Spellbook {
+			var book = new BookOfMagery(UInt64.MaxValue) {
 				Movable = false,
-				LootType = LootType.Newbied,
-				Content = 0xFFFFFFFFFFFFFFFF
+				LootType = LootType.Newbied
 			};
 			AddItem(book);
 
@@ -183,11 +184,11 @@ namespace Server.Mobiles
 			AddItem(skc);
 
 			// Spells
-			AddSpellAttack(typeof(Spells.First.MagicArrowSpell));
-			AddSpellAttack(typeof(Spells.First.WeakenSpell));
-			AddSpellAttack(typeof(Spells.Third.FireballSpell));
-			AddSpellDefense(typeof(Spells.Third.WallOfStoneSpell));
-			AddSpellDefense(typeof(Spells.First.HealSpell));
+			AddSpellAttack(typeof(Spells.Magery.MagicArrowSpell));
+			AddSpellAttack(typeof(Spells.Magery.WeakenSpell));
+			AddSpellAttack(typeof(Spells.Magery.FireballSpell));
+			AddSpellDefense(typeof(Spells.Magery.WallOfStoneSpell));
+			AddSpellDefense(typeof(Spells.Magery.HealSpell));
 		}
 
 		public DummyNox(Serial serial) : base(serial)
@@ -233,10 +234,9 @@ namespace Server.Mobiles
 			Name = "Super Mage";
 
 			// Equip
-			var book = new Spellbook {
+			var book = new BookOfMagery(UInt64.MaxValue) {
 				Movable = false,
-				LootType = LootType.Newbied,
-				Content = 0xFFFFFFFFFFFFFFFF
+				LootType = LootType.Newbied
 			};
 			AddItem(book);
 
@@ -289,11 +289,11 @@ namespace Server.Mobiles
 			AddItem(dblt);
 
 			// Spells
-			AddSpellAttack(typeof(Spells.First.MagicArrowSpell));
-			AddSpellAttack(typeof(Spells.First.WeakenSpell));
-			AddSpellAttack(typeof(Spells.Third.FireballSpell));
-			AddSpellDefense(typeof(Spells.Third.WallOfStoneSpell));
-			AddSpellDefense(typeof(Spells.First.HealSpell));
+			AddSpellAttack(typeof(Spells.Magery.MagicArrowSpell));
+			AddSpellAttack(typeof(Spells.Magery.WeakenSpell));
+			AddSpellAttack(typeof(Spells.Magery.FireballSpell));
+			AddSpellDefense(typeof(Spells.Magery.WallOfStoneSpell));
+			AddSpellDefense(typeof(Spells.Magery.HealSpell));
 		}
 
 		public DummySuper(Serial serial) : base(serial)

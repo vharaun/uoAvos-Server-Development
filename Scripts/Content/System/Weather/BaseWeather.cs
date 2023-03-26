@@ -100,6 +100,11 @@ namespace Server.Engines.Weather
 			Register(this);
 		}
 
+		public override string ToString()
+		{
+			return String.Join(", ", Area);
+		}
+
 		private void Init(TimeSpan interval)
 		{
 			m_Timer?.Stop();

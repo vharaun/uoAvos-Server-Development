@@ -1279,33 +1279,6 @@ namespace Server.Targets
 			}
 			else
 			{
-				if (targeted is StaticTarget)
-				{
-					var itemID = ((StaticTarget)targeted).ItemID;
-
-					if (itemID == 0xD15 || itemID == 0xD16) // red mushroom
-					{
-						var player = from as PlayerMobile;
-
-						if (player != null)
-						{
-							var qs = player.Quest;
-
-							if (qs is WitchApprenticeQuest)
-							{
-								var obj = qs.FindObjective(typeof(FindIngredientObjective_WitchApprenticeQuest)) as FindIngredientObjective_WitchApprenticeQuest;
-
-								if (obj != null && !obj.Completed && obj.Ingredient == Ingredient.RedMushrooms)
-								{
-									player.SendLocalizedMessage(1055036); // You slice a red cap mushroom from its stem.
-									obj.Complete();
-									return;
-								}
-							}
-						}
-					}
-				}
-
 				HarvestSystem system = Lumberjacking.System;
 				var def = Lumberjacking.System.Definition;
 

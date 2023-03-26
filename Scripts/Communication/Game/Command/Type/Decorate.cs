@@ -1,5 +1,4 @@
 ﻿using Server.Engines.Publishing;
-using Server.Engines.Quests.Items;
 using Server.Gumps;
 using Server.Items;
 using Server.Mobiles;
@@ -685,24 +684,7 @@ namespace Server.Commands
 
 			if (item is BaseAddon)
 			{
-				if (item is MaabusCoffin)
-				{
-					var coffin = (MaabusCoffin)item;
-
-					for (var i = 0; i < m_Params.Length; ++i)
-					{
-						if (m_Params[i].StartsWith("SpawnLocation"))
-						{
-							var indexOf = m_Params[i].IndexOf('=');
-
-							if (indexOf >= 0)
-							{
-								coffin.SpawnLocation = Point3D.Parse(m_Params[i].Substring(++indexOf));
-							}
-						}
-					}
-				}
-				else if (m_ItemID > 0)
+				if (m_ItemID > 0)
 				{
 					var comps = ((BaseAddon)item).Components;
 

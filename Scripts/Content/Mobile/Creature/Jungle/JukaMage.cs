@@ -114,7 +114,7 @@ namespace Server.Mobiles
 
 				foreach (var m in GetMobilesInRange(8))
 				{
-					if (m is JukaLord && IsFriend(m) && m.Combatant != null && CanBeBeneficial(m) && m.CanBeginAction(typeof(JukaMage)) && InLOS(m))
+					if (m is JukaLord && IsAlly(m) && m.Combatant != null && CanBeBeneficial(m) && m.CanBeginAction(typeof(JukaMage)) && InLOS(m))
 					{
 						toBuff = (JukaLord)m;
 						break;

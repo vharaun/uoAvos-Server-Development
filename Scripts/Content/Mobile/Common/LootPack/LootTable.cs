@@ -53,13 +53,72 @@ namespace Server
 
 		public static Item ChestOfHeirloomsContains() { return RandomArmorOrShieldOrWeaponOrJewelry(); }
 
-		public static SpellScroll RandomScroll(int minIndex, int maxIndex, SpellbookType type)
+		public static Item RandomScroll(SpellSchool school)
 		{
-			Type[] types;
+			if (school == SpellSchool.Invalid)
+			{
+				return new BlankScroll();
+			}
 
-			types = m_SpellScrolls;
+			var minID = (SpellName)school;
+			var maxID = minID + (SpellRegistry.CountSpells(school) - 1);
 
-			return Construct(types, Utility.RandomMinMax(minIndex, maxIndex)) as SpellScroll;
+			return RandomScroll(minID, maxID);
+		}
+
+		public static Item RandomScroll(SpellCircle circle)
+		{
+			return RandomScroll(circle, circle);
+		}
+
+		public static Item RandomScroll(SpellCircle min, SpellCircle max)
+		{
+			if (min > max)
+			{
+				(min, max) = (max, min);
+			}
+
+			if (min == SpellCircle.Invalid)
+			{
+				return new BlankScroll();
+			}
+
+			if (max == SpellCircle.Invalid)
+			{
+				max = min;
+			}
+
+			var minID = (SpellName)((int)min * 8);
+			var maxID = (SpellName)((int)max * 8);
+
+			return RandomScroll(minID, maxID);
+		}
+
+		public static Item RandomScroll(SpellName min, SpellName max)
+		{
+			if (min > max)
+			{
+				(min, max) = (max, min);
+			}
+
+			if (min == SpellName.Invalid)
+			{
+				return new BlankScroll();
+			}
+
+			if (max == SpellName.Invalid)
+			{
+				max = min;
+			}
+
+			var id = Utility.RandomMinMax(min, max);
+
+			if (m_ScrollTypesByID.TryGetValue(id, out var type))
+			{
+				return Construct(type);
+			}
+
+			return new BlankScroll();
 		}
 
 		public static BaseTalisman RandomTalisman()
@@ -530,29 +589,6 @@ namespace Server
 	public partial class LootPackItem
 	{
 		private static readonly Type[] m_BlankTypes = new Type[] { typeof(BlankScroll) };
-		private static readonly Type[][] m_NecroTypes = new Type[][]
-			{
-				new Type[] // low
-				{
-					typeof( AnimateDeadScroll ),        typeof( BloodOathScroll ),      typeof( CorpseSkinScroll ), typeof( CurseWeaponScroll ),
-					typeof( EvilOmenScroll ),           typeof( HorrificBeastScroll ),  typeof( MindRotScroll ),    typeof( PainSpikeScroll ),
-					typeof( SummonFamiliarScroll ),     typeof( WraithFormScroll )
-				},
-				new Type[] // med
-				{
-					typeof( LichFormScroll ),           typeof( PoisonStrikeScroll ),   typeof( StrangleScroll ),   typeof( WitherScroll )
-				},
-
-				((Core.SE) ?
-				new Type[] // high
-				{
-					typeof( VengefulSpiritScroll ),     typeof( VampiricEmbraceScroll ), typeof( ExorcismScroll )
-				} :
-				new Type[] // high
-				{
-					typeof( VengefulSpiritScroll ),     typeof( VampiricEmbraceScroll )
-				})
-			};
 
 		public Item Construct(bool inTokuno, bool isMondain)
 		{
@@ -590,15 +626,15 @@ namespace Server
 				}
 				else if (m_Type == typeof(ClumsyScroll)) // low scroll
 				{
-					item = RandomScroll(0, 1, 3);
+					item = Loot.RandomScroll(SpellCircle.First, SpellCircle.Third);
 				}
 				else if (m_Type == typeof(ArchCureScroll)) // med scroll
 				{
-					item = RandomScroll(1, 4, 7);
+					item = Loot.RandomScroll(SpellCircle.Fourth, SpellCircle.Seventh);
 				}
 				else if (m_Type == typeof(SummonAirElementalScroll)) // high scroll
 				{
-					item = RandomScroll(2, 8, 8);
+					item = Loot.RandomScroll(SpellCircle.Eighth, SpellCircle.Eighth);
 				}
 				else
 				{

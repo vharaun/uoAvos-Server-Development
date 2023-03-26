@@ -303,7 +303,7 @@ namespace Server.Commands
 					AddEntryHeader(20);
 				}
 
-				AddEntryHtml(160, Center(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
+				AddEntryHtml(160, SetCenter(String.Format("Page {0} of {1}", m_Page + 1, (m_List.Count + EntriesPerPage - 1) / EntriesPerPage)));
 
 				if ((m_Page + 1) * EntriesPerPage < m_List.Count)
 				{
@@ -325,7 +325,7 @@ namespace Server.Commands
 						{
 							AddNewLine();
 
-							AddEntryHtml(20 + OffsetSize + 160, Color(c.AccessLevel.ToString(), 0xFF0000));
+							AddEntryHtml(20 + OffsetSize + 160, SetColor(c.AccessLevel.ToString(), 0xFF0000));
 							AddEntryHeader(20);
 							line++;
 						}

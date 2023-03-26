@@ -114,7 +114,7 @@ namespace Server.Items.Staff
 				((Mobile)o).Title = null;
 			}
 
-			if (o is Mobile && ((Mobile)o).Kills >= 5)
+			if (o is Mobile && ((Mobile)o).Murderer)
 			{
 				((Mobile)o).Criminal = true;
 			}

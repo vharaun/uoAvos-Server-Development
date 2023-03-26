@@ -56,7 +56,7 @@ namespace Server.Mobiles
 				Add(new GenericBuyInfo(typeof(BreadLoaf), 7, 10, 0x103B, 0));
 				Add(new GenericBuyInfo(typeof(Backpack), 15, 20, 0x9B2, 0));
 
-				var types = Loot.RegularScrollTypes;
+				var types = Loot.MageryScrollTypes;
 
 				var circles = 3;
 
@@ -84,7 +84,7 @@ namespace Server.Mobiles
 					Add(new GenericBuyInfo(typeof(NoxCrystal), 6, 999, 0xF8E, 0));
 					Add(new GenericBuyInfo(typeof(PigIron), 5, 999, 0xF8A, 0));
 
-					Add(new GenericBuyInfo(typeof(NecromancerSpellbook), 115, 10, 0x2253, 0));
+					Add(new GenericBuyInfo(typeof(BookOfNecromancy), 115, 10, 0x2253, 0));
 				}
 
 				Add(new GenericBuyInfo(typeof(RecallRune), 15, 10, 0x1f14, 0));
@@ -138,7 +138,7 @@ namespace Server.Mobiles
 					Add(typeof(PigIron), 3);
 				}
 
-				var types = Loot.RegularScrollTypes;
+				var types = Loot.MageryScrollTypes;
 
 				for (var i = 0; i < types.Length; ++i)
 				{

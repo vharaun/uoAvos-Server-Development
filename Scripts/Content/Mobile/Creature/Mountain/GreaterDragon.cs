@@ -48,6 +48,8 @@ namespace Server.Mobiles
 			Tamable = true;
 			ControlSlots = 5;
 			MinTameSkill = 104.7;
+
+			CanFly = true;
 		}
 
 		public override void GenerateLoot()
@@ -67,7 +69,6 @@ namespace Server.Mobiles
 		public override ScaleType ScaleType => (Body == 12 ? ScaleType.Yellow : ScaleType.Red);
 		public override FoodType FavoriteFood => FoodType.Meat;
 		public override bool CanAngerOnTame => true;
-		public override bool CanFly => true;
 
 		public override WeaponAbility GetWeaponAbility()
 		{

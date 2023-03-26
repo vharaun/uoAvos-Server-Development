@@ -664,7 +664,7 @@ namespace Server.Ethics.Evil
 		{
 			var fac = Faction.Find(mob);
 
-			return (fac is Minax || fac is Shadowlords);
+			return fac?.Definition.Ethic == FactionEthic.Evil;
 		}
 	}
 
@@ -1088,14 +1088,14 @@ namespace Server.Ethics.Hero
 
 		public override bool IsEligible(Mobile mob)
 		{
-			if (mob.Kills >= 5)
+			if (mob.Murderer)
 			{
 				return false;
 			}
 
 			var fac = Faction.Find(mob);
 
-			return (fac is TrueBritannians || fac is CouncilOfMages);
+			return fac?.Definition.Ethic == FactionEthic.Good;
 		}
 	}
 

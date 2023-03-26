@@ -47,6 +47,7 @@
 			base.DefaultInit();
 
 			Rules.AllowHouses = false;
+			Rules.AllowVehicles = false;
 		}
 
 		public override bool AllowBeneficial(Mobile from, Mobile target)

@@ -42,8 +42,8 @@
 			Fame = 24000;
 			Karma = -24000;
 
-			PackScroll(4, 7);
-			PackScroll(4, 7);
+			PackScroll(SpellCircle.Fourth, SpellCircle.Seventh);
+			PackScroll(SpellCircle.Fourth, SpellCircle.Seventh);
 		}
 
 		public override void GenerateLoot()

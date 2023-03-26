@@ -103,7 +103,7 @@
 
 			for (var i = 0; i < level; ++i)
 			{
-				DropItem(Loot.RandomScroll(0, 63, SpellbookType.Regular));
+				DropItem(Loot.RandomScroll(SpellSchool.Magery));
 			}
 
 			for (var i = 0; i < level * 2; ++i)

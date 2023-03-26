@@ -38,23 +38,50 @@ namespace Server.Factions
 		{
 		}
 
-		public override void VendorBuy(Mobile from)
+		public override bool AllowBuyer(Mobile from, bool message)
 		{
+			if (!base.AllowBuyer(from, message))
+			{
+				return false;
+			}
+
 			if (Faction == null || Faction.Find(from, true) != Faction)
 			{
-				PrivateOverheadMessage(MessageType.Regular, 0x3B2, 1042201, from.NetState); // You are not in my faction, I cannot sell you a horse!
+				if (message)
+				{
+					PrivateOverheadMessage(MessageType.Regular, 0x3B2, 1042201, from.NetState); // You are not in my faction, I cannot sell you a horse!
+				}
+
+				return false;
 			}
-			else if (FactionGump.Exists(from))
+
+			if (FactionGump.Exists(from))
 			{
-				from.SendLocalizedMessage(1042160); // You already have a faction menu open.
+				if (message)
+				{
+					from.SendLocalizedMessage(1042160); // You already have a faction menu open.
+				}
+
+				return false;
 			}
-			else if (from is PlayerMobile)
+
+			return true;
+		}
+
+		protected override void OnVendorBuy(Mobile from)
+		{
+			if (!AllowBuyer(from, true))
 			{
-				from.SendGump(new HorseBreederGump((PlayerMobile)from, Faction));
+				return;
+			}
+
+			if (from is PlayerMobile pm)
+			{
+				from.SendGump(new HorseBreederGump(pm, Faction));
 			}
 		}
 
-		public override void VendorSell(Mobile from)
+		protected override void OnVendorSell(Mobile from)
 		{
 		}
 

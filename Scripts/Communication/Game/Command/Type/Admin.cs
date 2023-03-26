@@ -162,7 +162,7 @@ namespace Server.Gumps
 				case AccessLevel.Player:
 				default:
 					{
-						if (m.Kills >= 5)
+						if (m.Murderer)
 						{
 							return 0x21;
 						}

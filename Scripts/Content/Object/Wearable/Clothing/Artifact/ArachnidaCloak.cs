@@ -20,7 +20,7 @@ namespace Server.Items
 
 		public override void OnDoubleClick(Mobile from)
 		{
-			if (DateTime.Now >= m_NextAbilityTime)
+			if (DateTime.UtcNow >= m_NextAbilityTime)
 			{
 				from.Target = new webTarget(from, this);
 				from.SendMessage("You pull a handful of sticky web from the cloak.");
@@ -47,7 +47,7 @@ namespace Server.Items
 			base.Deserialize(reader);
 
 			var version = reader.ReadInt();
-			m_NextAbilityTime = DateTime.Now;
+			m_NextAbilityTime = DateTime.UtcNow;
 		}
 
 		private class webTarget : Target
@@ -76,7 +76,7 @@ namespace Server.Items
 					m.SendMessage("The web covers you, constricting all limbs!");
 					m.Paralyze(TimeSpan.FromSeconds(5));
 					Effects.SendMovingEffect(from, m, 0x0EE6, 7, 0, false, true, 1149, 0);
-					m_web.m_NextAbilityTime = DateTime.Now + TimeSpan.FromMinutes(30.0);
+					m_web.m_NextAbilityTime = DateTime.UtcNow + TimeSpan.FromMinutes(30.0);
 				}
 				else
 				{

@@ -19,12 +19,6 @@ namespace Server.Engines.Weather
 			foreach (var facet in facets)
 			{
 				Weather.Register(facet, - 15, 100, 5, new Rectangle2D(3850, 160, 390, 320), new Rectangle2D(3900, 480, 380, 180), new Rectangle2D(4160, 660, 150, 110));
-
-				// Moves Weather Pattern Across The Entire Map
-				for (var i = 0; i < 15; ++i)
-				{
-					DynamicWeather.Register(facet, +15, 100, 5, 8, 400, 400, new Rectangle2D(0, 0, 5120, 4096));
-				}
 			}
 		}
 	}

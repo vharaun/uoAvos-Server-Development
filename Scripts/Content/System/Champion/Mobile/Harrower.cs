@@ -328,7 +328,7 @@ namespace Server.Mobiles
 					{
 						var prot = pm.JusticeProtectors[j];
 
-						if (prot.Map != m.Map || prot.Kills >= 5 || prot.Criminal || !JusticeVirtue.CheckMapRegion(m, prot))
+						if (prot.Map != m.Map || prot.Murderer || prot.Criminal || !JusticeVirtue.CheckMapRegion(m, prot))
 						{
 							continue;
 						}

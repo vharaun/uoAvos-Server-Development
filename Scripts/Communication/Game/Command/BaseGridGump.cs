@@ -1,21 +1,18 @@
 ﻿
 using System;
+using System.Drawing;
 
 namespace Server.Gumps
 {
 	public abstract class BaseGridGump : Gump
 	{
-		private int m_CurrentX, m_CurrentY;
-		private int m_CurrentPage;
-
 		protected GumpBackground m_Background;
 		protected GumpImageTiled m_Offset;
 
-		public int CurrentPage => m_CurrentPage;
+		public int CurrentPage { get; private set; }
 
-		public int CurrentX => m_CurrentX;
-
-		public int CurrentY => m_CurrentY;
+		public int CurrentX { get; private set; }
+		public int CurrentY { get; private set; }
 
 		public BaseGridGump(int x, int y) : base(x, y)
 		{
@@ -44,22 +41,122 @@ namespace Server.Gumps
 		public const int ArrowRightWidth = 16;
 		public const int ArrowRightHeight = 16;
 
-		public string Center(string text)
+		public static string SetCenter()
 		{
-			return String.Format("<CENTER>{0}</CENTER>", text);
+			return SetCenter(String.Empty);
 		}
 
-		public string Color(string text, int color)
+		public static string SetCenter(string text)
 		{
-			return String.Format("<BASEFONT COLOR=#{0:X6}>{1}</BASEFONT>", color, text);
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<CENTER>";
+			}
+
+			return $"<CENTER>{text}</CENTER>";
 		}
 
-		public int GetButtonID(int typeCount, int type, int index)
+		public static string SetRight()
+		{
+			return SetRight(String.Empty);
+		}
+
+		public static string SetRight(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<DIV ALIGN=RIGHT>";
+			}
+
+			return $"<DIV ALIGN=RIGHT>{text}</DIV>";
+		}
+
+		public static string SetSmall()
+		{
+			return SetSmall(String.Empty);
+		}
+
+		public static string SetSmall(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<SMALL>";
+			}
+
+			return $"<SMALL>{text}</SMALL>";
+		}
+
+		public static string SetBig()
+		{
+			return SetBig(String.Empty);
+		}
+
+		public static string SetBig(string text)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BIG>";
+			}
+
+			return $"<BIG>{text}</BIG>";
+		}
+
+		public static string SetColor(Color color)
+		{
+			return SetColor(String.Empty, color);
+		}
+
+		public static string SetColor(int color)
+		{
+			return SetColor(String.Empty, color);
+		}
+
+		public static string SetColor(string text, Color color)
+		{
+			return SetColor(text, color.ToArgb());
+		}
+
+		public static string SetColor(string text, int color)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>";
+			}
+
+			return $"<BASEFONT COLOR=#{color & 0xFFFFFF:X6}>{text}";
+		}
+
+		public static string SetBGColor(Color color)
+		{
+			return SetBGColor(String.Empty, color);
+		}
+
+		public static string SetBGColor(int color)
+		{
+			return SetBGColor(String.Empty, color);
+		}
+
+		public static string SetBGColor(string text, Color color)
+		{
+			return SetBGColor(text, color.ToArgb());
+		}
+
+		public static string SetBGColor(string text, int color)
+		{
+			if (String.IsNullOrWhiteSpace(text))
+			{
+				return $"<BODYBGCOLOR=#{color & 0xFFFFFF:X6}>";
+			}
+
+			return $"<BODYBGCOLOR=#{color & 0xFFFFFF:X6}>{text}</BODYBGCOLOR>";
+		}
+
+		public static int GetButtonID(int typeCount, int type, int index)
 		{
 			return 1 + (index * typeCount) + type;
 		}
 
-		public bool SplitButtonID(int buttonID, int typeCount, out int type, out int index)
+		public static bool SplitButtonID(int buttonID, int typeCount, out int type, out int index)
 		{
 			if (buttonID < 1)
 			{
@@ -80,12 +177,12 @@ namespace Server.Gumps
 		{
 			if (m_Background != null)
 			{
-				m_Background.Height = m_CurrentY + EntryHeight + OffsetSize + BorderSize;
+				m_Background.Height = CurrentY + EntryHeight + OffsetSize + BorderSize;
 			}
 
 			if (m_Offset != null)
 			{
-				m_Offset.Height = m_CurrentY + EntryHeight + OffsetSize - BorderSize;
+				m_Offset.Height = CurrentY + EntryHeight + OffsetSize - BorderSize;
 			}
 		}
 
@@ -93,10 +190,10 @@ namespace Server.Gumps
 		{
 			FinishPage();
 
-			m_CurrentX = BorderSize + OffsetSize;
-			m_CurrentY = BorderSize + OffsetSize;
+			CurrentX = BorderSize + OffsetSize;
+			CurrentY = BorderSize + OffsetSize;
 
-			AddPage(++m_CurrentPage);
+			AddPage(++CurrentPage);
 
 			m_Background = new GumpBackground(0, 0, 100, 100, BackGumpID);
 			Add(m_Background);
@@ -107,22 +204,22 @@ namespace Server.Gumps
 
 		public void AddNewLine()
 		{
-			m_CurrentY += EntryHeight + OffsetSize;
-			m_CurrentX = BorderSize + OffsetSize;
+			CurrentY += EntryHeight + OffsetSize;
+			CurrentX = BorderSize + OffsetSize;
 		}
 
 		public void IncreaseX(int width)
 		{
-			m_CurrentX += width + OffsetSize;
+			CurrentX += width + OffsetSize;
 
-			width = m_CurrentX + BorderSize;
+			width = CurrentX + BorderSize;
 
 			if (m_Background != null && width > m_Background.Width)
 			{
 				m_Background.Width = width;
 			}
 
-			width = m_CurrentX - BorderSize;
+			width = CurrentX - BorderSize;
 
 			if (m_Offset != null && width > m_Offset.Width)
 			{
@@ -132,16 +229,21 @@ namespace Server.Gumps
 
 		public void AddEntryLabel(int width, string text)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
-			AddLabelCropped(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, TextHue, text);
+			AddEntryLabel(width, text, TextHue);
+        }
 
-			IncreaseX(width);
-		}
+        public void AddEntryLabel(int width, string text, int textHue)
+        {
+            AddImageTiled(CurrentX, CurrentY, width, EntryHeight, EntryGumpID);
+            AddLabelCropped(CurrentX + TextOffsetX, CurrentY, width - TextOffsetX, EntryHeight, textHue, text);
 
-		public void AddEntryHtml(int width, string text)
+            IncreaseX(width);
+        }
+
+        public void AddEntryHtml(int width, string text)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
-			AddHtml(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, text, false, false);
+			AddImageTiled(CurrentX, CurrentY, width, EntryHeight, EntryGumpID);
+			AddHtml(CurrentX + TextOffsetX, CurrentY, width - TextOffsetX, EntryHeight, text, false, false);
 
 			IncreaseX(width);
 		}
@@ -153,15 +255,42 @@ namespace Server.Gumps
 
 		public void AddEntryHeader(int width, int spannedEntries)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, (EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)), HeaderGumpID);
+			AddImageTiled(CurrentX, CurrentY, width, (EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)), HeaderGumpID);
 			IncreaseX(width);
+        }
+
+		public void AddEntryItem(int width, int itemID)
+		{
+			AddEntryItem(width, itemID, 0);
 		}
 
-		public void AddBlankLine()
+		public void AddEntryItem(int width, int itemID, int hue)
+        {
+			AddImageTiled(CurrentX, CurrentY, width, EntryHeight, HeaderGumpID);
+
+			var bmp = ArtData.GetStatic(itemID);
+
+			if (bmp != null)
+			{
+				ArtData.Measure(bmp, out var x1, out var y1, out var x2, out var y2);
+
+				var artWidth = x2 - x1;
+				var artHeight = y2 - y1;
+
+				var artX = Math.Max(CurrentX, CurrentX + (width / 2) - (artWidth / 2));
+				var artY = Math.Max(CurrentY, CurrentY + (EntryHeight / 2) - (artHeight / 2));
+
+				AddItem(artX, artY, itemID, hue);
+			}
+
+            IncreaseX(width);
+        }
+
+        public void AddBlankLine()
 		{
 			if (m_Offset != null)
 			{
-				AddImageTiled(m_Offset.X, m_CurrentY, m_Offset.Width, EntryHeight, BackGumpID + 4);
+				AddImageTiled(m_Offset.X, CurrentY, m_Offset.Width, EntryHeight, BackGumpID + 4);
 			}
 
 			AddNewLine();
@@ -174,24 +303,24 @@ namespace Server.Gumps
 
 		public void AddEntryButton(int width, int normalID, int pressedID, int buttonID, int buttonWidth, int buttonHeight, int spannedEntries)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, (EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)), HeaderGumpID);
-			AddButton(m_CurrentX + ((width - buttonWidth) / 2), m_CurrentY + (((EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)) - buttonHeight) / 2), normalID, pressedID, buttonID, GumpButtonType.Reply, 0);
+			AddImageTiled(CurrentX, CurrentY, width, (EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)), HeaderGumpID);
+			AddButton(CurrentX + ((width - buttonWidth) / 2), CurrentY + (((EntryHeight * spannedEntries) + (OffsetSize * (spannedEntries - 1)) - buttonHeight) / 2), normalID, pressedID, buttonID, GumpButtonType.Reply, 0);
 
 			IncreaseX(width);
 		}
 
 		public void AddEntryPageButton(int width, int normalID, int pressedID, int page, int buttonWidth, int buttonHeight)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, HeaderGumpID);
-			AddButton(m_CurrentX + ((width - buttonWidth) / 2), m_CurrentY + ((EntryHeight - buttonHeight) / 2), normalID, pressedID, 0, GumpButtonType.Page, page);
+			AddImageTiled(CurrentX, CurrentY, width, EntryHeight, HeaderGumpID);
+			AddButton(CurrentX + ((width - buttonWidth) / 2), CurrentY + ((EntryHeight - buttonHeight) / 2), normalID, pressedID, 0, GumpButtonType.Page, page);
 
 			IncreaseX(width);
 		}
 
 		public void AddEntryText(int width, int entryID, string initialText)
 		{
-			AddImageTiled(m_CurrentX, m_CurrentY, width, EntryHeight, EntryGumpID);
-			AddTextEntry(m_CurrentX + TextOffsetX, m_CurrentY, width - TextOffsetX, EntryHeight, TextHue, entryID, initialText);
+			AddImageTiled(CurrentX, CurrentY, width, EntryHeight, EntryGumpID);
+			AddTextEntry(CurrentX + TextOffsetX, CurrentY, width - TextOffsetX, EntryHeight, TextHue, entryID, initialText);
 
 			IncreaseX(width);
 		}

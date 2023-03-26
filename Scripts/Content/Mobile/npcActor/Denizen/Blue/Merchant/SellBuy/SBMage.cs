@@ -32,7 +32,7 @@ namespace Server.Mobiles
 
 				if (Core.AOS)
 				{
-					Add(new GenericBuyInfo(typeof(NecromancerSpellbook), 115, 10, 0x2253, 0));
+					Add(new GenericBuyInfo(typeof(BookOfNecromancy), 115, 10, 0x2253, 0));
 				}
 
 				Add(new GenericBuyInfo(typeof(ScribesPen), 8, 10, 0xFBF, 0));
@@ -70,7 +70,7 @@ namespace Server.Mobiles
 					Add(new GenericBuyInfo(typeof(GraveDust), 3, 999, 0xF8F, 0));
 				}
 
-				var types = Loot.RegularScrollTypes;
+				var types = Loot.MageryScrollTypes;
 
 				var circles = 3;
 
@@ -118,7 +118,7 @@ namespace Server.Mobiles
 				Add(typeof(RecallRune), 13);
 				Add(typeof(Spellbook), 25);
 
-				var types = Loot.RegularScrollTypes;
+				var types = Loot.MageryScrollTypes;
 
 				for (var i = 0; i < types.Length; ++i)
 				{

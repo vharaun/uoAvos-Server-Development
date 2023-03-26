@@ -35,14 +35,13 @@ namespace Server.Items
 			{
 				return 0x2E4;
 			}
-			else if (Amount <= 5)
+			
+			if (Amount <= 5)
 			{
 				return 0x2E5;
 			}
-			else
-			{
-				return 0x2E6;
-			}
+
+			return 0x2E6;
 		}
 
 		protected override void OnAmountChange(int oldValue)
@@ -55,7 +54,7 @@ namespace Server.Items
 #if NEWPARENT
 		public override void OnAdded(IEntity parent)
 #else
-		public override void OnAdded(IEntity parent)
+		public override void OnAdded(object parent)
 #endif
 		{
 			base.OnAdded(parent);
@@ -150,7 +149,7 @@ namespace Server.Items
 		{
 			base.Deserialize(reader);
 
-			var version = reader.ReadInt();
+			_ = reader.ReadInt();
 		}
 	}
 }

@@ -1,5 +1,4 @@
 ﻿using Server.ContextMenus;
-using Server.Spells;
 
 using System.Collections.Generic;
 
@@ -7,56 +6,72 @@ namespace Server.Items
 {
 	public class SpellScroll : Item, ICommodity
 	{
-		private int m_SpellID;
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SpellName SpellID { get; private set; }
 
-		public int SpellID => m_SpellID;
+		[Hue, CommandProperty(AccessLevel.GameMaster)]
+		public override int Hue
+		{
+			get => base.Hue;
+			set
+			{
+				if (value <= 0)
+				{
+					value = Theme.BookHue;
+				}
+
+				base.Hue = value;
+			}
+		}
+
+		private SpellSchool? m_School;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SpellSchool School => m_School ??= SpellRegistry.GetSchool(SpellID);
+
+		private SpellbookTheme? m_Theme;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public SpellbookTheme Theme => m_Theme ??= SpellbookTheme.GetTheme(School);
 
 		int ICommodity.DescriptionNumber => LabelNumber;
-		bool ICommodity.IsDeedable => (Core.ML);
+		bool ICommodity.IsDeedable => Core.ML;
 
-		public SpellScroll(Serial serial) : base(serial)
+		[Constructable]
+		public SpellScroll(SpellName spellID, int itemID) 
+			: this(spellID, itemID, 1)
 		{
 		}
 
 		[Constructable]
-		public SpellScroll(int spellID, int itemID) : this(spellID, itemID, 1)
+		public SpellScroll(SpellName spellID, int itemID, int amount)
+			: base(itemID)
 		{
-		}
+			SpellID = spellID;
 
-		[Constructable]
-		public SpellScroll(int spellID, int itemID, int amount) : base(itemID)
-		{
 			Stackable = true;
 			Weight = 1.0;
 			Amount = amount;
 
-			m_SpellID = spellID;
+			Hue = 0;
 		}
 
-		public override void Serialize(GenericWriter writer)
+		public SpellScroll(Serial serial) 
+			: base(serial)
 		{
-			base.Serialize(writer);
-
-			writer.Write(0); // version
-
-			writer.Write(m_SpellID);
 		}
 
-		public override void Deserialize(GenericReader reader)
+		public override bool CanStackWith(Mobile from, Item dropped, bool playSound)
 		{
-			base.Deserialize(reader);
-
-			var version = reader.ReadInt();
-
-			switch (version)
+			if (base.CanStackWith(from, dropped, playSound))
 			{
-				case 0:
-					{
-						m_SpellID = reader.ReadInt();
-
-						break;
-					}
+				if (dropped is SpellScroll scroll && scroll.SpellID == SpellID)
+				{
+					return true;
+				}
 			}
+
+			return false;
 		}
 
 		public override void GetContextMenuEntries(Mobile from, List<ContextMenuEntry> list)
@@ -82,7 +97,7 @@ namespace Server.Items
 				return;
 			}
 
-			var spell = SpellRegistry.NewSpell(m_SpellID, from, this);
+			var spell = SpellRegistry.NewSpell(SpellID, from, this);
 
 			if (spell != null)
 			{
@@ -92,6 +107,24 @@ namespace Server.Items
 			{
 				from.SendLocalizedMessage(502345); // This spell has been temporarily disabled.
 			}
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0); // version
+
+			writer.Write(SpellID);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			_ = reader.ReadInt();
+
+			SpellID = reader.ReadEnum<SpellName>();
 		}
 	}
 }

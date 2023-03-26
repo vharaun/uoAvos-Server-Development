@@ -5,10 +5,19 @@ namespace Server
 {
 	public interface IEntity : IPoint3D, IComparable, IComparable<IEntity>
 	{
-		string Name { get; set; }
 		Serial Serial { get; }
-		Point3D Location { get; }
-		Map Map { get; }
+
+		Point3D Location { get; set; }
+		Map Map { get; set; }
+
+		bool NoMoveHS { get; set; }
+
+		Direction Direction { get; set; }
+
+		string Name { get; set; }
+
+		int Hue { get; set; }
+
 		bool Deleted { get; }
 
 		void Delete();
@@ -18,6 +27,33 @@ namespace Server
 
 	public class Entity : IEntity, IComparable<Entity>
 	{
+		public Serial Serial { get; private set; }
+
+		public Point3D Location { get; set; }
+
+		public Map Map { get; set; }
+
+		public int X => Location.X;
+		public int Y => Location.Y;
+		public int Z => Location.Z;
+
+		public bool Deleted { get; private set; }
+
+		public bool NoMoveHS { get; set; }
+
+		Direction IEntity.Direction { get; set; }
+
+		string IEntity.Name { get; set; }
+
+		int IEntity.Hue { get; set; }
+
+		public Entity(Serial serial, Point3D loc, Map map)
+		{
+			Serial = serial;
+			Location = loc;
+			Map = map;
+		}
+
 		public int CompareTo(IEntity other)
 		{
 			if (other == null)
@@ -25,7 +61,7 @@ namespace Server
 				return -1;
 			}
 
-			return m_Serial.CompareTo(other.Serial);
+			return Serial.CompareTo(other.Serial);
 		}
 
 		public int CompareTo(Entity other)
@@ -43,52 +79,23 @@ namespace Server
 			throw new ArgumentException();
 		}
 
-		private string m_Name;
-		private readonly Serial m_Serial;
-		private Point3D m_Location;
-		private readonly Map m_Map;
-		private bool m_Deleted;
-
-		public Entity(Serial serial, Point3D loc, Map map)
-		{
-			m_Name = null;
-			m_Serial = serial;
-			m_Location = loc;
-			m_Map = map;
-			m_Deleted = false;
-		}
-
-		public string Name
-		{
-			get => m_Name;
-			set => m_Name = value;
-		}
-
-		public Serial Serial => m_Serial;
-
-		public Point3D Location => m_Location;
-
-		public int X => m_Location.X;
-
-		public int Y => m_Location.Y;
-
-		public int Z => m_Location.Z;
-
-		public Map Map => m_Map;
-
-		public bool Deleted => m_Deleted;
-
 		public void Delete()
 		{
-			m_Deleted = true;
+			if (Deleted)
+			{
+				return;
+			}
+
+			Deleted = true;
+
+			Location = Point3D.Zero;
+			Map = null;
 		}
 
-		public void ProcessDelta()
-		{
-		}
+		void IEntity.ProcessDelta()
+		{ }
 
-		public void InvalidateProperties()
-		{
-		}
+		void IEntity.InvalidateProperties()
+		{ }
 	}
 }

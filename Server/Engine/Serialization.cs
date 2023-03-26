@@ -29,17 +29,18 @@ namespace Server
 		public static Serial LastMobile => m_LastMobile;
 		public static Serial LastItem => m_LastItem;
 
-		public static readonly Serial MinusOne = new Serial(-1);
-		public static readonly Serial Zero = new Serial(0);
+		public static readonly Serial MinusOne = new(-1);
+		public static readonly Serial Zero = new(0);
 
 		public static Serial NewMobile
 		{
 			get
 			{
-				while (World.FindMobile(m_LastMobile = (m_LastMobile + 1)) != null)
+				do
 				{
-					;
+					++m_LastMobile;
 				}
+				while (World.FindMobile(m_LastMobile) != null);
 
 				return m_LastMobile;
 			}
@@ -49,16 +50,17 @@ namespace Server
 		{
 			get
 			{
-				while (World.FindItem(m_LastItem = (m_LastItem + 1)) != null)
+				do
 				{
-					;
+					++m_LastItem;
 				}
+				while (World.FindItem(m_LastItem) != null);
 
 				return m_LastItem;
 			}
 		}
 
-		private Serial(int serial)
+		public Serial(int serial)
 		{
 			m_Serial = serial;
 		}
@@ -83,26 +85,27 @@ namespace Server
 
 		public int CompareTo(object other)
 		{
-			if (other is Serial)
+			if (other is Serial s)
 			{
-				return CompareTo((Serial)other);
+				return CompareTo(s);
 			}
-			else if (other == null)
+			
+			if (other == null)
 			{
 				return -1;
 			}
 
-			throw new ArgumentException();
+			return 0;
 		}
 
 		public override bool Equals(object o)
 		{
-			if (o == null || !(o is Serial))
+			if (o == null || o is not Serial s)
 			{
 				return false;
 			}
 
-			return ((Serial)o).m_Serial == m_Serial;
+			return s.m_Serial == m_Serial;
 		}
 
 		public static bool operator ==(Serial l, Serial r)
@@ -158,6 +161,9 @@ namespace Server
 		public abstract int PeekInt();
 
 		public abstract int ReadEncodedInt();
+		public abstract uint ReadEncodedUInt();
+		public abstract long ReadEncodedLong();
+		public abstract ulong ReadEncodedULong();
 
 		public abstract string ReadString();
 
@@ -186,6 +192,8 @@ namespace Server
 		public abstract sbyte ReadSByte();
 		public abstract bool ReadBool();
 
+		public abstract byte[] ReadBytes();
+
 		public abstract Point3D ReadPoint3D();
 		public abstract Point2D ReadPoint2D();
 		public abstract Rectangle2D ReadRect2D();
@@ -196,11 +204,13 @@ namespace Server
 
 		public abstract Serial ReadSerial();
 
+		public abstract IEntity ReadEntity();
 		public abstract Item ReadItem();
 		public abstract Mobile ReadMobile();
 		public abstract BaseGuild ReadGuild();
 		public abstract Region ReadRegion();
 
+		public abstract T ReadEntity<T>() where T : class, IEntity;
 		public abstract T ReadItem<T>() where T : Item;
 		public abstract T ReadMobile<T>() where T : Mobile;
 		public abstract T ReadGuild<T>() where T : BaseGuild;
@@ -276,15 +286,42 @@ namespace Server
 
 		public override int ReadEncodedInt()
 		{
-			int v = 0, shift = 0;
-			byte b;
+			return (int)ReadEncodedUInt();
+		}
+
+		public override uint ReadEncodedUInt()
+		{
+			uint v = 0, b;
+			var shift = 0;
 
 			do
 			{
 				b = m_File.ReadByte();
 				v |= (b & 0x7F) << shift;
 				shift += 7;
-			} while (b >= 0x80);
+			}
+			while (b >= 0x80);
+
+			return v;
+		}
+
+		public override long ReadEncodedLong()
+		{
+			return (long)ReadEncodedULong();
+		}
+
+		public override ulong ReadEncodedULong()
+		{
+			ulong v = 0, b;
+			var shift = 0;
+
+			do
+			{
+				b = m_File.ReadByte();
+				v |= (b & 0x7F) << shift;
+				shift += 7;
+			}
+			while (b >= 0x80);
 
 			return v;
 		}
@@ -295,10 +332,8 @@ namespace Server
 			{
 				return m_File.ReadString();
 			}
-			else
-			{
-				return null;
-			}
+			
+			return null;
 		}
 
 		public override Type ReadObjectType()
@@ -317,22 +352,24 @@ namespace Server
 			{
 				return DateTime.MaxValue;
 			}
-			else if (ticks < 0 && (ticks + now) < 0)
+			
+			if (ticks < 0 && (ticks + now) < 0)
 			{
 				return DateTime.MinValue;
 			}
 
-			try { return new DateTime(now + ticks); }
+			try
+			{
+				return new DateTime(now + ticks);
+			}
 			catch
 			{
 				if (ticks > 0)
 				{
 					return DateTime.MaxValue;
 				}
-				else
-				{
-					return DateTime.MinValue;
-				}
+				
+				return DateTime.MinValue;
 			}
 		}
 
@@ -359,22 +396,29 @@ namespace Server
 			return new IPAddress(m_File.ReadInt64());
 		}
 
-		private enum DefaultEnum : long
-		{
-			Undefined
-		}
-
 		public override Enum ReadEnum()
 		{
 			var type = ReadObjectType();
-			var value = ReadLong();
+			var value = ReadEncodedULong();
+
+			if (type == null)
+			{
+				_ = ReadEncodedULong();
+
+				return default;
+			}
 
 			if (type?.IsEnum == true)
 			{
-				return (Enum)Enum.ToObject(type, Convert.ChangeType(value, type.GetEnumUnderlyingType()));
+				if ((int)Type.GetTypeCode(type) % 2 == 1)
+				{
+					return (Enum)Enum.ToObject(type, unchecked((long)value));
+				}
+
+				return (Enum)Enum.ToObject(type, value);
 			}
 
-			return (DefaultEnum)value;
+			return default;
 		}
 
 		public override T ReadEnum<T>()
@@ -447,6 +491,18 @@ namespace Server
 			return m_File.ReadBoolean();
 		}
 
+		public override byte[] ReadBytes()
+		{
+			var length = ReadEncodedInt();
+
+			if (length >= 0)
+			{
+				return m_File.ReadBytes(length);
+			}
+
+			return null;
+		}
+
 		public override Point3D ReadPoint3D()
 		{
 			return new Point3D(ReadInt(), ReadInt(), ReadInt());
@@ -504,6 +560,11 @@ namespace Server
 			return ReadInt();
 		}
 
+		public override IEntity ReadEntity()
+		{
+			return World.FindEntity(ReadSerial());
+		}
+
 		public override Item ReadItem()
 		{
 			return World.FindItem(ReadSerial());
@@ -522,6 +583,11 @@ namespace Server
 		public override Region ReadRegion()
 		{
 			return Region.Find(ReadInt());
+		}
+
+		public override T ReadEntity<T>()
+		{
+			return ReadEntity() as T;
 		}
 
 		public override T ReadItem<T>()
@@ -559,7 +625,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadItem() as T;
+					var item = ReadItem<T>();
 
 					if (item != null)
 					{
@@ -590,7 +656,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadItem() as T;
+					var item = ReadItem<T>();
 
 					if (item != null)
 					{
@@ -621,7 +687,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var m = ReadMobile() as T;
+					var m = ReadMobile<T>();
 
 					if (m != null)
 					{
@@ -652,7 +718,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadMobile() as T;
+					var item = ReadMobile<T>();
 
 					if (item != null)
 					{
@@ -683,7 +749,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var g = ReadGuild() as T;
+					var g = ReadGuild<T>();
 
 					if (g != null)
 					{
@@ -714,7 +780,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var item = ReadGuild() as T;
+					var item = ReadGuild<T>();
 
 					if (item != null)
 					{
@@ -745,7 +811,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var r = ReadRegion() as T;
+					var r = ReadRegion<T>();
 
 					if (r != null)
 					{
@@ -776,7 +842,7 @@ namespace Server
 
 				for (var i = 0; i < count; ++i)
 				{
-					var r = ReadRegion() as T;
+					var r = ReadRegion<T>();
 
 					if (r != null)
 					{
@@ -814,6 +880,9 @@ namespace Server
 		public abstract void Write(string value);
 
 		public abstract void WriteEncodedInt(int value);
+		public abstract void WriteEncodedUInt(uint value);
+		public abstract void WriteEncodedLong(long value);
+		public abstract void WriteEncodedULong(ulong value);
 
 		public abstract void WriteObjectType(object value);
 		public abstract void WriteObjectType(Type value);
@@ -839,6 +908,8 @@ namespace Server
 		public abstract void Write(sbyte value);
 		public abstract void Write(bool value);
 
+		public abstract void Write(byte[] value);
+
 		public abstract void Write(Point3D value);
 		public abstract void Write(Point2D value);
 		public abstract void Write(Rectangle2D value);
@@ -849,6 +920,7 @@ namespace Server
 
 		public abstract void Write(Serial value);
 
+		public abstract void Write(IEntity value);
 		public abstract void Write(Item value);
 		public abstract void Write(Mobile value);
 		public abstract void Write(BaseGuild value);
@@ -980,6 +1052,11 @@ namespace Server
 			}
 		}
 
+		public long Seek(long offset, SeekOrigin origin)
+		{
+			return UnderlyingStream.Seek(offset, origin);
+		}
+
 		public override void Close()
 		{
 			if (m_Index > 0)
@@ -992,25 +1069,56 @@ namespace Server
 
 		public override void WriteEncodedInt(int value)
 		{
-			var v = (uint)value;
+			WriteEncodedUInt((uint)value);
+		}
 
-			while (v >= 0x80)
+		public override void WriteEncodedUInt(uint value)
+		{
+			while (value >= 0x80)
 			{
-				if ((m_Index + 1) > m_Buffer.Length)
+				if (m_Index + 1 > m_Buffer.Length)
 				{
 					Flush();
 				}
 
-				m_Buffer[m_Index++] = (byte)(v | 0x80);
-				v >>= 7;
+				m_Buffer[m_Index++] = (byte)(value | 0x80);
+
+				value >>= 7;
 			}
 
-			if ((m_Index + 1) > m_Buffer.Length)
+			if (m_Index + 1 > m_Buffer.Length)
 			{
 				Flush();
 			}
 
-			m_Buffer[m_Index++] = (byte)v;
+			m_Buffer[m_Index++] = (byte)value;
+		}
+
+		public override void WriteEncodedLong(long value)
+		{
+			WriteEncodedULong((ulong)value);
+		}
+
+		public override void WriteEncodedULong(ulong value)
+		{
+			while (value >= 0x80)
+			{
+				if (m_Index + 1 > m_Buffer.Length)
+				{
+					Flush();
+				}
+
+				m_Buffer[m_Index++] = (byte)(value | 0x80);
+
+				value >>= 7;
+			}
+
+			if (m_Index + 1 > m_Buffer.Length)
+			{
+				Flush();
+			}
+
+			m_Buffer[m_Index++] = (byte)value;
 		}
 
 		private byte[] m_CharacterBuffer;
@@ -1151,7 +1259,18 @@ namespace Server
 		public override void Write(Enum value)
 		{
 			WriteObjectType(value);
-			Write((long)Convert.ChangeType(value, typeof(long)));
+
+			if (value != null)
+			{
+				if ((int)value.GetTypeCode() % 2 == 1)
+				{
+					WriteEncodedLong(Convert.ToInt64(value));
+				}
+				else
+				{
+					WriteEncodedULong(Convert.ToUInt64(value));
+				}
+			}
 		}
 
 		public override void Write(decimal value)
@@ -1261,12 +1380,15 @@ namespace Server
 
 #if MONO
 			byte[] bytes = BitConverter.GetBytes(value);
+
 			for(int i = 0; i < bytes.Length; i++)
+			{
 				m_Buffer[m_Index++] = bytes[i];
+			}
 #else
 			fixed (byte* pBuffer = m_Buffer)
 			{
-				*((double*)(pBuffer + m_Index)) = value;
+				*(double*)(pBuffer + m_Index) = value;
 			}
 
 			m_Index += 8;
@@ -1282,12 +1404,15 @@ namespace Server
 
 #if MONO
 			byte[] bytes = BitConverter.GetBytes(value);
+
 			for(int i = 0; i < bytes.Length; i++)
+			{
 				m_Buffer[m_Index++] = bytes[i];
+			}
 #else
 			fixed (byte* pBuffer = m_Buffer)
 			{
-				*((float*)(pBuffer + m_Index)) = value;
+				*(float*)(pBuffer + m_Index) = value;
 			}
 
 			m_Index += 4;
@@ -1337,6 +1462,23 @@ namespace Server
 			}
 
 			m_Buffer[m_Index++] = (byte)(value ? 1 : 0);
+		}
+
+		public override void Write(byte[] value)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(value.Length);
+
+				for (var i = 0; i < value.Length; i++)
+				{
+					Write(value[i]);
+				}
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
 		}
 
 		public override void Write(Point3D value)
@@ -1414,6 +1556,18 @@ namespace Server
 		public override void Write(Serial value)
 		{
 			Write(value.Value);
+		}
+
+		public override void Write(IEntity value)
+		{
+			if (value == null || value.Deleted)
+			{
+				Write(Serial.MinusOne);
+			}
+			else
+			{
+				Write(value.Serial);
+			}
 		}
 
 		public override void Write(Item value)
@@ -1823,15 +1977,39 @@ namespace Server
 
 		public override void WriteEncodedInt(int value)
 		{
-			var v = (uint)value;
+			WriteEncodedUInt((uint)value);
+		}
 
-			while (v >= 0x80)
+		public override void WriteEncodedUInt(uint value)
+		{
+			while (value >= 0x80)
 			{
-				m_Bin.Write((byte)(v | 0x80));
-				v >>= 7;
+				m_Bin.Write((byte)(value | 0x80));
+
+				value >>= 7;
 			}
 
-			m_Bin.Write((byte)v);
+			m_Bin.Write((byte)value);
+
+			OnWrite();
+		}
+
+		public override void WriteEncodedLong(long value)
+		{
+			WriteEncodedULong((ulong)value);
+		}
+
+		public override void WriteEncodedULong(ulong value)
+		{
+			while (value >= 0x80)
+			{
+				m_Bin.Write((byte)(value | 0x80));
+
+				value >>= 7;
+			}
+
+			m_Bin.Write((byte)value);
+
 			OnWrite();
 		}
 
@@ -1916,7 +2094,18 @@ namespace Server
 		public override void Write(Enum value)
 		{
 			WriteObjectType(value);
-			Write((long)Convert.ChangeType(value, typeof(long)));
+
+			if (value != null)
+			{
+				if ((byte)value.GetTypeCode() % 2 == 1)
+				{
+					WriteEncodedLong(Convert.ToInt64(value));
+				}
+				else
+				{
+					WriteEncodedULong(Convert.ToUInt64(value));
+				}
+			}
 		}
 
 		public override void Write(decimal value)
@@ -1997,6 +2186,21 @@ namespace Server
 			OnWrite();
 		}
 
+		public override void Write(byte[] value)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(value.Length);
+
+				m_Bin.Write(value, 0, value.Length);
+				OnWrite();
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
+		}
+
 		public override void Write(Point3D value)
 		{
 			Write(value.m_X);
@@ -2074,6 +2278,18 @@ namespace Server
 			Write(value.Value);
 		}
 
+		public override void Write(IEntity value)
+		{
+			if (value == null || value.Deleted)
+			{
+				Write(Serial.MinusOne);
+			}
+			else
+			{
+				Write(value.Serial);
+			}
+		}
+
 		public override void Write(Item value)
 		{
 			if (value == null || value.Deleted)
@@ -2139,7 +2355,7 @@ namespace Server
 
 		public override void WriteItemList<T>(List<T> list)
 		{
-			WriteItemList<T>(list, false);
+			WriteItemList(list, false);
 		}
 
 		public override void WriteItemList<T>(List<T> list, bool tidy)
@@ -2199,7 +2415,7 @@ namespace Server
 
 		public override void WriteMobileList<T>(List<T> list)
 		{
-			WriteMobileList<T>(list, false);
+			WriteMobileList(list, false);
 		}
 
 		public override void WriteMobileList<T>(List<T> list, bool tidy)
@@ -2259,7 +2475,7 @@ namespace Server
 
 		public override void WriteGuildList<T>(List<T> list)
 		{
-			WriteGuildList<T>(list, false);
+			WriteGuildList(list, false);
 		}
 
 		public override void WriteGuildList<T>(List<T> list, bool tidy)
@@ -2360,16 +2576,6 @@ namespace Server
 			}
 
 			WriteCollection(set, Write);
-		}
-
-		private void WriteCollection<T>(ICollection col, Action<T> write)
-		{
-			Write(col.Count);
-
-			foreach (T o in col)
-			{
-				write(o);
-			}
 		}
 
 		private void WriteCollection<T>(ICollection<T> col, Action<T> write)

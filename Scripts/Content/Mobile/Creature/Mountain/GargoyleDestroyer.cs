@@ -42,6 +42,8 @@ namespace Server.Mobiles
 
 			VirtualArmor = 50;
 
+			CanFly = true;
+
 			if (0.2 > Utility.RandomDouble())
 			{
 				PackItem(new GargoylesPickaxe());
@@ -58,7 +60,6 @@ namespace Server.Mobiles
 
 		public override bool BardImmune => !Core.AOS;
 		public override int Meat => 1;
-		public override bool CanFly => true;
 
 		public override void OnDamagedBySpell(Mobile from)
 		{

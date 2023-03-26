@@ -1,13 +1,11 @@
 ﻿#if !MONO
 using Microsoft.Win32.SafeHandles;
-#pragma warning disable CA1416 // Validate platform compatibility
 #endif
 
 using Server.Guilds;
 using Server.Network;
 
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -42,24 +40,24 @@ namespace Server
 		public static bool Loaded => m_Loaded;
 		public static bool Loading => m_Loading;
 
-		public static readonly string RegionRootPath = Path.Combine("Export", "Saves", "Current", "Regions");
-		public static readonly string RegionIndexPath = Path.Combine(RegionRootPath, "Regions.idx");
-		public static readonly string RegionTypesPath = Path.Combine(RegionRootPath, "Regions.tdb");
-		public static readonly string RegionDataPath = Path.Combine(RegionRootPath, "Regions.bin");
+		public static string RegionRootPath => Path.Combine(Core.CurrentSavesDirectory, "Regions");
+		public static string RegionIndexPath => Path.Combine(RegionRootPath, "Regions.idx");
+		public static string RegionTypesPath => Path.Combine(RegionRootPath, "Regions.tdb");
+		public static string RegionDataPath => Path.Combine(RegionRootPath, "Regions.bin");
 
-		public static readonly string MobileRootPath = Path.Combine("Export", "Saves", "Current", "Mobiles");
-		public static readonly string MobileIndexPath = Path.Combine(MobileRootPath, "Mobiles.idx");
-		public static readonly string MobileTypesPath = Path.Combine(MobileRootPath, "Mobiles.tdb");
-		public static readonly string MobileDataPath = Path.Combine(MobileRootPath, "Mobiles.bin");
+		public static string MobileRootPath => Path.Combine(Core.CurrentSavesDirectory, "Mobiles");
+		public static string MobileIndexPath => Path.Combine(MobileRootPath, "Mobiles.idx");
+		public static string MobileTypesPath => Path.Combine(MobileRootPath, "Mobiles.tdb");
+		public static string MobileDataPath => Path.Combine(MobileRootPath, "Mobiles.bin");
 
-		public static readonly string ItemRootPath = Path.Combine("Export", "Saves", "Current", "Items");
-		public static readonly string ItemIndexPath = Path.Combine(ItemRootPath, "Items.idx");
-		public static readonly string ItemTypesPath = Path.Combine(ItemRootPath, "Items.tdb");
-		public static readonly string ItemDataPath = Path.Combine(ItemRootPath, "Items.bin");
+		public static string ItemRootPath => Path.Combine(Core.CurrentSavesDirectory, "Items");
+		public static string ItemIndexPath => Path.Combine(ItemRootPath, "Items.idx");
+		public static string ItemTypesPath => Path.Combine(ItemRootPath, "Items.tdb");
+		public static string ItemDataPath => Path.Combine(ItemRootPath, "Items.bin");
 
-		public static readonly string GuildRootPath = Path.Combine("Export", "Saves", "Current", "Guilds");
-		public static readonly string GuildIndexPath = Path.Combine(GuildRootPath, "Guilds.idx");
-		public static readonly string GuildDataPath = Path.Combine(GuildRootPath, "Guilds.bin");
+		public static string GuildRootPath => Path.Combine(Core.CurrentSavesDirectory, "Guilds");
+		public static string GuildIndexPath => Path.Combine(GuildRootPath, "Guilds.idx");
+		public static string GuildDataPath => Path.Combine(GuildRootPath, "Guilds.bin");
 
 		public static void NotifyDiskWriteComplete()
 		{
@@ -450,7 +448,7 @@ namespace Server
 
 					try
 					{
-						ctorArgs[0] = (Serial)serial;
+						ctorArgs[0] = new Serial(serial);
 
 						m = (Mobile)ctor.Invoke(ctorArgs);
 					}
@@ -508,7 +506,7 @@ namespace Server
 
 					try
 					{
-						ctorArgs[0] = (Serial)serial;
+						ctorArgs[0] = new Serial(serial);
 
 						item = (Item)ctor.Invoke(ctorArgs);
 					}

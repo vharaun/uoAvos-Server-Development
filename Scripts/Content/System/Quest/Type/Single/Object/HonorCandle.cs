@@ -1,10 +1,6 @@
-﻿using Server.Engines.Quests.Definitions;
-using Server.Items;
-using Server.Mobiles;
+﻿using System;
 
-using System;
-
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class HonorCandle : CandleLong
 	{
@@ -22,37 +18,6 @@ namespace Server.Engines.Quests.Items
 
 		public HonorCandle(Serial serial) : base(serial)
 		{
-		}
-
-		public override void OnDoubleClick(Mobile from)
-		{
-			var wasBurning = Burning;
-
-			base.OnDoubleClick(from);
-
-			if (!wasBurning && Burning)
-			{
-				var player = from as PlayerMobile;
-
-				if (player == null)
-				{
-					return;
-				}
-
-				var qs = player.Quest;
-
-				if (qs != null && qs is HaochisTrialsQuest)
-				{
-					var obj = qs.FindObjective(typeof(SixthTrialIntroObjective_HaochisTrialsQuest));
-
-					if (obj != null && !obj.Completed)
-					{
-						obj.Complete();
-					}
-
-					SendLocalizedMessageTo(from, 1063251); // You light a candle in honor.
-				}
-			}
 		}
 
 		public override void Burn()

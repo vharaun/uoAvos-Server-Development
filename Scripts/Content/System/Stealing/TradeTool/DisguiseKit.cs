@@ -3,8 +3,8 @@ using Server.Mobiles;
 using Server.Network;
 using Server.SkillHandlers;
 using Server.Spells;
-using Server.Spells.Fifth;
-using Server.Spells.Seventh;
+using Server.Spells.Magery;
+using Server.Spells.Mysticism;
 
 using System;
 using System.Collections.Generic;
@@ -58,7 +58,7 @@ namespace Server.Items
 				// You are currently suspended from the thieves guild.  They would frown upon your actions.
 				from.SendLocalizedMessage(501703);
 			}
-			else if (!from.CanBeginAction(typeof(IncognitoSpell)))
+			else if (IncognitoSpell.IsIncognito(from))
 			{
 				// You cannot disguise yourself while incognitoed.
 				from.SendLocalizedMessage(501704);
@@ -77,10 +77,14 @@ namespace Server.Items
 				// You cannot disguise yourself while wearing body paint
 				from.SendLocalizedMessage(1040002);
 			}
-			else if (!from.CanBeginAction(typeof(PolymorphSpell)) || from.IsBodyMod)
+			else if (PolymorphSpell.IsPolymorphed(from) || from.IsBodyMod)
 			{
 				// You cannot disguise yourself while polymorphed.
 				from.SendLocalizedMessage(501705);
+			}
+			else if (SleepSpell.IsUnderSleepEffects(from))
+			{
+				from.SendMessage("You can't do that while fatigued.");
 			}
 			else
 			{

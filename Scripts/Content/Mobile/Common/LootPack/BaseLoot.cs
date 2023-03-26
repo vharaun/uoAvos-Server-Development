@@ -558,46 +558,6 @@ namespace Server
 			set => m_Chance = value;
 		}
 
-		public static Item RandomScroll(int index, int minCircle, int maxCircle)
-		{
-			--minCircle;
-			--maxCircle;
-
-			var scrollCount = ((maxCircle - minCircle) + 1) * 8;
-
-			if (index == 0)
-			{
-				scrollCount += m_BlankTypes.Length;
-			}
-
-			if (Core.AOS)
-			{
-				scrollCount += m_NecroTypes[index].Length;
-			}
-
-			var rnd = Utility.Random(scrollCount);
-
-			if (index == 0 && rnd < m_BlankTypes.Length)
-			{
-				return Loot.Construct(m_BlankTypes);
-			}
-			else if (index == 0)
-			{
-				rnd -= m_BlankTypes.Length;
-			}
-
-			if (Core.AOS && rnd < m_NecroTypes.Length)
-			{
-				return Loot.Construct(m_NecroTypes[index]);
-			}
-			else if (Core.AOS)
-			{
-				rnd -= m_NecroTypes[index].Length;
-			}
-
-			return Loot.RandomScroll(minCircle * 8, (maxCircle * 8) + 7, SpellbookType.Regular);
-		}
-
 		public LootPackItem(Type type, int chance)
 		{
 			m_Type = type;

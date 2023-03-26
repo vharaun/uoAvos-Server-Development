@@ -1776,10 +1776,11 @@ namespace Server.Network
 
 						if (split.Length > 0)
 						{
-							var spellID = Utility.ToInt32(split[0]) - 1;
+							var spellID = (SpellName)Utility.ToInt32(split[0]) - 1;
 							var serial = split.Length > 1 ? Utility.ToInt32(split[1]) : -1;
+							var book = World.FindItem(serial) as ISpellbook;
 
-							EventSink.InvokeCastSpellRequest(new CastSpellRequestEventArgs(m, spellID, World.FindItem(serial)));
+							EventSink.InvokeCastSpellRequest(new CastSpellRequestEventArgs(m, spellID, book));
 						}
 
 						break;
@@ -1792,7 +1793,7 @@ namespace Server.Network
 					}
 				case 0x56: // Cast spell from macro
 					{
-						var spellID = Utility.ToInt32(command) - 1;
+						var spellID = (SpellName)Utility.ToInt32(command) - 1;
 
 						EventSink.InvokeCastSpellRequest(new CastSpellRequestEventArgs(m, spellID, null));
 
@@ -2174,6 +2175,7 @@ namespace Server.Network
 									var tiles = map.Tiles.GetStaticTiles(x, y, !t.DisallowMultis);
 
 									var valid = false;
+									var hue = 0;
 
 									if (state.HighSeas)
 									{
@@ -2189,6 +2191,7 @@ namespace Server.Network
 										if (tiles[i].Z == z && tiles[i].ID == graphic)
 										{
 											valid = true;
+											hue = tiles[i].Hue;
 										}
 									}
 
@@ -2199,7 +2202,7 @@ namespace Server.Network
 									}
 									else
 									{
-										toTarget = new StaticTarget(new Point3D(x, y, z), graphic);
+										toTarget = new StaticTarget(new Point3D(x, y, z), graphic, hue);
 									}
 								}
 							}
@@ -2712,14 +2715,14 @@ namespace Server.Network
 				return;
 			}
 
-			Item spellbook = null;
+			ISpellbook spellbook = null;
 
 			if (pvSrc.ReadInt16() == 1)
 			{
-				spellbook = World.FindItem(pvSrc.ReadInt32());
+				spellbook = World.FindItem(pvSrc.ReadInt32()) as ISpellbook;
 			}
 
-			var spellID = pvSrc.ReadInt16() - 1;
+			var spellID = (SpellName)(pvSrc.ReadInt16() - 1);
 
 			EventSink.InvokeCastSpellRequest(new CastSpellRequestEventArgs(from, spellID, spellbook));
 		}
@@ -2761,8 +2764,9 @@ namespace Server.Network
 
 		public static void ToggleFlying(NetState state, PacketReader pvSrc)
 		{
-			state.Mobile.ToggleFlying();
+			state.Mobile.Flying = !state.Mobile.Flying;
 		}
+
 		public static void BatchQueryProperties(NetState state, PacketReader pvSrc)
 		{
 			if (!ObjectPropertyList.Enabled)

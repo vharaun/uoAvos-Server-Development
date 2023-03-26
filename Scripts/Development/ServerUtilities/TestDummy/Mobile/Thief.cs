@@ -1,5 +1,7 @@
 ﻿using Server.Items;
 
+using System;
+
 namespace Server.Mobiles
 {
 	[TypeAlias("Server.Mobiles.DummyTheif")]
@@ -25,10 +27,9 @@ namespace Server.Mobiles
 			Name = "Hybrid Thief";
 
 			// Equip
-			var book = new Spellbook {
+			var book = new BookOfMagery(UInt64.MaxValue) {
 				Movable = false,
-				LootType = LootType.Newbied,
-				Content = 0xFFFFFFFFFFFFFFFF
+				LootType = LootType.Newbied
 			};
 			AddItem(book);
 

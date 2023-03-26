@@ -2,9 +2,11 @@
 using Server.Commands;
 using Server.Commands.Generic;
 using Server.Engines.Craft;
+using Server.Ethics;
 using Server.Guilds;
 using Server.Gumps;
 using Server.Items;
+using Server.Misc;
 using Server.Mobiles;
 using Server.Multis;
 using Server.Network;
@@ -15,6 +17,7 @@ using Server.Targeting;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 
 namespace Server.Factions
@@ -130,9 +133,18 @@ namespace Server.Factions
 		}
 	}
 
+	public enum FactionEthic
+	{
+		None,
+		Good,
+		Evil,
+	}
+
 	public class FactionDefinition
 	{
 		private readonly int m_Sort;
+
+		private readonly FactionEthic m_Ethic;
 
 		private readonly int m_HuePrimary;
 		private readonly int m_HueSecondary;
@@ -165,6 +177,8 @@ namespace Server.Factions
 
 		public int Sort => m_Sort;
 
+		public FactionEthic Ethic => m_Ethic;
+
 		public int HuePrimary => m_HuePrimary;
 		public int HueSecondary => m_HueSecondary;
 		public int HueJoin => m_HueJoin;
@@ -196,9 +210,10 @@ namespace Server.Factions
 		public RankDefinition[] Ranks => m_Ranks;
 		public GuardDefinition[] Guards => m_Guards;
 
-		public FactionDefinition(int sort, int huePrimary, int hueSecondary, int hueJoin, int hueBroadcast, int warHorseBody, int warHorseItem, string friendlyName, string keyword, string abbreviation, TextDefinition name, TextDefinition propName, TextDefinition header, TextDefinition about, TextDefinition cityControl, TextDefinition sigilControl, TextDefinition signupName, TextDefinition factionStoneName, TextDefinition ownerLabel, TextDefinition guardIgnore, TextDefinition guardWarn, TextDefinition guardAttack, StrongholdDefinition stronghold, RankDefinition[] ranks, GuardDefinition[] guards)
+		public FactionDefinition(int sort, FactionEthic ethic, int huePrimary, int hueSecondary, int hueJoin, int hueBroadcast, int warHorseBody, int warHorseItem, string friendlyName, string keyword, string abbreviation, TextDefinition name, TextDefinition propName, TextDefinition header, TextDefinition about, TextDefinition cityControl, TextDefinition sigilControl, TextDefinition signupName, TextDefinition factionStoneName, TextDefinition ownerLabel, TextDefinition guardIgnore, TextDefinition guardWarn, TextDefinition guardAttack, StrongholdDefinition stronghold, RankDefinition[] ranks, GuardDefinition[] guards)
 		{
 			m_Sort = sort;
+			m_Ethic = ethic;
 			m_HuePrimary = huePrimary;
 			m_HueSecondary = hueSecondary;
 			m_HueJoin = hueJoin;
@@ -226,7 +241,7 @@ namespace Server.Factions
 		}
 	}
 
-	[CustomEnum(new string[] { "Minax", "Council of Mages", "True Britannians", "Shadowlords" })]
+	[Parsable]
 	public abstract class Faction : IComparable<Faction>
 	{
 		public static readonly Map Facet = Map.Felucca;
@@ -983,7 +998,7 @@ namespace Server.Factions
 
 			foreach (var item in World.Items.Values)
 			{
-				if (item is IFactionItem && !(item is HoodedShroudOfShadows))
+				if (item is IFactionItem && item is not HoodedShroudOfShadows)
 				{
 					pots.Add(item);
 				}
@@ -1329,10 +1344,7 @@ namespace Server.Factions
 
 		public static void HandleDeath(Mobile victim, Mobile killer)
 		{
-			if (killer == null)
-			{
-				killer = victim.FindMostRecentDamager(true);
-			}
+			killer ??= victim.FindMostRecentDamager(true);
 
 			var killerState = PlayerState.Find(killer);
 
@@ -1581,6 +1593,13 @@ namespace Server.Factions
 			return null;
 		}
 
+		public static void HandleDeletion(Mobile mob)
+		{
+			var faction = Find(mob);
+
+			faction?.RemoveMember(mob);
+		}
+
 		public static Faction Find(Mobile mob)
 		{
 			return Find(mob, false, false);
@@ -1626,21 +1645,30 @@ namespace Server.Factions
 			return null;
 		}
 
-		public static Faction Parse(string name)
+		public static Faction Parse(string input)
 		{
-			var factions = Factions;
-
-			for (var i = 0; i < factions.Count; ++i)
+			if (input == null)
 			{
-				var faction = factions[i];
-
-				if (Insensitive.Equals(faction.Definition.FriendlyName, name))
-				{
-					return faction;
-				}
+				throw new ArgumentNullException(nameof(input));
 			}
 
-			return null;
+			return Factions.Find(fac => Insensitive.Equals(fac.Definition.Abbreviation, input) || Insensitive.Equals(fac.Definition.FriendlyName, input));
+		}
+
+		public static bool TryParse(string input, out Faction faction)
+		{
+			try
+			{
+				faction = Parse(input);
+
+				return true;
+			}
+			catch
+			{
+				faction = null;
+
+				return false;
+			}
 		}
 	}
 
@@ -2667,11 +2695,7 @@ namespace Server.Factions
 		{
 			if (m_Faction.Election != this)
 			{
-				if (m_Timer != null)
-				{
-					m_Timer.Stop();
-				}
-
+				m_Timer?.Stop();
 				m_Timer = null;
 
 				return;
@@ -3376,6 +3400,12 @@ namespace Server.Factions
 		}
 	}
 
+	public class TownReputationDefinition : ReputationDefinition<Town>
+	{
+		public TownReputationDefinition(Town owner, string name, string description, params int[] levels)
+			: base(owner, ReputationCategory.Townships, name, description, levels)
+		{ }
+	}
 
 	/// Faction Town
 	public class TownDefinition
@@ -3395,8 +3425,10 @@ namespace Server.Factions
 		private readonly TextDefinition m_SigilName;
 		private readonly TextDefinition m_CorruptedSigilName;
 
-		private Point3D m_Monolith;
-		private Point3D m_TownStone;
+		private readonly Point3D m_Monolith;
+		private readonly Point3D m_TownStone;
+
+		private readonly TownReputationDefinition m_Reputation;
 
 		public int Sort => m_Sort;
 		public int SigilID => m_SigilID;
@@ -3415,7 +3447,9 @@ namespace Server.Factions
 		public Point3D Monolith => m_Monolith;
 		public Point3D TownStone => m_TownStone;
 
-		public TownDefinition(int sort, int sigilID, string region, string friendlyName, TextDefinition townName, TextDefinition townStoneHeader, TextDefinition strongholdMonolithName, TextDefinition townMonolithName, TextDefinition townStoneName, TextDefinition sigilName, TextDefinition corruptedSigilName, Point3D monolith, Point3D townStone)
+		public TownReputationDefinition Reputation => m_Reputation;
+
+		public TownDefinition(int sort, int sigilID, string region, string friendlyName, TextDefinition townName, TextDefinition townStoneHeader, TextDefinition strongholdMonolithName, TextDefinition townMonolithName, TextDefinition townStoneName, TextDefinition sigilName, TextDefinition corruptedSigilName, Point3D monolith, Point3D townStone, TownReputationDefinition reputation)
 		{
 			m_Sort = sort;
 			m_SigilID = sigilID;
@@ -3430,11 +3464,12 @@ namespace Server.Factions
 			m_CorruptedSigilName = corruptedSigilName;
 			m_Monolith = monolith;
 			m_TownStone = townStone;
+			m_Reputation = reputation;
 		}
 	}
 
-	[CustomEnum(new string[] { "Britain", "Magincia", "Minoc", "Moonglow", "Skara Brae", "Trinsic", "Vesper", "Yew" })]
-	public abstract class Town : IComparable
+	[Parsable, CustomEnum(new string[] { "Britain", "Magincia", "Minoc", "Moonglow", "Skara Brae", "Trinsic", "Vesper", "Yew" })]
+	public abstract class Town : IComparable, IComparable<Town>
 	{
 		private TownDefinition m_Definition;
 		private TownState m_State;
@@ -3448,7 +3483,11 @@ namespace Server.Factions
 		public TownState State
 		{
 			get => m_State;
-			set { m_State = value; ConstructGuardLists(); }
+			set
+			{
+				m_State = value;
+				ConstructGuardLists();
+			}
 		}
 
 		public int Silver
@@ -3486,6 +3525,8 @@ namespace Server.Factions
 			get => m_State.LastTaxChange;
 			set => m_State.LastTaxChange = value;
 		}
+
+		public TownReputationDefinition Reputation => m_Definition?.Reputation;
 
 		public static readonly TimeSpan TaxChangePeriod = TimeSpan.FromHours(12.0);
 		public static readonly TimeSpan IncomePeriod = TimeSpan.FromDays(1.0);
@@ -3642,20 +3683,14 @@ namespace Server.Factions
 
 		public void StartIncomeTimer()
 		{
-			if (m_IncomeTimer != null)
-			{
-				m_IncomeTimer.Stop();
-			}
+			m_IncomeTimer?.Stop();
 
 			m_IncomeTimer = Timer.DelayCall(TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(1.0), CheckIncome);
 		}
 
 		public void StopIncomeTimer()
 		{
-			if (m_IncomeTimer != null)
-			{
-				m_IncomeTimer.Stop();
-			}
+			m_IncomeTimer?.Stop();
 
 			m_IncomeTimer = null;
 		}
@@ -3809,12 +3844,11 @@ namespace Server.Factions
 				return false;
 			}
 
-			if (!guardList.Guards.Contains(guard))
+			if (!guardList.Guards.Remove(guard))
 			{
 				return false;
 			}
 
-			guardList.Guards.Remove(guard);
 			return true;
 		}
 
@@ -3850,12 +3884,11 @@ namespace Server.Factions
 				return false;
 			}
 
-			if (!vendorList.Vendors.Contains(vendor))
+			if (!vendorList.Vendors.Remove(vendor))
 			{
 				return false;
 			}
 
-			vendorList.Vendors.Remove(vendor);
 			return true;
 		}
 
@@ -3869,12 +3902,13 @@ namespace Server.Factions
 				towns[i].Finance = towns[i].Finance;
 			}
 
-			CommandSystem.Register("GrantTownSilver", AccessLevel.Administrator, new CommandEventHandler(GrantTownSilver_OnCommand));
+			CommandSystem.Register("GrantTownSilver", AccessLevel.Administrator, GrantTownSilver_OnCommand);
 		}
 
 		public Town()
 		{
 			m_State = new TownState(this);
+
 			ConstructVendorLists();
 			ConstructGuardLists();
 			StartIncomeTimer();
@@ -3887,7 +3921,7 @@ namespace Server.Factions
 				return false;
 			}
 
-			return (mob.AccessLevel >= AccessLevel.GameMaster || mob == Sheriff);
+			return mob.AccessLevel >= AccessLevel.GameMaster || mob == Sheriff;
 		}
 
 		public bool IsFinance(Mobile mob)
@@ -3897,7 +3931,7 @@ namespace Server.Factions
 				return false;
 			}
 
-			return (mob.AccessLevel >= AccessLevel.GameMaster || mob == Finance);
+			return mob.AccessLevel >= AccessLevel.GameMaster || mob == Finance;
 		}
 
 		public static List<Town> Towns => Reflector.Towns;
@@ -3957,9 +3991,11 @@ namespace Server.Factions
 				var guardList = guardLists[i];
 				var guards = guardList.Guards;
 
-				for (var j = guards.Count - 1; j >= 0; --j)
+				foreach (var g in guards.ToArray())
 				{
-					guards[j].Delete();
+					g.Delete();
+
+					guards.Remove(g);
 				}
 			}
 
@@ -3968,7 +4004,17 @@ namespace Server.Factions
 
 		public int CompareTo(object obj)
 		{
-			return m_Definition.Sort - ((Town)obj).m_Definition.Sort;
+			if (obj is Town town)
+			{
+				return CompareTo(town);
+			}
+
+			return -1;
+		}
+
+		public int CompareTo(Town town)
+		{
+			return m_Definition.Sort - town.m_Definition.Sort;
 		}
 
 		public override string ToString()
@@ -3995,21 +4041,30 @@ namespace Server.Factions
 			return null;
 		}
 
-		public static Town Parse(string name)
+		public static Town Parse(string input)
 		{
-			var towns = Towns;
-
-			for (var i = 0; i < towns.Count; ++i)
+			if (input == null)
 			{
-				var town = towns[i];
-
-				if (Insensitive.Equals(town.Definition.FriendlyName, name))
-				{
-					return town;
-				}
+				throw new ArgumentNullException(nameof(input));
 			}
 
-			return null;
+			return Towns.Find(t => Insensitive.Equals(t.Definition.FriendlyName, input));
+		}
+
+		public static bool TryParse(string input, out Town town)
+		{
+			try
+			{
+				town = Parse(input);
+
+				return true;
+			}
+			catch
+			{
+				town = null;
+
+				return false;
+			}
 		}
 
 		public static void GrantTownSilver_OnCommand(CommandEventArgs e)
@@ -4229,7 +4284,7 @@ namespace Server.Factions
 			{
 				if (m_Factions == null)
 				{
-					Reflector.ProcessTypes();
+					ProcessTypes();
 				}
 
 				return m_Factions;
@@ -4405,10 +4460,10 @@ namespace Server.Factions
 	public class GuardList
 	{
 		private readonly GuardDefinition m_Definition;
-		private readonly List<BaseFactionGuard> m_Guards;
+		private readonly HashSet<BaseFactionGuard> m_Guards;
 
 		public GuardDefinition Definition => m_Definition;
-		public List<BaseFactionGuard> Guards => m_Guards;
+		public HashSet<BaseFactionGuard> Guards => m_Guards;
 
 		public BaseFactionGuard Construct()
 		{
@@ -4419,7 +4474,7 @@ namespace Server.Factions
 		public GuardList(GuardDefinition definition)
 		{
 			m_Definition = definition;
-			m_Guards = new List<BaseFactionGuard>();
+			m_Guards = new HashSet<BaseFactionGuard>();
 		}
 	}
 
@@ -4460,43 +4515,43 @@ namespace Server.Factions
 		}
 
 		private static readonly VendorDefinition[] m_Definitions = new VendorDefinition[]
-			{
-				new VendorDefinition( typeof( FactionBottleVendor ), 0xF0E,
-					5000,
-					1000,
-					10,
-					new TextDefinition( 1011549, "POTION BOTTLE VENDOR" ),
-					new TextDefinition( 1011544, "Buy Potion Bottle Vendor" )
-				),
-				new VendorDefinition( typeof( FactionBoardVendor ), 0x1BD7,
-					3000,
-					500,
-					10,
-					new TextDefinition( 1011552, "WOOD VENDOR" ),
-					new TextDefinition( 1011545, "Buy Wooden Board Vendor" )
-				),
-				new VendorDefinition( typeof( FactionOreVendor ), 0x19B8,
-					3000,
-					500,
-					10,
-					new TextDefinition( 1011553, "IRON ORE VENDOR" ),
-					new TextDefinition( 1011546, "Buy Iron Ore Vendor" )
-				),
-				new VendorDefinition( typeof( FactionReagentVendor ), 0xF86,
-					5000,
-					1000,
-					10,
-					new TextDefinition( 1011554, "REAGENT VENDOR" ),
-					new TextDefinition( 1011547, "Buy Reagent Vendor" )
-				),
-				new VendorDefinition( typeof( FactionHorseVendor ), 0x20DD,
-					5000,
-					1000,
-					1,
-					new TextDefinition( 1011556, "HORSE BREEDER" ),
-					new TextDefinition( 1011555, "Buy Horse Breeder" )
-				)
-			};
+		{
+			new VendorDefinition( typeof( FactionBottleVendor ), 0xF0E,
+				5000,
+				1000,
+				10,
+				new TextDefinition( 1011549, "POTION BOTTLE VENDOR" ),
+				new TextDefinition( 1011544, "Buy Potion Bottle Vendor" )
+			),
+			new VendorDefinition( typeof( FactionBoardVendor ), 0x1BD7,
+				3000,
+				500,
+				10,
+				new TextDefinition( 1011552, "WOOD VENDOR" ),
+				new TextDefinition( 1011545, "Buy Wooden Board Vendor" )
+			),
+			new VendorDefinition( typeof( FactionOreVendor ), 0x19B8,
+				3000,
+				500,
+				10,
+				new TextDefinition( 1011553, "IRON ORE VENDOR" ),
+				new TextDefinition( 1011546, "Buy Iron Ore Vendor" )
+			),
+			new VendorDefinition( typeof( FactionReagentVendor ), 0xF86,
+				5000,
+				1000,
+				10,
+				new TextDefinition( 1011554, "REAGENT VENDOR" ),
+				new TextDefinition( 1011547, "Buy Reagent Vendor" )
+			),
+			new VendorDefinition( typeof( FactionHorseVendor ), 0x20DD,
+				5000,
+				1000,
+				1,
+				new TextDefinition( 1011556, "HORSE BREEDER" ),
+				new TextDefinition( 1011555, "Buy Horse Breeder" )
+			)
+		};
 
 		public static VendorDefinition[] Definitions => m_Definitions;
 	}
@@ -4604,7 +4659,7 @@ namespace Server.Factions
 					return true;
 				}
 
-				return (Expiration != DateTime.MinValue && DateTime.UtcNow >= Expiration);
+				return Expiration != DateTime.MinValue && DateTime.UtcNow >= Expiration;
 			}
 		}
 
@@ -4645,10 +4700,7 @@ namespace Server.Factions
 				fi.FactionItemState = null;
 			}
 
-			if (Faction != null)
-			{
-				Faction.State.Items.Remove(this);
-			}
+			Faction?.State.Items.Remove(this);
 		}
 
 		public FactionItem(Item item, Faction faction)
@@ -4798,14 +4850,14 @@ namespace Server.Factions
 	public class MerchantTitles
 	{
 		private static readonly MerchantTitleInfo[] m_Info = new MerchantTitleInfo[]
-			{
-				new MerchantTitleInfo( SkillName.Inscribe,      90.0,   new TextDefinition( 1060773, "Scribe" ),        new TextDefinition( 1011468, "SCRIBE" ),        new TextDefinition( 1010121, "You now have the faction title of scribe" ) ),
-				new MerchantTitleInfo( SkillName.Carpentry,     90.0,   new TextDefinition( 1060774, "Carpenter" ),     new TextDefinition( 1011469, "CARPENTER" ),     new TextDefinition( 1010122, "You now have the faction title of carpenter" ) ),
-				new MerchantTitleInfo( SkillName.Tinkering,     90.0,   new TextDefinition( 1022984, "Tinker" ),        new TextDefinition( 1011470, "TINKER" ),        new TextDefinition( 1010123, "You now have the faction title of tinker" ) ),
-				new MerchantTitleInfo( SkillName.Blacksmith,    90.0,   new TextDefinition( 1023016, "Blacksmith" ),    new TextDefinition( 1011471, "BLACKSMITH" ),    new TextDefinition( 1010124, "You now have the faction title of blacksmith" ) ),
-				new MerchantTitleInfo( SkillName.Fletching,     90.0,   new TextDefinition( 1023022, "Bowyer" ),        new TextDefinition( 1011472, "BOWYER" ),        new TextDefinition( 1010125, "You now have the faction title of Bowyer" ) ),
-				new MerchantTitleInfo( SkillName.Tailoring,     90.0,   new TextDefinition( 1022982, "Tailor" ),        new TextDefinition( 1018300, "TAILOR" ),        new TextDefinition( 1042162, "You now have the faction title of Tailor" ) ),
-			};
+		{
+			new MerchantTitleInfo( SkillName.Inscribe,      90.0,   new TextDefinition( 1060773, "Scribe" ),        new TextDefinition( 1011468, "SCRIBE" ),        new TextDefinition( 1010121, "You now have the faction title of scribe" ) ),
+			new MerchantTitleInfo( SkillName.Carpentry,     90.0,   new TextDefinition( 1060774, "Carpenter" ),     new TextDefinition( 1011469, "CARPENTER" ),     new TextDefinition( 1010122, "You now have the faction title of carpenter" ) ),
+			new MerchantTitleInfo( SkillName.Tinkering,     90.0,   new TextDefinition( 1022984, "Tinker" ),        new TextDefinition( 1011470, "TINKER" ),        new TextDefinition( 1010123, "You now have the faction title of tinker" ) ),
+			new MerchantTitleInfo( SkillName.Blacksmith,    90.0,   new TextDefinition( 1023016, "Blacksmith" ),    new TextDefinition( 1011471, "BLACKSMITH" ),    new TextDefinition( 1010124, "You now have the faction title of blacksmith" ) ),
+			new MerchantTitleInfo( SkillName.Fletching,     90.0,   new TextDefinition( 1023022, "Bowyer" ),        new TextDefinition( 1011472, "BOWYER" ),        new TextDefinition( 1010125, "You now have the faction title of Bowyer" ) ),
+			new MerchantTitleInfo( SkillName.Tailoring,     90.0,   new TextDefinition( 1022982, "Tailor" ),        new TextDefinition( 1018300, "TAILOR" ),        new TextDefinition( 1042162, "You now have the faction title of Tailor" ) ),
+		};
 
 		public static MerchantTitleInfo[] Info => m_Info;
 
@@ -4846,7 +4898,7 @@ namespace Server.Factions
 				return false;
 			}
 
-			return (mob.Skills[info.Skill].Value >= info.Requirement);
+			return mob.Skills[info.Skill].Value >= info.Requirement;
 		}
 	}
 
@@ -4988,17 +5040,12 @@ namespace Server.Factions
 	{
 		public static void Initialize()
 		{
-			EventSink.Speech += new SpeechEventHandler(EventSink_Speech);
+			EventSink.Speech += EventSink_Speech;
 		}
 
-		private static void ShowScore_Sandbox(object state)
+		private static void ShowScore_Sandbox(PlayerState state)
 		{
-			var pl = (PlayerState)state;
-
-			if (pl != null)
-			{
-				pl.Mobile.PublicOverheadMessage(MessageType.Regular, pl.Mobile.SpeechHue, true, pl.KillPoints.ToString("N0")); // NOTE: Added 'N0'
-			}
+			state?.Mobile.PublicOverheadMessage(MessageType.Regular, state.Mobile.SpeechHue, true, state.KillPoints.ToString("N0"));
 		}
 
 		private static void EventSink_Speech(SpeechEventArgs e)
@@ -5101,7 +5148,7 @@ namespace Server.Factions
 									break;
 								}
 
-								var remaining = (pl.Leaving + Faction.LeavePeriod) - DateTime.UtcNow;
+								var remaining = pl.Leaving + Faction.LeavePeriod - DateTime.UtcNow;
 
 								if (remaining.TotalDays >= 1)
 								{
@@ -5149,7 +5196,7 @@ namespace Server.Factions
 
 							if (pl != null)
 							{
-								Timer.DelayCall(TimeSpan.Zero, ShowScore_Sandbox, pl);
+								Timer.DelayCall(ShowScore_Sandbox, pl);
 							}
 
 							break;

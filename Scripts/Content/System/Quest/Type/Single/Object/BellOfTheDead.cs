@@ -1,11 +1,10 @@
 ﻿using Server.Engines.Quests.Mobiles;
-using Server.Items;
 using Server.Mobiles;
 using Server.Network;
 
 using System;
 
-namespace Server.Engines.Quests.Items
+namespace Server.Items
 {
 	public class BellOfTheDead : Item
 	{
