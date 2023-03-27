@@ -20,7 +20,7 @@
 - uoAvos no longer uses a Data folder with its server. The reason is because we have taken its contents, hardcoded it in C#, and merged it with the server code.
 
 <img src="http://www.uoavocation.net/portal/site_image/github/checkmark.png" width="24" height="24">**ActionAI: Immersive NPCs For Your Servers!**
-- ActionAI is a new NPC Artificial Intelligency that makes NPCs on your server come to life! It is both immersive and makes a great framework to build future expansions on. This AI is extremely addictive!!
+- ActionAI is a new NPC Artificial Intelligence that makes NPCs on your server come to life! It is both immersive and makes a great framework to build future expansions on. This AI is extremely addictive!!
 - Long gone are the days of NPCs who just stand there waiting for players to toggle quests off them and purchase their wares!
 - Laborers now work, yes they have jobs and they do them! They gather resources from real harvest veins and add slight competition for players. All laborers set up camp and store their resources into crates nearby. Players can access these crates and loot them!
 - Pirates now plunder the seas! Attacking player vessels, merchant ships, privateers, and other pirates along the way; the seas are no longer boring! If a player kills the boat captain of any vessel, they will have the option to commandeer the ship or sink it!
