@@ -57,28 +57,12 @@ namespace Server.Misc
 
 		public static Guild GetGuildFor(Guild def, Mobile m)
 		{
-			if (m.Guild is Guild guild)
+			if (m is BaseCreature c && c.ControlMaster?.Guild is Guild masterGuild)
 			{
-				return guild;
+				return masterGuild;
 			}
 
-			if (m is BaseCreature c && c.Controlled && c.ControlMaster != null)
-			{
-				if (c.Map != Map.Internal && (Core.AOS || Guild.NewGuildSystem || c.ControlOrder == OrderType.Attack || c.ControlOrder == OrderType.Guard))
-				{
-					if (c.ControlMaster.Guild is Guild masterGuild)
-					{
-						return masterGuild;
-					}
-				}
-
-				if (c.Map == Map.Internal || c.ControlMaster.Guild == null)
-				{
-					return null;
-				}
-			}
-
-			return def;
+			return m?.Guild as Guild ?? def;
 		}
 
 		public static bool Mobile_AllowBeneficial(Mobile from, Mobile target)
