@@ -1200,12 +1200,12 @@ namespace Server.Network
 
 		public static void GuildGumpRequest(NetState state, IEntity e, EncodedReader reader)
 		{
-			EventSink.InvokeGuildGumpRequest(new GuildGumpRequestArgs(state.Mobile));
+			EventSink.InvokeGuildGumpRequest(new GuildGumpRequestEventArgs(state.Mobile));
 		}
 
 		public static void QuestGumpRequest(NetState state, IEntity e, EncodedReader reader)
 		{
-			EventSink.InvokeQuestGumpRequest(new QuestGumpRequestArgs(state.Mobile));
+			EventSink.InvokeQuestGumpRequest(new QuestGumpRequestEventArgs(state.Mobile));
 		}
 
 		public static void EncodedCommand(NetState state, PacketReader pvSrc)
@@ -3081,7 +3081,7 @@ namespace Server.Network
 		{
 			var version = state.Version = new CV(pvSrc.ReadString());
 
-			EventSink.InvokeClientVersionReceived(new ClientVersionReceivedArgs(state, version));
+			EventSink.InvokeClientVersionReceived(new ClientVersionReceivedEventArgs(state, version));
 		}
 
 		public static void ClientType(NetState state, PacketReader pvSrc)

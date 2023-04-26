@@ -14,44 +14,22 @@ using System.Collections.Generic;
 
 namespace Server
 {
-	public interface IChopable
-	{
-		void OnChop(Mobile from);
-	}
-
 	[AttributeUsage(AttributeTargets.Class)]
 	public class FurnitureAttribute : Attribute
 	{
 		public static bool Check(Item item)
 		{
-			return (item != null && item.GetType().IsDefined(typeof(FurnitureAttribute), false));
-		}
-
-		public FurnitureAttribute()
-		{
+			return item != null && IsDefined(item.GetType(), typeof(FurnitureAttribute), false);
 		}
 	}
 }
 
 namespace Server.Items
 {
-	public enum ToolQuality
-	{
-		Low,
-		Regular,
-		Exceptional
-	}
-
-	public interface IUsesRemaining
-	{
-		int UsesRemaining { get; set; }
-		bool ShowUsesRemaining { get; set; }
-	}
-
-	public abstract class BaseTool : Item, IUsesRemaining, ICraftable
+	public abstract class BaseTool : Item, IUsesRemaining, ICraftable, ICraftTool
 	{
 		private Mobile m_Crafter;
-		private ToolQuality m_Quality;
+		private ItemQuality m_Quality;
 		private int m_UsesRemaining;
 
 		[CommandProperty(AccessLevel.GameMaster)]
@@ -62,7 +40,7 @@ namespace Server.Items
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public ToolQuality Quality
+		public ItemQuality Quality
 		{
 			get => m_Quality;
 			set { UnscaleUses(); m_Quality = value; InvalidateProperties(); ScaleUses(); }
@@ -90,7 +68,7 @@ namespace Server.Items
 
 		public int GetUsesScalar()
 		{
-			if (m_Quality == ToolQuality.Exceptional)
+			if (m_Quality == ItemQuality.Exceptional)
 			{
 				return 200;
 			}
@@ -102,6 +80,8 @@ namespace Server.Items
 
 		public abstract CraftSystem CraftSystem { get; }
 
+		ICraftSystem ICraftTool.CraftSystem => CraftSystem;
+
 		public BaseTool(int itemID) : this(Utility.RandomMinMax(25, 75), itemID)
 		{
 		}
@@ -109,7 +89,7 @@ namespace Server.Items
 		public BaseTool(int uses, int itemID) : base(itemID)
 		{
 			m_UsesRemaining = uses;
-			m_Quality = ToolQuality.Regular;
+			m_Quality = ItemQuality.Regular;
 		}
 
 		public BaseTool(Serial serial) : base(serial)
@@ -124,7 +104,7 @@ namespace Server.Items
 			//if ( m_Crafter != null )
 			//	list.Add( 1050043, m_Crafter.Name ); // crafted by ~1_NAME~
 
-			if (m_Quality == ToolQuality.Exceptional)
+			if (m_Quality == ItemQuality.Exceptional)
 			{
 				list.Add(1060636); // exceptional
 			}
@@ -216,7 +196,7 @@ namespace Server.Items
 				case 1:
 					{
 						m_Crafter = reader.ReadMobile();
-						m_Quality = (ToolQuality)reader.ReadInt();
+						m_Quality = (ItemQuality)reader.ReadInt();
 						goto case 0;
 					}
 				case 0:
@@ -226,11 +206,12 @@ namespace Server.Items
 					}
 			}
 		}
-		#region ICraftable Members
 
-		public int OnCraft(int quality, bool makersMark, Mobile from, CraftSystem craftSystem, Type typeRes, BaseTool tool, CraftItem craftItem, int resHue)
+		#region ICraftable
+
+		public virtual int OnCraft(int quality, bool makersMark, Mobile from, ICraftSystem craftSystem, Type typeRes, ICraftTool tool, ICraftItem craftItem, int resHue)
 		{
-			Quality = (ToolQuality)quality;
+			Quality = (ItemQuality)quality;
 
 			if (makersMark)
 			{
@@ -985,10 +966,10 @@ namespace Server.Items
 		}
 	}
 
-	public abstract class BaseHarvestTool : Item, IUsesRemaining, ICraftable
+	public abstract class BaseHarvestTool : Item, IUsesRemaining, ICraftable, IHarvestTool
 	{
 		private Mobile m_Crafter;
-		private ToolQuality m_Quality;
+		private ItemQuality m_Quality;
 		private int m_UsesRemaining;
 
 		[CommandProperty(AccessLevel.GameMaster)]
@@ -999,7 +980,7 @@ namespace Server.Items
 		}
 
 		[CommandProperty(AccessLevel.GameMaster)]
-		public ToolQuality Quality
+		public ItemQuality Quality
 		{
 			get => m_Quality;
 			set { UnscaleUses(); m_Quality = value; InvalidateProperties(); ScaleUses(); }
@@ -1025,7 +1006,7 @@ namespace Server.Items
 
 		public int GetUsesScalar()
 		{
-			if (m_Quality == ToolQuality.Exceptional)
+			if (m_Quality == ItemQuality.Exceptional)
 			{
 				return 200;
 			}
@@ -1037,6 +1018,8 @@ namespace Server.Items
 
 		public abstract HarvestSystem HarvestSystem { get; }
 
+		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
+
 		public BaseHarvestTool(int itemID) : this(50, itemID)
 		{
 		}
@@ -1044,7 +1027,7 @@ namespace Server.Items
 		public BaseHarvestTool(int usesRemaining, int itemID) : base(itemID)
 		{
 			m_UsesRemaining = usesRemaining;
-			m_Quality = ToolQuality.Regular;
+			m_Quality = ItemQuality.Regular;
 		}
 
 		public override void GetProperties(ObjectPropertyList list)
@@ -1055,7 +1038,7 @@ namespace Server.Items
 			//if ( m_Crafter != null )
 			//	list.Add( 1050043, m_Crafter.Name ); // crafted by ~1_NAME~
 
-			if (m_Quality == ToolQuality.Exceptional)
+			if (m_Quality == ItemQuality.Exceptional)
 			{
 				list.Add(1060636); // exceptional
 			}
@@ -1202,7 +1185,7 @@ namespace Server.Items
 				case 1:
 					{
 						m_Crafter = reader.ReadMobile();
-						m_Quality = (ToolQuality)reader.ReadInt();
+						m_Quality = (ItemQuality)reader.ReadInt();
 						goto case 0;
 					}
 				case 0:
@@ -1213,11 +1196,11 @@ namespace Server.Items
 			}
 		}
 
-		#region ICraftable Members
+		#region ICraftable
 
-		public int OnCraft(int quality, bool makersMark, Mobile from, CraftSystem craftSystem, Type typeRes, BaseTool tool, CraftItem craftItem, int resHue)
+		public virtual int OnCraft(int quality, bool makersMark, Mobile from, ICraftSystem craftSystem, Type typeRes, ICraftTool tool, ICraftItem craftItem, int resHue)
 		{
-			Quality = (ToolQuality)quality;
+			Quality = (ItemQuality)quality;
 
 			if (makersMark)
 			{

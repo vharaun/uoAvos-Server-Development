@@ -3772,7 +3772,7 @@ namespace Server.Mobiles
 			InvalidateMyRunUO();
 		}
 
-		public override bool MutateSpeech(List<Mobile> hears, ref string text, ref object context)
+		public override bool MutateSpeech(HashSet<Mobile> hears, ref string text, ref object context)
 		{
 			if (Alive)
 			{
@@ -3786,10 +3786,8 @@ namespace Server.Mobiles
 
 			if (Core.AOS)
 			{
-				for (var i = 0; i < hears.Count; ++i)
+				foreach (var m in hears)
 				{
-					var m = hears[i];
-
 					if (m != this && m.Skills[SkillName.SpiritSpeak].Value >= 100.0)
 					{
 						return false;

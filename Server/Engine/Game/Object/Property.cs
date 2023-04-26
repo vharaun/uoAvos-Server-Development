@@ -3998,6 +3998,38 @@ namespace Server
 			}
 		}
 
+		public void PrivateOverheadMessage(MessageType type, int hue, bool ascii, string text, NetState state)
+		{
+			if (state == null)
+			{
+				return;
+			}
+
+			if (ascii)
+			{
+				state.Send(new AsciiMessage(m_Serial, m_ItemID, type, hue, 3, Name, text));
+			}
+			else
+			{
+				state.Send(new UnicodeMessage(m_Serial, m_ItemID, type, hue, 3, "ENU", Name, text));
+			}
+		}
+
+		public void PrivateOverheadMessage(MessageType type, int hue, int number, NetState state)
+		{
+			PrivateOverheadMessage(type, hue, number, "", state);
+		}
+
+		public void PrivateOverheadMessage(MessageType type, int hue, int number, string args, NetState state)
+		{
+			if (state == null)
+			{
+				return;
+			}
+
+			state.Send(new MessageLocalized(m_Serial, m_ItemID, type, hue, 3, number, Name, args));
+		}
+
 		public virtual void OnAfterDelete()
 		{
 		}
@@ -4268,8 +4300,6 @@ namespace Server
 
 				m_Parent = value;
 
-				OnParentChanged(oldParent);
-
 				if (m_Map != null)
 				{
 					if (oldParent != null && m_Parent == null)
@@ -4281,6 +4311,10 @@ namespace Server
 						m_Map.OnLeave(this);
 					}
 				}
+
+				OnParentChanged(oldParent);
+
+				EventSink.InvokeParentChanged(new ParentChangedEventArgs(this, oldParent, value));
 			}
 		}
 
@@ -4941,14 +4975,14 @@ namespace Server
 		{
 			object p = this;
 
-			while (p is Item)
+			while (p is Item ip)
 			{
-				if (p is SecureTradeContainer)
+				if (ip is SecureTradeContainer s)
 				{
-					return (SecureTradeContainer)p;
+					return s;
 				}
 
-				p = ((Item)p).m_Parent;
+				p = ip.m_Parent;
 			}
 
 			return null;
@@ -4956,85 +4990,85 @@ namespace Server
 
 		public virtual void OnItemAdded(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemAdded(item);
+				ip.OnSubItemAdded(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemAdded(item);
+				mp.OnSubItemAdded(item);
 			}
 		}
 
 		public virtual void OnItemRemoved(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemRemoved(item);
+				ip.OnSubItemRemoved(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemRemoved(item);
+				mp.OnSubItemRemoved(item);
 			}
 		}
 
 		public virtual void OnSubItemAdded(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemAdded(item);
+				ip.OnSubItemAdded(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemAdded(item);
+				mp.OnSubItemAdded(item);
 			}
 		}
 
 		public virtual void OnSubItemRemoved(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemRemoved(item);
+				ip.OnSubItemRemoved(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemRemoved(item);
+				mp.OnSubItemRemoved(item);
 			}
 		}
 
 		public virtual void OnItemBounceCleared(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemBounceCleared(item);
+				ip.OnSubItemBounceCleared(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemBounceCleared(item);
+				mp.OnSubItemBounceCleared(item);
 			}
 		}
 
 		public virtual void OnSubItemBounceCleared(Item item)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				((Item)m_Parent).OnSubItemBounceCleared(item);
+				ip.OnSubItemBounceCleared(item);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				((Mobile)m_Parent).OnSubItemBounceCleared(item);
+				mp.OnSubItemBounceCleared(item);
 			}
 		}
 
 		public virtual bool CheckTarget(Mobile from, Server.Targeting.Target targ, object targeted)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				return ((Item)m_Parent).CheckTarget(from, targ, targeted);
+				return ip.CheckTarget(from, targ, targeted);
 			}
-			else if (m_Parent is Mobile)
+			else if (m_Parent is Mobile mp)
 			{
-				return ((Mobile)m_Parent).CheckTarget(from, targ, targeted);
+				return mp.CheckTarget(from, targ, targeted);
 			}
 
 			return true;
@@ -5042,9 +5076,9 @@ namespace Server
 
 		public virtual bool IsAccessibleTo(Mobile check)
 		{
-			if (m_Parent is Item)
+			if (m_Parent is Item ip)
 			{
-				return ((Item)m_Parent).IsAccessibleTo(check);
+				return ip.IsAccessibleTo(check);
 			}
 
 			var reg = Region.Find(GetWorldLocation(), m_Map);

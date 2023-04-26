@@ -19,10 +19,105 @@ namespace Server
 		void Deserialize(GenericReader reader);
 	}
 
-	public struct Serial : IComparable, IComparable<Serial>
+	public readonly struct UID : IComparable, IComparable<UID>
 	{
-		private readonly int m_Serial;
+		private readonly long m_UID;
 
+		public static readonly UID MinusOne = new(-1L);
+		public static readonly UID Zero = new(0L);
+
+		public UID(long uid)
+		{
+			m_UID = uid;
+		}
+
+		public long Value => m_UID;
+
+		public bool IsValid => m_UID > 0;
+
+		public override int GetHashCode()
+		{
+			return m_UID.GetHashCode();
+		}
+
+		public int CompareTo(UID other)
+		{
+			return m_UID.CompareTo(other.m_UID);
+		}
+
+		public int CompareTo(object other)
+		{
+			if (other is UID u)
+			{
+				return CompareTo(u);
+			}
+
+			if (other == null)
+			{
+				return -1;
+			}
+
+			return 0;
+		}
+
+		public override bool Equals(object o)
+		{
+			if (o == null || o is not UID s)
+			{
+				return false;
+			}
+
+			return s.m_UID == m_UID;
+		}
+
+		public static bool operator ==(UID l, UID r)
+		{
+			return l.m_UID == r.m_UID;
+		}
+
+		public static bool operator !=(UID l, UID r)
+		{
+			return l.m_UID != r.m_UID;
+		}
+
+		public static bool operator >(UID l, UID r)
+		{
+			return l.m_UID > r.m_UID;
+		}
+
+		public static bool operator <(UID l, UID r)
+		{
+			return l.m_UID < r.m_UID;
+		}
+
+		public static bool operator >=(UID l, UID r)
+		{
+			return l.m_UID >= r.m_UID;
+		}
+
+		public static bool operator <=(UID l, UID r)
+		{
+			return l.m_UID <= r.m_UID;
+		}
+
+		public override string ToString()
+		{
+			return $"0x{m_UID:X8}";
+		}
+
+		public static implicit operator long(UID uid)
+		{
+			return uid.m_UID;
+		}
+
+		public static implicit operator UID(long uid)
+		{
+			return new UID(uid);
+		}
+	}
+
+	public readonly struct Serial : IComparable, IComparable<Serial>
+	{
 		private static Serial m_LastMobile = Zero;
 		private static Serial m_LastItem = 0x40000000;
 
@@ -60,18 +155,20 @@ namespace Server
 			}
 		}
 
+		private readonly int m_Serial;
+
+		public int Value => m_Serial;
+
+		public bool IsMobile => m_Serial > 0 && m_Serial < 0x40000000;
+
+		public bool IsItem => m_Serial >= 0x40000000 && m_Serial <= 0x7FFFFFFF;
+
+		public bool IsValid => m_Serial > 0;
+
 		public Serial(int serial)
 		{
 			m_Serial = serial;
 		}
-
-		public int Value => m_Serial;
-
-		public bool IsMobile => (m_Serial > 0 && m_Serial < 0x40000000);
-
-		public bool IsItem => (m_Serial >= 0x40000000 && m_Serial <= 0x7FFFFFFF);
-
-		public bool IsValid => (m_Serial > 0);
 
 		public override int GetHashCode()
 		{
@@ -140,17 +237,17 @@ namespace Server
 
 		public override string ToString()
 		{
-			return String.Format("0x{0:X8}", m_Serial);
+			return $"0x{m_Serial:X8}";
 		}
 
-		public static implicit operator int(Serial a)
+		public static implicit operator int(Serial serial)
 		{
-			return a.m_Serial;
+			return serial.m_Serial;
 		}
 
-		public static implicit operator Serial(int a)
+		public static implicit operator Serial(int serial)
 		{
-			return new Serial(a);
+			return new Serial(serial);
 		}
 	}
 
@@ -193,6 +290,7 @@ namespace Server
 		public abstract bool ReadBool();
 
 		public abstract byte[] ReadBytes();
+		public abstract MemoryStream ReadStream();
 
 		public abstract Point3D ReadPoint3D();
 		public abstract Point2D ReadPoint2D();
@@ -202,6 +300,7 @@ namespace Server
 		public abstract Poly3D ReadPoly3D();
 		public abstract Map ReadMap();
 
+		public abstract UID ReadUID();
 		public abstract Serial ReadSerial();
 
 		public abstract IEntity ReadEntity();
@@ -503,6 +602,18 @@ namespace Server
 			return null;
 		}
 
+		public override MemoryStream ReadStream()
+		{
+			var length = ReadEncodedInt();
+
+			if (length >= 0)
+			{
+				return new MemoryStream(m_File.ReadBytes(length));
+			}
+
+			return null;
+		}
+
 		public override Point3D ReadPoint3D()
 		{
 			return new Point3D(ReadInt(), ReadInt(), ReadInt());
@@ -553,6 +664,11 @@ namespace Server
 		public override Map ReadMap()
 		{
 			return Map.Maps[ReadByte()];
+		}
+
+		public override UID ReadUID()
+		{
+			return ReadLong();
 		}
 
 		public override Serial ReadSerial()
@@ -909,6 +1025,10 @@ namespace Server
 		public abstract void Write(bool value);
 
 		public abstract void Write(byte[] value);
+		public abstract void Write(byte[] value, int offset, int length);
+
+		public abstract void Write(MemoryStream stream);
+		public abstract void Write(MemoryStream stream, int offset, int length);
 
 		public abstract void Write(Point3D value);
 		public abstract void Write(Point2D value);
@@ -918,6 +1038,7 @@ namespace Server
 		public abstract void Write(Poly3D value);
 		public abstract void Write(Map value);
 
+		public abstract void Write(UID value);
 		public abstract void Write(Serial value);
 
 		public abstract void Write(IEntity value);
@@ -1466,13 +1587,72 @@ namespace Server
 
 		public override void Write(byte[] value)
 		{
+			Write(value, 0, value?.Length ?? 0);
+		}
+
+		public override void Write(byte[] value, int offset, int length)
+		{
 			if (value != null)
 			{
-				WriteEncodedInt(value.Length);
+				WriteEncodedInt(length);
 
-				for (var i = 0; i < value.Length; i++)
+				if (length > 0)
 				{
-					Write(value[i]);
+					length += offset;
+
+					for (var i = offset; i < length; i++)
+					{
+						Write(value[i]);
+					}
+				}
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
+		}
+
+		public override void Write(MemoryStream value)
+		{
+			Write(value, 0, (int)(value?.Length ?? 0));
+		}
+
+		public override void Write(MemoryStream value, int offset, int length)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(length);
+
+				if (length > 0)
+				{
+					var pos = value.Position;
+
+					value.Position = offset;
+
+					var count = 0;
+
+					while (count < length)
+					{
+						var read = value.ReadByte();
+
+						if (read >= 0)
+						{
+							Write((byte)read);
+
+							++count;
+						}
+						else
+						{
+							break;
+						}
+					}
+
+					if (count > 0)
+					{
+						Flush();
+					}
+
+					value.Position = pos;
 				}
 			}
 			else
@@ -1551,6 +1731,11 @@ namespace Server
 			{
 				Write((byte)0xFF);
 			}
+		}
+
+		public override void Write(UID value)
+		{
+			Write(value.Value);
 		}
 
 		public override void Write(Serial value)
@@ -2188,12 +2373,66 @@ namespace Server
 
 		public override void Write(byte[] value)
 		{
+			Write(value, 0, value?.Length ?? 0);
+		}
+
+		public override void Write(byte[] value, int offset, int length)
+		{
 			if (value != null)
 			{
-				WriteEncodedInt(value.Length);
+				WriteEncodedInt(length);
 
-				m_Bin.Write(value, 0, value.Length);
+				m_Bin.Write(value, offset, length);
 				OnWrite();
+			}
+			else
+			{
+				WriteEncodedInt(-1);
+			}
+		}
+
+		public override void Write(MemoryStream value)
+		{
+			Write(value, 0, (int)(value?.Length ?? 0));
+		}
+
+		public override void Write(MemoryStream value, int offset, int length)
+		{
+			if (value != null)
+			{
+				WriteEncodedInt(length);
+
+				if (length > 0)
+				{
+					var pos = value.Position;
+
+					value.Position = offset;
+
+					var count = 0;
+
+					while (count < length)
+					{
+						var read = value.ReadByte();
+
+						if (read >= 0)
+						{
+							m_Bin.Write((byte)read);
+
+							++count;
+						}
+						else
+						{
+							break;
+						}
+					}
+
+					if (count > 0)
+					{
+						OnWrite();
+					}
+
+					value.Position = pos;
+				}
 			}
 			else
 			{
@@ -2271,6 +2510,11 @@ namespace Server
 			{
 				Write((byte)0xFF);
 			}
+		}
+
+		public override void Write(UID value)
+		{
+			Write(value.Value);
 		}
 
 		public override void Write(Serial value)

@@ -14,6 +14,7 @@ using Server.Targeting;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -4237,7 +4238,7 @@ namespace Server
 
 			if (!m_Player)
 			{
-				EventSink.InvokeCreatureDeath(new CreatureDeathEventArgs(this, c));
+				EventSink.InvokeCreatureDeath(new CreatureDeathEventArgs(this, m_LastKiller, c));
 
 				Delete();
 			}
@@ -4269,7 +4270,7 @@ namespace Server
 				Stam = 0;
 				Mana = 0;
 
-				EventSink.InvokePlayerDeath(new PlayerDeathEventArgs(this, c));
+				EventSink.InvokePlayerDeath(new PlayerDeathEventArgs(this, m_LastKiller, c));
 
 				ProcessDeltaQueue();
 
@@ -4916,9 +4917,9 @@ namespace Server
 			return !bounced;
 		}
 
-		private static readonly object m_GhostMutateContext = new object();
+		private static readonly object m_GhostMutateContext = new();
 
-		public virtual bool MutateSpeech(List<Mobile> hears, ref string text, ref object context)
+		public virtual bool MutateSpeech(HashSet<Mobile> hears, ref string text, ref object context)
 		{
 			if (Alive)
 			{
@@ -4988,70 +4989,19 @@ namespace Server
 			return true;
 		}
 
-		private void AddSpeechItemsFrom(List<IEntity> list, Container cont)
+		private void AddSpeechItemsFrom(HashSet<IEntity> list, Container cont)
 		{
-			for (var i = 0; i < cont.Items.Count; ++i)
+			foreach (var item in cont.Items)
 			{
-				var item = cont.Items[i];
-
 				if (item.HandlesOnSpeech)
 				{
 					list.Add(item);
 				}
 
-				if (item is Container)
+				if (item is Container subCont)
 				{
-					AddSpeechItemsFrom(list, (Container)item);
+					AddSpeechItemsFrom(list, subCont);
 				}
-			}
-		}
-
-		private class LocationComparer : IComparer<IEntity>
-		{
-			private static LocationComparer m_Instance;
-
-			public static LocationComparer GetInstance(IEntity relativeTo)
-			{
-				if (m_Instance == null)
-				{
-					m_Instance = new LocationComparer(relativeTo);
-				}
-				else
-				{
-					m_Instance.m_RelativeTo = relativeTo;
-				}
-
-				return m_Instance;
-			}
-
-			private IEntity m_RelativeTo;
-
-			public IEntity RelativeTo
-			{
-				get => m_RelativeTo;
-				set => m_RelativeTo = value;
-			}
-
-			public LocationComparer(IEntity relativeTo)
-			{
-				m_RelativeTo = relativeTo;
-			}
-
-			private int GetDistance(IEntity p)
-			{
-				var x = m_RelativeTo.X - p.X;
-				var y = m_RelativeTo.Y - p.Y;
-				var z = m_RelativeTo.Z - p.Z;
-
-				x *= 11;
-				y *= 11;
-
-				return (x * x) + (y * y) + (z * z);
-			}
-
-			public int Compare(IEntity x, IEntity y)
-			{
-				return GetDistance(x) - GetDistance(y);
 			}
 		}
 
@@ -5059,56 +5009,28 @@ namespace Server
 
 		public IPooledEnumerable<Item> GetItemsInRange(int range)
 		{
-			var map = m_Map;
-
-			if (map == null)
-			{
-				return Server.Map.NullEnumerable<Item>.Instance;
-			}
-
-			return map.GetItemsInRange(m_Location, range);
+			return m_Map?.GetItemsInRange(m_Location, range) ?? Map.NullEnumerable<Item>.Instance;
 		}
 
 		public IPooledEnumerable<IEntity> GetObjectsInRange(int range)
 		{
-			var map = m_Map;
-
-			if (map == null)
-			{
-				return Server.Map.NullEnumerable<IEntity>.Instance;
-			}
-
-			return map.GetObjectsInRange(m_Location, range);
+			return m_Map?.GetObjectsInRange(m_Location, range) ?? Map.NullEnumerable<IEntity>.Instance;
 		}
 
 		public IPooledEnumerable<Mobile> GetMobilesInRange(int range)
 		{
-			var map = m_Map;
-
-			if (map == null)
-			{
-				return Server.Map.NullEnumerable<Mobile>.Instance;
-			}
-
-			return map.GetMobilesInRange(m_Location, range);
+			return m_Map?.GetMobilesInRange(m_Location, range) ?? Map.NullEnumerable<Mobile>.Instance;
 		}
 
 		public IPooledEnumerable<NetState> GetClientsInRange(int range)
 		{
-			var map = m_Map;
-
-			if (map == null)
-			{
-				return Server.Map.NullEnumerable<NetState>.Instance;
-			}
-
-			return map.GetClientsInRange(m_Location, range);
+			return m_Map?.GetClientsInRange(m_Location, range) ?? Map.NullEnumerable<NetState>.Instance;
 		}
 
 		#endregion
 
-		private static readonly List<Mobile> m_Hears = new List<Mobile>();
-		private static readonly List<IEntity> m_OnSpeech = new List<IEntity>();
+		private static readonly HashSet<Mobile> m_Hears = new();
+		private static readonly HashSet<IEntity> m_OnSpeech = new();
 
 		public virtual void DoSpeech(string text, int[] keywords, MessageType type, int hue)
 		{
@@ -5158,29 +5080,24 @@ namespace Server
 				return;
 			}
 
-			var hears = m_Hears;
-			var onSpeech = m_OnSpeech;
-
 			if (m_Map != null)
 			{
 				var eable = m_Map.GetObjectsInRange(m_Location, range);
 
 				foreach (var o in eable)
 				{
-					if (o is Mobile)
+					if (o is Mobile heard)
 					{
-						var heard = (Mobile)o;
-
 						if (heard.CanSee(this) && (m_NoSpeechLOS || !heard.Player || heard.InLOS(this)))
 						{
 							if (heard.m_NetState != null)
 							{
-								hears.Add(heard);
+								m_Hears.Add(heard);
 							}
 
 							if (heard.HandlesOnSpeech(this))
 							{
-								onSpeech.Add(heard);
+								m_OnSpeech.Add(heard);
 							}
 
 							for (var i = 0; i < heard.Items.Count; ++i)
@@ -5189,26 +5106,26 @@ namespace Server
 
 								if (item.HandlesOnSpeech)
 								{
-									onSpeech.Add(item);
+									m_OnSpeech.Add(item);
 								}
 
-								if (item is Container)
+								if (item is Container cont)
 								{
-									AddSpeechItemsFrom(onSpeech, (Container)item);
+									AddSpeechItemsFrom(m_OnSpeech, cont);
 								}
 							}
 						}
 					}
-					else if (o is Item)
+					else if (o is Item listening)
 					{
-						if (((Item)o).HandlesOnSpeech)
+						if (listening.HandlesOnSpeech)
 						{
-							onSpeech.Add(o);
+							m_OnSpeech.Add(listening);
 						}
 
-						if (o is Container)
+						if (listening is Container cont)
 						{
-							AddSpeechItemsFrom(onSpeech, (Container)o);
+							AddSpeechItemsFrom(m_OnSpeech, cont);
 						}
 					}
 				}
@@ -5219,52 +5136,59 @@ namespace Server
 				var mutatedText = text;
 				SpeechEventArgs mutatedArgs = null;
 
-				if (MutateSpeech(hears, ref mutatedText, ref mutateContext))
+				if (MutateSpeech(m_Hears, ref mutatedText, ref mutateContext))
 				{
-					mutatedArgs = new SpeechEventArgs(this, mutatedText, type, hue, new int[0]);
+					mutatedArgs = new SpeechEventArgs(this, mutatedText, type, hue, Array.Empty<int>());
 				}
 
 				CheckSpeechManifest();
 
 				ProcessDelta();
 
-				Packet regp = null;
-				Packet mutp = null;
+				Packet regp = null, mutp = null;
 
-				// TODO: Should this be sorted like onSpeech is below?
-
-				for (var i = 0; i < hears.Count; ++i)
+				foreach (var heard in m_Hears.OrderBy(GetDistanceToSqrt))
 				{
-					var heard = hears[i];
-
 					if (mutatedArgs == null || !CheckHearsMutatedSpeech(heard, mutateContext))
 					{
+						var heardArgs = new HeardEventArgs(heard, this, text, type, hue, keywords);
+
+						EventSink.InvokeHeard(heardArgs);
+
+						if (heardArgs.Blocked) 
+						{
+							continue;
+						}
+
 						heard.OnSpeech(regArgs);
 
 						var ns = heard.NetState;
 
 						if (ns != null)
 						{
-							if (regp == null)
-							{
-								regp = Packet.Acquire(new UnicodeMessage(m_Serial, Body, type, hue, 3, m_Language, Name, text));
-							}
+							regp ??= Packet.Acquire(new UnicodeMessage(m_Serial, Body, type, hue, 3, m_Language, Name, text));
 
 							ns.Send(regp);
 						}
 					}
 					else
 					{
+						var heardArgs = new HeardEventArgs(heard, this, mutatedText, type, hue, keywords);
+
+						EventSink.InvokeHeard(heardArgs);
+
+						if (heardArgs.Blocked)
+						{
+							continue;
+						}
+
 						heard.OnSpeech(mutatedArgs);
 
 						var ns = heard.NetState;
 
 						if (ns != null)
 						{
-							if (mutp == null)
-							{
-								mutp = Packet.Acquire(new UnicodeMessage(m_Serial, Body, type, hue, 3, m_Language, Name, mutatedText));
-							}
+							mutp ??= Packet.Acquire(new UnicodeMessage(m_Serial, Body, type, hue, 3, m_Language, Name, mutatedText));
 
 							ns.Send(mutp);
 						}
@@ -5274,33 +5198,36 @@ namespace Server
 				Packet.Release(regp);
 				Packet.Release(mutp);
 
-				if (onSpeech.Count > 1)
+				foreach (var obj in m_OnSpeech.OrderBy(GetDistanceToSqrt))
 				{
-					onSpeech.Sort(LocationComparer.GetInstance(this));
-				}
-
-				for (var i = 0; i < onSpeech.Count; ++i)
-				{
-					var obj = onSpeech[i];
-
-					if (obj is Mobile)
+					if (obj is Mobile heard)
 					{
-						var heard = (Mobile)obj;
-
 						if (mutatedArgs == null || !CheckHearsMutatedSpeech(heard, mutateContext))
 						{
-							heard.OnSpeech(regArgs);
+							var heardArgs = new HeardEventArgs(heard, this, text, type, hue, keywords);
+
+							EventSink.InvokeHeard(heardArgs);
+
+							if (!heardArgs.Blocked)
+							{
+								heard.OnSpeech(regArgs);
+							}
 						}
 						else
 						{
-							heard.OnSpeech(mutatedArgs);
+							var heardArgs = new HeardEventArgs(heard, this, mutatedText, type, hue, keywords);
+
+							EventSink.InvokeHeard(heardArgs);
+
+							if (!heardArgs.Blocked)
+							{
+								heard.OnSpeech(mutatedArgs);
+							}
 						}
 					}
-					else
+					else if (obj is Item listening)
 					{
-						var item = (Item)obj;
-
-						item.OnSpeech(regArgs);
+						listening.OnSpeech(regArgs);
 					}
 				}
 
@@ -5628,6 +5555,8 @@ namespace Server
 				{
 					m.OnRiderDamaged(amount, from, newHits < 0);
 				}
+
+				EventSink.InvokeMobileDamaged(new MobileDamagedEventArgs(from, this, amount));
 
 				if (newHits < 0)
 				{

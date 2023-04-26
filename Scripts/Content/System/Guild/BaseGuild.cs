@@ -135,7 +135,7 @@ namespace Server.Guilds
 		#endregion
 
 		#region EventSinks
-		public static void EventSink_GuildGumpRequest(GuildGumpRequestArgs args)
+		public static void EventSink_GuildGumpRequest(GuildGumpRequestEventArgs args)
 		{
 			var pm = args.Mobile as PlayerMobile;
 			if (!NewGuildSystem || pm == null)

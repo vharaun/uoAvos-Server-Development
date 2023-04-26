@@ -2379,32 +2379,37 @@ namespace Server.Mobiles
 
 			if (IsAnimatedDead)
 			{
-				Spells.Necromancy.AnimateDeadSpell.Register(m_SummonMaster, this);
+				AnimateDeadSpell.Register(m_SummonMaster, this);
 			}
 		}
 
 		public virtual bool IsHumanInTown()
 		{
-			return (Body.IsHuman && Region.IsPartOf(typeof(Regions.GuardedRegion)));
+			return Body.IsHuman && Region.IsPartOf(typeof(GuardedRegion));
 		}
 
 		public virtual bool CheckGold(Mobile from, Item dropped)
 		{
-			if (dropped is Gold)
+			if (dropped is Gold gold)
 			{
-				return OnGoldGiven(from, (Gold)dropped);
+				return OnGoldGiven(from, gold);
 			}
 
 			return false;
 		}
 
-		public virtual bool OnGoldGiven(Mobile from, Gold dropped)
+		public virtual bool OnGoldGiven(Mobile from, Gold gold)
 		{
+			var amount = gold.Amount;
+
 			if (CheckTeachingMatch(from))
 			{
-				if (Teach(m_Teaching, from, dropped.Amount, true))
+				if (Teach(m_Teaching, from, amount, true))
 				{
-					dropped.Delete();
+					gold.Consume(amount);
+
+					EventSink.InvokeGiveGold(new GiveGoldEventArgs(from, this, gold, amount));
+
 					return true;
 				}
 			}
@@ -2417,7 +2422,7 @@ namespace Server.Mobiles
 				SpeechHue = 0x23F;
 				SayTo(from, "Thou art giving me gold?");
 
-				if (dropped.Amount >= 400)
+				if (amount >= 400)
 				{
 					SayTo(from, "'Tis a noble gift.");
 				}
@@ -2431,7 +2436,10 @@ namespace Server.Mobiles
 
 				SpeechHue = oldSpeechHue;
 
-				dropped.Delete();
+				gold.Consume(amount);
+
+				EventSink.InvokeGiveGold(new GiveGoldEventArgs(from, this, gold, amount));
+
 				return true;
 			}
 
@@ -2441,52 +2449,80 @@ namespace Server.Mobiles
 		public override bool ShouldCheckStatTimers => false;
 
 		#region Food
-		private static readonly Type[] m_Eggs = new Type[]
-			{
-				typeof( FriedEggs ), typeof( Eggs )
-			};
 
-		private static readonly Type[] m_Fish = new Type[]
-			{
-				typeof( SaltwaterFishSteak ), typeof( RawSaltwaterFishSteak )
-			};
+		private static readonly Type[] m_Eggs = 
+		{
+			typeof(FriedEggs), 
+			typeof(Eggs),
+		};
 
-		private static readonly Type[] m_GrainsAndHay = new Type[]
-			{
-				typeof( BreadLoaf ), typeof( FrenchBread ), typeof( SheafOfHay )
-			};
+		private static readonly Type[] m_Fish = 
+		{
+			typeof(SaltwaterFishSteak), 
+			typeof(RawSaltwaterFishSteak),
+		};
 
-		private static readonly Type[] m_Meat = new Type[]
-			{
-				/* Cooked */
-				typeof( Bacon ), typeof( CookedBird ), typeof( Sausage ),
-				typeof( Ham ), typeof( Ribs ), typeof( LambLeg ),
-				typeof( ChickenLeg ),
+		private static readonly Type[] m_GrainsAndHay = 
+		{
+			typeof(BreadLoaf), 
+			typeof(FrenchBread), 
+			typeof(SheafOfHay),
+		};
 
-				/* Uncooked */
-				typeof( RawBird ), typeof( RawRibs ), typeof( RawLambLeg ),
-				typeof( RawChickenLeg ),
+		private static readonly Type[] m_Meat = 
+		{
+			/* Cooked */
+			typeof(Bacon), 
+			typeof(CookedBird), 
+			typeof(Sausage),
+			typeof(Ham), 
+			typeof(Ribs), 
+			typeof(LambLeg),
+			typeof(ChickenLeg),
 
-				/* Body Parts */
-				typeof( Head ), typeof( LeftArm ), typeof( LeftLeg ),
-				typeof( Torso ), typeof( RightArm ), typeof( RightLeg )
-			};
+			/* Uncooked */
+			typeof(RawBird), 
+			typeof(RawRibs), 
+			typeof(RawLambLeg),
+			typeof(RawChickenLeg),
 
-		private static readonly Type[] m_FruitsAndVegies = new Type[]
-			{
-				typeof( HoneydewMelon ), typeof( YellowGourd ), typeof( GreenGourd ),
-				typeof( Banana ), typeof( Bananas ), typeof( Lemon ), typeof( Lime ),
-				typeof( Dates ), typeof( Grapes ), typeof( Peach ), typeof( Pear ),
-				typeof( Apple ), typeof( Watermelon ), typeof( Squash ),
-				typeof( Cantaloupe ), typeof( Carrot ), typeof( Cabbage ),
-				typeof( Onion ), typeof( Lettuce ), typeof( Pumpkin )
-			};
+			/* Body Parts */
+			typeof(Head), 
+			typeof(LeftArm), 
+			typeof(LeftLeg),
+			typeof(Torso), 
+			typeof(RightArm), 
+			typeof(RightLeg),
+		};
 
-		private static readonly Type[] m_Gold = new Type[]
-			{
-				// white wyrms eat gold..
-				typeof( Gold )
-			};
+		private static readonly Type[] m_FruitsAndVegies = 
+		{
+			typeof(HoneydewMelon), 
+			typeof(YellowGourd), 
+			typeof(GreenGourd),
+			typeof(Banana), 
+			typeof(Bananas), 
+			typeof(Lemon), 
+			typeof(Lime),
+			typeof(Dates), 
+			typeof(Grapes), 
+			typeof(Peach), 
+			typeof(Pear),
+			typeof(Apple), 
+			typeof(Watermelon), 
+			typeof(Squash),
+			typeof(Cantaloupe), 
+			typeof(Carrot), 
+			typeof(Cabbage),
+			typeof(Onion), 
+			typeof(Lettuce), 
+			typeof(Pumpkin),
+		};
+
+		private static readonly Type[] m_Gold = 
+		{
+			typeof(Gold)
+		};
 
 		public virtual bool CheckFoodPreference(Item f)
 		{
@@ -2525,37 +2561,22 @@ namespace Server.Mobiles
 
 		public virtual bool CheckFoodPreference(Item fed, FoodType type, Type[] types)
 		{
-			if ((FavoriteFood & type) == 0)
-			{
-				return false;
-			}
-
-			var fedType = fed.GetType();
-			var contains = false;
-
-			for (var i = 0; !contains && i < types.Length; ++i)
-			{
-				contains = (fedType == types[i]);
-			}
-
-			return contains;
+			return FavoriteFood.HasFlag(type) && Array.IndexOf(types, fed.GetType()) >= 0;
 		}
 
 		public virtual bool CheckFeed(Mobile from, Item dropped)
 		{
 			if (!IsDeadPet && Controlled && (ControlMaster == from || IsPetFriend(from)))
 			{
-				var f = dropped;
-
-				if (CheckFoodPreference(f))
+				if (CheckFoodPreference(dropped))
 				{
-					var amount = f.Amount;
+					var amount = dropped.Amount;
 
 					if (amount > 0)
 					{
 						int stamGain;
 
-						if (f is Gold)
+						if (dropped is Gold)
 						{
 							stamGain = amount - 50;
 						}
@@ -2625,7 +2646,10 @@ namespace Server.Mobiles
 							}
 						}
 
-						dropped.Delete();
+						dropped.Consume(amount);
+
+						EventSink.InvokeFeedCreature(new FeedCreatureEventArgs(from, this, dropped, amount));
+
 						return true;
 					}
 				}

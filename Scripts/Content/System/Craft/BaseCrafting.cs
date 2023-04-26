@@ -18,7 +18,7 @@ namespace Server.Engines.Craft
 		ChanceMinusSixtyToFourtyFive
 	}
 
-	public abstract class CraftSystem
+	public abstract class CraftSystem : ICraftSystem
 	{
 		private readonly int m_MinCraftEffect;
 		private readonly int m_MaxCraftEffect;
@@ -46,6 +46,8 @@ namespace Server.Engines.Craft
 		public CraftSubResCol CraftSubRes2 => m_CraftSubRes2;
 
 		public abstract SkillName MainSkill { get; }
+
+		public TextDefinition Title => new(GumpTitleNumber, GumpTitleString);
 
 		public virtual int GumpTitleNumber => 0;
 		public virtual string GumpTitleString => "";
@@ -1720,12 +1722,7 @@ namespace Server.Engines.Craft
 		All, Half, None
 	}
 
-	public interface ICraftable
-	{
-		int OnCraft(int quality, bool makersMark, Mobile from, CraftSystem craftSystem, Type typeRes, BaseTool tool, CraftItem craftItem, int resHue);
-	}
-
-	public class CraftItem
+	public class CraftItem : ICraftItem
 	{
 		private readonly CraftResCol m_arCraftRes;
 		private readonly CraftSkillCol m_arCraftSkill;
@@ -1955,9 +1952,13 @@ namespace Server.Engines.Craft
 
 		public int GroupNameNumber => m_GroupNameNumber;
 
+		public TextDefinition GroupName => new(m_GroupNameNumber, m_GroupNameString);
+
 		public string NameString => m_NameString;
 
 		public int NameNumber => m_NameNumber;
+
+		public TextDefinition Name => new(m_NameNumber, m_NameString);
 
 		public CraftResCol Resources => m_arCraftRes;
 
@@ -3020,9 +3021,9 @@ namespace Server.Engines.Craft
 
 				if (item != null)
 				{
-					if (item is ICraftable)
+					if (item is ICraftable craftable)
 					{
-						endquality = ((ICraftable)item).OnCraft(quality, makersMark, from, craftSystem, typeRes, tool, this, resHue);
+						endquality = craftable.OnCraft(quality, makersMark, from, craftSystem, typeRes, tool, this, resHue);
 					}
 					else if (item.Hue == 0)
 					{
@@ -3041,6 +3042,8 @@ namespace Server.Engines.Craft
 						}
 					}
 
+					var itemAmount = item.Amount;
+
 					from.AddToBackpack(item);
 
 					if (from.AccessLevel > AccessLevel.Player)
@@ -3049,6 +3052,8 @@ namespace Server.Engines.Craft
 					}
 
 					//from.PlaySound( 0x57 );
+
+					EventSink.InvokeCraftedItem(new CraftedItemEventArgs(from, item, itemAmount, craftSystem, this, tool));
 				}
 
 				if (num == 0)

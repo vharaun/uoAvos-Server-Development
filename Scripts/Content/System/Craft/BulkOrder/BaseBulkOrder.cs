@@ -268,15 +268,15 @@ namespace Server.Engines.BulkOrders
 
 						if (item is BaseWeapon bw)
 						{
-							isExceptional = bw.Quality == WeaponQuality.Exceptional;
+							isExceptional = bw.Quality == ItemQuality.Exceptional;
 						}
 						else if (item is BaseArmor ba)
 						{
-							isExceptional = ba.Quality == ArmorQuality.Exceptional;
+							isExceptional = ba.Quality == ItemQuality.Exceptional;
 						}
 						else if (item is BaseClothing bc)
 						{
-							isExceptional = bc.Quality == ClothingQuality.Exceptional;
+							isExceptional = bc.Quality == ItemQuality.Exceptional;
 						}
 
 						if (m_RequireExceptional && !isExceptional)

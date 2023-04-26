@@ -135,9 +135,9 @@ namespace Server
 
 		public string[] Names => m_Names;
 
-		public CustomEnumAttribute(string[] names)
+		public CustomEnumAttribute(params string[] names)
 		{
-			m_Names = names;
+			m_Names = names ?? new[] { "None" };
 		}
 	}
 

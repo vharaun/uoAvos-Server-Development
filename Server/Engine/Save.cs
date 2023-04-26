@@ -18,6 +18,7 @@ using System.Runtime.InteropServices;
 
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Server
 {
@@ -39,6 +40,8 @@ namespace Server
 		public static bool Saving => m_Saving;
 		public static bool Loaded => m_Loaded;
 		public static bool Loading => m_Loading;
+
+		public static bool Volatile => m_Loading || m_Saving;
 
 		public static string RegionRootPath => Path.Combine(Core.CurrentSavesDirectory, "Regions");
 		public static string RegionIndexPath => Path.Combine(RegionRootPath, "Regions.idx");
@@ -341,6 +344,8 @@ namespace Server
 
 			_addQueue = new();
 			_deleteQueue = new();
+
+			EventSink.InvokeWorldPreLoad();
 
 			int regionCount, mobileCount, itemCount, guildCount;
 
@@ -848,6 +853,8 @@ namespace Server
 			watch.Stop();
 
 			Console.WriteLine($"World: Loaded ({m_Regions.Count} regions, {m_Items.Count} items, {m_Mobiles.Count} mobiles) ({watch.Elapsed.TotalSeconds:F2} seconds)");
+
+			EventSink.InvokeWorldPostLoad();
 		}
 
 		private static void ProcessSafetyQueues()
@@ -994,16 +1001,13 @@ namespace Server
 
 			EnsureDirectories();
 
+			var args = new WorldSaveEventArgs(message);
+
+			EventSink.InvokeWorldPreSave(args);
+
 			strategy.Save(null, permitBackgroundWrite);
 
-			try
-			{
-				EventSink.InvokeWorldSave(new WorldSaveEventArgs(message));
-			}
-			catch (Exception e)
-			{
-				throw new Exception("World Save event threw an exception.  Save failed!", e);
-			}
+			EventSink.InvokeWorldSave(args);
 
 			watch.Stop();
 
@@ -1028,6 +1032,8 @@ namespace Server
 			}
 
 			NetState.Resume();
+
+			EventSink.InvokeWorldPostSave(args);
 		}
 
 		internal static List<Type> m_RegionTypes = new();
@@ -1129,6 +1135,48 @@ namespace Server
 
 	public static class Persistence
 	{
+		public static void SerializeBlock(GenericWriter writer, Action<GenericWriter> serializer)
+		{
+			using var ms = new MemoryStream();
+
+			if (serializer != null)
+			{
+				using var w = new BinaryFileWriter(ms, true);
+
+				try
+				{
+					serializer(w);
+
+					w.Flush();
+				}
+				finally
+				{
+					w.Close();
+				}
+			}
+
+			writer.Write(ms);
+		}
+
+		public static void DeserializeBlock(GenericReader reader, Action<GenericReader> deserializer)
+		{
+			using var ms = reader.ReadStream();
+
+			if (deserializer != null)
+			{
+				using var r = new BinaryFileReader(new BinaryReader(ms));
+
+				try
+				{
+					deserializer(r);
+				}
+				finally
+				{
+					r.Close();
+				}
+			}
+		}
+
 		public static void Serialize(string path, Action<GenericWriter> serializer)
 		{
 			Serialize(new FileInfo(path), serializer);
@@ -1219,16 +1267,125 @@ namespace Server
 			{
 				if (file.Length > 0)
 				{
-					Console.WriteLine($"[Persistence]: {eos}");
+					throw new Exception($"[Persistence]: {eos}");
 				}
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine($"[Persistence]: {e}");
+				Utility.PushColor(ConsoleColor.Red);
+				Console.WriteLine("[Persistence]: An error was encountered while loading a saved object");
+				Utility.PopColor();
+
+				throw new Exception($"[Persistence]: {e}");
 			}
 			finally
 			{
 				reader.Close();
+			}
+		}
+
+		public static void Save(string path, string root, Action<XmlElement> serializer)
+		{
+			Save(new FileInfo(path), root, serializer);
+		}
+
+		public static void Save(FileInfo file, string root, Action<XmlElement> serializer)
+		{
+			file.Refresh();
+
+			if (file.Directory != null && !file.Directory.Exists)
+			{
+				file.Directory.Create();
+			}
+
+			if (!file.Exists)
+			{
+				file.Create().Close();
+			}
+
+			file.Refresh();
+
+			var doc = new XmlDocument();
+
+			doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", "yes"));
+
+			var node = doc.CreateElement(root);
+
+			serializer(node);
+
+			doc.AppendChild(node);
+
+			doc.Save(file.FullName);
+		}
+
+		public static void Load(string path, string root, Action<XmlElement> deserializer)
+		{
+			Load(path, root, deserializer, true);
+		}
+
+		public static void Load(FileInfo file, string root, Action<XmlElement> deserializer)
+		{
+			Load(file, root, deserializer, true);
+		}
+
+		public static void Load(string path, string root, Action<XmlElement> deserializer, bool ensure)
+		{
+			Load(new FileInfo(path), root, deserializer, ensure);
+		}
+
+		public static void Load(FileInfo file, string root, Action<XmlElement> deserializer, bool ensure)
+		{
+			file.Refresh();
+
+			if (file.Directory != null && !file.Directory.Exists)
+			{
+				if (!ensure)
+				{
+					throw new DirectoryNotFoundException();
+				}
+
+				file.Directory.Create();
+			}
+
+			if (!file.Exists)
+			{
+				if (!ensure)
+				{
+					throw new FileNotFoundException
+					{
+						Source = file.FullName
+					};
+				}
+
+				file.Create().Close();
+			}
+
+			file.Refresh();
+
+			try
+			{
+				var doc = new XmlDocument();
+
+				doc.Load(file.FullName);
+
+				var node = doc[root];
+
+				deserializer(node);
+			}
+			catch (EndOfStreamException eos)
+			{
+				if (file.Length > 0)
+				{
+					throw new Exception($"[Persistence]: {eos}");
+				}
+			}
+			catch (Exception e)
+			{
+				Utility.PushColor(ConsoleColor.Red);
+				Console.WriteLine("[Persistence]: An error was encountered while loading a saved object");
+				Utility.PopColor();
+
+				throw new Exception($"[Persistence]: {e}");
 			}
 		}
 	}

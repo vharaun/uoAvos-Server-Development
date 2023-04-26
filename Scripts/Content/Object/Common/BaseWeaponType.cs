@@ -63,7 +63,7 @@ namespace Server.Items
 
 		public virtual int GetUsesScalar()
 		{
-			if (Quality == WeaponQuality.Exceptional)
+			if (Quality == ItemQuality.Exceptional)
 			{
 				return 200;
 			}
@@ -871,7 +871,7 @@ namespace Server.Items
 		{
 			Visible = false;
 			Movable = false;
-			Quality = WeaponQuality.Regular;
+			Quality = ItemQuality.Regular;
 		}
 
 		public Fists(Serial serial) : base(serial)

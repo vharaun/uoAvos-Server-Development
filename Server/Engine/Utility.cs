@@ -1783,5 +1783,118 @@ namespace Server
 
 			return true;
 		}
+
+		private static BindingFlags GetBindingFlags(object obj, out Type type)
+		{
+			type = obj as Type ?? obj.GetType();
+
+			var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+
+			if (type.IsSealed && type.IsAbstract)
+			{
+				flags &= ~BindingFlags.Instance;
+			}
+
+			return flags;
+		}
+
+		public static FieldInfo GetEventField(object obj, EventInfo eventInfo)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			return type.GetField(eventInfo.Name, flags) ?? type.GetField($"EVENT_{eventInfo.Name.ToUpper()}", flags);
+		}
+
+		public static FieldInfo GetEventField(object obj, string eventName)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			return GetEventField(obj, type.GetEvent(eventName, flags));
+		}
+
+		public static void ClearAllEventDelegates(object obj)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			foreach (var e in type.GetEvents(flags))
+			{
+				ClearEventDelegates(type, e);
+			}
+		}
+
+		public static void ClearEventDelegates(object obj, EventInfo eventInfo)
+		{
+			var eventField = GetEventField(obj, eventInfo);
+
+			eventField?.SetValue(obj is Type ? null : obj, null);
+		}
+
+		public static void ClearEventDelegates(object obj, string eventName)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			ClearEventDelegates(obj, type.GetEvent(eventName, flags));
+		}
+
+		public static Delegate[] GetEventDelegates(object obj, EventInfo eventInfo)
+		{
+			var eventField = GetEventField(obj, eventInfo);
+
+			if (eventField?.GetValue(obj is Type ? null : obj) is Delegate eventHandler)
+			{
+				return eventHandler.GetInvocationList();
+			}
+
+			return Array.Empty<Delegate>();
+		}
+
+		public static Delegate[] GetEventDelegates(object obj, string eventName)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			return GetEventDelegates(obj, type.GetEvent(eventName, flags));
+		}
+
+		public static MethodInfo[] GetEventMethods(object obj, EventInfo eventInfo)
+		{
+			var delegates = GetEventDelegates(obj, eventInfo);
+
+			if (delegates.Length > 0)
+			{
+				var methods = new MethodInfo[delegates.Length];
+
+				for (var i = 0; i < methods.Length; i++)
+				{
+					methods[i] = delegates[i].Method;
+				}
+
+				return methods;
+			}
+
+			return Array.Empty<MethodInfo>();
+		}
+
+		public static MethodInfo[] GetEventMethods(object obj, string eventName)
+		{
+			var flags = GetBindingFlags(obj, out var type);
+
+			return GetEventMethods(obj, type.GetEvent(eventName, flags));
+		}
+
+		public static object CreateInstance(Type type, params object[] args)
+		{
+			try { return Activator.CreateInstance(type, args); }
+			catch { return null; }
+		}
+
+		public static T CreateInstance<T>(Type type, params object[] args)
+		{
+			if (type?.IsAssignableTo(typeof(T)) == true)
+			{
+				return (T)CreateInstance(type, args);
+			}
+
+			return default;
+		}
 	}
 }

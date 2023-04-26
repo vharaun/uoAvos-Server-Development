@@ -737,6 +737,8 @@ namespace Server.Spells
 				m_CastTimer.Tick();
 			}
 
+			EventSink.InvokeCastSpellSuccess(new CastSpellSuccessEventArgs(Caster, this));
+
 			return true;
 		}
 

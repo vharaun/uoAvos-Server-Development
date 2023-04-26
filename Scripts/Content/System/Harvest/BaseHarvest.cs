@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace Server.Engines.Harvest
 {
-	public abstract class HarvestSystem
+	public abstract class HarvestSystem : IHarvestSystem
 	{
 		private readonly List<HarvestDefinition> m_Definitions;
 
@@ -220,10 +220,14 @@ namespace Server.Engines.Harvest
 							}
 						}
 
-						bank.Consume(item.Amount, from);
+						var itemAmount = item.Amount;
+
+						bank.Consume(itemAmount, from);
 
 						if (Give(from, item, def.PlaceAtFeetIfFull))
 						{
+							EventSink.InvokeHarvestedItem(new HarvestedItemEventArgs(from, item, itemAmount, this, tool as IHarvestTool));
+
 							SendSuccessTo(from, item, resource);
 						}
 						else
@@ -238,9 +242,13 @@ namespace Server.Engines.Harvest
 						{
 							var bonusItem = Construct(bonus.Type, from);
 
-							if (Give(from, bonusItem, true))    //Bonuses always allow placing at feet, even if pack is full irregrdless of def
+							var bonusAmount = bonusItem.Amount;
+
+							if (Give(from, bonusItem, true)) // Bonuses always allow placing at feet, even if pack is full regrdless of def
 							{
 								bonus.SendSuccessTo(from);
+
+								EventSink.InvokeHarvestedItem(new HarvestedItemEventArgs(from, bonusItem, bonusAmount, this, tool as IHarvestTool));
 							}
 							else
 							{

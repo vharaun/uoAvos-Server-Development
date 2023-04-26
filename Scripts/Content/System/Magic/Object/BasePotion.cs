@@ -255,9 +255,9 @@ namespace Server.Items
 			return false;
 		}
 
-		#region ICraftable Members
+		#region ICraftable
 
-		public int OnCraft(int quality, bool makersMark, Mobile from, CraftSystem craftSystem, Type typeRes, BaseTool tool, CraftItem craftItem, int resHue)
+		public virtual int OnCraft(int quality, bool makersMark, Mobile from, ICraftSystem craftSystem, Type typeRes, ICraftTool tool, ICraftItem craftItem, int resHue)
 		{
 			if (craftSystem is DefAlchemy)
 			{

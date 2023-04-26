@@ -1263,7 +1263,7 @@ namespace Server.Mobiles
 			validBuy.Add(buy);
 		}
 
-		private static void ProcessValidPurchase(int amount, IBuyItemInfo bii, Mobile buyer, Container cont)
+		private void ProcessValidPurchase(int amount, IBuyItemInfo bii, Mobile buyer, Container cont)
 		{
 			if (amount > bii.Amount)
 			{
@@ -1289,6 +1289,8 @@ namespace Server.Mobiles
 					{
 						item.MoveToWorld(buyer.Location, buyer.Map);
 					}
+
+					EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, item, amount));
 				}
 				else
 				{
@@ -1298,6 +1300,8 @@ namespace Server.Mobiles
 					{
 						item.MoveToWorld(buyer.Location, buyer.Map);
 					}
+
+					EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, item, 1));
 
 					for (var i = 1; i < amount; i++)
 					{
@@ -1309,6 +1313,8 @@ namespace Server.Mobiles
 							{
 								obj.MoveToWorld(buyer.Location, buyer.Map);
 							}
+
+							EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, item, 1));
 						}
 					}
 				}
@@ -1325,6 +1331,8 @@ namespace Server.Mobiles
 					creature.ControlOrder = OrderType.Stop;
 				}
 
+				EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, mobile, 1));
+
 				for (var i = 1; i < amount; ++i)
 				{
 					if (bii.GetEntity() is Mobile obj)
@@ -1338,6 +1346,8 @@ namespace Server.Mobiles
 							pet.SetControlMaster(buyer);
 							pet.ControlOrder = OrderType.Stop;
 						}
+
+						EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, obj, 1));
 					}
 				}
 			}
@@ -1534,6 +1544,8 @@ namespace Server.Mobiles
 									buyItem = item;
 								}
 							}
+
+							EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(buyer, this, buyItem, amount));
 
 							if (cont == null || !cont.TryDropItem(buyer, buyItem, false))
 							{
@@ -1778,6 +1790,8 @@ namespace Server.Mobiles
 								{
 									resp.Item.Consume(amount);
 
+									EventSink.InvokeSellToVendor(new SellToVendorEventArgs(seller, this, resp.Item, amount));
+
 									found = true;
 
 									break;
@@ -1796,23 +1810,31 @@ namespace Server.Mobiles
 									{
 										item.SetLastMoved();
 										cont.DropItem(item);
+
+										EventSink.InvokeSellToVendor(new SellToVendorEventArgs(seller, this, item, amount));
 									}
 									else
 									{
 										resp.Item.SetLastMoved();
 										cont.DropItem(resp.Item);
+
+										EventSink.InvokeSellToVendor(new SellToVendorEventArgs(seller, this, resp.Item, amount));
 									}
 								}
 								else
 								{
 									resp.Item.SetLastMoved();
 									cont.DropItem(resp.Item);
+
+									EventSink.InvokeSellToVendor(new SellToVendorEventArgs(seller, this, resp.Item, amount));
 								}
 							}
 						}
 						else
 						{
 							resp.Item.Consume(amount);
+
+							EventSink.InvokeSellToVendor(new SellToVendorEventArgs(seller, this, resp.Item, amount));
 						}
 
 						break;
@@ -2219,11 +2241,11 @@ namespace Server.Mobiles
 			{
 				var armor = (BaseArmor)item;
 
-				if (armor.Quality == ArmorQuality.Low)
+				if (armor.Quality == ItemQuality.Low)
 				{
 					price = (int)(price * 0.60);
 				}
-				else if (armor.Quality == ArmorQuality.Exceptional)
+				else if (armor.Quality == ItemQuality.Exceptional)
 				{
 					price = (int)(price * 1.25);
 				}
@@ -2241,11 +2263,11 @@ namespace Server.Mobiles
 			{
 				var weapon = (BaseWeapon)item;
 
-				if (weapon.Quality == WeaponQuality.Low)
+				if (weapon.Quality == ItemQuality.Low)
 				{
 					price = (int)(price * 0.60);
 				}
-				else if (weapon.Quality == WeaponQuality.Exceptional)
+				else if (weapon.Quality == ItemQuality.Exceptional)
 				{
 					price = (int)(price * 1.25);
 				}
@@ -2662,7 +2684,7 @@ namespace Server.Mobiles
 				{
 					BaseWeapon weapon = (BaseWeapon)item;
 
-					if ( weapon.Quality == WeaponQuality.Low || weapon.Quality == WeaponQuality.Exceptional || (int)weapon.DurabilityLevel > 0 || (int)weapon.DamageLevel > 0 || (int)weapon.AccuracyLevel > 0 )
+					if ( weapon.Quality == ItemQuality.Low || weapon.Quality == ItemQuality.Exceptional || (int)weapon.DurabilityLevel > 0 || (int)weapon.DamageLevel > 0 || (int)weapon.AccuracyLevel > 0 )
 						return false;
 				}
 
@@ -2670,7 +2692,7 @@ namespace Server.Mobiles
 				{
 					BaseArmor armor = (BaseArmor)item;
 
-					if ( armor.Quality == ArmorQuality.Low || armor.Quality == ArmorQuality.Exceptional || (int)armor.Durability > 0 || (int)armor.ProtectionLevel > 0 )
+					if ( armor.Quality == ItemQuality.Low || armor.Quality == ItemQuality.Exceptional || (int)armor.Durability > 0 || (int)armor.ProtectionLevel > 0 )
 						return false;
 				}
 
