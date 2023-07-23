@@ -329,14 +329,15 @@ namespace Server
 		private bool m_RequiresRegistration;
 
 		internal int m_TypeRef;
+		internal Serial m_Serial;
 
 		int ISerializable.TypeReference => m_TypeRef;
-		int ISerializable.SerialIdentity => Id;
-
-		public bool Deleted { get; private set; }
+		int ISerializable.SerialIdentity => m_Serial;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Id { get; private set; }
+		public int Id { get => m_Serial; private set => m_Serial = new Serial(value); }
+
+		public bool Deleted { get; private set; }
 
 		private string m_Name;
 
@@ -1269,14 +1270,14 @@ namespace Server
 		{
 		}
 
-		public virtual Type GetResource(Type type)
+		public virtual Type GetResource(Mobile from, IHarvestTool tool, Map map, Point3D loc, IHarvestSystem harvest, Type resource)
 		{
 			if (Parent != null)
 			{
-				return Parent.GetResource(type);
+				return Parent.GetResource(from, tool, map, loc, harvest, resource);
 			}
 
-			return type;
+			return resource;
 		}
 
 		public virtual bool CanUseStuckMenu(Mobile m)

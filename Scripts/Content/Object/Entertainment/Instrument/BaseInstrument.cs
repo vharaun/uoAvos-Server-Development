@@ -9,7 +9,7 @@ namespace Server.Items
 {
 	public delegate void InstrumentPickedCallback(Mobile from, BaseInstrument instrument);
 
-	public abstract class BaseInstrument : Item, ICraftable, ISlayer
+	public abstract class BaseInstrument : Item, ICraftable, ISlayer, IQuality
 	{
 		private int m_WellSound, m_BadlySound;
 		private SlayerName m_Slayer, m_Slayer2;

@@ -142,7 +142,7 @@ namespace Server.Items
 
 					if (item.QuestItem)
 					{
-						from.SendLocalizedMessage(1151836); // You may not dye toggled quest items.
+						from.SendLocalizedMessage(1042417); // You cannot dye that.
 					}
 					else if (item is IDyable && m_Tub.AllowDyables)
 					{

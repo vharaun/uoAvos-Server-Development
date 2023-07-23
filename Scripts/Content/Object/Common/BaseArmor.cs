@@ -63,7 +63,7 @@ namespace Server.Items
 		Indestructible
 	}
 
-	public abstract class BaseArmor : Item, IScissorable, IFactionItem, ICraftable, IWearableDurability
+	public abstract class BaseArmor : Item, IScissorable, IFactionItem, ICraftable, IWearableDurability, IQuality
 	{
 		#region Factions
 		private FactionItem m_FactionState;

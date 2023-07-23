@@ -210,9 +210,9 @@ namespace Server.Engines.Publishing
 
 	public class BP_Save
 	{
-		public static int Version = 1;
-		public static string SavePath = "Export\\Saves\\Current\\BookPublisher";
-		public static string FileName = "books.xml";
+		public const int Version = 1;
+
+		public static string FilePath => Path.Combine(Core.CurrentSavesDirectory, "Publisher", "books.xml");
 
 		[CallPriority(101)]
 		public static void Initialize()
@@ -222,12 +222,9 @@ namespace Server.Engines.Publishing
 
 		public static void WriteData(WorldSaveEventArgs e)
 		{
-			if (!Directory.Exists(SavePath))
-			{
-				_ = Directory.CreateDirectory(SavePath);
-			}
+			var filePath = FilePath;
 
-			var filePath = Path.Combine(SavePath, FileName);
+			Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
 			using var file = new StreamWriter(filePath);
 			var xml = new XmlTextWriter(file)
@@ -286,7 +283,7 @@ namespace Server.Engines.Publishing
 		[CallPriority(101)]
 		public static void Initialize()
 		{
-			ReadData(Path.Combine(BP_Save.SavePath, BP_Save.FileName));
+			ReadData(BP_Save.FilePath);
 		}
 
 		public static void ReadData(string filePath)
@@ -870,7 +867,7 @@ namespace Server.Engines.Publishing
 		{
 			var from = state.Mobile;
 
-			if (World.FindItem(pvSrc.ReadInt32()) is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
+			if (pvSrc.ReadItem() is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
 			{
 				return;
 			}
@@ -888,7 +885,7 @@ namespace Server.Engines.Publishing
 		{
 			var from = state.Mobile;
 
-			if (World.FindItem(pvSrc.ReadInt32()) is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
+			if (pvSrc.ReadItem() is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
 			{
 				return;
 			}
@@ -921,7 +918,7 @@ namespace Server.Engines.Publishing
 		{
 			var from = state.Mobile;
 
-			if (World.FindItem(pvSrc.ReadInt32()) is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
+			if (pvSrc.ReadItem() is not BaseBook book || !book.Writable || !from.InRange(book.GetWorldLocation(), 1) || !book.IsAccessibleTo(from))
 			{
 				return;
 			}

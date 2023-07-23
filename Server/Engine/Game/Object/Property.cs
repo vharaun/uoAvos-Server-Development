@@ -2724,7 +2724,7 @@ namespace Server
 
 						if (GetSaveFlag(flags, SaveFlag.Parent))
 						{
-							Serial parent = reader.ReadInt();
+							Serial parent = reader.ReadSerial();
 
 							if (parent.IsMobile)
 							{
@@ -2913,7 +2913,7 @@ namespace Server
 
 						if (GetSaveFlag(flags, SaveFlag.Parent))
 						{
-							Serial parent = reader.ReadInt();
+							Serial parent = reader.ReadSerial();
 
 							if (parent.IsMobile)
 							{
@@ -3046,7 +3046,7 @@ namespace Server
 							AcquireCompactInfo().m_Name = name;
 						}
 
-						Serial parent = reader.ReadInt();
+						Serial parent = reader.ReadSerial();
 
 						if (parent.IsMobile)
 						{
@@ -3328,13 +3328,10 @@ namespace Server
 			}
 		}
 
-		public const int QuestItemHue = 0x4EA; // Hmmmm... "for EA"?
-
 		public virtual bool Nontransferable => QuestItem;
 
 		public virtual void HandleInvalidTransfer(Mobile from)
 		{
-			// OSI sends 1074769, bug!
 			if (QuestItem)
 			{
 				from.SendLocalizedMessage(1049343); // You can only drop quest items into the top-most level of your backpack while you still need them for your quest.
@@ -4121,6 +4118,9 @@ namespace Server
 		public virtual void OnLocationChange(Point3D oldLocation)
 		{
 		}
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public Point3D WorldLocation => GetWorldLocation();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public virtual Point3D Location
@@ -5112,22 +5112,18 @@ namespace Server
 				return true;
 			}
 
-			while (p is Item)
+			while (p is Item item)
 			{
-				var item = (Item)p;
-
 				if (item.m_Parent == null)
 				{
 					break;
 				}
-				else
-				{
-					p = item.m_Parent;
 
-					if (p == o)
-					{
-						return true;
-					}
+				p = item.m_Parent;
+
+				if (p == o)
+				{
+					return true;
 				}
 			}
 
@@ -5343,7 +5339,7 @@ namespace Server
 			Delete();
 		}
 
-		[CommandProperty(AccessLevel.GameMaster)]
+		[CommandProperty(AccessLevel.GameMaster, true)]
 		public bool QuestItem
 		{
 			get => GetFlag(ImplFlag.QuestItem);
@@ -5359,18 +5355,21 @@ namespace Server
 			}
 		}
 
+		[CommandProperty(AccessLevel.GameMaster, true)]
 		public bool Insured
 		{
 			get => GetFlag(ImplFlag.Insured);
 			set { SetFlag(ImplFlag.Insured, value); InvalidateProperties(); }
 		}
 
+		[CommandProperty(AccessLevel.GameMaster, true)]
 		public bool PayedInsurance
 		{
 			get => GetFlag(ImplFlag.PayedInsurance);
 			set => SetFlag(ImplFlag.PayedInsurance, value);
 		}
 
+		[CommandProperty(AccessLevel.GameMaster)]
 		public Mobile BlessedFor
 		{
 			get

@@ -755,6 +755,7 @@ namespace Server.Mobiles
 		#region Home Town
 
 		public static bool HomeTownsEnabled { get; set; } = true;
+		public static bool HomeTownCheckAtLogin { get; set; } = true;
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Town HomeTown { get; set; }
@@ -1352,7 +1353,11 @@ namespace Server.Mobiles
 			if (from is PlayerMobile player)
 			{
 				player.ClaimAutoStabledPets();
-				player.CheckHomeTown(false);
+
+				if (HomeTownCheckAtLogin)
+				{
+					player.CheckHomeTown(false);
+				}
 			}
 		}
 
@@ -3282,18 +3287,6 @@ namespace Server.Mobiles
 
 		public List<Item> EquipSnapshot => m_EquipSnapshot;
 
-		private bool FindItems_Callback(Item item)
-		{
-			if (!item.Deleted && (item.LootType == LootType.Blessed || item.Insured))
-			{
-				if (Backpack != item.Parent)
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-
 		public override bool OnBeforeDeath()
 		{
 			var state = NetState;
@@ -3307,9 +3300,20 @@ namespace Server.Mobiles
 
 			if (Core.AOS && Backpack != null && !Backpack.Deleted)
 			{
-				var ilist = Backpack.FindItemsByType<Item>(FindItems_Callback);
+				var ilist = Backpack.FindItemsByType<Item>(item =>
+				{
+					if (!item.Deleted && (item.LootType == LootType.Blessed || item.Insured))
+					{
+						if (Backpack != item.Parent)
+						{
+							return true;
+						}
+					}
 
-				for (var i = 0; i < ilist.Count; i++)
+					return false;
+				});
+
+				for (var i = 0; i < ilist.Length; i++)
 				{
 					Backpack.AddItem(ilist[i]);
 				}
@@ -3415,12 +3419,6 @@ namespace Server.Mobiles
 
 		public override DeathMoveResult GetParentMoveResultFor(Item item)
 		{
-			// It seems all items are unmarked on death, even blessed/insured ones
-			if (item.QuestItem)
-			{
-				item.QuestItem = false;
-			}
-
 			if (CheckInsuranceOnDeath(item))
 			{
 				return DeathMoveResult.MoveToBackpack;
@@ -3438,12 +3436,6 @@ namespace Server.Mobiles
 
 		public override DeathMoveResult GetInventoryMoveResultFor(Item item)
 		{
-			// It seems all items are unmarked on death, even blessed/insured ones
-			if (item.QuestItem)
-			{
-				item.QuestItem = false;
-			}
-
 			if (CheckInsuranceOnDeath(item))
 			{
 				return DeathMoveResult.MoveToBackpack;

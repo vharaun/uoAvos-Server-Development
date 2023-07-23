@@ -26,7 +26,7 @@ namespace Server
 
 namespace Server.Items
 {
-	public abstract class BaseTool : Item, IUsesRemaining, ICraftable, ICraftTool
+	public abstract class BaseTool : Item, IUsesRemaining, ICraftable, ICraftTool, IQuality
 	{
 		private Mobile m_Crafter;
 		private ItemQuality m_Quality;
@@ -966,7 +966,7 @@ namespace Server.Items
 		}
 	}
 
-	public abstract class BaseHarvestTool : Item, IUsesRemaining, ICraftable, IHarvestTool
+	public abstract class BaseHarvestTool : Item, IUsesRemaining, ICraftable, IHarvestTool, IQuality
 	{
 		private Mobile m_Crafter;
 		private ItemQuality m_Quality;
@@ -1263,53 +1263,56 @@ namespace Server.Targets
 			}
 			else
 			{
-				HarvestSystem system = FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
-				var def = FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System.Definition : Lumberjacking.System.Definition;
+				var tool = m_Item as IHarvestTool;
 
-				int tileID;
-				Map map;
-				Point3D loc;
+				var system = tool?.HarvestSystem as HarvestSystem ?? (FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System);
 
-				if (!system.GetHarvestDetails(from, m_Item, targeted, out tileID, out map, out loc))
+				if (system == null)
+				{
+					return;
+				}
+
+				if (!system.GetHarvestDetails(from, tool, targeted, out var tileID, out var map, out var loc))
 				{
 					from.SendLocalizedMessage(500494); // You can't use a bladed item on that!
+					return;
 				}
-				else if (!def.Validate(tileID))
+
+				var def = system.GetDefinition(tileID);
+
+				if (def == null)
 				{
 					from.SendLocalizedMessage(500494); // You can't use a bladed item on that!
+					return;
 				}
-				else
+
+				var bank = def.GetBank(map, loc.X, loc.Y);
+
+				if (bank == null)
 				{
-					var bank = def.GetBank(map, loc.X, loc.Y);
-
-					if (bank == null)
-					{
-						return;
-					}
-
-					if (bank.Current < 5)
-					{
-						from.SendLocalizedMessage(500493); // There's not enough wood here to harvest.
-					}
-					else
-					{
-						bank.Consume(5, from);
-
-						Item item = new Kindling();
-
-						if (from.PlaceInBackpack(item))
-						{
-							from.SendLocalizedMessage(500491); // You put some kindling into your backpack.
-							from.SendLocalizedMessage(500492); // An axe would probably get you more wood.
-						}
-						else
-						{
-							from.SendLocalizedMessage(500490); // You can't place any kindling into your backpack!
-
-							item.Delete();
-						}
-					}
+					return;
 				}
+
+				if (bank.Current < 5)
+				{
+					from.SendLocalizedMessage(500493); // There's not enough wood here to harvest.
+					return;
+				}
+
+				bank.Consume(5, from);
+
+				var item = new Kindling();
+
+				if (from.PlaceInBackpack(item))
+				{
+					from.SendLocalizedMessage(500491); // You put some kindling into your backpack.
+					from.SendLocalizedMessage(500492); // An axe would probably get you more wood.
+					return;
+				}
+
+				from.SendLocalizedMessage(500490); // You can't place any kindling into your backpack!
+
+				item.Delete();
 			}
 		}
 	}

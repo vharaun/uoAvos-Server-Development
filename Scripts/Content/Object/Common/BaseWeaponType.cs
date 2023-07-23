@@ -33,7 +33,7 @@ namespace Server.Items
 		bool Axe(Mobile from, BaseAxe axe);
 	}
 
-	public abstract class BaseAxe : BaseMeleeWeapon, IUsesRemaining
+	public abstract class BaseAxe : BaseMeleeWeapon, IUsesRemaining, IHarvestTool
 	{
 		public override int DefHitSound => 0x232;
 		public override int DefMissSound => 0x23A;
@@ -43,6 +43,8 @@ namespace Server.Items
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
 		public virtual HarvestSystem HarvestSystem => FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
+
+		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
 
 		private int m_UsesRemaining;
 		private bool m_ShowUsesRemaining;
@@ -459,7 +461,7 @@ namespace Server.Items
 	}
 
 	/// BasePoleArm
-	public abstract class BasePoleArm : BaseMeleeWeapon, IUsesRemaining
+	public abstract class BasePoleArm : BaseMeleeWeapon, IUsesRemaining, IHarvestTool
 	{
 		public override int DefHitSound => 0x237;
 		public override int DefMissSound => 0x238;
@@ -468,7 +470,9 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Polearm;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => FacetModule_Lumberjacking.System; // public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
+
+		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
 
 		private int m_UsesRemaining;
 		private bool m_ShowUsesRemaining;

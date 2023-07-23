@@ -1068,7 +1068,7 @@ namespace Server.Misc
 						}
 					}
 
-					var town = vendor.HomeTown;
+					var town = vendor.HomeTown ?? Town.FromRegion(vendor.Region);
 
 					if (town?.Definition.Reputation is T tdef)
 					{
@@ -1793,7 +1793,7 @@ namespace Server.Misc
 			var gump = new ReputationGump(player);
 
 			_ = player.CloseGump(gump.GetType());
-			_ = player.SendGump(gump, false);
+			_ = player.SendGump(gump);
 
 			return gump;
 		}

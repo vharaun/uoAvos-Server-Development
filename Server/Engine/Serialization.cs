@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -116,16 +117,19 @@ namespace Server
 		}
 	}
 
-	public readonly struct Serial : IComparable, IComparable<Serial>
+	public struct Serial : IComparable, IComparable<Serial>
 	{
-		private static Serial m_LastMobile = Zero;
-		private static Serial m_LastItem = 0x40000000;
-
-		public static Serial LastMobile => m_LastMobile;
-		public static Serial LastItem => m_LastItem;
-
 		public static readonly Serial MinusOne = new(-1);
 		public static readonly Serial Zero = new(0);
+
+		public static readonly Serial MinValue = new(0x00000000);
+		public static readonly Serial MaxValue = new(0x7FFFFFFF);
+
+		public static readonly Serial FirstMobile = new(0x00000001);
+		public static readonly Serial FirstItem = new(0x40000001);
+
+		private static Serial m_LastMobile = new(0x00000000);
+		private static Serial m_LastItem = new(0x40000000);
 
 		public static Serial NewMobile
 		{
@@ -133,7 +137,7 @@ namespace Server
 			{
 				do
 				{
-					++m_LastMobile;
+					++m_LastMobile.m_Serial;
 				}
 				while (World.FindMobile(m_LastMobile) != null);
 
@@ -147,7 +151,7 @@ namespace Server
 			{
 				do
 				{
-					++m_LastItem;
+					++m_LastItem.m_Serial;
 				}
 				while (World.FindItem(m_LastItem) != null);
 
@@ -155,32 +159,37 @@ namespace Server
 			}
 		}
 
-		private readonly int m_Serial;
+		private int m_Serial;
 
-		public int Value => m_Serial;
+		public readonly int Value => m_Serial;
 
-		public bool IsMobile => m_Serial > 0 && m_Serial < 0x40000000;
+		public readonly bool IsMobile => m_Serial > 0 && m_Serial < 0x40000000;
 
-		public bool IsItem => m_Serial >= 0x40000000 && m_Serial <= 0x7FFFFFFF;
+		public readonly bool IsItem => m_Serial >= 0x40000000 && m_Serial <= 0x7FFFFFFF;
 
-		public bool IsValid => m_Serial > 0;
+		public readonly bool IsValid => m_Serial > 0;
 
 		public Serial(int serial)
 		{
 			m_Serial = serial;
 		}
 
-		public override int GetHashCode()
+		public override readonly string ToString()
+		{
+			return $"0x{m_Serial:X8}";
+		}
+
+		public override readonly int GetHashCode()
 		{
 			return m_Serial;
 		}
 
-		public int CompareTo(Serial other)
+		public readonly int CompareTo(Serial other)
 		{
 			return m_Serial.CompareTo(other.m_Serial);
 		}
 
-		public int CompareTo(object other)
+		public readonly int CompareTo(object other)
 		{
 			if (other is Serial s)
 			{
@@ -195,7 +204,7 @@ namespace Server
 			return 0;
 		}
 
-		public override bool Equals(object o)
+		public override readonly bool Equals(object o)
 		{
 			if (o == null || o is not Serial s)
 			{
@@ -235,19 +244,9 @@ namespace Server
 			return l.m_Serial <= r.m_Serial;
 		}
 
-		public override string ToString()
-		{
-			return $"0x{m_Serial:X8}";
-		}
-
 		public static implicit operator int(Serial serial)
 		{
 			return serial.m_Serial;
-		}
-
-		public static implicit operator Serial(int serial)
-		{
-			return new Serial(serial);
 		}
 	}
 
@@ -274,6 +273,8 @@ namespace Server
 
 		public abstract Enum ReadEnum();
 		public abstract T ReadEnum<T>() where T : struct, Enum;
+
+		public abstract Color ReadColor();
 
 		public abstract decimal ReadDecimal();
 		public abstract long ReadLong();
@@ -522,7 +523,20 @@ namespace Server
 
 		public override T ReadEnum<T>()
 		{
-			return (T)ReadEnum();
+			try { return (T)ReadEnum(); }
+			catch { return default; }
+		}
+
+		public override Color ReadColor()
+		{
+			return ReadByte() switch
+			{
+				0 => Color.Empty,
+				1 => Color.FromKnownColor(ReadEnum<KnownColor>()),
+				2 => Color.FromName(ReadString()),
+				3 => Color.FromArgb(ReadEncodedInt()),
+				_ => Color.Empty,
+			};
 		}
 
 		public override decimal ReadDecimal()
@@ -673,7 +687,7 @@ namespace Server
 
 		public override Serial ReadSerial()
 		{
-			return ReadInt();
+			return new Serial(ReadInt());
 		}
 
 		public override IEntity ReadEntity()
@@ -1009,6 +1023,7 @@ namespace Server
 		public abstract void Write(TimeSpan value);
 		public abstract void Write(IPAddress value);
 		public abstract void Write(Enum value);
+		public abstract void Write(Color value);
 
 		public abstract void Write(decimal value);
 		public abstract void Write(long value);
@@ -1391,6 +1406,29 @@ namespace Server
 				{
 					WriteEncodedULong(Convert.ToUInt64(value));
 				}
+			}
+		}
+
+		public override void Write(Color value)
+		{
+			if (value.IsEmpty)
+			{
+				Write((byte)0);
+			}
+			else if (value.IsKnownColor)
+			{
+				Write((byte)1);
+				Write(value.ToKnownColor());
+			}
+			else if (value.IsNamedColor)
+			{
+				Write((byte)2);
+				Write(value.Name);
+			}
+			else
+			{
+				Write((byte)3);
+				WriteEncodedInt(value.ToArgb());
 			}
 		}
 
@@ -2290,6 +2328,29 @@ namespace Server
 				{
 					WriteEncodedULong(Convert.ToUInt64(value));
 				}
+			}
+		}
+
+		public override void Write(Color value)
+		{
+			if (value.IsEmpty)
+			{
+				Write((byte)0);
+			}
+			else if (value.IsKnownColor)
+			{
+				Write((byte)1);
+				Write(value.ToKnownColor());
+			}
+			else if (value.IsNamedColor)
+			{
+				Write((byte)2);
+				Write(value.Name);
+			}
+			else
+			{
+				Write((byte)3);
+				WriteEncodedInt(value.ToArgb());
 			}
 		}
 

@@ -14,7 +14,7 @@ namespace Server.Items
 		int MaxArcaneCharges { get; set; }
 	}
 
-	public abstract class BaseClothing : Item, IDyable, IScissorable, IFactionItem, ICraftable, IWearableDurability
+	public abstract class BaseClothing : Item, IDyable, IScissorable, IFactionItem, ICraftable, IWearableDurability, IQuality
 	{
 		#region Factions
 		private FactionItem m_FactionState;

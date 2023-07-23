@@ -563,14 +563,9 @@ namespace Server.Items
 
 		private Item CreateReplacement()
 		{
-			Item result = new AquariumFishNet {
-				Hue = Hue,
-				LootType = LootType,
-				Movable = Movable,
-				Name = Name,
-				QuestItem = QuestItem,
-				Visible = Visible
-			};
+			var result = new AquariumFishNet();
+
+			Commands.Dupe.CopyProperties(result, this);
 
 			return result;
 		}

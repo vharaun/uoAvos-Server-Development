@@ -27,7 +27,7 @@ namespace Server.Engine.Facet
 			MapCRCs = new UInt16[256][];
 
 			/// We Need CRCs For Every Block In Every Map
-			foreach (KeyValuePair<int, MapRegistry.MapDefinition> kvp in MapRegistry.Definitions)
+			foreach (var kvp in MapRegistry.Associations)
 			{
 				int blocks = Server.Map.Maps[kvp.Key].Tiles.BlockWidth * Server.Map.Maps[kvp.Key].Tiles.BlockHeight;
 

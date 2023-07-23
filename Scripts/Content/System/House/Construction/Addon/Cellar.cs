@@ -1080,7 +1080,7 @@ namespace Server.Items
 		private class DemolishConfirmGump : WarningGump
 		{
 			public DemolishConfirmGump(string text, WarningGumpCallback callback)
-				: base(1060635, 0xFF00, text, 0xFFFFFF, 420, 280, callback, null)
+				: base(1060635, 0x7F00, text, 0xFFFFFF, 420, 280, callback, null)
 			{
 			}
 		}

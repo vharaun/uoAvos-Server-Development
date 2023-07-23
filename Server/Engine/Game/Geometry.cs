@@ -172,6 +172,26 @@ namespace Server
 
 		#region Interface Operators
 
+		public static bool operator ==(Point2D l, IPoint2D r)
+		{
+			return l.Equals(r);
+		}
+
+		public static bool operator ==(IPoint2D l, Point2D r)
+		{
+			return r.Equals(l);
+		}
+
+		public static bool operator !=(Point2D l, IPoint2D r)
+		{
+			return !l.Equals(r);
+		}
+
+		public static bool operator !=(IPoint2D l, Point2D r)
+		{
+			return !r.Equals(l);
+		}
+
 		public static bool operator >(Point2D l, IPoint2D r)
 		{
 			return l.m_X > r.X && l.m_Y > r.Y;
@@ -1010,6 +1030,26 @@ namespace Server
 
 		#region Interface Operators
 
+		public static bool operator ==(Point3D l, IPoint3D r)
+		{
+			return l.Equals(r);
+		}
+
+		public static bool operator ==(IPoint3D l, Point3D r)
+        {
+            return r.Equals(l);
+		}
+
+		public static bool operator !=(Point3D l, IPoint3D r)
+        {
+            return !l.Equals(r);
+		}
+
+		public static bool operator !=(IPoint3D l, Point3D r)
+		{
+			return !r.Equals(l);
+		}
+
 		public static bool operator >(Point3D l, IPoint2D r)
 		{
 			return l.m_X > r.X && l.m_Y > r.Y;
@@ -1706,6 +1746,16 @@ namespace Server
 			return new Point3D(x + (int)(distance * Math.Cos(angle.m_Radians)), y + (int)(distance * Math.Sin(angle.m_Radians)), z);
 		}
 
+		public static IEnumerable<Point2D> TraceLine2D(int x, int y, Angle angle, double distance)
+		{
+			return Geometry.TraceLine2D(new Point2D(x, y), GetPoint2D(x, y, angle, distance));
+		}
+
+		public static IEnumerable<Point3D> TraceLine3D(int x, int y, int z, Angle angle, double distance)
+		{
+			return Geometry.TraceLine3D(new Point3D(x, y, z), GetPoint3D(x, y, z, angle, distance));
+		}
+
 		public static bool TryParse(string value, out Angle angle)
 		{
 			try
@@ -1830,6 +1880,16 @@ namespace Server
 		public Point3D GetPoint3D(int x, int y, int z, double distance)
 		{
 			return GetPoint3D(x, y, z, this, distance);
+		}
+
+		public IEnumerable<Point2D> TraceLine2D(int x, int y, double distance)
+		{
+			return TraceLine2D(x, y, this, distance);
+		}
+
+		public IEnumerable<Point3D> TraceLine3D(int x, int y, int z, double distance)
+		{
+			return TraceLine3D(x, y, z, this, distance);
 		}
 
 		public override int GetHashCode()
@@ -2209,5 +2269,563 @@ namespace Server
 		}
 
 		#endregion Operators
+	}
+
+	public class LandTarget : IPoint3D
+	{
+		[CommandProperty(AccessLevel.Counselor)]
+		public Point3D Location { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int X => Location.X;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Y => Location.Y;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Z => Location.Z;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int TileID { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public string Name => Data.Name;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public TileFlag Flags => Data.Flags;
+
+		public LandData Data => TileData.LandTable[TileID];
+
+		public LandTarget(Point3D location, Map map)
+		{
+			if (map != null)
+			{
+				location.Z = map.GetAverageZ(location.X, location.Y);
+
+				var land = map.Tiles.GetLandTile(location.X, location.Y);
+
+				TileID = land.ID & TileData.MaxLandValue;
+			}
+
+			Location = location;
+		}
+	}
+
+	public class StaticTarget : IPoint3D
+	{
+		[CommandProperty(AccessLevel.Counselor)]
+		public Point3D Location { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int X => Location.X;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Y => Location.Y;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Z => Location.Z;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int ItemID { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public int Hue { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public string Name => Data.Name;
+
+		[CommandProperty(AccessLevel.Counselor)]
+		public TileFlag Flags => Data.Flags;
+
+		public ItemData Data => TileData.ItemTable[ItemID];
+
+		public StaticTarget(Point3D location, int itemID)
+			: this(location, itemID, 0)
+		{ }
+
+		public StaticTarget(Point3D location, int itemID, int hue)
+		{
+			ItemID = itemID & TileData.MaxItemValue;
+			Hue = hue & 0x3FFF;
+
+			location.Z += Data.CalcHeight;
+
+			Location = location;
+		}
+	}
+
+	public static class Geometry
+	{
+		public readonly record struct CirclePoint
+		{
+			public Point2D Point { get; }
+
+			public int Angle { get; }
+			public int Quadrant { get; }
+
+			public CirclePoint(Point2D point, int angle, int quadrant)
+			{
+				Point = point;
+				Angle = angle;
+				Quadrant = quadrant;
+			}
+		}
+
+		public static double RadiansToDegrees(double angle)
+		{
+			return angle * Angle.R2D;
+		}
+
+		public static double DegreesToRadians(double angle)
+		{
+			return angle * Angle.D2R;
+		}
+
+		public static Point2D ArcPoint(Point3D loc, int radius, int angle)
+		{
+			int sideA, sideB;
+
+			if (angle < 0)
+			{
+				angle = 0;
+			}
+
+			if (angle > 90)
+			{
+				angle = 90;
+			}
+
+			sideA = (int)Math.Round(radius * Math.Sin(DegreesToRadians(angle)));
+			sideB = (int)Math.Round(radius * Math.Cos(DegreesToRadians(angle)));
+
+			return new Point2D(loc.X - sideB, loc.Y - sideA);
+		}
+
+		public static void Circle2D(Point3D loc, Map map, int radius, Action<Point3D, Map> action)
+		{
+			Circle2D(loc, map, radius, action, 0, 360);
+		}
+
+		public static void Circle2D(Point3D loc, Map map, int radius, Action<Point3D, Map> action, int angleStart, int angleEnd)
+		{
+			if (angleStart < 0 || angleStart > 360)
+			{
+				angleStart = 0;
+			}
+
+			if (angleEnd > 360 || angleEnd < 0)
+			{
+				angleEnd = 360;
+			}
+
+			if (angleStart == angleEnd)
+			{
+				return;
+			}
+
+			var opposite = angleStart > angleEnd;
+
+			var startQuadrant = angleStart / 90;
+			var endQuadrant = angleEnd / 90;
+
+			var start = ArcPoint(loc, radius, angleStart % 90);
+			var end = ArcPoint(loc, radius, angleEnd % 90);
+
+			if (opposite)
+			{
+				(start, startQuadrant) = (end, endQuadrant);
+			}
+
+			var startPoint = new CirclePoint(start, angleStart, startQuadrant);
+			var endPoint = new CirclePoint(end, angleEnd, endQuadrant);
+
+			var error = -radius;
+			var x = radius;
+			var y = 0;
+
+			while (x > y)
+			{
+				Plot4Points(loc, map, x, y, startPoint, endPoint, action, opposite);
+				Plot4Points(loc, map, y, x, startPoint, endPoint, action, opposite);
+
+				error += (y * 2) + 1;
+				++y;
+
+				if (error >= 0)
+				{
+					--x;
+					error -= x * 2;
+				}
+			}
+
+			Plot4Points(loc, map, x, y, startPoint, endPoint, action, opposite);
+		}
+
+		public static void Plot4Points(Point3D loc, Map map, int x, int y, CirclePoint start, CirclePoint end, Action<Point3D, Map> action, bool opposite)
+		{
+			var pointA = new Point2D(loc.X - x, loc.Y - y);
+			var pointB = new Point2D(loc.X - y, loc.Y - x);
+
+			var quadrant = 2;
+
+			if (x == 0 && start.Quadrant == 3)
+			{
+				quadrant = 3;
+			}
+
+			if (WithinCircleBounds(quadrant == 3 ? pointB : pointA, quadrant, loc, start, end, opposite))
+			{
+				action(new Point3D(loc.X + x, loc.Y + y, loc.Z), map);
+			}
+
+			quadrant = 3;
+
+			if (y == 0 && start.Quadrant == 0)
+			{
+				quadrant = 0;
+			}
+
+			if (x != 0 && WithinCircleBounds(quadrant == 0 ? pointA : pointB, quadrant, loc, start, end, opposite))
+			{
+				action(new Point3D(loc.X - x, loc.Y + y, loc.Z), map);
+			}
+
+			if (y != 0 && WithinCircleBounds(pointB, 1, loc, start, end, opposite))
+			{
+				action(new Point3D(loc.X + x, loc.Y - y, loc.Z), map);
+			}
+
+			if (x != 0 && y != 0 && WithinCircleBounds(pointA, 0, loc, start, end, opposite))
+			{
+				action(new Point3D(loc.X - x, loc.Y - y, loc.Z), map);
+			}
+		}
+
+		public static bool WithinCircleBounds(Point2D pointLoc, int pointQuadrant, Point3D center, CirclePoint start, CirclePoint end, bool opposite)
+		{
+			if (start.Angle == 0 && end.Angle == 360)
+			{
+				return true;
+			}
+
+			var startX = start.Point.X;
+			var startY = start.Point.Y;
+			var endX = end.Point.X;
+			var endY = end.Point.Y;
+
+			var x = pointLoc.X;
+			var y = pointLoc.Y;
+
+			if (pointQuadrant < start.Quadrant || pointQuadrant > end.Quadrant)
+			{
+				return opposite;
+			}
+
+			if (pointQuadrant > start.Quadrant && pointQuadrant < end.Quadrant)
+			{
+				return !opposite;
+			}
+
+			var withinBounds = true;
+
+			if (start.Quadrant == end.Quadrant)
+			{
+				if (startX == endX && (x > startX || y > startY || y < endY))
+				{
+					withinBounds = false;
+				}
+				else if (startY == endY && (y < startY || x < startX || x > endX))
+				{
+					withinBounds = false;
+				}
+				else if (x < startX || x > endX || y > startY || y < endY)
+				{
+					withinBounds = false;
+				}
+			}
+			else if (pointQuadrant == start.Quadrant && (x < startX || y > startY))
+			{
+				withinBounds = false;
+			}
+			else if (pointQuadrant == end.Quadrant && (x > endX || y < endY))
+			{
+				withinBounds = false;
+			}
+
+			return opposite ? !withinBounds : withinBounds;
+		}
+
+		public static void Line2D(IPoint3D start, IPoint3D end, Map map, Action<Point3D, Map> action)
+		{
+			foreach (var p in TraceLine3D(start, end))
+			{
+				action(p, map);
+			}
+		}
+
+		public static IEnumerable<Point2D> TraceLine2D(IPoint2D start, IPoint2D end)
+		{
+			var steep = Math.Abs(end.Y - start.Y) > Math.Abs(end.X - start.X);
+
+			var x0 = start.X;
+			var x1 = end.X;
+			var y0 = start.Y;
+			var y1 = end.Y;
+
+			if (steep)
+			{
+				(x0, y0, x1, y1) = (y0, x0, y1, x1);
+			}
+
+			if (x0 > x1)
+			{
+				(x0, y0, x1, y1) = (x1, y1, x0, y0);
+			}
+
+			var deltax = x1 - x0;
+			var deltay = Math.Abs(y1 - y0);
+			var error = deltax / 2;
+			var ystep = y0 < y1 ? 1 : -1;
+			var yy = y0;
+
+			for (var xx = x0; xx <= x1; xx++)
+			{
+				if (steep)
+				{
+					yield return new Point2D(yy, xx);
+				}
+				else
+				{
+					yield return new Point2D(xx, yy);
+				}
+
+				error -= deltay;
+
+				if (error < 0)
+				{
+					yy += ystep;
+					error += deltax;
+				}
+			}
+		}
+
+		public static IEnumerable<Point3D> TraceLine3D(IPoint3D start, IPoint3D end)
+		{
+			var steep = Math.Abs(end.Y - start.Y) > Math.Abs(end.X - start.X);
+
+			var x0 = start.X;
+			var x1 = end.X;
+			var y0 = start.Y;
+			var y1 = end.Y;
+
+			if (steep)
+			{
+				(x0, y0, x1, y1) = (y0, x0, y1, x1);
+			}
+
+			if (x0 > x1)
+			{
+				(x0, y0, x1, y1) = (x1, y1, x0, y0);
+			}
+
+			var deltax = x1 - x0;
+			var deltay = Math.Abs(y1 - y0);
+			var error = deltax / 2;
+			var ystep = y0 < y1 ? 1 : -1;
+			var yy = y0;
+
+			for (var xx = x0; xx <= x1; xx++)
+			{
+				var zz = start.Z;
+
+				if (zz < end.Z)
+				{
+					zz += (int)Math.Ceiling((end.Z - zz) * (xx / (double)x1));
+				}
+				else if (zz > end.Z)
+				{
+					zz -= (int)Math.Ceiling((zz - end.Z) * (xx / (double)x1));
+				}
+
+				if (steep)
+				{
+					yield return new Point3D(yy, xx, zz);
+				}
+				else
+				{
+					yield return new Point3D(xx, yy, zz);
+				}
+
+				error -= deltay;
+
+				if (error < 0)
+				{
+					yy += ystep;
+					error += deltax;
+				}
+			}
+		}
+
+		public static bool GetHeight(IPoint3D p, out int h)
+		{
+			h = 0;
+
+			if (p is LandTarget)
+			{
+				h = 1;
+			}
+			else if (p is StaticTarget s)
+			{
+				h = Math.Max(1, s.Data.CalcHeight);
+			}
+			else if (p is Mobile)
+			{
+				h = 16;
+			}
+			else if (p is Item i)
+			{
+				if (i.Parent != null)
+				{
+					return false;
+				}
+
+				h = Math.Max(1, i.ItemData.CalcHeight);
+			}
+
+			return true;
+		}
+
+		public static bool GetHeight(LandTile l, out int h)
+		{
+			h = l.Ignored ? 0 : 1;
+
+			return h > 0;
+		}
+
+		public static bool GetHeight(StaticTile s, out int h)
+		{
+			try
+			{
+				h = s.Ignored ? 0 : Math.Max(1, TileData.ItemTable[s.ID].CalcHeight);
+
+				return h > 0;
+			}
+			catch
+			{
+				h = 0;
+
+				return false;
+			}
+		}
+
+		public static bool Intersects(StaticTile p1, StaticTile p2)
+		{
+			return GetHeight(p1, out var h1) && GetHeight(p2, out var h2) && Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(StaticTile p1, int x2, int y2, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(p1.X, p1.Y, p1.Z, h1, x2, y2, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, StaticTile p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(x1, y1, z1, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, StaticTile p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(0, 0, z1, h1, 0, 0, p2.Z, h2);
+		}
+
+		public static bool Intersects(StaticTile p1, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(0, 0, p1.Z, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, IPoint3D p2)
+		{
+			return GetHeight(p1, out var h1) && GetHeight(p2, out var h2) && Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, int x2, int y2, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(p1.X, p1.Y, p1.Z, h1, x2, y2, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, IPoint3D p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(x1, y1, z1, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, IPoint3D p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(0, 0, z1, h1, 0, 0, p2.Z, h2);
+		}
+
+		public static bool Intersects(IPoint3D p1, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(0, 0, p1.Z, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(Point2D p1, int z1, int h1, Point2D p2, int z2, int h2)
+		{
+			return Intersects(p1.X, p1.Y, z1, h1, p2.X, p2.Y, z2, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, Point3D p2)
+		{
+			return Intersects(0, 0, z1, h1, 0, 0, p2.Z, 1);
+		}
+
+		public static bool Intersects(Point3D p1, int z2, int h2)
+		{
+			return Intersects(0, 0, p1.Z, 1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(Point3D p1, int h1, Point3D p2, int h2)
+		{
+			return Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);
+		}
+
+		public static bool Intersects(int z1, int h1, int z2, int h2)
+		{
+			return Intersects(0, 0, z1, h1, 0, 0, z2, h2);
+		}
+
+		public static bool Intersects(int x1, int y1, int z1, int h1, int x2, int y2, int z2, int h2)
+		{
+			if (x1 != x2 || y1 != y2)
+			{
+				return false;
+			}
+
+			if (z1 == z2 || z1 + h1 == z2 + h2)
+			{
+				return true;
+			}
+
+			if (z1 >= z2 && z1 <= z2 + h2)
+			{
+				return true;
+			}
+
+			if (z2 >= z1 && z2 <= z1 + h1)
+			{
+				return true;
+			}
+
+			if (z1 <= z2 && z1 + h1 >= z2)
+			{
+				return true;
+			}
+
+			if (z2 <= z1 && z2 + h2 >= z1)
+			{
+				return true;
+			}
+
+			return false;
+		}
 	}
 }

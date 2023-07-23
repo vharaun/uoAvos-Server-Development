@@ -1,11 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace Server
 {
 	public interface IUsesRemaining
 	{
+		[CommandProperty(AccessLevel.GameMaster)]
 		int UsesRemaining { get; set; }
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		bool ShowUsesRemaining { get; set; }
 	}
 
@@ -51,6 +53,12 @@ namespace Server
 	public interface ICraftable : IEntity
 	{
 		int OnCraft(int quality, bool makersMark, Mobile from, ICraftSystem craftSystem, Type typeRes, ICraftTool tool, ICraftItem craftItem, int resHue);
+	}
+
+	public interface IQuality
+	{
+		[CommandProperty(AccessLevel.GameMaster)]
+		ItemQuality Quality { get; set; }
 	}
 
 	public enum ItemQuality

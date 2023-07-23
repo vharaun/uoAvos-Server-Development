@@ -1,5 +1,6 @@
 ﻿using Server.Accounting;
 using Server.Commands;
+using Server.ContextMenus;
 using Server.Guilds;
 using Server.Items;
 using Server.Network;
@@ -69,6 +70,8 @@ namespace Server
 	public delegate void MobileHealedEventHandler(MobileHealedEventArgs e);
 	public delegate void CreatureTamedEventHandler(CreatureTamedEventArgs e);
 	public delegate void SkillChangedEventHandler(SkillChangedEventArgs e);
+	public delegate void ContextMenuRequestEventHandler(ContextMenuRequestEventArgs e);
+	public delegate void ContextMenuResponseEventHandler(ContextMenuResponseEventArgs e);
 
 	public class ParentChangedEventArgs : EventArgs
 	{
@@ -255,6 +258,38 @@ namespace Server
 			Mobile = source;
 			Skill = skill;
 			Offset = offset;
+		}
+	}
+
+	public class ContextMenuRequestEventArgs : EventArgs
+	{
+		public Mobile Mobile { get; }
+		public IEntity Owner { get; }
+
+		public List<ContextMenuEntry> Entries { get; }
+
+		public ContextMenuRequestEventArgs(Mobile source, IEntity owner, List<ContextMenuEntry> entries)
+		{
+			Mobile = source;
+			Owner = owner;
+			Entries = entries;
+		}
+	}
+
+	public class ContextMenuResponseEventArgs : EventArgs
+	{
+		public Mobile Mobile { get; }
+		public IEntity Owner { get; }
+
+		public ContextMenuEntry Entry { get; }
+
+		public bool Blocked { get; set; }
+
+		public ContextMenuResponseEventArgs(Mobile source, IEntity owner, ContextMenuEntry entry)
+		{
+			Mobile = source;
+			Owner = owner;
+			Entry = entry;
 		}
 	}
 
@@ -976,6 +1011,8 @@ namespace Server
 		public static event MobileHealedEventHandler MobileHealed;
 		public static event CreatureTamedEventHandler CreatureTamed;
 		public static event SkillChangedEventHandler SkillChanged;
+		public static event ContextMenuRequestEventHandler ContextMenuRequest;
+		public static event ContextMenuResponseEventHandler ContextMenuResponse;
 
 		public static void InvokeParentChanged(ParentChangedEventArgs e)
 		{
@@ -1035,6 +1072,16 @@ namespace Server
 		public static void InvokeSkillChanged(SkillChangedEventArgs e)
 		{
 			SkillChanged?.Invoke(e);
+		}
+
+		public static void InvokeContextMenuRequest(ContextMenuRequestEventArgs e)
+		{
+			ContextMenuRequest?.Invoke(e);
+		}
+
+		public static void InvokeContextMenuResponse(ContextMenuResponseEventArgs e)
+		{
+			ContextMenuResponse?.Invoke(e);
 		}
 
 		public static void InvokeClientVersionReceived(ClientVersionReceivedEventArgs e)

@@ -5,6 +5,7 @@ using Server.Network;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Server.Engine.Facet
 {
@@ -131,7 +132,14 @@ namespace Server.Engine.Facet
 
 		public static ushort GetBlockCrc(Point2D blockCoords, int mapID, ref byte[] landDataOut, ref byte[] staticsDataOut)
 		{
-			if (blockCoords.X < 0 || blockCoords.Y < 0 || blockCoords.X >= Map.Maps[mapID].Tiles.BlockWidth || blockCoords.Y >= Map.Maps[mapID].Tiles.BlockHeight)
+			if (blockCoords.X < 0 || blockCoords.Y < 0)
+			{
+				return 0;
+			}
+
+			var map = Map.Maps[mapID];
+
+			if (map == null || blockCoords.X >= map.Tiles.BlockWidth || blockCoords.Y >= map.Tiles.BlockHeight)
 			{
 				return 0;
 			}
@@ -154,21 +162,16 @@ namespace Server.Engine.Facet
 			//Console.WriteLine("Block: " + block);
 			//Console.WriteLine("----------------------------------------------------------------------------------------------------");
 
-			if (!MapRegistry.Definitions.ContainsKey(mapID))
-			{
-				Console.WriteLine("Received query for an invalid map.");
-				return;
-			}
-
-			var tm = Map.Maps[mapID].Tiles;
+			var map = Map.Maps[mapID];
+			var tm = map.Tiles;
 
 			var blockX = block / tm.BlockHeight;
 			var blockY = block % tm.BlockHeight;
 
-			var wrapWidthInBlocks = MapRegistry.Definitions[mapID].Wrap.Width >> 3;
-			var wrapHeightInBlocks = MapRegistry.Definitions[mapID].Wrap.Height >> 3;
-			var mapWidthInBlocks = MapRegistry.Definitions[mapID].Bounds.Width >> 3;
-			var mapHeightInBlocks = MapRegistry.Definitions[mapID].Bounds.Height >> 3;
+			var wrapWidthInBlocks = map.Area.Width >> 3;
+			var wrapHeightInBlocks = map.Area.Height >> 3;
+			var mapWidthInBlocks = map.Bounds.Width >> 3;
+			var mapHeightInBlocks = map.Bounds.Height >> 3;
 
 			//Console.WriteLine("BlockX: " + blockX + " BlockY: " + blockY);
 			//Console.WriteLine("Map Height in blocks: " + mapHeightInBlocks);
@@ -397,9 +400,9 @@ namespace Server.Engine.Facet
 	{
 		public MapDefinitions() : base(0x3F)
 		{
-			var definitions = MapRegistry.Definitions.Values;
+			var maps = Map.AllMaps;
 
-			var length = definitions.Count * 9; // 12 * 9 = 108
+			var length = maps.Count(m => m != null && m.FileIndex != 0x7F) * 9; // 12 * 9 = 108
 			var count = length / 7; // 108 / 7 = 15
 			var padding = 0;
 
@@ -420,13 +423,18 @@ namespace Server.Engine.Facet
 			m_Stream.Write((byte)0);	// byte 014         -  Server Facet mapnumber, doesn't apply in this case
 
 			// byte 015 to end  -  Map Definitions
-			foreach (var md in definitions)
+			foreach (var map in maps)
 			{
-				m_Stream.Write((byte)md.FileIndex);	// iteration byte 000         -  map file index number
-				m_Stream.Write(md.Bounds.Width);	// iteration byte 001 to 002  -  map width
-				m_Stream.Write(md.Bounds.Height);	// iteration byte 003 to 004  -  map height
-				m_Stream.Write(md.Wrap.Width);		// iteration byte 005 to 006  -  wrap around dimension X
-				m_Stream.Write(md.Wrap.Height);		// iteration byte 007 to 008  -  wrap around dimension Y
+				if (map == null || map.FileIndex == 0x7F)
+				{
+					continue;
+				}
+
+				m_Stream.Write((byte)map.FileIndex);	// iteration byte 000         -  map file index number
+				m_Stream.Write(map.Bounds.Width);	// iteration byte 001 to 002  -  map width
+				m_Stream.Write(map.Bounds.Height);	// iteration byte 003 to 004  -  map height
+				m_Stream.Write(map.Area.Width);		// iteration byte 005 to 006  -  wrap around dimension X
+				m_Stream.Write(map.Area.Height);		// iteration byte 007 to 008  -  wrap around dimension Y
 			}
 
 			for (var i = 0; i < padding; i++)

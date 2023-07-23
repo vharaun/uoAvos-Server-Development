@@ -1,4 +1,5 @@
 ﻿using Server.Commands;
+using Server.Engines.Harvest;
 using Server.Engines.Weather;
 using Server.Gumps;
 using Server.Items;
@@ -481,11 +482,52 @@ namespace Server.Regions
 			return false;
 		}
 
+		public static IEnumerable<TypeAmount> EnumerateHarvestNodes(Region region, Type harvest, bool active, bool inherited)
+		{
+			return internalEnumerate(region, harvest, active, inherited).DistinctBy(e => HashCode.Combine(e.Type, e.Amount)).OrderBy(e => e.Amount);
+
+			static IEnumerable<TypeAmount> internalEnumerate(Region r, Type t, bool a, bool i)
+			{
+				if (r?.Deleted != false || t == null)
+				{
+					yield break;
+				}
+
+				while (r != null)
+				{
+					if (r is BaseRegion br)
+					{
+						var node = br.HarvestNodes[t];
+
+						if (node?.Count > 0)
+						{
+							var entries = a ? node.ActiveEntries : node.ValidEntries;
+
+							foreach (var entry in entries)
+							{
+								yield return entry;
+							}
+						}
+					}
+
+					if (!i)
+					{
+						break;
+					}
+
+					r = r.Parent;
+				}
+			}
+		}
+
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public string RuneName { get; set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public Currencies Currencies { get; protected set; } = new();
+
+		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
+		public HarvestNodes HarvestNodes { get; protected set; } = new();
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
 		public SkillPermissions SkillPermissions { get; protected set; } = new();
@@ -1727,6 +1769,34 @@ namespace Server.Regions
 			return Point3D.Zero;
 		}
 
+		public override Type GetResource(Mobile from, IHarvestTool tool, Map map, Point3D loc, IHarvestSystem harvest, Type resource)
+		{
+			if (harvest != null)
+			{
+				var roll = Utility.RandomDouble();
+
+				// group all entries that have the same chances, then pick one entry at random
+				foreach (var g in EnumerateHarvestNodes(this, harvest.GetType(), true, false).GroupBy(e => e.Amount))
+				{
+					if (roll > g.Key / 100.0)
+					{
+						continue;
+					}
+
+					var entries = g.Select(e => e.Type).OrderBy(e => Utility.RandomDouble());
+
+					var entry = entries.FirstOrDefault();
+
+					if (entry != null)
+					{
+						return entry;
+					}
+				}
+			}
+
+			return base.GetResource(from, tool, map, loc, harvest, resource);
+		}
+
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);
@@ -1768,6 +1838,17 @@ namespace Server.Regions
 				writer.Write(true);
 
 				Currencies.Serialize(writer);
+			}
+			else
+			{
+				writer.Write(false);
+			}
+
+			if (HarvestNodes != null)
+			{
+				writer.Write(true);
+
+				HarvestNodes.Serialize(writer);
 			}
 			else
 			{
@@ -1875,6 +1956,11 @@ namespace Server.Regions
 			if (v >= 4 && reader.ReadBool())
 			{
 				Currencies.Deserialize(reader);
+			}
+
+			if (v >= 5 && reader.ReadBool())
+			{
+				HarvestNodes.Deserialize(reader);
 			}
 
 			if (v >= 3)

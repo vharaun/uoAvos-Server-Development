@@ -1,12 +1,9 @@
-﻿using Server;
-using Server.Engines.Facet;
-using Server.Misc;
+﻿using Server.Engines.Facet;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 
 namespace Server.Engine.Facet
 {
@@ -123,7 +120,7 @@ namespace Server.Engine.Facet
 						}
 
 						HashSet<int> associated;
-						MapRegistry.MapAssociations.TryGetValue(MapNumber, out associated);
+						MapRegistry.Associations.TryGetValue(MapNumber, out associated);
 
 						foreach (int integer in associated)
 						{
@@ -218,7 +215,7 @@ namespace Server.Engine.Facet
 						}
 
 						HashSet<int> associated;
-						MapRegistry.MapAssociations.TryGetValue(MapNumber, out associated);
+						MapRegistry.Associations.TryGetValue(MapNumber, out associated);
 
 						foreach (int integer in associated)
 						{
@@ -249,8 +246,8 @@ namespace Server.Engine.Facet
 
 			DateTime now = DateTime.Now;
 			string Stamp = string.Format("{0}-{1}-{2}-{3}-{4}-{5}", now.Year, now.Month.ToString("00"), now.Day.ToString("00"), now.Hour.ToString("00"), now.Minute.ToString("00"), now.Second.ToString("00"));
-			
-			foreach (KeyValuePair<int, MapRegistry.MapDefinition> kvp in MapRegistry.Definitions) //for (int mapIndex = 0; mapIndex < Live.NumberOfMapFiles; mapIndex++)
+
+			foreach (var kvp in MapRegistry.Associations)
 			{
 				try
 				{
@@ -302,16 +299,19 @@ namespace Server.Engine.Facet
 							int staticCount = 0;
 
 							for (int i = 0; i < staticTiles.Length; i++)
+							{
 								for (int j = 0; j < staticTiles[i].Length; j++)
 								{
 									staticCount += staticTiles[i][j].Length;
 								}
+							}
 
 							writer.Write((UInt16)p.X);
 							writer.Write((UInt16)p.Y);
 							writer.Write((int)staticCount);
 
 							for (int i = 0; i < staticTiles.Length; i++)
+							{
 								for (int j = 0; j < staticTiles[i].Length; j++)
 								{
 									for (int k = 0; k < staticTiles[i][j].Length; k++)
@@ -323,6 +323,7 @@ namespace Server.Engine.Facet
 										writer.Write((short)staticTiles[i][j][k].Hue);
 									}
 								}
+							}
 						}
 						writer.Close();
 					}

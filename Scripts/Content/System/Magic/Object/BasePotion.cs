@@ -265,17 +265,13 @@ namespace Server.Items
 
 				if (pack != null)
 				{
-					if ((int)PotionEffect >= (int)PotionEffect.Invisibility)
+					if (PotionEffect >= PotionEffect.Invisibility)
 					{
 						return 1;
 					}
 
-					var kegs = pack.FindItemsByType<PotionKeg>();
-
-					for (var i = 0; i < kegs.Count; ++i)
+					foreach (var keg in pack.FindItemsByType<PotionKeg>())
 					{
-						var keg = kegs[i];
-
 						if (keg == null)
 						{
 							continue;
@@ -831,9 +827,9 @@ namespace Server.Items
 			// Effects
 			Effects.PlaySound(loc, map, 0x207);
 
-			Geometry.Circle2D(loc, map, Radius, new DoEffect_Callback(BlastEffect), 270, 90);
+			Geometry.Circle2D(loc, map, Radius, BlastEffect, 270, 90);
 
-			Timer.DelayCall(TimeSpan.FromSeconds(0.3), CircleEffect2, new object[] { loc, map });
+			Timer.DelayCall(TimeSpan.FromSeconds(0.3), CircleEffect2, loc, map);
 
 			foreach (var mobile in map.GetMobilesInRange(loc, Radius))
 			{
@@ -860,11 +856,9 @@ namespace Server.Items
 			}
 		}
 
-		public void CircleEffect2(object state)
+		public void CircleEffect2(Point3D p, Map map)
 		{
-			var states = (object[])state;
-
-			Geometry.Circle2D((Point3D)states[0], (Map)states[1], Radius, new DoEffect_Callback(BlastEffect), 90, 270);
+			Geometry.Circle2D(p, map, Radius, BlastEffect, 90, 270);
 		}
 		#endregion
 

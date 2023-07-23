@@ -323,7 +323,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			System.Definitions.Add(lumber);
 		}
 
-		public override void FinishHarvesting(Mobile from, Item tool, HarvestDefinition def, object toHarvest, object locked)
+		public override void FinishHarvesting(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, object locked)
 		{
 			from.EndAction(locked);
 

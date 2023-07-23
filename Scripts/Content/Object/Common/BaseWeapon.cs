@@ -61,7 +61,7 @@ namespace Server.Items
 		Indestructible
 	}
 
-	public abstract class BaseWeapon : Item, IWeapon, IFactionItem, ICraftable, ISlayer, IDurability
+	public abstract class BaseWeapon : Item, IWeapon, IFactionItem, ICraftable, ISlayer, IDurability, IQuality
 	{
 		private string m_EngravedText;
 

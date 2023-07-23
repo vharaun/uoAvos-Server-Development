@@ -9,8 +9,6 @@ namespace Server.Items
 {
 	public class SalvageBag : Bag
 	{
-		private bool m_Failure;
-
 		public override int LabelNumber => 1079931;  // Salvage Bag
 
 		[Constructable]
@@ -24,7 +22,6 @@ namespace Server.Items
 		{
 			Weight = 2.0;
 			Hue = hue;
-			m_Failure = false;
 		}
 
 		public override void GetContextMenuEntries(Mobile from, List<ContextMenuEntry> list)
@@ -40,32 +37,33 @@ namespace Server.Items
 		}
 
 		#region Checks
+
 		private bool Resmeltables() //Where context menu checks for metal items and dragon barding deeds
 		{
 			foreach (var i in Items)
 			{
-				if (i != null && !i.Deleted)
+				if (i is BaseWeapon bw)
 				{
-					if (i is BaseWeapon)
-					{
-						if (CraftResources.GetType(((BaseWeapon)i).Resource) == CraftResourceType.Metal)
-						{
-							return true;
-						}
-					}
-					if (i is BaseArmor)
-					{
-						if (CraftResources.GetType(((BaseArmor)i).Resource) == CraftResourceType.Metal)
-						{
-							return true;
-						}
-					}
-					if (i is DragonBardingDeed)
+					if (CraftResources.GetType(bw.Resource) == CraftResourceType.Metal)
 					{
 						return true;
 					}
 				}
+
+				if (i is BaseArmor ba)
+				{
+					if (CraftResources.GetType(ba.Resource) == CraftResourceType.Metal)
+					{
+						return true;
+					}
+				}
+
+				if (i is DragonBardingDeed)
+				{
+					return true;
+				}
 			}
+
 			return false;
 		}
 
@@ -73,34 +71,35 @@ namespace Server.Items
 		{
 			foreach (var i in Items)
 			{
-				if (i != null && !i.Deleted)
+				if (i is IScissorable)
 				{
-					if (i is IScissorable)
+					if (i is BaseClothing)
 					{
-						if (i is BaseClothing)
-						{
-							return true;
-						}
+						return true;
+					}
 
-						if (i is BaseArmor)
-						{
-							if (CraftResources.GetType(((BaseArmor)i).Resource) == CraftResourceType.Leather)
-							{
-								return true;
-							}
-						}
-						if ((i is Cloth) || (i is BoltOfCloth) || (i is Hides) || (i is BonePile))
+					if (i is BaseArmor ba)
+					{
+						if (CraftResources.GetType(ba.Resource) == CraftResourceType.Leather)
 						{
 							return true;
 						}
 					}
+
+					if (i is Cloth or BoltOfCloth or Hides or BonePile)
+					{
+						return true;
+					}
 				}
 			}
+
 			return false;
 		}
+
 		#endregion
 
-		#region Resmelt.cs
+		#region Resmelt
+
 		private bool Resmelt(Mobile from, Item item, CraftResource resource)
 		{
 			try
@@ -145,41 +144,36 @@ namespace Server.Items
 					case CraftResource.Valorite: difficulty = 99.0; break;
 				}
 
-				var resourceType = info.ResourceTypes[0];
-				var ingot = (Item)Activator.CreateInstance(resourceType);
-
-				if (item is DragonBardingDeed || (item is BaseArmor && ((BaseArmor)item).PlayerConstructed) || (item is BaseWeapon && ((BaseWeapon)item).PlayerConstructed) || (item is BaseClothing && ((BaseClothing)item).PlayerConstructed))
+				if (difficulty > from.Skills.Mining.Value)
 				{
-					var mining = from.Skills[SkillName.Mining].Value;
-					if (mining > 100.0)
-					{
-						mining = 100.0;
-					}
+					return false;
+				}
 
-					var amount = (((4 + mining) * craftResource.Amount - 4) * 0.0068);
-					if (amount < 2)
+				var resourceType = info.ResourceTypes[0];
+
+				var ingot = Utility.CreateInstance<Item>(resourceType);
+
+				if (item is DragonBardingDeed || (item is BaseArmor ba && ba.PlayerConstructed) || (item is BaseWeapon bw && bw.PlayerConstructed) || (item is BaseClothing bc && bc.PlayerConstructed))
+				{
+					var mining = Math.Min(100.0, from.Skills.Mining.Value);
+
+					var amount = ((4 + mining) * craftResource.Amount - 4) * 0.0068;
+
+					if (amount >= 2)
 					{
-						ingot.Amount = 2;
+						ingot.Amount = (int)amount;
 					}
 					else
 					{
-						ingot.Amount = (int)amount;
+						ingot.Amount = 2;
 					}
 				}
 				else
 				{
 					ingot.Amount = 2;
 				}
-
-				if (difficulty > from.Skills[SkillName.Mining].Value)
-				{
-					m_Failure = true;
-					ingot.Delete();
-				}
-				else
-				{
-					item.Delete();
-				}
+				
+				item.Delete();
 
 				from.AddToBackpack(ingot);
 
@@ -190,35 +184,39 @@ namespace Server.Items
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine(ex.ToString());
+				Console.WriteLine(ex);
 			}
 
 			return false;
 		}
+
 		#endregion
 
 		#region Salvaging
+
 		private void SalvageIngots(Mobile from)
 		{
-			var tools = from.Backpack.FindItemsByType(typeof(BaseTool));
+			var hasTool = from.Items.Exists(item => item is BaseTool tool && tool.CraftSystem == DefBlacksmithy.CraftSystem);
 
-			var ToolFound = false;
-			foreach (var tool in tools)
+			if (!hasTool)
 			{
-				if (tool is BaseTool && ((BaseTool)tool).CraftSystem == DefBlacksmithy.CraftSystem)
+				foreach (var tool in from.Backpack.FindItemsByType<BaseTool>())
 				{
-					ToolFound = true;
+					if (tool.CraftSystem == DefBlacksmithy.CraftSystem)
+					{
+						hasTool = true;
+						break;
+					}
 				}
 			}
 
-			if (!ToolFound)
+			if (!hasTool)
 			{
 				from.SendLocalizedMessage(1079822); // You need a blacksmithing tool in order to salvage ingots.
 				return;
 			}
 
-			bool anvil, forge;
-			DefBlacksmithy.CheckAnvilAndForge(from, 2, out anvil, out forge);
+			DefBlacksmithy.CheckAnvilAndForge(from, 2, out _, out var forge);
 
 			if (!forge)
 			{
@@ -229,17 +227,11 @@ namespace Server.Items
 			var salvaged = 0;
 			var notSalvaged = 0;
 
-			Container sBag = this;
-
-			var Smeltables = sBag.FindItemsByType<Item>();
-
-			for (var i = Smeltables.Count - 1; i >= 0; i--)
+			foreach (var item in FindItemsByType<Item>())
 			{
-				var item = Smeltables[i];
-
-				if (item is BaseArmor)
+				if (item is BaseArmor ba)
 				{
-					if (Resmelt(from, item, ((BaseArmor)item).Resource))
+					if (Resmelt(from, item, ba.Resource))
 					{
 						salvaged++;
 					}
@@ -248,9 +240,9 @@ namespace Server.Items
 						notSalvaged++;
 					}
 				}
-				else if (item is BaseWeapon)
+				else if (item is BaseWeapon bw)
 				{
-					if (Resmelt(from, item, ((BaseWeapon)item).Resource))
+					if (Resmelt(from, item, bw.Resource))
 					{
 						salvaged++;
 					}
@@ -259,9 +251,9 @@ namespace Server.Items
 						notSalvaged++;
 					}
 				}
-				else if (item is DragonBardingDeed)
+				else if (item is DragonBardingDeed bd)
 				{
-					if (Resmelt(from, item, ((DragonBardingDeed)item).Resource))
+					if (Resmelt(from, item, bd.Resource))
 					{
 						salvaged++;
 					}
@@ -271,20 +263,19 @@ namespace Server.Items
 					}
 				}
 			}
-			if (m_Failure)
+
+			from.SendLocalizedMessage(1079973, $"{salvaged}\t{salvaged + notSalvaged}"); // Salvaged: ~1_COUNT~/~2_NUM~ blacksmithed items
+
+			if (notSalvaged > 0)
 			{
 				from.SendLocalizedMessage(1079975); // You failed to smelt some metal for lack of skill.
-				m_Failure = false;
-			}
-			else
-			{
-				from.SendLocalizedMessage(1079973, String.Format("{0}\t{1}", salvaged, salvaged + notSalvaged)); // Salvaged: ~1_COUNT~/~2_NUM~ blacksmithed items
 			}
 		}
 
 		private void SalvageCloth(Mobile from)
 		{
-			var scissors = from.Backpack.FindItemByType(typeof(Scissors)) as Scissors;
+			var scissors = from.Backpack.FindItemByType<Scissors>();
+
 			if (scissors == null)
 			{
 				from.SendLocalizedMessage(1079823); // You need scissors in order to salvage cloth.
@@ -294,18 +285,10 @@ namespace Server.Items
 			var salvaged = 0;
 			var notSalvaged = 0;
 
-			Container sBag = this;
-
-			var scissorables = sBag.FindItemsByType<Item>();
-
-			for (var i = scissorables.Count - 1; i >= 0; --i)
+			foreach (var item in FindItemsByType<Item>())
 			{
-				var item = scissorables[i];
-
-				if (item is IScissorable)
+				if (item is IScissorable scissorable)
 				{
-					var scissorable = (IScissorable)item;
-
 					if (Scissors.CanScissor(from, scissorable) && scissorable.Scissor(from, scissors))
 					{
 						++salvaged;
@@ -317,13 +300,11 @@ namespace Server.Items
 				}
 			}
 
-			from.SendLocalizedMessage(1079974, String.Format("{0}\t{1}", salvaged, salvaged + notSalvaged)); // Salvaged: ~1_COUNT~/~2_NUM~ tailored items
+			from.SendLocalizedMessage(1079974, $"{salvaged:N0}\t{salvaged + notSalvaged:N0}"); // Salvaged: ~1_COUNT~/~2_NUM~ tailored items
 
-			var pack = from.Backpack;
-
-			foreach (var i in FindItemsByType(typeof(Item), true))
+			foreach (var i in FindItemsByType<Item>(true))
 			{
-				if ((i is Leather) || (i is Cloth) || (i is SpinedLeather) || (i is HornedLeather) || (i is BarbedLeather) || (i is Bandage) || (i is Bone))
+				if (i is Leather or Cloth or SpinedLeather or HornedLeather or BarbedLeather or Bandage or Bone)
 				{
 					from.AddToBackpack(i);
 				}
@@ -333,12 +314,13 @@ namespace Server.Items
 		private void SalvageAll(Mobile from)
 		{
 			SalvageIngots(from);
-
 			SalvageCloth(from);
 		}
+
 		#endregion
 
-		#region ContextMenuEntries
+		#region Context Menu
+
 		private class SalvageAllEntry : ContextMenuEntry
 		{
 			private readonly SalvageBag m_Bag;
@@ -431,9 +413,11 @@ namespace Server.Items
 				}
 			}
 		}
+
 		#endregion
 
 		#region Serialization
+
 		public SalvageBag(Serial serial)
 			: base(serial)
 		{
@@ -450,8 +434,9 @@ namespace Server.Items
 		{
 			base.Deserialize(reader);
 
-			var version = reader.ReadEncodedInt();
+			_ = reader.ReadEncodedInt();
 		}
+
 		#endregion
 	}
 }

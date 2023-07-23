@@ -2890,7 +2890,7 @@ namespace Server.Multis
 						for (var i = 0; i < relocatedCount; i++)
 						{
 							var relLocation = reader.ReadPoint3D();
-							var entity = World.FindEntity(reader.ReadInt());
+							var entity = reader.ReadEntity();
 
 							if (entity != null)
 							{
@@ -5847,7 +5847,7 @@ namespace Server.Multis
 			var from = state.Mobile;
 			var context = DesignContext.Find(from);
 
-			if (World.FindItem(pvSrc.ReadInt32()) is HouseFoundation foundation && from.Map == foundation.Map && from.InRange(foundation.GetWorldLocation(), 24) && from.CanSee(foundation))
+			if (pvSrc.ReadItem() is HouseFoundation foundation && from.Map == foundation.Map && from.InRange(foundation.GetWorldLocation(), 24) && from.CanSee(foundation))
 			{
 				DesignState stateToSend;
 
@@ -9241,10 +9241,10 @@ namespace Server.Multis
 		private readonly BaseHouse m_House;
 		private readonly HouseGumpPageAOS m_Page;
 
-		private const int LabelColor = 0x7FFF;
-		private const int SelectedColor = 0x421F;
-		private const int DisabledColor = 0x4210;
-		private const int WarningColor = 0x7E10;
+		private const short LabelColor16 = 0x7FFF;
+		private const short SelectedColor16 = 0x421F;
+		private const short DisabledColor16 = 0x4210;
+		private const short WarningColor16 = 0x7E10;
 
 		private const int LabelHue = 0x481;
 		private const int HighlightedLabelHue = 0x64;
@@ -9285,7 +9285,7 @@ namespace Server.Multis
 			var isSelection = m_Page == page;
 
 			AddButton(x, y, isSelection ? 4006 : 4005, 4007, buttonID, GumpButtonType.Reply, 0);
-			AddHtmlLocalized(x + 45, y, 200, 20, number, isSelection ? SelectedColor : LabelColor, false, false);
+			AddHtmlLocalized(x + 45, y, 200, 20, number, isSelection ? SelectedColor16 : LabelColor16, false, false);
 		}
 
 		public void AddButtonLabeled(int x, int y, int buttonID, int number)
@@ -9300,7 +9300,7 @@ namespace Server.Multis
 				AddButton(x, y, 4005, 4007, buttonID, GumpButtonType.Reply, 0);
 			}
 
-			AddHtmlLocalized(x + 35, y, 240, 20, number, enabled ? LabelColor : DisabledColor, false, false);
+			AddHtmlLocalized(x + 35, y, 240, 20, number, enabled ? LabelColor16 : DisabledColor16, false, false);
 		}
 
 		public void AddList<T>(ICollection<T> list, int button, bool accountOf, bool leadingStar, Mobile from) where T : Mobile
@@ -9465,7 +9465,7 @@ namespace Server.Multis
 
 			if (page == HouseGumpPageAOS.Vendors)
 			{
-				AddHtmlLocalized(10, 120, 400, 20, 1062428, LabelColor, false, false); // <CENTER>SHOPS</CENTER>
+				AddHtmlLocalized(10, 120, 400, 20, 1062428, LabelColor16, false, false); // <CENTER>SHOPS</CENTER>
 
 				AddList(house.AvailableVendorsFor(from), 1, false, false, from);
 				return;
@@ -9497,44 +9497,44 @@ namespace Server.Multis
 			{
 				case HouseGumpPageAOS.Information:
 					{
-						AddHtmlLocalized(20, 130, 200, 20, 1011242, LabelColor, false, false); // Owned By: 
+						AddHtmlLocalized(20, 130, 200, 20, 1011242, LabelColor16, false, false); // Owned By: 
 						AddLabel(210, 130, LabelHue, GetOwnerName());
 
-						AddHtmlLocalized(20, 170, 380, 20, 1018032, SelectedColor, false, false); // This house is properly placed.
-						AddHtmlLocalized(20, 190, 380, 20, 1018035, SelectedColor, false, false); // This house is of modern design.
-						AddHtmlLocalized(20, 210, 380, 20, (house is HouseFoundation) ? 1060681 : 1060680, SelectedColor, false, false); // This is a (pre | custom)-built house.
-						AddHtmlLocalized(20, 230, 380, 20, house.Public ? 1060678 : 1060679, SelectedColor, false, false); // This house is (private | open to the public).
+						AddHtmlLocalized(20, 170, 380, 20, 1018032, SelectedColor16, false, false); // This house is properly placed.
+						AddHtmlLocalized(20, 190, 380, 20, 1018035, SelectedColor16, false, false); // This house is of modern design.
+						AddHtmlLocalized(20, 210, 380, 20, (house is HouseFoundation) ? 1060681 : 1060680, SelectedColor16, false, false); // This is a (pre | custom)-built house.
+						AddHtmlLocalized(20, 230, 380, 20, house.Public ? 1060678 : 1060679, SelectedColor16, false, false); // This house is (private | open to the public).
 
 						switch (house.DecayType)
 						{
 							case DecayType.Ageless:
 							case DecayType.AutoRefresh:
 								{
-									AddHtmlLocalized(20, 250, 380, 20, 1062209, SelectedColor, false, false); // This house is <a href = "?ForceTopic97">Automatically</a> refreshed.
+									AddHtmlLocalized(20, 250, 380, 20, 1062209, SelectedColor16, false, false); // This house is <a href = "?ForceTopic97">Automatically</a> refreshed.
 									break;
 								}
 							case DecayType.ManualRefresh:
 								{
-									AddHtmlLocalized(20, 250, 380, 20, 1062208, SelectedColor, false, false); // This house is <a href = "?ForceTopic97">Grandfathered</a>.
+									AddHtmlLocalized(20, 250, 380, 20, 1062208, SelectedColor16, false, false); // This house is <a href = "?ForceTopic97">Grandfathered</a>.
 									break;
 								}
 							case DecayType.Condemned:
 								{
-									AddHtmlLocalized(20, 250, 380, 20, 1062207, WarningColor, false, false); // This house is <a href = "?ForceTopic97">Condemned</a>.
+									AddHtmlLocalized(20, 250, 380, 20, 1062207, WarningColor16, false, false); // This house is <a href = "?ForceTopic97">Condemned</a>.
 									break;
 								}
 						}
 
-						AddHtmlLocalized(20, 290, 200, 20, 1060692, SelectedColor, false, false); // Built On:
+						AddHtmlLocalized(20, 290, 200, 20, 1060692, SelectedColor16, false, false); // Built On:
 						AddLabel(250, 290, LabelHue, GetDateTime(house.BuiltOn));
 
-						AddHtmlLocalized(20, 310, 200, 20, 1060693, SelectedColor, false, false); // Last Traded:
+						AddHtmlLocalized(20, 310, 200, 20, 1060693, SelectedColor16, false, false); // Last Traded:
 						AddLabel(250, 310, LabelHue, GetDateTime(house.LastTraded));
 
-						AddHtmlLocalized(20, 330, 200, 20, 1061793, SelectedColor, false, false); // House Value
+						AddHtmlLocalized(20, 330, 200, 20, 1061793, SelectedColor16, false, false); // House Value
 						AddLabel(250, 330, LabelHue, house.Price.ToString());
 
-						AddHtmlLocalized(20, 360, 300, 20, 1011241, SelectedColor, false, false); // Number of visits this building has had: 
+						AddHtmlLocalized(20, 360, 300, 20, 1011241, SelectedColor16, false, false); // Number of visits this building has had: 
 						AddLabel(350, 360, LabelHue, house.Visits.ToString());
 
 						break;
@@ -9558,14 +9558,14 @@ namespace Server.Multis
 
 							AddButtonLabeled(210, 130, GetButtonID(3, 12), 1060695, isOwner); // Change to Private
 
-							AddHtmlLocalized(245, 150, 240, 20, 1060694, SelectedColor, false, false); // Change to Public
+							AddHtmlLocalized(245, 150, 240, 20, 1060694, SelectedColor16, false, false); // Change to Public
 						}
 						else
 						{
 							AddButtonLabeled(10, 310, GetButtonID(3, 10), 1060699); // View Access List
 							AddButtonLabeled(10, 330, GetButtonID(3, 11), 1060700); // Clear Access List
 
-							AddHtmlLocalized(245, 130, 240, 20, 1060695, SelectedColor, false, false); // Change to Private
+							AddHtmlLocalized(245, 130, 240, 20, 1060695, SelectedColor16, false, false); // Change to Private
 
 							AddButtonLabeled(210, 150, GetButtonID(3, 13), 1060694, isOwner); // Change to Public
 						}
@@ -9574,21 +9574,7 @@ namespace Server.Multis
 					}
 				case HouseGumpPageAOS.Storage:
 					{
-						AddHtmlLocalized(10, 130, 400, 20, 1060682, LabelColor, false, false); // <CENTER>HOUSE STORAGE SUMMARY</CENTER>
-
-						// This is not as OSI; storage changes not yet implemented
-
-						/*AddHtmlLocalized( 10, 170, 275, 20, 1011237, LabelColor, false, false ); // Number of locked down items:
-						AddLabel( 310, 170, LabelHue, m_House.LockDownCount.ToString() );
-
-						AddHtmlLocalized( 10, 190, 275, 20, 1011238, LabelColor, false, false ); // Maximum locked down items:
-						AddLabel( 310, 190, LabelHue, m_House.MaxLockDowns.ToString() );
-
-						AddHtmlLocalized( 10, 210, 275, 20, 1011239, LabelColor, false, false ); // Number of secure containers:
-						AddLabel( 310, 210, LabelHue, m_House.SecureCount.ToString() );
-
-						AddHtmlLocalized( 10, 230, 275, 20, 1011240, LabelColor, false, false ); // Maximum number of secure containers:
-						AddLabel( 310, 230, LabelHue, m_House.MaxSecures.ToString() );*/
+						AddHtmlLocalized(10, 130, 400, 20, 1060682, LabelColor16, false, false); // <CENTER>HOUSE STORAGE SUMMARY</CENTER>
 
 						int fromSecures, fromVendors, fromLockdowns, fromMovingCrate;
 
@@ -9602,54 +9588,54 @@ namespace Server.Multis
 
 						if (bonusStorage > 0)
 						{
-							AddHtmlLocalized(10, 150, 300, 20, 1072519, LabelColor, false, false); // Increased Storage
+							AddHtmlLocalized(10, 150, 300, 20, 1072519, LabelColor16, false, false); // Increased Storage
 							AddLabel(310, 150, LabelHue, String.Format("{0}%", bonusStorage));
 						}
 
-						AddHtmlLocalized(10, 170, 300, 20, 1060683, LabelColor, false, false); // Maximum Secure Storage
+						AddHtmlLocalized(10, 170, 300, 20, 1060683, LabelColor16, false, false); // Maximum Secure Storage
 						AddLabel(310, 170, LabelHue, maxSecures.ToString());
 
-						AddHtmlLocalized(10, 190, 300, 20, 1060685, LabelColor, false, false); // Used by Moving Crate
+						AddHtmlLocalized(10, 190, 300, 20, 1060685, LabelColor16, false, false); // Used by Moving Crate
 						AddLabel(310, 190, LabelHue, fromMovingCrate.ToString());
 
-						AddHtmlLocalized(10, 210, 300, 20, 1060686, LabelColor, false, false); // Used by Lockdowns
+						AddHtmlLocalized(10, 210, 300, 20, 1060686, LabelColor16, false, false); // Used by Lockdowns
 						AddLabel(310, 210, LabelHue, fromLockdowns.ToString());
 
 						if (BaseHouse.NewVendorSystem)
 						{
-							AddHtmlLocalized(10, 230, 300, 20, 1060688, LabelColor, false, false); // Used by Secure Containers
+							AddHtmlLocalized(10, 230, 300, 20, 1060688, LabelColor16, false, false); // Used by Secure Containers
 							AddLabel(310, 230, LabelHue, fromSecures.ToString());
 
-							AddHtmlLocalized(10, 250, 300, 20, 1060689, LabelColor, false, false); // Available Storage
+							AddHtmlLocalized(10, 250, 300, 20, 1060689, LabelColor16, false, false); // Available Storage
 							AddLabel(310, 250, LabelHue, Math.Max(maxSecures - curSecures, 0).ToString());
 
-							AddHtmlLocalized(10, 290, 300, 20, 1060690, LabelColor, false, false); // Maximum Lockdowns
+							AddHtmlLocalized(10, 290, 300, 20, 1060690, LabelColor16, false, false); // Maximum Lockdowns
 							AddLabel(310, 290, LabelHue, maxLockdowns.ToString());
 
-							AddHtmlLocalized(10, 310, 300, 20, 1060691, LabelColor, false, false); // Available Lockdowns
+							AddHtmlLocalized(10, 310, 300, 20, 1060691, LabelColor16, false, false); // Available Lockdowns
 							AddLabel(310, 310, LabelHue, Math.Max(maxLockdowns - curLockdowns, 0).ToString());
 
 							var maxVendors = house.GetNewVendorSystemMaxVendors();
 							var vendors = house.PlayerVendors.Count + house.VendorRentalContracts.Count;
 
-							AddHtmlLocalized(10, 350, 300, 20, 1062391, LabelColor, false, false); // Vendor Count
+							AddHtmlLocalized(10, 350, 300, 20, 1062391, LabelColor16, false, false); // Vendor Count
 							AddLabel(310, 350, LabelHue, vendors.ToString() + " / " + maxVendors.ToString());
 						}
 						else
 						{
-							AddHtmlLocalized(10, 230, 300, 20, 1060687, LabelColor, false, false); // Used by Vendors
+							AddHtmlLocalized(10, 230, 300, 20, 1060687, LabelColor16, false, false); // Used by Vendors
 							AddLabel(310, 230, LabelHue, fromVendors.ToString());
 
-							AddHtmlLocalized(10, 250, 300, 20, 1060688, LabelColor, false, false); // Used by Secure Containers
+							AddHtmlLocalized(10, 250, 300, 20, 1060688, LabelColor16, false, false); // Used by Secure Containers
 							AddLabel(310, 250, LabelHue, fromSecures.ToString());
 
-							AddHtmlLocalized(10, 270, 300, 20, 1060689, LabelColor, false, false); // Available Storage
+							AddHtmlLocalized(10, 270, 300, 20, 1060689, LabelColor16, false, false); // Available Storage
 							AddLabel(310, 270, LabelHue, Math.Max(maxSecures - curSecures, 0).ToString());
 
-							AddHtmlLocalized(10, 330, 300, 20, 1060690, LabelColor, false, false); // Maximum Lockdowns
+							AddHtmlLocalized(10, 330, 300, 20, 1060690, LabelColor16, false, false); // Maximum Lockdowns
 							AddLabel(310, 330, LabelHue, maxLockdowns.ToString());
 
-							AddHtmlLocalized(10, 350, 300, 20, 1060691, LabelColor, false, false); // Available Lockdowns
+							AddHtmlLocalized(10, 350, 300, 20, 1060691, LabelColor16, false, false); // Available Lockdowns
 							AddLabel(310, 350, LabelHue, Math.Max(maxLockdowns - curLockdowns, 0).ToString());
 						}
 
@@ -9745,49 +9731,49 @@ namespace Server.Multis
 					}
 				case HouseGumpPageAOS.RemoveCoOwner:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060730, LabelColor, false, false); // <CENTER>CO-OWNER LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060730, LabelColor16, false, false); // <CENTER>CO-OWNER LIST</CENTER>
 						AddList(house.CoOwners, 10, false, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.ListCoOwner:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060730, LabelColor, false, false); // <CENTER>CO-OWNER LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060730, LabelColor16, false, false); // <CENTER>CO-OWNER LIST</CENTER>
 						AddList(house.CoOwners, -1, false, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.RemoveFriend:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060731, LabelColor, false, false); // <CENTER>FRIENDS LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060731, LabelColor16, false, false); // <CENTER>FRIENDS LIST</CENTER>
 						AddList(house.Friends, 11, false, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.ListFriend:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060731, LabelColor, false, false); // <CENTER>FRIENDS LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060731, LabelColor16, false, false); // <CENTER>FRIENDS LIST</CENTER>
 						AddList(house.Friends, -1, false, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.RemoveBan:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060733, LabelColor, false, false); // <CENTER>BAN LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060733, LabelColor16, false, false); // <CENTER>BAN LIST</CENTER>
 						AddList(house.Bans, 12, true, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.ListBan:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060733, LabelColor, false, false); // <CENTER>BAN LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060733, LabelColor16, false, false); // <CENTER>BAN LIST</CENTER>
 						AddList(house.Bans, -1, true, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.RemoveAccess:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060732, LabelColor, false, false); // <CENTER>ACCESS LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060732, LabelColor16, false, false); // <CENTER>ACCESS LIST</CENTER>
 						AddList(house.Access, 13, false, true, from);
 						break;
 					}
 				case HouseGumpPageAOS.ListAccess:
 					{
-						AddHtmlLocalized(10, 120, 400, 20, 1060732, LabelColor, false, false); // <CENTER>ACCESS LIST</CENTER>
+						AddHtmlLocalized(10, 120, 400, 20, 1060732, LabelColor16, false, false); // <CENTER>ACCESS LIST</CENTER>
 						AddList(house.Access, -1, false, true, from);
 						break;
 					}
@@ -10808,28 +10794,28 @@ namespace Server.Multis
 			AddLabel(110, 40, 1152, owner == null ? "" : owner.Name);
 
 			AddButton(10, 70, GetFirstID(SecureLevel.Owner), 4007, 1, GumpButtonType.Reply, 0);
-			AddHtmlLocalized(45, 70, 150, 20, 1061277, GetColor(SecureLevel.Owner), false, false); // Owner Only
+			AddHtmlLocalized(45, 70, 150, 20, 1061277, GetColor16(SecureLevel.Owner), false, false); // Owner Only
 
 			AddButton(10, 90, GetFirstID(SecureLevel.CoOwners), 4007, 2, GumpButtonType.Reply, 0);
-			AddHtmlLocalized(45, 90, 150, 20, 1061278, GetColor(SecureLevel.CoOwners), false, false); // Co-Owners
+			AddHtmlLocalized(45, 90, 150, 20, 1061278, GetColor16(SecureLevel.CoOwners), false, false); // Co-Owners
 
 			AddButton(10, 110, GetFirstID(SecureLevel.Friends), 4007, 3, GumpButtonType.Reply, 0);
-			AddHtmlLocalized(45, 110, 150, 20, 1061279, GetColor(SecureLevel.Friends), false, false); // Friends
+			AddHtmlLocalized(45, 110, 150, 20, 1061279, GetColor16(SecureLevel.Friends), false, false); // Friends
 
 			var houseOwner = house.Owner;
 			if (Guild.NewGuildSystem && house != null && houseOwner != null && houseOwner.Guild != null && ((Guild)houseOwner.Guild).Leader == houseOwner)  //Only the actual House owner AND guild master can set guild secures
 			{
 				AddButton(10, 130, GetFirstID(SecureLevel.Guild), 4007, 5, GumpButtonType.Reply, 0);
-				AddHtmlLocalized(45, 130, 150, 20, 1063455, GetColor(SecureLevel.Guild), false, false); // Guild Members
+				AddHtmlLocalized(45, 130, 150, 20, 1063455, GetColor16(SecureLevel.Guild), false, false); // Guild Members
 			}
 
 			AddButton(10, 130 + offset, GetFirstID(SecureLevel.Anyone), 4007, 4, GumpButtonType.Reply, 0);
-			AddHtmlLocalized(45, 130 + offset, 150, 20, 1061626, GetColor(SecureLevel.Anyone), false, false); // Anyone
+			AddHtmlLocalized(45, 130 + offset, 150, 20, 1061626, GetColor16(SecureLevel.Anyone), false, false); // Anyone
 		}
 
-		public int GetColor(SecureLevel level)
+		public short GetColor16(SecureLevel level)
 		{
-			return (m_Info.Level == level) ? 0x7F18 : 0x7FFF;
+			return (short)(m_Info.Level == level ? 0x7F18 : 0x7FFF);
 		}
 
 		public int GetFirstID(SecureLevel level)

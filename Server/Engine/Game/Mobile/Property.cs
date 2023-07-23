@@ -4388,7 +4388,7 @@ namespace Server
 
 		public virtual void Use(Item item)
 		{
-			if (item == null || item.Deleted || item.QuestItem || Deleted)
+			if (item == null || item.Deleted || Deleted)
 			{
 				return;
 			}
@@ -7165,121 +7165,163 @@ namespace Server
 			}
 		}
 
-		public Gump FindGump(Type type)
+		public IEnumerable<T> FindGumps<T>() where T : Gump
 		{
-			var ns = m_NetState;
-
-			if (ns != null)
+			if (m_NetState != null)
 			{
-				foreach (var gump in ns.Gumps)
+				var gumps = m_NetState.Gumps;
+				var index = gumps.Count;
+
+				while (m_NetState != null && --index >= 0)
 				{
-					if (type.IsAssignableFrom(gump.GetType()))
+					if (index >= gumps.Count)
 					{
-						return gump;
+						continue;
+					}
+
+					if (gumps[index] is T gump)
+					{
+						yield return gump;
 					}
 				}
+			}
+		}
+
+		public IEnumerable<Gump> FindGumps(Type type)
+		{
+			if (m_NetState != null)
+			{
+				var gumps = m_NetState.Gumps;
+				var index = gumps.Count;
+
+				while (m_NetState != null && --index >= 0)
+				{
+					if (index >= gumps.Count)
+					{
+						continue;
+					}
+
+					var gump = gumps[index];
+
+					if (type.IsAssignableFrom(gump.GetType()))
+					{
+						yield return gump;
+					}
+				}
+			}
+		}
+
+		public T FindGump<T>() where T : Gump
+		{
+			foreach (var gump in FindGumps<T>())
+			{
+				return gump;
 			}
 
 			return null;
 		}
 
-		public bool CloseGump(Type type)
+		public Gump FindGump(Type type)
 		{
-			if (m_NetState != null)
+			foreach (var gump in FindGumps(type))
 			{
-				var gump = FindGump(type);
+				return gump;
+			}
 
-				if (gump != null)
-				{
-					m_NetState.Send(new CloseGump(gump.TypeID, 0));
+			return null;
+		}
 
-					m_NetState.RemoveGump(gump);
+		public int CloseGumps<T>() where T : Gump
+		{
+			var count = 0;
 
-					gump.OnServerClose(m_NetState);
-				}
+			foreach (var gump in FindGumps<T>())
+			{
+				m_NetState.Send(new CloseGump(gump.TypeID, 0));
+
+				m_NetState.RemoveGump(gump);
+
+				gump.OnServerClose(m_NetState);
+
+				++count;
+			}
+
+			return count;
+		}
+
+		public int CloseGumps(Type type)
+		{
+			var count = 0;
+
+			foreach (var gump in FindGumps(type))
+			{
+				m_NetState.Send(new CloseGump(gump.TypeID, 0));
+
+				m_NetState.RemoveGump(gump);
+
+				gump.OnServerClose(m_NetState);
+
+				++count;
+			}
+
+			return count;
+		}
+
+		public bool CloseGump<T>() where T : Gump
+		{
+			var gump = FindGump<T>();
+
+			if (gump != null)
+			{
+				m_NetState.Send(new CloseGump(gump.TypeID, 0));
+
+				m_NetState.RemoveGump(gump);
+
+				gump.OnServerClose(m_NetState);
 
 				return true;
 			}
-			else
+
+			return false;
+		}
+
+		public bool CloseGump(Type type)
+		{
+			var gump = FindGump(type);
+
+			if (gump != null)
 			{
-				return false;
+				m_NetState.Send(new CloseGump(gump.TypeID, 0));
+
+				m_NetState.RemoveGump(gump);
+
+				gump.OnServerClose(m_NetState);
+
+				return true;
 			}
-		}
 
-		[Obsolete("Use CloseGump( Type ) instead.")]
-		public bool CloseGump(Type type, int buttonID)
-		{
-			return CloseGump(type);
-		}
-
-		[Obsolete("Use CloseGump( Type ) instead.")]
-		public bool CloseGump(Type type, int buttonID, bool throwOnOffline)
-		{
-			return CloseGump(type);
+			return false;
 		}
 
 		public bool CloseAllGumps()
 		{
-			var ns = m_NetState;
-
-			if (ns != null)
-			{
-				var gumps = new List<Gump>(ns.Gumps);
-
-				ns.ClearGumps();
-
-				foreach (var gump in gumps)
-				{
-					ns.Send(new CloseGump(gump.TypeID, 0));
-
-					gump.OnServerClose(ns);
-				}
-
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		[Obsolete("Use CloseAllGumps() instead.", false)]
-		public bool CloseAllGumps(bool throwOnOffline)
-		{
-			return CloseAllGumps();
+			return CloseGumps<Gump>() > 0;
 		}
 
 		public bool HasGump(Type type)
 		{
-			return (FindGump(type) != null);
-		}
-
-		[Obsolete("Use HasGump( Type ) instead.", false)]
-		public bool HasGump(Type type, bool throwOnOffline)
-		{
-			return HasGump(type);
+			return FindGump(type) != null;
 		}
 
 		public bool SendGump(Gump g)
-		{
-			return SendGump(g, false);
-		}
-
-		public bool SendGump(Gump g, bool throwOnOffline)
 		{
 			if (m_NetState != null)
 			{
 				g.SendTo(m_NetState);
 				return true;
 			}
-			else if (throwOnOffline)
-			{
-				throw new MobileNotConnectedException(this, "Gump could not be sent.");
-			}
-			else
-			{
-				return false;
-			}
+
+			return false;
 		}
 
 		public bool SendMenu(IMenu m)
@@ -7294,14 +7336,13 @@ namespace Server
 				m.SendTo(m_NetState);
 				return true;
 			}
-			else if (throwOnOffline)
+
+			if (throwOnOffline)
 			{
 				throw new MobileNotConnectedException(this, "Menu could not be sent.");
 			}
-			else
-			{
-				return false;
-			}
+
+			return false;
 		}
 
 		#endregion
@@ -10494,13 +10535,6 @@ namespace Server
 		/// <returns>True if the request is accepted, false if otherwise.</returns>
 		public virtual bool OnEquip(Item item)
 		{
-			// For some reason OSI allows equipping quest items, but they are unmarked in the process
-			if (item.QuestItem)
-			{
-				item.QuestItem = false;
-				SendLocalizedMessage(1074769); // An item must be in your backpack (and not in a container within) to be toggled as a quest item.
-			}
-
 			return true;
 		}
 

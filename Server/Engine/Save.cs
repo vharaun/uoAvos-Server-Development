@@ -152,7 +152,7 @@ namespace Server
 
 			public Region Region => m_Region;
 
-			public Serial Serial => m_Region == null ? 0 : m_Region.Id;
+			public Serial Serial => m_Region?.m_Serial ?? Serial.Zero;
 
 			public int TypeID => m_TypeID;
 
@@ -180,7 +180,7 @@ namespace Server
 
 			public BaseGuild Guild => m_Guild;
 
-			public Serial Serial => m_Guild == null ? 0 : m_Guild.Id;
+			public Serial Serial => m_Guild?.m_Serial ?? Serial.Zero;
 
 			public int TypeID => 0;
 
@@ -208,7 +208,7 @@ namespace Server
 
 			public Item Item => m_Item;
 
-			public Serial Serial => m_Item == null ? Serial.MinusOne : m_Item.Serial;
+			public Serial Serial => m_Item?.Serial ?? Serial.MinusOne;
 
 			public int TypeID => m_TypeID;
 
@@ -238,7 +238,7 @@ namespace Server
 
 			public Mobile Mobile => m_Mobile;
 
-			public Serial Serial => m_Mobile == null ? Serial.MinusOne : m_Mobile.Serial;
+			public Serial Serial => m_Mobile?.Serial ?? Serial.MinusOne;
 
 			public int TypeID => m_TypeID;
 
@@ -1137,10 +1137,9 @@ namespace Server
 	{
 		public static void SerializeBlock(GenericWriter writer, Action<GenericWriter> serializer)
 		{
-			using var ms = new MemoryStream();
-
 			if (serializer != null)
 			{
+				using var ms = new MemoryStream();
 				using var w = new BinaryFileWriter(ms, true);
 
 				try
@@ -1148,14 +1147,22 @@ namespace Server
 					serializer(w);
 
 					w.Flush();
+
+					writer.Write(ms);
+				}
+				catch
+				{
+					Utility.PushColor(ConsoleColor.Red);
+					Console.WriteLine("[Persistence]: An error was encountered while writing a persistent object");
+					Utility.PopColor();
+
+					throw;
 				}
 				finally
 				{
 					w.Close();
 				}
 			}
-
-			writer.Write(ms);
 		}
 
 		public static void DeserializeBlock(GenericReader reader, Action<GenericReader> deserializer)
@@ -1169,6 +1176,14 @@ namespace Server
 				try
 				{
 					deserializer(r);
+				}
+				catch
+				{
+					Utility.PushColor(ConsoleColor.Red);
+					Console.WriteLine("[Persistence]: An error was encountered while reading a persistent object");
+					Utility.PopColor();
+
+					throw;
 				}
 				finally
 				{
@@ -1204,6 +1219,14 @@ namespace Server
 			try
 			{
 				serializer(writer);
+			}
+			catch
+			{
+				Utility.PushColor(ConsoleColor.Red);
+				Console.WriteLine("[Persistence]: An error was encountered while writing a persistent object");
+				Utility.PopColor();
+
+				throw;
 			}
 			finally
 			{
@@ -1263,20 +1286,24 @@ namespace Server
 			{
 				deserializer(reader);
 			}
-			catch (EndOfStreamException eos)
+			catch (EndOfStreamException)
 			{
 				if (file.Length > 0)
 				{
-					throw new Exception($"[Persistence]: {eos}");
+					Utility.PushColor(ConsoleColor.Red);
+					Console.WriteLine("[Persistence]: An error was encountered while reading a persistent object");
+					Utility.PopColor();
+
+					throw;
 				}
 			}
-			catch (Exception e)
+			catch
 			{
 				Utility.PushColor(ConsoleColor.Red);
-				Console.WriteLine("[Persistence]: An error was encountered while loading a saved object");
+				Console.WriteLine("[Persistence]: An error was encountered while reading a persistent object");
 				Utility.PopColor();
 
-				throw new Exception($"[Persistence]: {e}");
+				throw;
 			}
 			finally
 			{
@@ -1372,20 +1399,24 @@ namespace Server
 
 				deserializer(node);
 			}
-			catch (EndOfStreamException eos)
+			catch (EndOfStreamException)
 			{
 				if (file.Length > 0)
 				{
-					throw new Exception($"[Persistence]: {eos}");
+					Utility.PushColor(ConsoleColor.Red);
+					Console.WriteLine("[Persistence]: An error was encountered while reading a persistent object");
+					Utility.PopColor();
+
+					throw;
 				}
 			}
-			catch (Exception e)
+			catch
 			{
 				Utility.PushColor(ConsoleColor.Red);
-				Console.WriteLine("[Persistence]: An error was encountered while loading a saved object");
+				Console.WriteLine("[Persistence]: An error was encountered while reading a persistent object");
 				Utility.PopColor();
 
-				throw new Exception($"[Persistence]: {e}");
+				throw;
 			}
 		}
 	}

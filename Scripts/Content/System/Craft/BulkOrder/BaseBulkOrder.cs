@@ -493,7 +493,7 @@ namespace Server.Engines.BulkOrders
 
 			AddHtmlLocalized(40, 96, 120, 20, 1045136, 0x7FFF, false, false); // Item requested:
 			AddItem(385, 96, deed.Graphic);
-			AddHtmlLocalized(40, 120, 210, 20, deed.Number, 0xFFFFFF, false, false);
+			AddHtmlLocalized(40, 120, 210, 20, deed.Number, 0x7FFF, false, false);
 
 			if (deed.RequireExceptional || deed.Material != BulkMaterialType.None)
 			{
