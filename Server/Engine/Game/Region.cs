@@ -608,7 +608,7 @@ namespace Server
 
 		public virtual void Serialize(GenericWriter writer)
 		{
-			writer.Write(1);
+			writer.Write(0);
 
 			writer.Write(IsDefault);
 			writer.Write(Registered);
@@ -622,6 +622,8 @@ namespace Server
 			writer.Write(Dynamic);
 			writer.Write(m_Priority);
 			writer.Write(Music);
+
+			writer.Write(LockdownLevel);
 
 			if (m_Area != null)
 			{
@@ -638,54 +640,46 @@ namespace Server
 			}
 
 			writer.Write(Children);
-
-			writer.Write(LockdownLevel);
 		}
 
 		public virtual void Deserialize(GenericReader reader)
 		{
-			var v = reader.ReadInt();
+			_ = reader.ReadInt();
 
-			if (v >= 0)
+			var isDefault = reader.ReadBool();
+			var isRegistered = reader.ReadBool();
+
+			m_Name = reader.ReadString();
+
+			Map = reader.ReadMap();
+
+			m_Parent = reader.ReadRegion();
+
+			Dynamic = reader.ReadBool();
+			m_Priority = reader.ReadInt();
+			Music = reader.ReadEnum<MusicName>();
+
+			LockdownLevel = reader.ReadEnum<AccessLevel>();
+
+			var count = reader.ReadInt();
+
+			if (count > 0)
 			{
-				var isDefault = reader.ReadBool();
-				var isRegistered = reader.ReadBool();
+				m_Area = new Poly3D[count];
 
-				m_Name = reader.ReadString();
-
-				Map = reader.ReadMap();
-
-				m_Parent = reader.ReadRegion();
-
-				Dynamic = reader.ReadBool();
-				m_Priority = reader.ReadInt();
-				Music = reader.ReadEnum<MusicName>();
-
-				var count = reader.ReadInt();
-
-				if (count > 0)
+				for (var i = 0; i < count; i++)
 				{
-					m_Area = new Poly3D[count];
-
-					for (var i = 0; i < count; i++)
-					{
-						m_Area[i] = reader.ReadPoly3D();
-					}
-				}
-
-				Children = reader.ReadRegionSet();
-
-				m_RequiresRegistration = Registered = isRegistered;
-
-				if (isDefault && Map != null)
-				{
-					Map.DefaultRegion = this;
+					m_Area[i] = reader.ReadPoly3D();
 				}
 			}
 
-			if (v >= 1)
+			Children = reader.ReadRegionSet();
+
+			m_RequiresRegistration = Registered = isRegistered;
+
+			if (isDefault && Map != null)
 			{
-				LockdownLevel = reader.ReadEnum<AccessLevel>();
+				Map.DefaultRegion = this;
 			}
 		}
 

@@ -1801,7 +1801,7 @@ namespace Server.Regions
 		{
 			base.Serialize(writer);
 
-			writer.Write(5);
+			writer.Write(0);
 
 			writer.Write(RuneName);
 
@@ -1893,36 +1893,17 @@ namespace Server.Regions
 		{
 			base.Deserialize(reader);
 
-			var v = reader.ReadInt();
+			_ = reader.ReadInt();
 
 			RuneName = reader.ReadString();
 
-			if (v >= 5)
+			if (reader.ReadBool())
 			{
-				if (reader.ReadBool())
-				{
-					Rules.Defaults();
-				}
-				else
-				{
-					Rules.Flags = reader.ReadEnum<RegionFlags>();
-				}
-			}
-			else if (v >= 2)
-			{
-				Rules.Flags = reader.ReadEnum<RegionFlags>();
+				Rules.Defaults();
 			}
 			else
 			{
-				Rules.AllowHouses = reader.ReadBool();
-				Rules.AllowYoungAggro = !reader.ReadBool();
-				Rules.CanEnterYoung = reader.ReadBool();
-				Rules.AllowMount = reader.ReadBool();
-				Rules.CanEnterDead = reader.ReadBool();
-				Rules.AllowPlayerRes = reader.ReadBool();
-				Rules.AllowLogout = reader.ReadBool();
-				Rules.AllowDelayLogout = !reader.ReadBool();
-				Rules.AllowParentSpawns = !reader.ReadBool();
+				Rules.Flags = reader.ReadEnum<RegionFlags>();
 			}
 
 			SpawnZLevel = reader.ReadEnum<SpawnZLevel>();
@@ -1949,34 +1930,31 @@ namespace Server.Regions
 
 					spawns.Clear();
 				}
-				
+
 				spawns.TrimExcess();
 			}
 
-			if (v >= 4 && reader.ReadBool())
+			if (reader.ReadBool())
 			{
 				Currencies.Deserialize(reader);
 			}
 
-			if (v >= 5 && reader.ReadBool())
+			if (reader.ReadBool())
 			{
 				HarvestNodes.Deserialize(reader);
 			}
 
-			if (v >= 3)
+			if (reader.ReadBool())
 			{
-				if (reader.ReadBool())
-				{
-					SkillPermissions.Deserialize(reader);
-				}
-
-				if (reader.ReadBool())
-				{
-					SpellPermissions.Deserialize(reader);
-				}
+				SkillPermissions.Deserialize(reader);
 			}
 
-			if (v >= 1 && reader.ReadBool())
+			if (reader.ReadBool())
+			{
+				SpellPermissions.Deserialize(reader);
+			}
+
+			if (reader.ReadBool())
 			{
 				if (Weather != null)
 				{
