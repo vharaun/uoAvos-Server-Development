@@ -42,7 +42,7 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Axe;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
 
 		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
 
@@ -470,7 +470,7 @@ namespace Server.Items
 		public override WeaponType DefType => WeaponType.Polearm;
 		public override WeaponAnimation DefAnimation => WeaponAnimation.Slash2H;
 
-		public virtual HarvestSystem HarvestSystem => FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System;
+		public virtual HarvestSystem HarvestSystem => Lumberjacking.System;
 
 		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
 

@@ -109,11 +109,7 @@ namespace Server.Engines.Harvest
 				return;
 			}
 
-			int tileID;
-			Map map;
-			Point3D loc;
-
-			if (!GetHarvestDetails(from, tool, toHarvest, out tileID, out map, out loc))
+			if (!GetHarvestDetails(from, tool, toHarvest, out var tileID, out var map, out var loc))
 			{
 				OnBadHarvestTarget(from, tool, toHarvest);
 				return;
@@ -140,7 +136,7 @@ namespace Server.Engines.Harvest
 				return;
 			}
 
-			if (SpecialHarvest(from, tool, def, map, loc))
+			if (SpecialHarvest(from, tool, def, toHarvest, tileID, map, loc))
 			{
 				return;
 			}
@@ -169,19 +165,14 @@ namespace Server.Engines.Harvest
 			var resource = MutateResource(from, tool, def, map, loc, vein, primary, fallback);
 
 			var skillBase = from.Skills[def.Skill].Base;
-			_ = from.Skills[def.Skill].Value;
 
 			Type type = null;
 
 			if (skillBase >= resource.ReqSkill && from.CheckSkill(def.Skill, resource.MinSkill, resource.MaxSkill))
 			{
 				type = GetResourceType(from, tool, def, map, loc, resource);
-
-				if (type != null)
-				{
-					type = MutateType(type, from, tool, def, map, loc, resource);
-				}
-
+				type = MutateType(type, from, tool, def, map, loc, resource);
+				
 				if (type != null)
 				{
 					var item = Construct(type, from);
@@ -289,7 +280,7 @@ namespace Server.Engines.Harvest
 		{
 		}
 
-		public virtual bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, Map map, Point3D loc)
+		public virtual bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
 		{
 			return false;
 		}
@@ -873,7 +864,7 @@ namespace Server.Engines.Harvest
 					return;
 				}
 			}
-			else if (m_System is Lumberjacking or FacetModule_Lumberjacking)
+			else if (m_System is Lumberjacking)
 			{
 				if (targeted is IChopable chop)
 				{

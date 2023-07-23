@@ -122,6 +122,16 @@ namespace Server.Engines.Harvest
 			#endregion
 		}
 
+		public override bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
+		{
+			if (Engine.Facet.Module.LumberHarvest.FacetModule_Lumberjacking.SpecialHarvest(from, tool, def, toHarvest, tileID, map, loc))
+			{
+				return true;
+			}
+
+			return base.SpecialHarvest(from, tool, def, toHarvest, tileID, map, loc);
+		}
+
 		public override bool CheckHarvest(Mobile from, IHarvestTool tool)
 		{
 			if (!base.CheckHarvest(from, tool))

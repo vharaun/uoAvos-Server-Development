@@ -1265,7 +1265,7 @@ namespace Server.Targets
 			{
 				var tool = m_Item as IHarvestTool;
 
-				var system = tool?.HarvestSystem as HarvestSystem ?? (FacetEditingSettings.LumberHarvestModuleEnabled ? FacetModule_Lumberjacking.System : Lumberjacking.System);
+				var system = tool?.HarvestSystem as HarvestSystem ?? Lumberjacking.System;
 
 				if (system == null)
 				{

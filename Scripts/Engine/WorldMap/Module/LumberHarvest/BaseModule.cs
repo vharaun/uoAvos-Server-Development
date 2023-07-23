@@ -97,7 +97,7 @@ using System.Linq;
 
 namespace Server.Engine.Facet.Module.LumberHarvest
 {
-	public class FacetModule_Lumberjacking : HarvestSystem
+	public static class FacetModule_Lumberjacking
 	{
 		//List contains an entry for each map, each entry contains all the locations where trees have been chopped down
 		public static Dictionary<int, Dictionary<Point3D, int>> RegrowthMasterLookupTable { get; } = new();
@@ -107,19 +107,20 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		//This is the minimum time between regrowths, but the regrowths will only happen on world saves
 		public static TimeSpan TimeBetweenRegrowth { get; set; } = TimeSpan.FromMinutes(1);
 
-		private static FacetModule_Lumberjacking m_System;
-
-		public static FacetModule_Lumberjacking System => m_System ??= new FacetModule_Lumberjacking();
-
 		public static void Configure()
 		{
 			foreach (var m in Map.AllMaps)
 			{
-				RegrowthMasterLookupTable.Add(m.MapID, new Dictionary<Point3D, int>());
+				RegrowthMasterLookupTable[m.MapID] = new();
 			}
 
 			EventSink.WorldSave += OnSave;
 			EventSink.WorldLoad += OnLoad;
+
+			if (FacetEditingSettings.LumberHarvestModuleEnabled)
+			{
+				ModifyLumberjacking();
+			}
 		}
 
 		public static void OnLoad()
@@ -266,130 +267,69 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			}
 		}
 
-		private readonly HarvestDefinition m_Definition;
-
-		public HarvestDefinition Definition => m_Definition;
-
-		private FacetModule_Lumberjacking()
+		private static void ModifyLumberjacking()
 		{
-			var tiles = new List<int>(BaseHarvestablePhase.MasterHarvestablePhaseLookupByItemIdList.Keys);
+			var def = Lumberjacking.System.Definition;
 
-			for (var i = 0; i < tiles.Count; ++i)
+			var tiles = BaseHarvestablePhase.MasterHarvestablePhaseLookupByItemIdList.Keys.ToArray();
+
+			for (var i = 0; i < tiles.Length; ++i)
 			{
 				tiles[i] += 0x4000;
 			}
 
-			var tileNums = tiles.ToArray();
+			Array.Sort(tiles);
 
-			Array.Sort(tileNums);
+			def.Tiles = tiles;
 
-			var lumber = new HarvestDefinition
+			def.Resources = new[]
 			{
-				Tiles = tileNums,
-
-				// Players must be within 2 tiles to harvest
-				MaxRange = 2,
-
-				// Skill checking is done on the Lumberjacking skill
-				Skill = SkillName.Lumberjacking,
-
-				// The chopping effect
-				EffectActions = new int[] { 13 },
-				EffectSounds = new int[] { 0x13E },
-				EffectCounts = Core.AOS ? new int[] { 1 } : new int[] { 1, 2, 2, 2, 3 },
-				EffectDelay = TimeSpan.FromSeconds(1.6),
-				EffectSoundDelay = TimeSpan.FromSeconds(0.9),
-
-				NoResourcesMessage = 500493, // There's not enough wood here to harvest.
-				FailMessage = 500495, // You hack at the tree for a while, but fail to produce any useable wood.
-				OutOfRangeMessage = 500446, // That is too far away.
-				PackFullMessage = 500497, // You can't place any wood into your backpack!
-				ToolBrokeMessage = 500499, // You broke your axe.
-
-				//not used
-				RaceBonus = Core.ML,
-				RandomizeVeins = Core.ML,
-				BankWidth = 4,
-				BankHeight = 3,
-				MinTotal = 20,
-				MaxTotal = 45,
-				Resources = new HarvestResource[] { new HarvestResource(00.0, 00.0, 100.0, 500498, typeof(Log)) },
-				BonusResources = new BonusHarvestResource[] { new BonusHarvestResource(0, 83.9, null, null) }
+				new HarvestResource(00.0, 00.0, 100.0, 500498, typeof(Log)),
 			};
 
-			lumber.Veins = new HarvestVein[] { new HarvestVein(49.0, 0.0, lumber.Resources[0], null) };
+			def.BonusResources = new[]
+			{
+				new BonusHarvestResource(0, 83.9, null, null),
+			};
 
-			m_Definition = lumber;
-			System.Definitions.Add(lumber);
+			def.Veins = new[]
+			{
+				new HarvestVein(49.0, 0.0, def.Resources[0], null),
+			};
 		}
 
-		public override void FinishHarvesting(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, object locked)
+		public static bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
 		{
-			from.EndAction(locked);
-
-			if (!CheckHarvest(from, tool))
+			if (!FacetEditingSettings.LumberHarvestModuleEnabled)
 			{
-				return;
+				return false;
 			}
 
-			int tileID;
-			Map map;
-			Point3D loc;
-
-			if (!GetHarvestDetails(from, tool, toHarvest, out tileID, out map, out loc))
+			if (from.CheckSkill(def.Skill, 0, 120))
 			{
-				OnBadHarvestTarget(from, tool, toHarvest);
-				return;
-			}
+				var hTreePhase = BaseHarvestablePhase.LookupPhase(tileID);
 
-			if (!def.Validate(tileID))
-			{
-				OnBadHarvestTarget(from, tool, toHarvest);
-				return;
-			}
+				_ = hTreePhase.Harvest(from, tileID, tool, loc, map);
 
-			if (!CheckRange(from, tool, def, map, loc, true))
-			{
-				return;
-			}
-
-			if (!CheckHarvest(from, tool, def, toHarvest))
-			{
-				return;
-			}
-
-			_ = from.Skills[def.Skill].Base;
-			_ = from.Skills[def.Skill].Value;
-
-			if (toHarvest is StaticTarget harvestTarget)
-			{
-				if (from.CheckSkill(def.Skill, 0, 120))
+				if (tool is IUsesRemaining toolWithUses)
 				{
-					if (tool is IUsesRemaining toolWithUses)
+					toolWithUses.ShowUsesRemaining = true;
+
+					if (toolWithUses.UsesRemaining > 0)
 					{
-						toolWithUses.ShowUsesRemaining = true;
+						--toolWithUses.UsesRemaining;
+					}
 
-						if (toolWithUses.UsesRemaining > 0)
-						{
-							--toolWithUses.UsesRemaining;
-						}
+					if (toolWithUses.UsesRemaining < 1)
+					{
+						tool.Delete();
 
-						if (toolWithUses.UsesRemaining < 1)
-						{
-							tool.Delete();
-
-							def.SendMessageTo(from, def.ToolBrokeMessage);
-						}
+						def.SendMessageTo(from, def.ToolBrokeMessage);
 					}
 				}
-
-				var hTreePhase = BaseHarvestablePhase.LookupPhase(harvestTarget.ItemID);
-
-				if (hTreePhase is BaseTreeHarvestPhase)
-				{
-					_ = hTreePhase.Harvest(from, harvestTarget.ItemID, harvestTarget.Location, map);
-				}
 			}
+
+			return true;
 		}
 	}
 
@@ -471,7 +411,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		{
 		}
 
-		public override bool Harvest(Mobile from, int itemId, Point3D harvestTargetLocation, Map map)
+		public override bool Harvest(Mobile from, int itemId, IHarvestTool tool, Point3D harvestTargetLocation, Map map)
 		{
 			var trunkLocation = LookupOriginLocation(harvestTargetLocation, itemId);
 
@@ -507,7 +447,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			}
 			else //if there are no leaves left, then remove the trunk pieces and call nextPhase.construct
 			{
-				_ = Harvest(from, itemId, harvestTargetLocation, map, ref mapActions);
+				_ = Harvest(from, itemId, tool, harvestTargetLocation, map, ref mapActions);
 			}
 
 			mapActions?.DoOperation();
@@ -597,11 +537,11 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			_ = RemoveAssets(map, originLocation, ref mapActions, LeafSets);
 		}
 
-		public override bool Harvest(Mobile from, int itemId, Point3D harvestTargetLocation, Map map)
+		public override bool Harvest(Mobile from, int itemId, IHarvestTool tool, Point3D harvestTargetLocation, Map map)
 		{
 			MapOperationSeries mapActions = null;
 
-			var successfulHarvest = Harvest(from, itemId, harvestTargetLocation, map, ref mapActions);
+			var successfulHarvest = Harvest(from, itemId, tool, harvestTargetLocation, map, ref mapActions);
 
 			mapActions?.DoOperation();
 
@@ -619,7 +559,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			table[trunkLocation] = itemId;
 		}
 
-		public bool Harvest(Mobile from, int itemId, Point3D harvestTargetLocation, Map map, ref MapOperationSeries operationSeries)
+		public bool Harvest(Mobile from, int itemId, IHarvestTool tool, Point3D harvestTargetLocation, Map map, ref MapOperationSeries operationSeries)
 		{
 			var trunkLocation = LookupOriginLocation(harvestTargetLocation, itemId);
 
@@ -659,6 +599,8 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				phasePiecesRemoved = RemoveAssets(map, trunkLocation, ref operationSeries, assetsToRemove);
 			}
 
+			var system = tool?.HarvestSystem as HarvestSystem ?? Lumberjacking.System;
+
 			var hue = 0;
 
 			//give out phase resource for each graphic asset removed
@@ -666,18 +608,36 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			{
 				hue = assetPair.Key;
 
-				var itm = ReapResource(assetPair.Key, from, assetPair.Value.HarvestResourceBaseAmount);
+				var item = ReapResource(assetPair.Key, from, assetPair.Value.HarvestResourceBaseAmount, system, tool, harvestTargetLocation, map);
 
-				if (itm != null)
+				if (item != null)
 				{
-					_ = from.AddToBackpack(itm);
+					var itemAmount = item.Amount;
+
+					if (system.Give(from, item, true))
+					{
+						EventSink.InvokeHarvestedItem(new HarvestedItemEventArgs(from, item, itemAmount, system, tool));
+					}
+					else
+					{
+						item.Delete();
+					}
 				}
 			}
 
 			//give out asset bonus resources
-			foreach (var itm in ReapBonusResources(hue, from))
+			foreach (var item in ReapBonusResources(hue, from))
 			{
-				_ = from.AddToBackpack(itm);
+				var itemAmount = item.Amount;
+
+				if (system.Give(from, item, true))
+				{
+					EventSink.InvokeHarvestedItem(new HarvestedItemEventArgs(from, item, itemAmount, system, tool));
+				}
+				else
+				{
+					item.Delete();
+				}
 			}
 
 			return operationSeries != null;
@@ -936,7 +896,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		}
 
 		/// Resource Reap Methods
-		public virtual Item ReapResource(int hue, Mobile from, int amount)
+		public virtual Item ReapResource(int hue, Mobile from, int amount, HarvestSystem system, IHarvestTool tool, Point3D loc, Map map)
 		{
 			Item resourceItem = null;
 			HarvestResource resource = null;
@@ -961,6 +921,8 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 						try
 						{
 							var type = resource.Types[Utility.Random(resource.Types.Length)];
+
+							type = from.Region.GetResource(from, tool, map, loc, system, type);
 
 							if (Activator.CreateInstance(type) is Item item)
 							{
@@ -1011,7 +973,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 		#endregion
 
-		public virtual bool Harvest(Mobile from, int itemId, Point3D location, Map map)
+		public virtual bool Harvest(Mobile from, int itemId, IHarvestTool tool, Point3D location, Map map)
 		{
 			return false;
 		}
