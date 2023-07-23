@@ -4057,7 +4057,7 @@ namespace Server.Mobiles
 
 			if (guardedRegion != null)
 			{
-				if (!guardedRegion.IsDisabled() && guardedRegion.IsGuardCandidate(m) && BeginAction(typeof(GuardedRegion)))
+				if (!guardedRegion.Disabled && guardedRegion.IsGuardCandidate(m) && BeginAction(typeof(GuardedRegion)))
 				{
 					Say(1013037 + Utility.Random(16));
 					guardedRegion.CallGuards(Location);

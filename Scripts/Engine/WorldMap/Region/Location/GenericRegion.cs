@@ -1,6 +1,6 @@
 ﻿namespace Server.Regions
 {
-	public sealed class GenericRegion : BaseRegion
+	public sealed class GenericRegion : GuardedRegion
 	{
 		public override bool WeatherSupported => true;
 
@@ -42,6 +42,15 @@
 
 		public GenericRegion(int id) : base(id)
 		{
+		}
+
+		protected override void DefaultInit()
+		{
+			base.DefaultInit();
+			
+			Rules.Defaults();
+
+			Disabled = true;
 		}
 
 		public override void Serialize(GenericWriter writer)

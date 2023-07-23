@@ -2094,8 +2094,8 @@ namespace Server.Mobiles
 		{
 			m_NextProtectionCheck = 10;
 
-			var reg = (Regions.GuardedRegion)Region.GetRegion(typeof(Regions.GuardedRegion));
-			var isProtected = (reg != null && !reg.IsDisabled());
+			var reg = Region.GetRegion<Regions.GuardedRegion>();
+			var isProtected = (reg != null && !reg.Disabled);
 
 			if (isProtected != m_LastProtectedMessage)
 			{
