@@ -290,6 +290,11 @@ namespace Server
 		{
 			return _Bounds.ToString();
 		}
+
+		public static implicit operator Rectangle2D(MapBounds b)
+		{
+			return b._Bounds;
+		}
 	}
 
 	public interface IPooledEnumerable : IEnumerable
@@ -1876,7 +1881,7 @@ namespace Server
 
 				if (World.Loaded && !World.Loading && !World.Saving && m_DefaultRegion?.Deleted != false)
 				{
-					m_DefaultRegion = new Region(null, this, 0, Array.Empty<Poly3D>());
+					m_DefaultRegion = new MapRegion(this);
 					m_DefaultRegion.Register();
 				}
 
@@ -3406,6 +3411,31 @@ namespace Server
 			{
 				return l.MapIndex - r.MapIndex;
 			}
+		}
+	}
+
+	public sealed class MapRegion : Region
+	{
+		public MapRegion(int id) : base(id)
+		{
+		}
+
+		public MapRegion(Map map) : base(null, map, 0, map.Bounds)
+		{
+		}
+
+		public override void Serialize(GenericWriter writer)
+		{
+			base.Serialize(writer);
+
+			writer.Write(0);
+		}
+
+		public override void Deserialize(GenericReader reader)
+		{
+			base.Deserialize(reader);
+
+			_ = reader.ReadInt();
 		}
 	}
 

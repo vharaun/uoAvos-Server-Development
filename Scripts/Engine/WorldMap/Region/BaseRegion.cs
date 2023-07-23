@@ -418,7 +418,7 @@ namespace Server.Regions
 		#endregion
 	}
 
-	public class BaseRegion : Region
+	public abstract class BaseRegion : Region
 	{
 		private static readonly List<Poly3D> m_RectBuffer1 = new();
 		private static readonly List<Poly3D> m_RectBuffer2 = new();
