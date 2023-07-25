@@ -564,7 +564,7 @@ namespace Server
 		private int m_Amount;
 		private Layer m_Layer;
 		private IEntity m_Parent; // Mobile, Item, or null=World
-		private Map m_Map;
+		private Map m_Map = Map.Internal;
 		private LootType m_LootType;
 		private DateTime m_LastMovedTime;
 		private Direction m_Direction;
@@ -5444,11 +5444,9 @@ namespace Server
 		{
 			m_Serial = Serial.NewItem;
 
-			//m_Items = new ArrayList( 1 );
 			Visible = true;
 			Movable = true;
 			Amount = 1;
-			m_Map = Map.Internal;
 
 			SetLastMoved();
 

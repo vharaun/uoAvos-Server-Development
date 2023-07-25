@@ -428,7 +428,7 @@ namespace Server.Regions
 
 		public static void Configure()
 		{
-			DefaultRegionType = typeof(BaseRegion);
+			DefaultRegionType = typeof(GenericRegion);
 		}
 
 		public static string GetRuneNameFor(Region region)

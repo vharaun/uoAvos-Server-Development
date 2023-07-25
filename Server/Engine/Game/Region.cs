@@ -1928,11 +1928,22 @@ namespace Server
 
 		public static Region CreateInstance(RegionDefinition def, Map map, Region parent)
 		{
-			var type = def.Type ?? DefaultRegionType; 
-			
+			var type = ScriptCompiler.FindTypeByName(def.Type, true);
+
+			if (type == null || !typeof(Region).IsAssignableFrom(type))
+			{
+				Utility.PushColor(ConsoleColor.Yellow);
+				Console.WriteLine($"Invalid region type '{def.Type}', defaulting to '{DefaultRegionType.FullName}'");
+				Utility.PopColor();
+
+				type = DefaultRegionType;
+			}
+
 			if (!typeof(Region).IsAssignableFrom(type))
 			{
+				Utility.PushColor(ConsoleColor.Red);
 				Console.WriteLine($"Invalid region type '{type.FullName}'");
+				Utility.PopColor();
 
 				return null;
 			}
@@ -1943,8 +1954,10 @@ namespace Server
 			}
 			catch (Exception ex)
 			{
+				Utility.PushColor(ConsoleColor.Red);
 				Console.WriteLine($"Error during the creation of region type '{type.FullName}':");
 				Console.WriteLine(ex);
+				Utility.PopColor();
 
 				return null;
 			}
@@ -2043,7 +2056,9 @@ namespace Server
 				}
 				catch
 				{
+					Utility.PushColor(ConsoleColor.Yellow);
 					Console.WriteLine($"Warning: Could not set '{entry.Key}' for '{type.Name}'");
+					Utility.PopColor();
 				}
 			}
 
@@ -2435,7 +2450,7 @@ namespace Server
 			fs.Close();
 		}
 
-		public Type Type { get; }
+		public string Type { get; }
 
 		public Dictionary<string, object> Props { get; } = new Dictionary<string, object>();
 
@@ -2445,7 +2460,7 @@ namespace Server
 
 		public RegionDefinition(string type)
 		{
-			Type = ScriptCompiler.FindTypeByName(type, true);
+			Type = type;
 		}
 
 		public void Add(RegionDefinition child)

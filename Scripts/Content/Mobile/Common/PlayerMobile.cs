@@ -5286,12 +5286,12 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			if (Region is BaseRegion && ((BaseRegion)Region).Rules.AllowYoungAggro)
+			if (Region is BaseRegion br && !br.YoungProtected && br.OnRuleEnforced(RegionFlags.AllowYoungAggro, from, this, true))
 			{
 				return false;
 			}
 
-			if (from is BaseCreature && ((BaseCreature)from).IgnoreYoungProtection)
+			if (from is BaseCreature bc && bc.IgnoreYoungProtection)
 			{
 				return false;
 			}

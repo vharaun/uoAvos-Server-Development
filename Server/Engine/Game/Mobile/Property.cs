@@ -730,7 +730,7 @@ namespace Server
 
 		#region Var declarations
 		private readonly Serial m_Serial;
-		private Map m_Map;
+		private Map m_Map = Map.Internal;
 		private Point3D m_Location;
 		private Direction m_Direction;
 		private Body m_Body;
@@ -10698,7 +10698,6 @@ namespace Server
 
 		public void DefaultMobileInit()
 		{
-			Map = Map.Internal;
 			m_StatCap = 225;
 			m_FollowersMax = 5;
 			m_Skills = new Skills(this);
