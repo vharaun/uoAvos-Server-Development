@@ -137,6 +137,7 @@ namespace Server
 		public static readonly int MaxZ = SByte.MaxValue + 1;
 
 		public static event Action<Region, Mobile, Region> OnTransition;
+		public static event Action<Region, Item, Region> OnVehicleTransition;
 
 		public static event Action<Region> OnRegistered, OnUnregistered;
 
@@ -1264,6 +1265,39 @@ namespace Server
 		{
 		}
 
+		public virtual bool OnVehicleMoveInto(Item vehicle, Direction d, Point3D newLocation, Point3D oldLocation)
+		{
+			return true;
+		}
+
+		public virtual bool CanVehicleEnter(Item vehicle)
+		{
+			if (Parent != null)
+			{
+				return Parent.CanVehicleEnter(vehicle);
+			}
+
+			return true;
+		}
+
+		public virtual bool CanVehicleExit(Item vehicle)
+		{
+			if (Parent != null)
+			{
+				return Parent.CanVehicleExit(vehicle);
+			}
+
+			return true;
+		}
+
+		public virtual void OnVehicleEnter(Item vehicle)
+		{
+		}
+
+		public virtual void OnVehicleExit(Item vehicle)
+		{
+		}
+
 		public virtual Type GetResource(Mobile from, IHarvestTool tool, Map map, Point3D loc, IHarvestSystem harvest, Type resource)
 		{
 			if (Parent != null)
@@ -1313,6 +1347,14 @@ namespace Server
 			if (Parent != null)
 			{
 				Parent.OnLocationChanged(m, oldLocation);
+			}
+		}
+
+		public virtual void OnVehicleLocationChanged(Item vehicle, Point3D oldLocation)
+		{
+			if (Parent != null)
+			{
+				Parent.OnVehicleLocationChanged(vehicle, oldLocation);
 			}
 		}
 
@@ -1597,7 +1639,7 @@ namespace Server
 
 				if (OnPlayMusic(m, ref music))
 				{
-					m.Send(new Network.PlayMusic(music));
+					m.Send(new PlayMusic(music));
 				}
 			}
 		}
@@ -1640,7 +1682,7 @@ namespace Server
 			return true;
 		}
 
-		internal static bool CanMove(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation, Map map)
+		public static bool CanMove(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation, Map map)
 		{
 			var oldRegion = m.Region;
 			var newRegion = Find(newLocation, map);
@@ -1673,7 +1715,7 @@ namespace Server
 			return true;
 		}
 
-		internal static void OnRegionChange(Mobile m, Region oldRegion, Region newRegion)
+		public static void OnRegionChange(Mobile m, Region oldRegion, Region newRegion)
 		{
 			var oldR = oldRegion;
 			var newR = newRegion;
@@ -1713,6 +1755,109 @@ namespace Server
 			}
 
 			OnTransition?.Invoke(oldRegion, m, newRegion);
+		}
+
+		public static bool CanVehicleMove(Item vehicle, Mobile owner, Direction d, Point3D newLocation, Point3D oldLocation, Map map)
+		{
+			var oldRegion = Find(vehicle.Location, vehicle.Map);
+			var newRegion = Find(newLocation, map);
+
+			while (oldRegion != newRegion)
+			{
+				if (!oldRegion.CanVehicleExit(vehicle))
+				{
+					return false;
+				}
+
+				if (!newRegion.AllowVehicles(owner, newLocation))
+				{
+					return false;
+				}
+
+				if (!newRegion.CanVehicleEnter(vehicle))
+				{
+					return false;
+				}
+
+				if (!newRegion.OnVehicleMoveInto(vehicle, d, newLocation, oldLocation))
+				{
+					return false;
+				}
+
+				if (newRegion.Parent == null)
+				{
+					return true;
+				}
+
+				newRegion = newRegion.Parent;
+			}
+
+			return true;
+		}
+
+		public static void OnVehicleRegionChange(Item vehicle, Region oldRegion, Region newRegion)
+		{
+			var oldR = oldRegion;
+			var newR = newRegion;
+
+			while (oldR != newR)
+			{
+				var oldRChild = oldR?.ChildLevel ?? -1;
+				var newRChild = newR?.ChildLevel ?? -1;
+
+				if (oldR != null && oldRChild >= newRChild)
+				{
+					oldR.OnVehicleExit(vehicle);
+
+					//EventSink.InvokeOnVehicleExitRegion(new OnVehicleExitRegionEventArgs(vehicle, oldR, newR));
+
+					oldR = oldR.Parent;
+				}
+
+				if (newR != null && newRChild >= oldRChild)
+				{
+					newR.OnVehicleEnter(vehicle);
+
+					//EventSink.InvokeOnVehicleEnterRegion(new OnVehicleEnterRegionEventArgs(vehicle, oldR, newR));
+
+					newR = newR.Parent;
+				}
+			}
+
+			OnVehicleTransition?.Invoke(oldRegion, vehicle, newRegion);
+		}
+
+		public static bool CanVehicleTransition(Item vehicle, Mobile owner, Point3D location, Map map)
+		{
+			var oldRegion = Find(vehicle.Location, vehicle.Map);
+			var newRegion = Find(location, map);
+
+			while (oldRegion != newRegion)
+			{
+				if (!oldRegion.CanVehicleExit(vehicle))
+				{
+					return false;
+				}
+
+				if (!newRegion.AllowVehicles(owner, location))
+				{
+					return false;
+				}
+
+				if (!newRegion.CanVehicleEnter(vehicle))
+				{
+					return false;
+				}
+
+				if (newRegion.Parent == null)
+				{
+					return true;
+				}
+
+				newRegion = newRegion.Parent;
+			}
+
+			return true;
 		}
 
 		public static bool Generating { get; private set; }
@@ -2039,9 +2184,14 @@ namespace Server
 
 		private void UpdateMobileRegions()
 		{
-			foreach (var mob in Mobiles.ToArray())
+			var index = Mobiles.Count;
+
+			while (--index >= 0)
 			{
-				mob.UpdateRegion();
+				if (index < Mobiles.Count)
+				{
+					Mobiles[index].UpdateRegion();
+				}
 			}
 		}
 

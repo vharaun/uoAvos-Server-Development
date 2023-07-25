@@ -844,7 +844,6 @@ namespace Server
 
 			foreach (var m in m_Mobiles.Values)
 			{
-				m.UpdateRegion(); // Is this really needed?
 				m.UpdateTotals();
 
 				m.ClearProperties();

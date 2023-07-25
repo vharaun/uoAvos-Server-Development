@@ -238,7 +238,7 @@ namespace Server.Items
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (Deleted)
 			{
@@ -448,7 +448,7 @@ namespace Server.Items
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Addon != null)
 			{
@@ -834,9 +834,9 @@ namespace Server.Items
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
-			base.OnMapChange();
+			base.OnMapChange(oldMap);
 
 			if (Deleted)
 			{
@@ -1167,7 +1167,7 @@ namespace Server.Items
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Addon != null)
 			{

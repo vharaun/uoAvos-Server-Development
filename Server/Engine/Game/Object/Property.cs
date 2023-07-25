@@ -1382,14 +1382,6 @@ namespace Server
 			}
 		}
 
-		/// <summary>
-		/// Moves the Item to <paramref name="location" />. The Item does not change maps.
-		/// </summary>
-		public virtual void MoveToWorld(Point3D location)
-		{
-			MoveToWorld(location, m_Map);
-		}
-
 		public void LabelTo(Mobile to, int number)
 		{
 			to.Send(new MessageLocalized(m_Serial, m_ItemID, MessageType.Label, 0x3B2, 3, number, "", ""));
@@ -1443,9 +1435,17 @@ namespace Server
 		}
 
 		/// <summary>
+		/// Moves the Item to <paramref name="location" />. The Item does not change maps.
+		/// </summary>
+		public void MoveToWorld(Point3D location)
+		{
+			MoveToWorld(location, m_Map);
+		}
+
+		/// <summary>
 		/// Moves the Item to a given <paramref name="location" /> and <paramref name="map" />.
 		/// </summary>
-		public void MoveToWorld(Point3D location, Map map)
+		public virtual void MoveToWorld(Point3D location, Map map)
 		{
 			if (Deleted)
 			{
@@ -1514,7 +1514,7 @@ namespace Server
 					m_Map.OnEnter(this);
 				}
 
-				OnMapChange();
+				OnMapChange(old);
 
 				if (m_Map != null)
 				{
@@ -2057,7 +2057,7 @@ namespace Server
 			MoveToWorld(Point3D.Zero, Map.Internal);
 		}
 
-		public virtual void OnMapChange()
+		public virtual void OnMapChange(Map oldMap)
 		{
 		}
 
@@ -2104,7 +2104,7 @@ namespace Server
 
 					Delta(ItemDelta.Update);
 
-					OnMapChange();
+					OnMapChange(old);
 
 					if (old == null || old == Map.Internal)
 					{
@@ -3156,12 +3156,12 @@ namespace Server
 
 		public virtual int GetMaxUpdateRange()
 		{
-			return 18;
+			return Core.GlobalMaxUpdateRange;
 		}
 
 		public virtual int GetUpdateRange(Mobile m)
 		{
-			return 18;
+			return Core.GlobalUpdateRange;
 		}
 
 		public void SendInfoTo(NetState state)

@@ -69,6 +69,27 @@ namespace Server.Multis
 			return null;
 		}
 
+		private Region m_Region = Map.Internal.DefaultRegion;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public Region Region
+		{
+			get
+			{
+				if (m_Region == null)
+				{
+					if (Map == null)
+					{
+						return Map.Internal.DefaultRegion;
+					}
+					
+					return Map.DefaultRegion;
+				}
+				
+				return m_Region;
+			}
+		}
+
 		private Direction m_Facing;
 		private int m_ClientSpeed;
 		private string m_ShipName;
@@ -209,6 +230,30 @@ namespace Server.Multis
 		}
 
 		public BaseBoat(Serial serial) : base(serial)
+		{
+		}
+
+		public void UpdateRegion()
+		{
+			if (Deleted)
+			{
+				return;
+			}
+
+			var oldRegion = m_Region;
+			var newRegion = Region.Find(Location, Map);
+
+			if (oldRegion != newRegion)
+			{
+				m_Region = newRegion;
+
+				Region.OnVehicleRegionChange(this, oldRegion, newRegion);
+
+				OnRegionChange(oldRegion, newRegion);
+			}
+		}
+
+		public virtual void OnRegionChange(Region Old, Region New)
 		{
 		}
 
@@ -420,6 +465,8 @@ namespace Server.Multis
 
 		public override void OnLocationChange(Point3D old)
 		{
+			base.OnLocationChange(old);
+
 			if (TillerMan != null)
 			{
 				TillerMan.Location = new Point3D(X + (TillerMan.X - old.X), Y + (TillerMan.Y - old.Y), Z + (TillerMan.Z - old.Z));
@@ -439,10 +486,16 @@ namespace Server.Multis
 			{
 				SPlank.Location = new Point3D(X + (SPlank.X - old.X), Y + (SPlank.Y - old.Y), Z + (SPlank.Z - old.Z));
 			}
+
+			UpdateRegion();
+
+			Region?.OnVehicleLocationChanged(this, old);
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
+			base.OnMapChange(oldMap);
+
 			if (TillerMan != null)
 			{
 				TillerMan.Map = Map;
@@ -461,6 +514,11 @@ namespace Server.Multis
 			if (SPlank != null)
 			{
 				SPlank.Map = Map;
+			}
+
+			if (!IsMoving)
+			{
+				UpdateRegion();
 			}
 		}
 
@@ -1368,6 +1426,45 @@ namespace Server.Multis
 			return true;
 		}
 
+		private static readonly Range[][] m_WaterTiles =
+		{
+			new[] // land 
+			{ 
+				168..171,
+				310..311,
+			},
+			new[] // statics
+			{
+				6038..6066,
+			}
+		};
+
+		private static bool IsWater(LandTile tile)
+		{
+			foreach (var range in m_WaterTiles[0])
+			{
+				if (tile.ID >= range.Start.Value && tile.ID <= range.End.Value)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private static bool IsWater(StaticTile tile)
+		{
+			foreach (var range in m_WaterTiles[1])
+			{
+				if (tile.ID >= range.Start.Value && tile.ID <= range.End.Value)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		public bool CanFit(Point3D p, Map map, int itemID)
 		{
 			if (map == null || map == Map.Internal || Deleted || CheckDecay())
@@ -1389,37 +1486,44 @@ namespace Server.Multis
 						continue;
 					}
 
-					var landTile = map.Tiles.GetLandTile(tx, ty);
-					var tiles = map.Tiles.GetStaticTiles(tx, ty, true);
-
 					var hasWater = false;
 
-					if (landTile.Z == p.Z && ((landTile.ID >= 168 && landTile.ID <= 171) || (landTile.ID >= 310 && landTile.ID <= 311)))
+					var landTile = map.Tiles.GetLandTile(tx, ty);
+
+					if (landTile.Z == p.Z && IsWater(landTile))
 					{
 						hasWater = true;
 					}
 
-					_ = p.Z;
-
-					//int landZ = 0, landAvg = 0, landTop = 0;
-
-					//map.GetAverageZ( tx, ty, ref landZ, ref landAvg, ref landTop );
-
-					//if ( !landTile.Ignored && top > landZ && landTop > z )
-					//	return false;
+					var tiles = map.Tiles.GetStaticTiles(tx, ty, true);
 
 					for (var i = 0; i < tiles.Length; ++i)
 					{
 						var tile = tiles[i];
-						var isWater = tile.ID is >= 0x1796 and <= 0x17B2;
-
-						if (tile.Z == p.Z && isWater)
+						
+						if (IsWater(tile))
 						{
-							hasWater = true;
+							if (tile.Z == p.Z)
+							{
+								hasWater = true;
+							}
 						}
-						else if (tile.Z >= p.Z && !isWater)
+						else
 						{
-							return false;
+							if (tile.Z > p.Z)
+							{
+								if (p.Z + newComponents.Depth >= tile.Z)
+								{
+									return false;
+								}
+							}
+							else
+							{
+								if (tile.Z + tile.Height >= p.Z)
+								{
+									return false;
+								}
+							}
 						}
 					}
 
@@ -1430,40 +1534,48 @@ namespace Server.Multis
 				}
 			}
 
-			IPooledEnumerable eable = map.GetItemsInBounds(new Rectangle2D(p.X + newComponents.Min.X, p.Y + newComponents.Min.Y, newComponents.Width, newComponents.Height));
+			var eable = map.GetItemsInBounds(new Rectangle2D(p.X + newComponents.Min.X, p.Y + newComponents.Min.Y, newComponents.Width, newComponents.Height));
 
-			foreach (Item item in eable)
+			try
 			{
-				if (item is BaseMulti || item.ItemID > TileData.MaxItemValue || item.Z < p.Z || !item.Visible)
+				foreach (var item in eable)
 				{
-					continue;
+					if (item is BaseMulti || item.ItemID > TileData.MaxItemValue || !item.Visible)
+					{
+						continue;
+					}
+
+					var x = item.X - p.X + newComponents.Min.X;
+					var y = item.Y - p.Y + newComponents.Min.Y;
+
+					if (x >= 0 && x < newComponents.Width && y >= 0 && y < newComponents.Height && newComponents.Tiles[x][y].Length == 0)
+					{
+						continue;
+					}
+
+					if (Contains(item))
+					{
+						continue;
+					}
+
+					if (Geometry.Intersects(p.Z, newComponents.Depth, item))
+					{
+						return false;
+					}
 				}
 
-				var x = item.X - p.X + newComponents.Min.X;
-				var y = item.Y - p.Y + newComponents.Min.Y;
-
-				if (x >= 0 && x < newComponents.Width && y >= 0 && y < newComponents.Height && newComponents.Tiles[x][y].Length == 0)
-				{
-					continue;
-				}
-				else if (Contains(item))
-				{
-					continue;
-				}
-
-				eable.Free();
-				return false;
+				return true;
 			}
-
-			eable.Free();
-
-			return true;
+			finally
+			{
+				eable.Free();
+			}
 		}
 
 		public Point3D Rotate(Point3D p, int count)
 		{
-			var rx = p.X - Location.X;
-			var ry = p.Y - Location.Y;
+			var rx = p.X - X;
+			var ry = p.Y - Y;
 
 			for (var i = 0; i < count; ++i)
 			{
@@ -1472,7 +1584,7 @@ namespace Server.Multis
 				ry = temp;
 			}
 
-			return new Point3D(Location.X + rx, Location.Y + ry, p.Z);
+			return new Point3D(X + rx, Y + ry, p.Z);
 		}
 
 		public override bool Contains(int x, int y)
@@ -1482,22 +1594,52 @@ namespace Server.Multis
 				return true;
 			}
 
-			if (TillerMan != null && x == TillerMan.X && y == TillerMan.Y)
+			if (TillerMan?.AtPoint(x, y) == true)
 			{
 				return true;
 			}
 
-			if (Hold != null && x == Hold.X && y == Hold.Y)
+			if (Hold?.AtPoint(x, y) == true)
 			{
 				return true;
 			}
 
-			if (PPlank != null && x == PPlank.X && y == PPlank.Y)
+			if (PPlank?.AtPoint(x, y) == true)
 			{
 				return true;
 			}
 
-			if (SPlank != null && x == SPlank.X && y == SPlank.Y)
+			if (SPlank?.AtPoint(x, y) == true)
+			{
+				return true;
+			}
+
+			return false;
+		}
+
+		public override bool Contains(int x, int y, int z)
+		{
+			if (base.Contains(x, y, z))
+			{
+				return true;
+			}
+
+			if (Geometry.Intersects(x, y, z, 0, TillerMan))
+			{
+				return true;
+			}
+
+			if (Geometry.Intersects(x, y, z, 0, Hold))
+			{
+				return true;
+			}
+
+			if (Geometry.Intersects(x, y, z, 0, PPlank))
+			{
+				return true;
+			}
+
+			if (Geometry.Intersects(x, y, z, 0, SPlank))
 			{
 				return true;
 			}
@@ -1536,102 +1678,94 @@ namespace Server.Multis
 
 		public bool DoMovement(bool message)
 		{
-			Direction dir;
-			int speed, clientSpeed;
-
 			if (Order == BoatOrder.Move)
 			{
-				dir = Moving;
-				speed = Speed;
-				clientSpeed = m_ClientSpeed;
+				return Move(Moving, Speed, m_ClientSpeed, true);
 			}
-			else if (MapItem == null || MapItem.Deleted)
+
+			if (MapItem == null || MapItem.Deleted)
 			{
-				if (message && TillerMan != null)
+				if (message)
 				{
-					TillerMan.Say(502513); // I have seen no map, sir.
+					TillerMan?.Say(502513); // I have seen no map, sir.
 				}
 
 				return false;
 			}
-			else if (Map != MapItem.Map || !Contains(MapItem.GetWorldLocation()))
+
+			if (Map != MapItem.Map || !Contains(MapItem.WorldLocation))
 			{
-				if (message && TillerMan != null)
+				if (message)
 				{
-					TillerMan.Say(502514); // The map is too far away from me, sir.
+					TillerMan?.Say(502514); // The map is too far away from me, sir.
 				}
 
 				return false;
 			}
-			else if ((Map != Map.Trammel && Map != Map.Felucca) || NextNavPoint < 0 || NextNavPoint >= MapItem.Pins.Count)
+
+			if ((Map != Map.Trammel && Map != Map.Felucca) || NextNavPoint < 0 || NextNavPoint >= MapItem.Pins.Count)
 			{
-				if (message && TillerMan != null)
+				if (message)
 				{
-					TillerMan.Say(1042551); // I don't see that navpoint, sir.
+					TillerMan?.Say(1042551); // I don't see that navpoint, sir.
 				}
 
 				return false;
 			}
-			else
+
+			var dest = MapItem.Pins[NextNavPoint];
+
+			MapItem.ConvertToWorld(dest.X, dest.Y, out var x, out var y);
+
+			var dir = GetMovementFor(x, y, out var maxSpeed);
+
+			if (maxSpeed == 0)
 			{
-				var dest = MapItem.Pins[NextNavPoint];
-
-				int x, y;
-				MapItem.ConvertToWorld(dest.X, dest.Y, out x, out y);
-
-				int maxSpeed;
-				dir = GetMovementFor(x, y, out maxSpeed);
-
-				if (maxSpeed == 0)
+				if (message && Order == BoatOrder.Single)
 				{
-					if (message && Order == BoatOrder.Single && TillerMan != null)
+					TillerMan?.Say(1042874, (NextNavPoint + 1).ToString()); // We have arrived at nav point ~1_POINT_NUM~ , sir.
+				}
+
+				if (NextNavPoint + 1 < MapItem.Pins.Count)
+				{
+					NextNavPoint++;
+
+					if (Order == BoatOrder.Course)
 					{
-						TillerMan.Say(1042874, (NextNavPoint + 1).ToString()); // We have arrived at nav point ~1_POINT_NUM~ , sir.
-					}
-
-					if (NextNavPoint + 1 < MapItem.Pins.Count)
-					{
-						NextNavPoint++;
-
-						if (Order == BoatOrder.Course)
+						if (message)
 						{
-							if (message && TillerMan != null)
-							{
-								TillerMan.Say(1042875, (NextNavPoint + 1).ToString()); // Heading to nav point ~1_POINT_NUM~, sir.
-							}
-
-							return true;
+							TillerMan?.Say(1042875, (NextNavPoint + 1).ToString()); // Heading to nav point ~1_POINT_NUM~, sir.
 						}
 
-						return false;
+						return true;
 					}
-					else
-					{
-						NextNavPoint = -1;
 
-						if (message && Order == BoatOrder.Course && TillerMan != null)
-						{
-							TillerMan.Say(502515); // The course is completed, sir.
-						}
-
-						return false;
-					}
+					return false;
 				}
 
-				if (dir == Left || dir == BackwardLeft || dir == Backward)
+				NextNavPoint = -1;
+
+				if (message && Order == BoatOrder.Course)
 				{
-					return Turn(-2, true);
-				}
-				else if (dir == Right || dir == BackwardRight)
-				{
-					return Turn(2, true);
+					TillerMan?.Say(502515); // The course is completed, sir.
 				}
 
-				speed = Math.Min(Speed, maxSpeed);
-				clientSpeed = 0x4;
+				return false;
 			}
 
-			return Move(dir, speed, clientSpeed, true);
+			if (dir == Left || dir == BackwardLeft || dir == Backward)
+			{
+				return Turn(-2, true);
+			}
+			
+			if (dir == Right || dir == BackwardRight)
+			{
+				return Turn(2, true);
+			}
+
+			var speed = Math.Min(Speed, maxSpeed);
+
+			return Move(dir, speed, 4, true);
 		}
 
 		public bool Move(Direction dir, int speed, int clientSpeed, bool message)
@@ -1645,9 +1779,9 @@ namespace Server.Multis
 
 			if (Anchored)
 			{
-				if (message && TillerMan != null)
+				if (message)
 				{
-					TillerMan.Say(501419); // Ar, the anchor is down sir!
+					TillerMan?.Say(501419); // Ar, the anchor is down sir!
 				}
 
 				return false;
@@ -1655,50 +1789,47 @@ namespace Server.Multis
 
 			int rx = 0, ry = 0;
 			var d = (Direction)(((int)m_Facing + (int)dir) & 0x7);
+
 			Movement.Movement.Offset(d, ref rx, ref ry);
 
 			for (var i = 1; i <= speed; ++i)
 			{
 				var loc = new Point3D(X + (i * rx), Y + (i * ry), Z);
 
-				if (CanFit(loc, Map, ItemID))
+				if (CanFit(loc, map, ItemID))
 				{
 					continue;
 				}
 
-				var reg = Region.Find(loc, Map);
-
-				if (reg != null && reg.AllowVehicles(Owner, loc))
+				if (Region.CanVehicleMove(this, Owner, d, loc, Location, map))
 				{
 					continue;
-				}
-
-				if (i == 1)
-				{
-					if (message && TillerMan != null)
-					{
-						TillerMan.Say(501424); // Ar, we've stopped sir.
-					}
-
-					return false;
 				}
 
 				speed = i - 1;
 				break;
 			}
 
+			if (speed <= 0)
+			{
+				if (message)
+				{
+					TillerMan?.Say(501424); // Ar, we've stopped sir.
+				}
+
+				return false;
+			}
+
 			var xOffset = speed * rx;
 			var yOffset = speed * ry;
+			var zOffset = 0;
 
 			var newX = X + xOffset;
 			var newY = Y + yOffset;
+			var newZ = Z + zOffset;
 
-			var wrap = map.Wrap;
-
-			for (var i = 0; i < wrap.Length; ++i)
+			foreach (var rect in map.Wrap)
 			{
-				var rect = wrap[i];
-
 				if (rect.Contains(this) && !rect.Contains(new Point2D(newX, newY)))
 				{
 					if (newX < rect.X)
@@ -1721,23 +1852,27 @@ namespace Server.Multis
 
 					for (var j = 1; j <= speed; ++j)
 					{
-						var loc = new Point3D(newX + (j * rx), newY + (j * ry), Z);
+						var loc = new Point3D(newX + (j * rx), newY + (j * ry), newZ);
 
-						if (CanFit(loc, Map, ItemID))
+						if (CanFit(loc, map, ItemID))
 						{
 							continue;
 						}
 
-						var reg = Region.Find(loc, Map);
-
-						if (reg != null && reg.AllowVehicles(Owner, loc))
+						if (Region.CanVehicleMove(this, Owner, d, loc, Location, map))
 						{
 							continue;
 						}
 
-						if (message && TillerMan != null)
+						speed = j - 1;
+						break;
+					}
+
+					if (speed <= 0)
+					{
+						if (message)
 						{
-							TillerMan.Say(501424); // Ar, we've stopped sir.
+							TillerMan?.Say(501424); // Ar, we've stopped sir.
 						}
 
 						return false;
@@ -1745,56 +1880,12 @@ namespace Server.Multis
 
 					xOffset = newX - X;
 					yOffset = newY - Y;
+					zOffset = newZ - Z;
 				}
 			}
 
-			if (!NewBoatMovement || Math.Abs(xOffset) > 1 || Math.Abs(yOffset) > 1)
-			{
-				Teleport(xOffset, yOffset, 0);
-			}
-			else
-			{
-				var toMove = GetMovingEntities();
-
-				SafeAdd(TillerMan, toMove);
-				SafeAdd(Hold, toMove);
-				SafeAdd(PPlank, toMove);
-				SafeAdd(SPlank, toMove);
-
-				// Packet must be sent before actual locations are changed
-				foreach (var ns in Map.GetClientsInRange(Location, GetMaxUpdateRange()))
-				{
-					var m = ns.Mobile;
-
-					if (ns.HighSeas && m.CanSee(this) && m.InRange(Location, GetUpdateRange(m)))
-					{
-						ns.Send(new MoveBoatHS(m, this, d, clientSpeed, toMove, xOffset, yOffset));
-					}
-				}
-
-				foreach (var e in toMove)
-				{
-					e.NoMoveHS = true;
-
-					if (e is TillerMan || e is Hold || e is Plank)
-					{
-						continue;
-					}
-
-					e.Location = new Point3D(e.X + xOffset, e.Y + yOffset, e.Z);
-				}
-
-				NoMoveHS = true;
-				Location = new Point3D(X + xOffset, Y + yOffset, Z);
-
-				foreach (var e in toMove)
-				{
-					e.NoMoveHS = false;
-				}
-
-				NoMoveHS = false;
-			}
-
+			Sail(xOffset, yOffset, zOffset, d, clientSpeed);
+			
 			return true;
 		}
 
@@ -1806,8 +1897,61 @@ namespace Server.Multis
 			}
 		}
 
-		public void Teleport(int xOffset, int yOffset, int zOffset)
+		protected void Sail(int xOffset, int yOffset, int zOffset, Direction d, int clientSpeed)
 		{
+			if (!NewBoatMovement || Math.Abs(xOffset) > 1 || Math.Abs(yOffset) > 1)
+			{
+				Teleport(xOffset, yOffset, zOffset);
+				return;
+			}
+
+			var newLoc = new Point3D(X + xOffset, Y + yOffset, Z + zOffset);
+
+			var toMove = GetMovingEntities();
+
+			SafeAdd(TillerMan, toMove);
+			SafeAdd(Hold, toMove);
+			SafeAdd(PPlank, toMove);
+			SafeAdd(SPlank, toMove);
+
+			// Packet must be sent before actual locations are changed
+			foreach (var ns in Map.GetClientsInRange(Location, GetMaxUpdateRange()))
+			{
+				var m = ns.Mobile;
+
+				if (ns.HighSeas && m.CanSee(this) && m.InRange(newLoc, GetUpdateRange(m)))
+				{
+					ns.Send(new MoveBoatHS(m, this, d, clientSpeed, toMove, xOffset, yOffset, zOffset));
+				}
+			}
+
+			foreach (var e in toMove)
+			{
+				e.NoMoveHS = true;
+
+				if (e is TillerMan || e is Hold || e is Plank)
+				{
+					continue;
+				}
+
+				e.Location = new Point3D(e.X + xOffset, e.Y + yOffset, e.Z + zOffset);
+			}
+
+			NoMoveHS = true;
+			Location = newLoc;
+
+			foreach (var e in toMove)
+			{
+				e.NoMoveHS = false;
+			}
+
+			NoMoveHS = false;
+		}
+
+		protected void Teleport(int xOffset, int yOffset, int zOffset)
+		{
+			var newLoc = new Point3D(X + xOffset, Y + yOffset, Z + zOffset);
+
 			var toMove = GetMovingEntities();
 
 			for (var i = 0; i < toMove.Count; ++i)
@@ -1817,11 +1961,13 @@ namespace Server.Multis
 				e.Location = new Point3D(e.X + xOffset, e.Y + yOffset, e.Z + zOffset);
 			}
 
-			Location = new Point3D(X + xOffset, Y + yOffset, Z + zOffset);
+			Location = newLoc;
 		}
 
-		public void Teleport(int xOffset, int yOffset, int zOffset, Map mapTo)
+		protected void Teleport(int xOffset, int yOffset, int zOffset, Map mapTo)
 		{
+			var newLoc = new Point3D(X + xOffset, Y + yOffset, Z + zOffset);
+
 			var mcl = Components;
 
 			var toMove = new List<IEntity>();
@@ -1856,8 +2002,31 @@ namespace Server.Multis
 				}
 			}
 
-			Location = new Point3D(X + xOffset, Y + yOffset, Z + zOffset);
+			Location = newLoc;
 			Map = mapTo;
+		}
+
+		public override void MoveToWorld(Point3D location, Map map)
+		{
+			if (Map == null || Map == Map.Internal || map == null || map == Map.Internal)
+			{
+				base.MoveToWorld(location, map);
+
+				return;
+			}
+
+			var xOffset = location.X - X;
+			var yOffset = location.Y - Y;
+			var zOffset = location.Z - Z;
+
+			if (Map != map)
+			{
+				Teleport(xOffset, yOffset, zOffset, map);
+			}
+			else
+			{
+				Sail(xOffset, yOffset, zOffset, Moving & Direction.Mask, m_ClientSpeed);
+			}
 		}
 
 		public List<IEntity> GetMovingEntities()
@@ -2061,7 +2230,7 @@ namespace Server.Multis
 
 		public sealed class MoveBoatHS : Packet
 		{
-			public MoveBoatHS(Mobile beholder, BaseBoat boat, Direction d, int speed, List<IEntity> ents, int xOffset, int yOffset)
+			public MoveBoatHS(Mobile beholder, BaseBoat boat, Direction d, int speed, List<IEntity> ents, int xOffset, int yOffset, int zOffset)
 				: base(0xF6)
 			{
 				EnsureCapacity(3 + 15 + (ents.Count * 10));
@@ -2072,7 +2241,7 @@ namespace Server.Multis
 				m_Stream.Write((byte)boat.Facing);
 				m_Stream.Write((short)(boat.X + xOffset));
 				m_Stream.Write((short)(boat.Y + yOffset));
-				m_Stream.Write((short)boat.Z);
+				m_Stream.Write((short)(boat.Z + zOffset));
 				m_Stream.Write((short)0); // count placeholder
 
 				var count = 0;
@@ -2087,7 +2256,7 @@ namespace Server.Multis
 					m_Stream.Write(ent.Serial);
 					m_Stream.Write((short)(ent.X + xOffset));
 					m_Stream.Write((short)(ent.Y + yOffset));
-					m_Stream.Write((short)ent.Z);
+					m_Stream.Write((short)(ent.Z + zOffset));
 					++count;
 				}
 

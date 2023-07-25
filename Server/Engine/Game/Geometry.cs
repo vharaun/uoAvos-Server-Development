@@ -51,10 +51,10 @@ namespace Server
 		internal int m_X, m_Y;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int X { get => m_X; set => m_X = value; }
+		public int X { readonly get => m_X; set => m_X = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Y { get => m_Y; set => m_Y = value; }
+		public int Y { readonly get => m_Y; set => m_Y = value; }
 
 		public Point2D(IPoint2D p)
 			: this(p.X, p.Y)
@@ -67,7 +67,7 @@ namespace Server
 			m_Y = y;
 		}
 
-		public int CompareTo(Point2D p)
+		public readonly int CompareTo(Point2D p)
 		{
 			var v = m_X.CompareTo(p.m_X);
 
@@ -79,7 +79,7 @@ namespace Server
 			return v;
 		}
 
-		public int CompareTo(IPoint2D p)
+		public readonly int CompareTo(IPoint2D p)
 		{
 			var v = m_X.CompareTo(p?.X);
 
@@ -91,27 +91,27 @@ namespace Server
 			return v;
 		}
 
-		public bool Equals(Point2D p)
+		public readonly bool Equals(Point2D p)
 		{
 			return m_X == p.m_X && m_Y == p.m_Y;
 		}
 
-		public bool Equals(IPoint2D p)
+		public readonly bool Equals(IPoint2D p)
 		{
 			return m_X == p?.X && m_Y == p?.Y;
 		}
 
-		public override bool Equals(object o)
+		public override readonly bool Equals(object o)
 		{
 			return o is IPoint2D p && Equals(p);
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_X, m_Y);
 		}
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return $"({m_X}, {m_Y})";
 		}
@@ -319,40 +319,40 @@ namespace Server
 			return new Rectangle2D(Convert.ToInt32(param1), Convert.ToInt32(param2), Convert.ToInt32(param3), Convert.ToInt32(param4));
 		}
 
-		private Point2D m_Start, m_End;
+		internal Point2D m_Start, m_End;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public Point2D Start { get => m_Start; set => m_Start = value; }
+		public Point2D Start { readonly get => m_Start; set => m_Start = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public Point2D End { get => m_End; set => m_End = value; }
+		public Point2D End { readonly get => m_End; set => m_End = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int X { get => m_Start.m_X; set => m_Start.m_X = value; }
+		public int X { readonly get => m_Start.m_X; set => m_Start.m_X = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Y { get => m_Start.m_Y; set => m_Start.m_Y = value; }
+		public int Y { readonly get => m_Start.m_Y; set => m_Start.m_Y = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Width { get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
+		public int Width { readonly get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Height { get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
+		public int Height { readonly get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Left => m_Start.m_X;
+		public readonly int Left => m_Start.m_X;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Top => m_Start.m_Y;
+		public readonly int Top => m_Start.m_Y;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Right => m_End.m_X;
+		public readonly int Right => m_End.m_X;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Bottom => m_End.m_Y;
+		public readonly int Bottom => m_End.m_Y;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public Point2D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2));
+		public readonly Point2D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2));
 
 		public Rectangle2D(Point2D start, Point2D end)
 		{
@@ -386,62 +386,62 @@ namespace Server
 			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
-		public bool Contains(Point2D p)
+		public readonly bool Contains(Point2D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(Point2D p, bool inclusive)
+		public readonly bool Contains(Point2D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(IPoint2D p)
+		public readonly bool Contains(IPoint2D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(IPoint2D p, bool inclusive)
+		public readonly bool Contains(IPoint2D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(Point3D p)
+		public readonly bool Contains(Point3D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(Point3D p, bool inclusive)
+		public readonly bool Contains(Point3D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(IPoint3D p)
+		public readonly bool Contains(IPoint3D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(IPoint3D p, bool inclusive)
+		public readonly bool Contains(IPoint3D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Equals(Rectangle2D r)
+		public readonly bool Equals(Rectangle2D r)
 		{
 			return m_Start == r.m_Start && m_End == r.m_End;
 		}
 
-		public override bool Equals(object o)
+		public override readonly bool Equals(object o)
 		{
 			return o is Rectangle2D r && Equals(r);
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_Start, m_End);
 		}
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return $"({X}, {Y})+({Width}, {Height})";
 		}
@@ -547,6 +547,8 @@ namespace Server
 				return;
 			}
 
+			var hashCode = new HashCode();
+
 			int x1 = Int32.MaxValue, y1 = Int32.MaxValue;
 			int x2 = Int32.MinValue, y2 = Int32.MinValue;
 
@@ -558,8 +560,10 @@ namespace Server
 				x2 = Math.Max(x2, m_Points[i].m_X);
 				y2 = Math.Max(y2, m_Points[i].m_Y);
 
-				hash = HashCode.Combine(hash, m_Points[i]);
+				hashCode.Add(m_Points[i]);
 			}
+
+			hash = hashCode.ToHashCode();
 
 			bounds = new Rectangle2D(x1, y1, x2 - x1, y2 - y1);
 		}
@@ -722,7 +726,7 @@ namespace Server
 			loc = Point2D.Zero;
 			return false;
 		}
-/*
+		/*
 		public void Scale(double scale)
 		{
 			var center = new Point2D(m_Bounds.X + (m_Bounds.Width / 2), m_Bounds.Y + (m_Bounds.Height / 2));
@@ -760,7 +764,34 @@ namespace Server
 				m_Points[i] = angle.GetPoint2D(center.X, center.m_Y, dist + offset);
 			}
 		}
-*/
+		*/
+		public void GetRandomPoint(out int x, out int y)
+		{
+			x = y = 0;
+
+			if (this != Empty)
+			{
+				int rx, ry;
+
+				do
+				{
+					rx = Utility.Random(m_Bounds.m_Start.m_X, m_Bounds.Width);
+					ry = Utility.Random(m_Bounds.m_Start.m_Y, m_Bounds.Height);
+				}
+				while (!Contains(rx, ry));
+
+				x = rx;
+				y = ry;
+			}
+		}
+
+		public Point2D GetRandomPoint()
+		{
+			GetRandomPoint(out var x, out var y);
+
+			return new Point2D(x, y);
+		}
+
 		public bool Equals(Poly2D p)
 		{
 			return m_Hash == p.m_Hash;
@@ -890,13 +921,13 @@ namespace Server
 		internal int m_X, m_Y, m_Z;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int X { get => m_X; set => m_X = value; }
+		public int X { readonly get => m_X; set => m_X = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Y { get => m_Y; set => m_Y = value; }
+		public int Y { readonly get => m_Y; set => m_Y = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Z { get => m_Z; set => m_Z = value; }
+		public int Z { readonly get => m_Z; set => m_Z = value; }
 
 		public Point3D(IPoint3D p)
 			: this(p.X, p.Y, p.Z)
@@ -915,7 +946,7 @@ namespace Server
 			m_Z = z;
 		}
 
-		public int CompareTo(Point3D other)
+		public readonly int CompareTo(Point3D other)
 		{
 			var v = m_X.CompareTo(other.m_X);
 
@@ -932,7 +963,7 @@ namespace Server
 			return v;
 		}
 
-		public int CompareTo(IPoint3D other)
+		public readonly int CompareTo(IPoint3D other)
 		{
 			var v = m_X.CompareTo(other?.X);
 
@@ -949,27 +980,27 @@ namespace Server
 			return v;
 		}
 
-		public bool Equals(Point3D p)
+		public readonly bool Equals(Point3D p)
 		{
 			return m_X == p.m_X && m_Y == p.m_Y && m_Z == p.m_Z;
 		}
 
-		public bool Equals(IPoint3D p)
+		public readonly bool Equals(IPoint3D p)
 		{
 			return m_X == p?.X && m_Y == p?.Y && m_Z == p?.Z;
 		}
 
-		public override bool Equals(object o)
+		public override readonly bool Equals(object o)
 		{
 			return o is IPoint3D p && Equals(p);
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_X, m_Y, m_Z);
 		}
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return $"({m_X}, {m_Y}, {m_Z})";
 		}
@@ -1187,52 +1218,52 @@ namespace Server
 			return new Rectangle3D(Convert.ToInt32(param1), Convert.ToInt32(param2), Convert.ToInt32(param3), Convert.ToInt32(param4), Convert.ToInt32(param5), Convert.ToInt32(param6));
 		}
 
-		private Point3D m_Start, m_End;
+		internal Point3D m_Start, m_End;
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public Point3D Start { get => m_Start; set => m_Start = value; }
+		public Point3D Start { readonly get => m_Start; set => m_Start = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public Point3D End { get => m_End; set => m_End = value; }
+		public Point3D End { readonly get => m_End; set => m_End = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int X { get => m_Start.m_X; set => m_Start.m_X = value; }
+		public int X { readonly get => m_Start.m_X; set => m_Start.m_X = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Y { get => m_Start.m_Y; set => m_Start.m_Y = value; }
+		public int Y { readonly get => m_Start.m_Y; set => m_Start.m_Y = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Z { get => m_Start.m_Z; set => m_Start.m_Z = value; }
+		public int Z { readonly get => m_Start.m_Z; set => m_Start.m_Z = value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Width { get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
+		public int Width { readonly get => m_End.m_X - m_Start.m_X; set => m_End.m_X = m_Start.m_X + value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Height { get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
+		public int Height { readonly get => m_End.m_Y - m_Start.m_Y; set => m_End.m_Y = m_Start.m_Y + value; }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public int Depth { get => m_End.m_Z - m_Start.m_Z; set => m_End.m_Z = m_Start.m_Z + value; }
+		public int Depth { readonly get => m_End.m_Z - m_Start.m_Z; set => m_End.m_Z = m_Start.m_Z + value; }
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Left => m_Start.m_X;
+		public readonly int Left => m_Start.m_X;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Top => m_Start.m_Y;
+		public readonly int Top => m_Start.m_Y;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Floor => m_Start.m_Z;
+		public readonly int Floor => m_Start.m_Z;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Right => m_End.m_X;
+		public readonly int Right => m_End.m_X;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Bottom => m_End.m_Y;
+		public readonly int Bottom => m_End.m_Y;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public int Roof => m_End.m_Z;
+		public readonly int Roof => m_End.m_Z;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
-		public Point3D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2), m_Start.m_Z + ((m_End.m_Z - m_Start.m_Z) / 2));
+		public readonly Point3D Center => new(m_Start.m_X + ((m_End.m_X - m_Start.m_X) / 2), m_Start.m_Y + ((m_End.m_Y - m_Start.m_Y) / 2), m_Start.m_Z + ((m_End.m_Z - m_Start.m_Z) / 2));
 
 		public Rectangle3D(Point3D start, Point3D end)
 		{
@@ -1266,62 +1297,62 @@ namespace Server
 			Utility.FixPoints(ref m_Start, ref m_End);
 		}
 
-		public bool Contains(Point2D p)
+		public readonly bool Contains(Point2D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(Point2D p, bool inclusive)
+		public readonly bool Contains(Point2D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(IPoint2D p)
+		public readonly bool Contains(IPoint2D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(IPoint2D p, bool inclusive)
+		public readonly bool Contains(IPoint2D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(Point3D p)
+		public readonly bool Contains(Point3D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(Point3D p, bool inclusive)
+		public readonly bool Contains(Point3D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Contains(IPoint3D p)
+		public readonly bool Contains(IPoint3D p)
 		{
 			return Contains(p, false);
 		}
 
-		public bool Contains(IPoint3D p, bool inclusive)
+		public readonly bool Contains(IPoint3D p, bool inclusive)
 		{
 			return p >= m_Start && (inclusive ? p <= m_End : p < m_End);
 		}
 
-		public bool Equals(Rectangle3D r)
+		public readonly bool Equals(Rectangle3D r)
 		{
 			return m_Start == r.m_Start && m_End == r.m_End;
 		}
 
-		public override bool Equals(object o)
+		public override readonly bool Equals(object o)
 		{
 			return o is Rectangle3D r && Equals(r);
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_Start, m_End);
 		}
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return $"({X}, {Y}, {Z})+({Width}, {Height}, {Depth})";
 		}
@@ -1476,7 +1507,7 @@ namespace Server
 		{
 			return z >= m_MinZ && z < m_MaxZ && m_Poly.ProductContains(x, y);
 		}
-/*
+		/*
 		public void Scale(double scale)
 		{
 			m_Poly.Scale(scale);
@@ -1486,7 +1517,26 @@ namespace Server
 		{
 			m_Poly.Scale(tiles);
 		}
-*/
+		*/
+		public void GetRandomPoint(out int x, out int y)
+		{
+			m_Poly.GetRandomPoint(out x, out y);
+		}
+
+		public void GetRandomPoint(out int x, out int y, out int z)
+		{
+			GetRandomPoint(out x, out y);
+
+			z = Utility.RandomMinMax(m_MinZ, m_MaxZ);
+		}
+
+		public Point3D GetRandomPoint()
+		{
+			GetRandomPoint(out var x, out var y, out var z);
+
+			return new Point3D(x, y, z);
+		}
+
 		public bool Equals(Poly3D p)
 		{
 			return m_Hash == p.m_Hash;
@@ -1815,13 +1865,13 @@ namespace Server
 		internal double m_Radians;
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public int Degrees { get => m_Degrees; set => Set(value); }
+		public int Degrees { readonly get => m_Degrees; set => Set(value); }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public double Radians { get => m_Radians; set => Set(value); }
+		public double Radians { readonly get => m_Radians; set => Set(value); }
 
 		[CommandProperty(AccessLevel.Counselor)]
-		public double Rotation { get => m_Radians / ROT; set => Set(value * ROT); }
+		public double Rotation { readonly get => m_Radians / ROT; set => Set(value * ROT); }
 
 		public Angle(Angle angle)
 		{
@@ -1857,82 +1907,82 @@ namespace Server
 			m_Degrees = (int)((m_Radians = radians) * R2D);
 		}
 
-		public void Transform(ref Point3D p, double offset)
+		public readonly void Transform(ref Point3D p, double offset)
 		{
 			Transform(ref p, this, offset);
 		}
 
-		public void Transform(ref Point2D p, double offset)
+		public readonly void Transform(ref Point2D p, double offset)
 		{
 			Transform(ref p, this, offset);
 		}
 
-		public void Transform(ref int x, ref int y, double offset)
+		public readonly void Transform(ref int x, ref int y, double offset)
 		{
 			Transform(ref x, ref y, this, offset);
 		}
 
-		public Point2D GetPoint2D(int x, int y, double distance)
+		public readonly Point2D GetPoint2D(int x, int y, double distance)
 		{
 			return GetPoint2D(x, y, this, distance);
 		}
 
-		public Point3D GetPoint3D(int x, int y, int z, double distance)
+		public readonly Point3D GetPoint3D(int x, int y, int z, double distance)
 		{
 			return GetPoint3D(x, y, z, this, distance);
 		}
 
-		public IEnumerable<Point2D> TraceLine2D(int x, int y, double distance)
+		public readonly IEnumerable<Point2D> TraceLine2D(int x, int y, double distance)
 		{
 			return TraceLine2D(x, y, this, distance);
 		}
 
-		public IEnumerable<Point3D> TraceLine3D(int x, int y, int z, double distance)
+		public readonly IEnumerable<Point3D> TraceLine3D(int x, int y, int z, double distance)
 		{
 			return TraceLine3D(x, y, z, this, distance);
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_Degrees, m_Radians);
 		}
 
-		public override bool Equals(object obj)
+		public override readonly bool Equals(object obj)
 		{
 			return (obj is Angle a && Equals(a)) || (obj is int i && Equals(i)) || (obj is double d && Equals(d));
 		}
 
-		public bool Equals(Angle angle)
+		public readonly bool Equals(Angle angle)
 		{
 			return Equals(angle.m_Degrees) || Equals(angle.m_Radians);
 		}
 
-		public bool Equals(int degrees)
+		public readonly bool Equals(int degrees)
 		{
 			return m_Degrees == degrees;
 		}
 
-		public bool Equals(double radians)
+		public readonly bool Equals(double radians)
 		{
 			return m_Radians == radians;
 		}
 
-		public int CompareTo(Angle angle)
+		public readonly int CompareTo(Angle angle)
 		{
 			return m_Degrees.CompareTo(angle.m_Degrees);
 		}
 
-		public int CompareTo(int degrees)
+		public readonly int CompareTo(int degrees)
 		{
 			return m_Degrees.CompareTo(degrees);
 		}
 
-		public int CompareTo(double radians)
+		public readonly int CompareTo(double radians)
 		{
 			return m_Radians.CompareTo(radians);
 		}
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			return $"({m_Degrees}, {m_Radians})";
 		}
@@ -2668,31 +2718,37 @@ namespace Server
 
 		public static bool GetHeight(IPoint3D p, out int h)
 		{
-			h = 0;
-
 			if (p is LandTarget)
 			{
 				h = 1;
+
+				return true;
 			}
-			else if (p is StaticTarget s)
+			
+			if (p is StaticTarget s)
 			{
 				h = Math.Max(1, s.Data.CalcHeight);
+
+				return true;
 			}
-			else if (p is Mobile)
+			
+			if (p is Mobile)
 			{
 				h = 16;
+
+				return true;
 			}
-			else if (p is Item i)
+
+			if (p is Item i && i.Parent == null)
 			{
-				if (i.Parent != null)
-				{
-					return false;
-				}
-
 				h = Math.Max(1, i.ItemData.CalcHeight);
+
+				return true;
 			}
 
-			return true;
+			h = 0;
+
+			return false;
 		}
 
 		public static bool GetHeight(LandTile l, out int h)

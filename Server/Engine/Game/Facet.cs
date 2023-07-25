@@ -1391,6 +1391,33 @@ namespace Server
 		}
 #endif
 
+		public Point3D GetTopSurface(int x, int y)
+		{
+			var p = new Point3D(x, y, Region.MaxZ);
+			var o = GetTopSurface(p);
+
+			if (o is LandTile lt)
+			{
+				p.m_Z = lt.m_Z;
+			}
+			else if (o is StaticTile st)
+			{
+				var id = TileData.ItemTable[st.m_ID & TileData.MaxItemValue];
+
+				p.m_Z = st.m_Z + id.CalcHeight;
+			}
+			else if (o is Item item)
+			{
+				p.m_Z = item.Z + item.ItemData.CalcHeight;
+			}
+			else
+			{
+				p.m_Z = 0;
+			}
+
+			return p;
+		}
+
 		/// <summary>
 		/// Gets the highest surface that is lower than <paramref name="p"/>.
 		/// </summary>
@@ -1406,41 +1433,41 @@ namespace Server
 			object surface = null;
 			var surfaceZ = Int32.MinValue;
 
-			var lt = Tiles.GetLandTile(p.X, p.Y);
+			var lt = Tiles.GetLandTile(p.m_X, p.m_Y);
 
 			if (!lt.Ignored)
 			{
-				var avgZ = GetAverageZ(p.X, p.Y);
+				var avgZ = GetAverageZ(p.m_X, p.m_Y);
 
-				if (avgZ <= p.Z)
+				if (avgZ <= p.m_Z)
 				{
 					surface = lt;
 					surfaceZ = avgZ;
 
-					if (surfaceZ == p.Z)
+					if (surfaceZ == p.m_Z)
 					{
 						return surface;
 					}
 				}
 			}
 
-			var staticTiles = Tiles.GetStaticTiles(p.X, p.Y, true);
+			var staticTiles = Tiles.GetStaticTiles(p.m_X, p.m_Y, true);
 
 			for (var i = 0; i < staticTiles.Length; i++)
 			{
 				var tile = staticTiles[i];
-				var id = TileData.ItemTable[tile.ID & TileData.MaxItemValue];
+				var id = TileData.ItemTable[tile.m_ID & TileData.MaxItemValue];
 
 				if (id.Surface || (id.Flags & TileFlag.Wet) != 0)
 				{
 					var tileZ = tile.Z + id.CalcHeight;
 
-					if (tileZ > surfaceZ && tileZ <= p.Z)
+					if (tileZ > surfaceZ && tileZ <= p.m_Z)
 					{
 						surface = tile;
 						surfaceZ = tileZ;
 
-						if (surfaceZ == p.Z)
+						if (surfaceZ == p.m_Z)
 						{
 							return surface;
 						}
@@ -1448,13 +1475,13 @@ namespace Server
 				}
 			}
 
-			var sector = GetSector(p.X, p.Y);
+			var sector = GetSector(p.m_X, p.m_Y);
 
 			for (var i = 0; i < sector.Items.Count; i++)
 			{
 				var item = sector.Items[i];
 
-				if (item is not BaseMulti && item.ItemID <= TileData.MaxItemValue && item.AtWorldPoint(p.X, p.Y) && !item.Movable)
+				if (item is not BaseMulti && item.ItemID <= TileData.MaxItemValue && item.AtWorldPoint(p.m_X, p.m_Y) && !item.Movable)
 				{
 					var id = item.ItemData;
 
@@ -1462,12 +1489,12 @@ namespace Server
 					{
 						var itemZ = item.Z + id.CalcHeight;
 
-						if (itemZ > surfaceZ && itemZ <= p.Z)
+						if (itemZ > surfaceZ && itemZ <= p.m_Z)
 						{
 							surface = item;
 							surfaceZ = itemZ;
 
-							if (surfaceZ == p.Z)
+							if (surfaceZ == p.m_Z)
 							{
 								return surface;
 							}

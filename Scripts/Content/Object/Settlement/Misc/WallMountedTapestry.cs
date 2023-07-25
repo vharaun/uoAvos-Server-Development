@@ -25,7 +25,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -83,7 +83,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -146,7 +146,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -204,7 +204,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -266,7 +266,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -324,7 +324,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -387,7 +387,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -445,7 +445,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -507,7 +507,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -565,7 +565,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -628,7 +628,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -686,7 +686,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -748,7 +748,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -807,7 +807,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -870,7 +870,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -928,7 +928,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -990,7 +990,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -1049,7 +1049,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -1112,7 +1112,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -1170,7 +1170,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{
@@ -1232,7 +1232,7 @@
 			}
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
 			if (m_Item != null)
 			{
@@ -1291,7 +1291,7 @@
 				}
 			}
 
-			public override void OnMapChange()
+			public override void OnMapChange(Map oldMap)
 			{
 				if (m_Item != null)
 				{

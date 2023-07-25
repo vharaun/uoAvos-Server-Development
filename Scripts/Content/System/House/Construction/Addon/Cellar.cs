@@ -851,9 +851,9 @@ namespace Server.Items
 			House = null;
 		}
 
-		public override void OnMapChange()
+		public override void OnMapChange(Map oldMap)
 		{
-			base.OnMapChange();
+			base.OnMapChange(oldMap);
 
 			if (!World.Loading && Map != null && Map != Map.Internal)
 			{

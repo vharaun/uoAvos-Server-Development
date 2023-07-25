@@ -791,7 +791,6 @@ namespace Server
 		private int m_AllowedStealthSteps;
 		private int m_Hunger;
 		private int m_NameHue = -1;
-		private Region m_Region;
 		private bool m_DisarmReady, m_StunReady;
 		private int m_BaseSoundID;
 		private int m_VirtualArmor;
@@ -879,10 +878,7 @@ namespace Server
 		{
 			ComputeBaseLightLevels(out global, out personal);
 
-			if (m_Region != null)
-			{
-				m_Region.AlterLightLevel(this, ref global, ref personal);
-			}
+			Region?.AlterLightLevel(this, ref global, ref personal);
 		}
 
 		public virtual void ComputeBaseLightLevels(out int global, out int personal)
@@ -9535,6 +9531,9 @@ namespace Server
 			set => m_LogoutMap = value;
 		}
 
+		private Region m_Region = Map.Internal.DefaultRegion;
+
+		[CommandProperty(AccessLevel.GameMaster)]
 		public Region Region
 		{
 			get
@@ -9545,15 +9544,11 @@ namespace Server
 					{
 						return Map.Internal.DefaultRegion;
 					}
-					else
-					{
-						return Map.DefaultRegion;
-					}
+
+					return Map.DefaultRegion;
 				}
-				else
-				{
-					return m_Region;
-				}
+
+				return m_Region;
 			}
 		}
 
@@ -9693,8 +9688,6 @@ namespace Server
 			var oldLocation = m_Location;
 			var oldMap = m_Map;
 
-			var oldRegion = m_Region;
-
 			if (oldMap != null)
 			{
 				oldMap.OnLeave(this);
@@ -9718,8 +9711,6 @@ namespace Server
 			{
 				m_Map.OnEnter(this);
 
-				UpdateRegion();
-
 				if (ns != null && m_Map != null)
 				{
 					ns.Sequence = 0;
@@ -9739,10 +9730,8 @@ namespace Server
 					ClearFastwalkStack();
 				}
 			}
-			else
-			{
-				UpdateRegion();
-			}
+			
+			UpdateRegion();
 
 			if (ns != null)
 			{
@@ -9797,10 +9786,7 @@ namespace Server
 			OnMapChange(oldMap);
 			OnLocationChange(oldLocation);
 
-			if (m_Region != null)
-			{
-				m_Region.OnLocationChanged(this, oldLocation);
-			}
+			Region?.OnLocationChanged(this, oldLocation);
 		}
 
 		public virtual void SetLocation(Point3D newLocation, bool isTeleport)
@@ -10001,7 +9987,7 @@ namespace Server
 
 				OnLocationChange(oldLocation);
 
-				Region.OnLocationChanged(this, oldLocation);
+				Region?.OnLocationChanged(this, oldLocation);
 			}
 		}
 
@@ -10675,8 +10661,8 @@ namespace Server
 
 		public Mobile(Serial serial)
 		{
-			m_Region = Map.Internal.DefaultRegion;
 			m_Serial = serial;
+
 			m_Aggressors = new List<AggressorInfo>();
 			m_Aggressed = new List<AggressorInfo>();
 			m_NextSkillTime = Core.TickCount;
@@ -10694,8 +10680,7 @@ namespace Server
 
 		public Mobile()
 		{
-			m_Region = Map.Internal.DefaultRegion;
-			m_Serial = Server.Serial.NewMobile;
+			m_Serial = Serial.NewMobile;
 
 			DefaultMobileInit();
 
@@ -10713,13 +10698,13 @@ namespace Server
 
 		public void DefaultMobileInit()
 		{
+			Map = Map.Internal;
 			m_StatCap = 225;
 			m_FollowersMax = 5;
 			m_Skills = new Skills(this);
 			m_Items = new List<Item>();
 			m_StatMods = new List<StatMod>();
 			m_SkillMods = new List<SkillMod>();
-			Map = Map.Internal;
 			m_AutoPageNotify = true;
 			m_Aggressors = new List<AggressorInfo>();
 			m_Aggressed = new List<AggressorInfo>();

@@ -307,18 +307,19 @@ namespace Server
 	{
 		public static bool PostHSFormat { get; set; }
 
-		private Point2D m_Min, m_Max, m_Center;
+		private Point3D m_Min, m_Max, m_Center;
 		private MultiTileEntry[] m_List;
 
 		public static readonly MultiComponentList Empty = new MultiComponentList();
 
-		public Point2D Min => m_Min;
-		public Point2D Max => m_Max;
+		public Point3D Min => m_Min;
+		public Point3D Max => m_Max;
 
-		public Point2D Center => m_Center;
+		public Point3D Center => m_Center;
 
 		public int Width { get; private set; }
 		public int Height { get; private set; }
+		public int Depth { get; private set; }
 
 		public StaticTile[][][] Tiles { get; private set; }
 		public MultiTileEntry[] List => m_List;
@@ -333,16 +334,18 @@ namespace Server
 
 			if (vx >= 0 && vx < Width && vy >= 0 && vy < Height)
 			{
+				var data = TileData.ItemTable[itemID & TileData.MaxItemValue];
+
 				var oldTiles = Tiles[vx][vy];
 
 				for (var i = oldTiles.Length - 1; i >= 0; --i)
 				{
-					var data = TileData.ItemTable[itemID & TileData.MaxItemValue];
-
 					if (oldTiles[i].Z == z && (oldTiles[i].Height > 0 == data.Height > 0))
 					{
+						var d = TileData.ItemTable[oldTiles[i].ID & TileData.MaxItemValue];
+
 						var newIsRoof = (data.Flags & TileFlag.Roof) != 0;
-						var oldIsRoof = (TileData.ItemTable[oldTiles[i].ID & TileData.MaxItemValue].Flags & TileFlag.Roof) != 0;
+						var oldIsRoof = (d.Flags & TileFlag.Roof) != 0;
 
 						if (newIsRoof == oldIsRoof)
 						{
@@ -376,25 +379,13 @@ namespace Server
 
 				m_List = newList;
 
-				if (x < m_Min.m_X)
-				{
-					m_Min.m_X = x;
-				}
+				m_Min.m_X = Math.Min(m_Min.m_X, x);
+				m_Min.m_Y = Math.Min(m_Min.m_Y, y);
+				m_Min.m_Z = Math.Min(m_Min.m_Z, z);
 
-				if (y < m_Min.m_Y)
-				{
-					m_Min.m_Y = y;
-				}
-
-				if (x > m_Max.m_X)
-				{
-					m_Max.m_X = x;
-				}
-
-				if (y > m_Max.m_Y)
-				{
-					m_Max.m_Y = y;
-				}
+				m_Max.m_X = Math.Max(m_Max.m_X, x);
+				m_Max.m_Y = Math.Max(m_Max.m_Y, y);
+				m_Max.m_Z = Math.Max(m_Max.m_Z, z + data.Height);
 			}
 		}
 
@@ -437,8 +428,7 @@ namespace Server
 				{
 					var tile = oldList[i];
 
-					if (tile.m_OffsetX == (short)x && tile.m_OffsetY == (short)y && tile.m_OffsetZ == (short)z &&
-						TileData.ItemTable[tile.m_ItemID & TileData.MaxItemValue].Height >= minHeight)
+					if (tile.m_OffsetX == x && tile.m_OffsetY == y && tile.m_OffsetZ == z && TileData.ItemTable[tile.m_ItemID & TileData.MaxItemValue].Height >= minHeight)
 					{
 						var newList = new MultiTileEntry[oldList.Length - 1];
 
@@ -499,8 +489,7 @@ namespace Server
 				{
 					var tile = oldList[i];
 
-					if (tile.m_ItemID == itemID && tile.m_OffsetX == (short)x && tile.m_OffsetY == (short)y &&
-						tile.m_OffsetZ == (short)z)
+					if (tile.m_ItemID == itemID && tile.m_OffsetX == x && tile.m_OffsetY == y && tile.m_OffsetZ == z)
 					{
 						var newList = new MultiTileEntry[oldList.Length - 1];
 
@@ -543,7 +532,7 @@ namespace Server
 					}
 					else
 					{
-						newTiles[x][y] = new StaticTile[0];
+						newTiles[x][y] = Array.Empty<StaticTile>();
 					}
 
 					totalLength += newTiles[x][y].Length;
@@ -555,8 +544,8 @@ namespace Server
 			Width = newWidth;
 			Height = newHeight;
 
-			m_Min = Point2D.Zero;
-			m_Max = Point2D.Zero;
+			m_Min = Point3D.Zero;
+			m_Max = Point3D.Zero;
 
 			var index = 0;
 
@@ -568,30 +557,21 @@ namespace Server
 
 					foreach (var tile in tiles)
 					{
+						var z = tile.m_Z;
+
 						var vx = x - m_Center.X;
 						var vy = y - m_Center.Y;
+						var vz = z - m_Center.Z;
 
-						if (vx < m_Min.m_X)
-						{
-							m_Min.m_X = vx;
-						}
+						m_List[index++] = new MultiTileEntry((ushort)tile.ID, (short)vx, (short)vy, (short)vz, TileFlag.Background);
 
-						if (vy < m_Min.m_Y)
-						{
-							m_Min.m_Y = vy;
-						}
+						m_Min.m_X = Math.Min(m_Min.m_X, vx);
+						m_Min.m_Y = Math.Min(m_Min.m_Y, vy);
+						m_Min.m_Z = Math.Min(m_Min.m_Z, vz);
 
-						if (vx > m_Max.m_X)
-						{
-							m_Max.m_X = vx;
-						}
-
-						if (vy > m_Max.m_Y)
-						{
-							m_Max.m_Y = vy;
-						}
-
-						m_List[index++] = new MultiTileEntry((ushort)tile.ID, (short)vx, (short)vy, (short)tile.Z, TileFlag.Background);
+						m_Max.m_X = Math.Max(m_Max.m_X, vx);
+						m_Max.m_Y = Math.Max(m_Max.m_Y, vy);
+						m_Max.m_Z = Math.Max(m_Max.m_Z, vz + tile.Height);
 					}
 				}
 			}
@@ -606,6 +586,7 @@ namespace Server
 
 			Width = toCopy.Width;
 			Height = toCopy.Height;
+			Depth = toCopy.Depth;
 
 			Tiles = new StaticTile[Width][][];
 
@@ -634,7 +615,7 @@ namespace Server
 
 		public void Serialize(GenericWriter writer)
 		{
-			writer.Write(2); // version;
+			writer.Write(0); // version;
 
 			writer.Write(m_Min);
 			writer.Write(m_Max);
@@ -651,18 +632,17 @@ namespace Server
 				writer.Write(ent.m_OffsetX);
 				writer.Write(ent.m_OffsetY);
 				writer.Write(ent.m_OffsetZ);
-
-				writer.Write((ulong)ent.m_Flags);
+				writer.Write(ent.m_Flags);
 			}
 		}
 
 		public MultiComponentList(GenericReader reader)
 		{
-			var version = reader.ReadInt();
+			_ = reader.ReadInt();
 
-			m_Min = reader.ReadPoint2D();
-			m_Max = reader.ReadPoint2D();
-			m_Center = reader.ReadPoint2D();
+			m_Min = reader.ReadPoint3D();
+			m_Max = reader.ReadPoint3D();
+			m_Center = reader.ReadPoint3D();
 			Width = reader.ReadInt();
 			Height = reader.ReadInt();
 
@@ -670,43 +650,13 @@ namespace Server
 
 			var allTiles = m_List = new MultiTileEntry[length];
 
-			if (version == 0)
+			for (var i = 0; i < length; ++i)
 			{
-				for (var i = 0; i < length; ++i)
-				{
-					int id = reader.ReadShort();
-
-					if (id >= 0x4000)
-					{
-						id -= 0x4000;
-					}
-
-					allTiles[i].m_ItemID = (ushort)id;
-					allTiles[i].m_OffsetX = reader.ReadShort();
-					allTiles[i].m_OffsetY = reader.ReadShort();
-					allTiles[i].m_OffsetZ = reader.ReadShort();
-
-					allTiles[i].m_Flags = (TileFlag)reader.ReadUInt();
-				}
-			}
-			else
-			{
-				for (var i = 0; i < length; ++i)
-				{
-					allTiles[i].m_ItemID = reader.ReadUShort();
-					allTiles[i].m_OffsetX = reader.ReadShort();
-					allTiles[i].m_OffsetY = reader.ReadShort();
-					allTiles[i].m_OffsetZ = reader.ReadShort();
-
-					if (version > 1)
-					{
-						allTiles[i].m_Flags = (TileFlag)reader.ReadULong();
-					}
-					else
-					{
-						allTiles[i].m_Flags = (TileFlag)reader.ReadUInt();
-					}
-				}
+				allTiles[i].m_ItemID = reader.ReadUShort();
+				allTiles[i].m_OffsetX = reader.ReadShort();
+				allTiles[i].m_OffsetY = reader.ReadShort();
+				allTiles[i].m_OffsetZ = reader.ReadShort();
+				allTiles[i].m_Flags = reader.ReadEnum<TileFlag>();
 			}
 
 			var tiles = new TileList[Width][];
@@ -770,31 +720,21 @@ namespace Server
 
 				if (i == 0 || e.m_Flags != 0)
 				{
-					if (e.m_OffsetX < m_Min.m_X)
-					{
-						m_Min.m_X = e.m_OffsetX;
-					}
+					m_Min.m_X = Math.Min(m_Min.m_X, e.m_OffsetX);
+					m_Min.m_Y = Math.Min(m_Min.m_Y, e.m_OffsetY);
+					m_Min.m_Z = Math.Min(m_Min.m_Z, e.m_OffsetZ);
 
-					if (e.m_OffsetY < m_Min.m_Y)
-					{
-						m_Min.m_Y = e.m_OffsetY;
-					}
-
-					if (e.m_OffsetX > m_Max.m_X)
-					{
-						m_Max.m_X = e.m_OffsetX;
-					}
-
-					if (e.m_OffsetY > m_Max.m_Y)
-					{
-						m_Max.m_Y = e.m_OffsetY;
-					}
+					m_Max.m_X = Math.Max(m_Max.m_X, e.m_OffsetX);
+					m_Max.m_Y = Math.Max(m_Max.m_Y, e.m_OffsetY);
+					m_Max.m_Z = Math.Max(m_Max.m_Z, e.m_OffsetZ + TileData.ItemTable[e.m_ItemID & TileData.MaxItemValue].Height);
 				}
 			}
 
-			m_Center = new Point2D(-m_Min.m_X, -m_Min.m_Y);
+			m_Center = new Point3D(-m_Min.m_X, -m_Min.m_Y, -m_Min.Z);
+
 			Width = m_Max.m_X - m_Min.m_X + 1;
 			Height = m_Max.m_Y - m_Min.m_Y + 1;
+			Depth = m_Max.m_Z - m_Min.Z + 1;
 
 			var tiles = new TileList[Width][];
 
@@ -817,7 +757,7 @@ namespace Server
 				{
 					var xOffset = allTiles[i].m_OffsetX + m_Center.m_X;
 					var yOffset = allTiles[i].m_OffsetY + m_Center.m_Y;
-					var zOffset = allTiles[i].m_OffsetZ;
+					var zOffset = allTiles[i].m_OffsetZ + m_Center.m_Z;
 					var itemID = (allTiles[i].m_ItemID & TileData.MaxItemValue) | 0x10000;
 
 					tiles[xOffset][yOffset].Add((ushort)itemID, (byte)xOffset, (byte)yOffset, (sbyte)zOffset);
@@ -850,31 +790,21 @@ namespace Server
 
 				if (i == 0 || e.m_Flags != 0)
 				{
-					if (e.m_OffsetX < m_Min.m_X)
-					{
-						m_Min.m_X = e.m_OffsetX;
-					}
+					m_Min.m_X = Math.Min(m_Min.m_X, e.m_OffsetX);
+					m_Min.m_Y = Math.Min(m_Min.m_Y, e.m_OffsetY);
+					m_Min.m_Z = Math.Min(m_Min.m_Z, e.m_OffsetZ);
 
-					if (e.m_OffsetY < m_Min.m_Y)
-					{
-						m_Min.m_Y = e.m_OffsetY;
-					}
-
-					if (e.m_OffsetX > m_Max.m_X)
-					{
-						m_Max.m_X = e.m_OffsetX;
-					}
-
-					if (e.m_OffsetY > m_Max.m_Y)
-					{
-						m_Max.m_Y = e.m_OffsetY;
-					}
+					m_Max.m_X = Math.Max(m_Max.m_X, e.m_OffsetX);
+					m_Max.m_Y = Math.Max(m_Max.m_Y, e.m_OffsetY);
+					m_Max.m_Z = Math.Max(m_Max.m_Z, e.m_OffsetZ + TileData.ItemTable[e.m_ItemID & TileData.MaxItemValue].Height);
 				}
 			}
 
-			m_Center = new Point2D(-m_Min.m_X, -m_Min.m_Y);
+			m_Center = new Point3D(-m_Min.m_X, -m_Min.m_Y, -m_Min.Z);
+
 			Width = m_Max.m_X - m_Min.m_X + 1;
 			Height = m_Max.m_Y - m_Min.m_Y + 1;
+			Depth = m_Max.m_Z - m_Min.Z + 1;
 
 			var tiles = new TileList[Width][];
 
@@ -897,7 +827,7 @@ namespace Server
 				{
 					var xOffset = allTiles[i].m_OffsetX + m_Center.m_X;
 					var yOffset = allTiles[i].m_OffsetY + m_Center.m_Y;
-					var zOffset = allTiles[i].m_OffsetZ;
+					var zOffset = allTiles[i].m_OffsetZ + m_Center.m_Z;
 					var itemID = (allTiles[i].m_ItemID & TileData.MaxItemValue) | 0x10000;
 
 					tiles[xOffset][yOffset].Add((ushort)itemID, (byte)xOffset, (byte)yOffset, (sbyte)zOffset);
@@ -916,7 +846,7 @@ namespace Server
 		private MultiComponentList()
 		{
 			Tiles = new StaticTile[0][][];
-			m_List = new MultiTileEntry[0];
+			m_List = Array.Empty<MultiTileEntry>();
 		}
 	}
 
