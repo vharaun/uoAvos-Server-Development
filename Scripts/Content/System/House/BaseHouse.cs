@@ -4387,7 +4387,7 @@ namespace Server.Multis
 			for (var i = 0; i < list.Length; ++i)
 			{
 				var mte = list[i];
-				int itemID = mte.m_ItemID;
+				int itemID = mte.ItemID;
 
 				if (itemID is >= 0x181D and < 0x1829)
 				{
@@ -4582,7 +4582,7 @@ namespace Server.Multis
 						door.Locked = true;
 						door.KeyValue = keyValue;
 
-						AddDoor(door, mte.m_OffsetX, mte.m_OffsetY, mte.m_OffsetZ);
+						AddDoor(door, mte.OffsetX, mte.OffsetY, mte.OffsetZ);
 						Fixtures.Add(door);
 					}
 				}
@@ -4654,7 +4654,7 @@ namespace Server.Multis
 		public void AddFixture(Item item, MultiTileEntry mte)
 		{
 			Fixtures.Add(item);
-			item.MoveToWorld(new Point3D(X + mte.m_OffsetX, Y + mte.m_OffsetY, Z + mte.m_OffsetZ), Map);
+			item.MoveToWorld(new Point3D(X + mte.OffsetX, Y + mte.OffsetY, Z + mte.OffsetZ), Map);
 		}
 
 		public static void GetFoundationGraphics(FoundationType type, out int east, out int south, out int post, out int corner)
@@ -5692,9 +5692,9 @@ namespace Server.Multis
 				{
 					var entry = stairs.List[i];
 
-					if (entry.m_ItemID != 1)
+					if (entry.ItemID != 1)
 					{
-						mcl.Add(entry.m_ItemID, x + entry.m_OffsetX, y + entry.m_OffsetY, z + entry.m_OffsetZ);
+						mcl.Add(entry.ItemID, x + entry.OffsetX, y + entry.OffsetY, z + entry.OffsetZ);
 					}
 				}
 
@@ -5901,9 +5901,9 @@ namespace Server.Multis
 				{
 					var mte = list[i];
 
-					if (mte.m_OffsetX == x && mte.m_OffsetY == y && GetZLevel(mte.m_OffsetZ, context.Foundation) == context.Level && (TileData.ItemTable[mte.m_ItemID & TileData.MaxItemValue].Flags & TileFlag.Roof) != 0)
+					if (mte.OffsetX == x && mte.OffsetY == y && GetZLevel(mte.OffsetZ, context.Foundation) == context.Level && (TileData.ItemTable[mte.ItemID & TileData.MaxItemValue].Flags & TileFlag.Roof) != 0)
 					{
-						mcl.Remove(mte.m_ItemID, x, y, mte.m_OffsetZ);
+						mcl.Remove(mte.ItemID, x, y, mte.OffsetZ);
 					}
 				}
 
@@ -6011,18 +6011,18 @@ namespace Server.Multis
 
 						for (var i = 0; i < length; ++i)
 						{
-							Fixtures[i].m_ItemID = reader.ReadUShort();
-							Fixtures[i].m_OffsetX = reader.ReadShort();
-							Fixtures[i].m_OffsetY = reader.ReadShort();
-							Fixtures[i].m_OffsetZ = reader.ReadShort();
+							Fixtures[i].ItemID = reader.ReadUShort();
+							Fixtures[i].OffsetX = reader.ReadShort();
+							Fixtures[i].OffsetY = reader.ReadShort();
+							Fixtures[i].OffsetZ = reader.ReadShort();
 
 							if (version > 0)
 							{
-								Fixtures[i].m_Flags = (TileFlag)reader.ReadULong();
+								Fixtures[i].Flags = (TileFlag)reader.ReadULong();
 							}
 							else
 							{
-								Fixtures[i].m_Flags = (TileFlag)reader.ReadUInt();
+								Fixtures[i].Flags = (TileFlag)reader.ReadUInt();
 							}
 						}
 
@@ -6045,12 +6045,12 @@ namespace Server.Multis
 			{
 				var ent = Fixtures[i];
 
-				writer.Write(ent.m_ItemID);
-				writer.Write(ent.m_OffsetX);
-				writer.Write(ent.m_OffsetY);
-				writer.Write(ent.m_OffsetZ);
+				writer.Write(ent.ItemID);
+				writer.Write(ent.OffsetX);
+				writer.Write(ent.OffsetY);
+				writer.Write(ent.OffsetZ);
 
-				writer.Write((ulong)ent.m_Flags);
+				writer.Write((ulong)ent.Flags);
 			}
 
 			writer.Write(Revision);
@@ -6105,7 +6105,7 @@ namespace Server.Multis
 			{
 				var mte = Fixtures[i];
 
-				Components.Add(mte.m_ItemID, mte.m_OffsetX, mte.m_OffsetY, mte.m_OffsetZ);
+				Components.Add(mte.ItemID, mte.OffsetX, mte.OffsetY, mte.OffsetZ);
 			}
 
 			Fixtures = new MultiTileEntry[0];
@@ -6122,7 +6122,7 @@ namespace Server.Multis
 			{
 				var mte = list[i];
 
-				if (IsFixture(mte.m_ItemID))
+				if (IsFixture(mte.ItemID))
 				{
 					++length;
 				}
@@ -6134,10 +6134,10 @@ namespace Server.Multis
 			{
 				var mte = list[i];
 
-				if (IsFixture(mte.m_ItemID))
+				if (IsFixture(mte.ItemID))
 				{
 					Fixtures[--length] = mte;
-					Components.Remove(mte.m_ItemID, mte.m_OffsetX, mte.m_OffsetY, mte.m_OffsetZ);
+					Components.Remove(mte.ItemID, mte.OffsetX, mte.OffsetY, mte.OffsetZ);
 				}
 			}
 		}
@@ -6618,10 +6618,10 @@ namespace Server.Multis
 			for (var i = 0; i < tiles.Length; ++i)
 			{
 				var mte = tiles[i];
-				var x = mte.m_OffsetX - xMin;
-				var y = mte.m_OffsetY - yMin;
-				int z = mte.m_OffsetZ;
-				var floor = TileData.ItemTable[mte.m_ItemID & TileData.MaxItemValue].Height <= 0;
+				var x = mte.OffsetX - xMin;
+				var y = mte.OffsetY - yMin;
+				int z = mte.OffsetZ;
+				var floor = TileData.ItemTable[mte.ItemID & TileData.MaxItemValue].Height <= 0;
 				int plane, size;
 
 				switch (z)
@@ -6638,12 +6638,12 @@ namespace Server.Multis
 
 							var byteIndex = totalStairsUsed % MaxItemsPerStairBuffer * 5;
 
-							stairBuffer[byteIndex++] = (byte)(mte.m_ItemID >> 8);
-							stairBuffer[byteIndex++] = (byte)mte.m_ItemID;
+							stairBuffer[byteIndex++] = (byte)(mte.ItemID >> 8);
+							stairBuffer[byteIndex++] = (byte)mte.ItemID;
 
-							stairBuffer[byteIndex++] = (byte)mte.m_OffsetX;
-							stairBuffer[byteIndex++] = (byte)mte.m_OffsetY;
-							stairBuffer[byteIndex++] = (byte)mte.m_OffsetZ;
+							stairBuffer[byteIndex++] = (byte)mte.OffsetX;
+							stairBuffer[byteIndex++] = (byte)mte.OffsetY;
+							stairBuffer[byteIndex++] = (byte)mte.OffsetZ;
 
 							++totalStairsUsed;
 
@@ -6676,20 +6676,20 @@ namespace Server.Multis
 
 					var byteIndex = totalStairsUsed % MaxItemsPerStairBuffer * 5;
 
-					stairBuffer[byteIndex++] = (byte)(mte.m_ItemID >> 8);
-					stairBuffer[byteIndex++] = (byte)mte.m_ItemID;
+					stairBuffer[byteIndex++] = (byte)(mte.ItemID >> 8);
+					stairBuffer[byteIndex++] = (byte)mte.ItemID;
 
-					stairBuffer[byteIndex++] = (byte)mte.m_OffsetX;
-					stairBuffer[byteIndex++] = (byte)mte.m_OffsetY;
-					stairBuffer[byteIndex++] = (byte)mte.m_OffsetZ;
+					stairBuffer[byteIndex++] = (byte)mte.OffsetX;
+					stairBuffer[byteIndex++] = (byte)mte.OffsetY;
+					stairBuffer[byteIndex++] = (byte)mte.OffsetZ;
 
 					++totalStairsUsed;
 				}
 				else
 				{
 					m_PlaneUsed[plane] = true;
-					m_PlaneBuffers[plane][index] = (byte)(mte.m_ItemID >> 8);
-					m_PlaneBuffers[plane][index + 1] = (byte)mte.m_ItemID;
+					m_PlaneBuffers[plane][index] = (byte)(mte.ItemID >> 8);
+					m_PlaneBuffers[plane][index + 1] = (byte)mte.ItemID;
 				}
 			}
 
@@ -7203,11 +7203,11 @@ namespace Server.Multis
 			{
 				var entry = mcl.List[i];
 
-				if (entry.m_Flags == 0)
+				if (entry.Flags == 0)
 				{
-					Item item = new Static((int)entry.m_ItemID);
+					Item item = new Static((int)entry.ItemID);
 
-					item.MoveToWorld(new Point3D(X + entry.m_OffsetX, Y + entry.m_OffsetY, Z + entry.m_OffsetZ), Map);
+					item.MoveToWorld(new Point3D(X + entry.OffsetX, Y + entry.OffsetY, Z + entry.OffsetZ), Map);
 
 					m_Components.Add(item);
 				}
@@ -7942,11 +7942,11 @@ namespace Server.Multis
 						{
 							var entry = mcl.List[i];
 
-							int itemID = entry.m_ItemID;
+							int itemID = entry.ItemID;
 
 							if (itemID is >= 0xBA3 and <= 0xC0E)
 							{
-								banLoc = new Point3D(center.X + entry.m_OffsetX, center.Y + entry.m_OffsetY, center.Z);
+								banLoc = new Point3D(center.X + entry.OffsetX, center.Y + entry.OffsetY, center.Z);
 								break;
 							}
 						}

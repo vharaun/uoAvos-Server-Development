@@ -1465,6 +1465,8 @@ namespace Server.Multis
 			return false;
 		}
 
+		public virtual int BoatHeight => 100;
+
 		public bool CanFit(Point3D p, Map map, int itemID)
 		{
 			if (map == null || map == Map.Internal || Deleted || CheckDecay())
@@ -1481,8 +1483,17 @@ namespace Server.Multis
 					var tx = p.X + newComponents.Min.X + x;
 					var ty = p.Y + newComponents.Min.Y + y;
 
-					if (newComponents.Tiles[x][y].Length == 0 || Contains(tx, ty))
+					if (tx >= 0 && tx < newComponents.Width && ty >= 0 && ty < newComponents.Height && newComponents.Tiles[tx][ty].Length == 0)
 					{
+						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+
+						continue;
+					}
+
+					if (Contains(tx, ty))
+					{
+						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+
 						continue;
 					}
 
@@ -1490,7 +1501,7 @@ namespace Server.Multis
 
 					var landTile = map.Tiles.GetLandTile(tx, ty);
 
-					if (landTile.Z == p.Z && IsWater(landTile))
+					if (!landTile.Ignored && IsWater(landTile) && Geometry.Intersects(p.Z, BoatHeight, landTile))
 					{
 						hasWater = true;
 					}
@@ -1500,35 +1511,29 @@ namespace Server.Multis
 					for (var i = 0; i < tiles.Length; ++i)
 					{
 						var tile = tiles[i];
-						
+
 						if (IsWater(tile))
 						{
-							if (tile.Z == p.Z)
+							if (!hasWater && Geometry.Intersects(p.Z, BoatHeight, tile))
 							{
 								hasWater = true;
 							}
 						}
 						else
 						{
-							if (tile.Z > p.Z)
+							if (Geometry.Intersects(p.Z, BoatHeight, tile))
 							{
-								if (p.Z + newComponents.Depth >= tile.Z)
-								{
-									return false;
-								}
-							}
-							else
-							{
-								if (tile.Z + tile.Height >= p.Z)
-								{
-									return false;
-								}
+								Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+
+								return false;
 							}
 						}
 					}
 
 					if (!hasWater)
 					{
+						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+
 						return false;
 					}
 				}
@@ -1542,34 +1547,42 @@ namespace Server.Multis
 				{
 					if (item is BaseMulti || item.ItemID > TileData.MaxItemValue || !item.Visible)
 					{
+						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+
 						continue;
 					}
 
-					var x = item.X - p.X + newComponents.Min.X;
-					var y = item.Y - p.Y + newComponents.Min.Y;
+					var tx = item.X - (p.X + newComponents.Min.X);
+					var ty = item.Y - (p.Y + newComponents.Min.Y);
 
-					if (x >= 0 && x < newComponents.Width && y >= 0 && y < newComponents.Height && newComponents.Tiles[x][y].Length == 0)
+					if (tx >= 0 && tx < newComponents.Width && ty >= 0 && ty < newComponents.Height && newComponents.Tiles[tx][ty].Length == 0)
 					{
+						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+
 						continue;
 					}
 
 					if (Contains(item))
 					{
+						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+
 						continue;
 					}
 
-					if (Geometry.Intersects(p.Z, newComponents.Depth, item))
+					if (Geometry.Intersects(p.Z, BoatHeight, item))
 					{
+						Effects.SendLocationEffect(item, map, 0x42CF, 30, 22, 0);
+
 						return false;
 					}
 				}
-
-				return true;
 			}
 			finally
 			{
 				eable.Free();
 			}
+
+			return true;
 		}
 
 		public Point3D Rotate(Point3D p, int count)
@@ -1589,7 +1602,12 @@ namespace Server.Multis
 
 		public override bool Contains(int x, int y)
 		{
-			if (base.Contains(x, y))
+			var mcl = Components;
+
+			var tx = x - (X + mcl.Min.X);
+			var ty = y - (Y + mcl.Min.Y);
+
+			if (tx >= 0 && tx < mcl.Width && ty >= 0 && ty < mcl.Height && mcl.Tiles[tx][ty].Length > 0)
 			{
 				return true;
 			}
@@ -1619,7 +1637,13 @@ namespace Server.Multis
 
 		public override bool Contains(int x, int y, int z)
 		{
-			if (base.Contains(x, y, z))
+			var mcl = Components;
+
+			var tx = x - (X + mcl.Min.X);
+			var ty = y - (Y + mcl.Min.Y);
+			var tz = z - (Z + mcl.Min.Z);
+
+			if (tx >= 0 && tx < mcl.Width && ty >= 0 && ty < mcl.Height && tz >= 0 && tz < mcl.Depth && mcl.Tiles[tx][ty].Length > 0)
 			{
 				return true;
 			}

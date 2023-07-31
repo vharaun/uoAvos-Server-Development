@@ -1080,36 +1080,36 @@ namespace Server.Regions
 			return base.AcceptsSpawnsFrom(spawn, region);
 		}
 
-		public override bool AllowHousing(Mobile from, Point3D p)
+		public override bool AllowHousing(Mobile owner, Point3D p)
 		{
-			if (from.AccessLevel < RulesOverride)
+			if (owner == null || owner.AccessLevel < RulesOverride)
 			{
 				if (!Rules.AllowHouses)
 				{
-					if (!OnRuleEnforced(RegionFlags.AllowHouses, from, p, false))
+					if (!OnRuleEnforced(RegionFlags.AllowHouses, owner, p, false))
 					{
 						return false;
 					}
 				}
 			}
 
-			return base.AllowHousing(from, p);
+			return base.AllowHousing(owner, p);
 		}
 
-		public override bool AllowVehicles(Mobile from, Point3D p)
+		public override bool AllowVehicles(Mobile owner, Point3D p)
 		{
-			if (from.AccessLevel < RulesOverride)
+			if (owner == null || owner.AccessLevel < RulesOverride)
 			{
 				if (!Rules.AllowVehicles)
 				{
-					if (!OnRuleEnforced(RegionFlags.AllowVehicles, from, p, false))
+					if (!OnRuleEnforced(RegionFlags.AllowVehicles, owner, p, false))
 					{
 						return false;
 					}
 				}
 			}
 
-			return base.AllowVehicles(from, p);
+			return base.AllowVehicles(owner, p);
 		}
 
 		public override bool CanEnter(Mobile m)

@@ -2774,6 +2774,16 @@ namespace Server
 			}
 		}
 
+		public static bool Intersects(int z1, int h1, LandTile p2)
+		{
+			return GetHeight(p2, out var h2) && Intersects(0, 0, z1, h1, 0, 0, p2.Z, h2);
+		}
+
+		public static bool Intersects(LandTile p1, int z2, int h2)
+		{
+			return GetHeight(p1, out var h1) && Intersects(0, 0, p1.Z, h1, 0, 0, z2, h2);
+		}
+
 		public static bool Intersects(StaticTile p1, StaticTile p2)
 		{
 			return GetHeight(p1, out var h1) && GetHeight(p2, out var h2) && Intersects(p1.X, p1.Y, p1.Z, h1, p2.X, p2.Y, p2.Z, h2);

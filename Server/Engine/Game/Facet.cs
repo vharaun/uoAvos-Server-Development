@@ -213,7 +213,7 @@ namespace Server
 		}
 
 		public static MapBounds Parse(string value)
-		{ 
+		{
 			return new MapBounds(Rectangle2D.Parse(value));
 		}
 
@@ -3096,7 +3096,7 @@ namespace Server
 			{
 				return true;
 			}
-			
+
 			if (from is Mobile && dest is Item i && i.RootParent == from)
 			{
 				return true;
@@ -3598,7 +3598,7 @@ namespace Server
 
 			if (fileIndex != 0x7F)
 			{
-				var mapPath = (Core.FindDataFile($"map{fileIndex}LegacyMUL.uop") ?? Core.FindDataFile($"map{fileIndex}.mul")) 
+				var mapPath = (Core.FindDataFile($"map{fileIndex}LegacyMUL.uop") ?? Core.FindDataFile($"map{fileIndex}.mul"))
 							?? throw new FileNotFoundException($"Could not load map file for {fileIndex}:{owner?.Name ?? "null"}");
 
 				MapStream = new FileStream(mapPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -4000,15 +4000,11 @@ namespace Server
 		internal short m_ID;
 		internal sbyte m_Z;
 
-		public int ID => m_ID;
+		public readonly int ID => m_ID;
 
-		public int Z
-		{
-			get => m_Z;
-			set => m_Z = (sbyte)value;
-		}
+		public int Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
 
-		public bool Ignored => m_ID is 2 or 0x1DB or (>= 0x1AE and <= 0x1B5);
+		public readonly bool Ignored => m_ID is 2 or 0x1DB or (>= 0x1AE and <= 0x1B5);
 
 		public LandTile(short id, sbyte z)
 		{
@@ -4022,9 +4018,14 @@ namespace Server
 			m_Z = z;
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_ID, m_Z);
+		}
+
+		public override readonly string ToString()
+		{
+			return $"({ID}, {Z}, {Ignored})";
 		}
 	}
 
@@ -4037,16 +4038,20 @@ namespace Server
 		internal sbyte m_Z;
 		internal short m_Hue;
 
-		public int ID => m_ID;
+		public readonly int ID => m_ID;
 
-		public int X { get => m_X; set => m_X = (byte)value; }
-		public int Y { get => m_Y; set => m_Y = (byte)value; }
-		public int Z { get => m_Z; set => m_Z = (sbyte)value; }
-		public int Hue { get => m_Hue; set => m_Hue = (short)value; }
+		public int X { readonly get => m_X; set => m_X = (byte)value; }
+		public int Y { readonly get => m_Y; set => m_Y = (byte)value; }
+		public int Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
+		public int Hue { readonly get => m_Hue; set => m_Hue = (short)value; }
 
-		public int Height => TileData.ItemTable[m_ID & TileData.MaxItemValue].Height;
+		public readonly ItemData Data => TileData.ItemTable[m_ID & TileData.MaxItemValue];
 
-		public bool Ignored => m_ID is <= 1 or 0x1796;
+		public readonly int Height => Data.Height;
+
+		public readonly TileFlag Flags => Data.Flags;
+
+		public readonly bool Ignored => m_ID is <= 1 or 0x1796;
 
 		public StaticTile(ushort id, sbyte z)
 		{
@@ -4082,9 +4087,14 @@ namespace Server
 			m_Hue = hue;
 		}
 
-		public override int GetHashCode()
+		public override readonly int GetHashCode()
 		{
 			return HashCode.Combine(m_ID, m_X, m_Y, m_Z, m_Hue);
+		}
+
+		public override readonly string ToString()
+		{
+			return $"({ID}, {X}, {Y}, {Z}, {Height}, {Hue})";
 		}
 	}
 

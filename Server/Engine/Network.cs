@@ -6341,17 +6341,14 @@ namespace Server.Network
 			}
 			finally
 			{
-				lock (this)
-				{
-					m_Queue.Clear();
-					m_Queue = null;
+				m_Queue.Clear();
+				m_Queue = null;
 
-					m_WorkingQueue.Clear();
-					m_WorkingQueue = null;
+				m_WorkingQueue.Clear();
+				m_WorkingQueue = null;
 
-					m_Throttled.Clear();
-					m_Throttled = null;
-				}
+				m_Throttled.Clear();
+				m_Throttled = null;
 
 				foreach (var listener in m_Listeners)
 				{

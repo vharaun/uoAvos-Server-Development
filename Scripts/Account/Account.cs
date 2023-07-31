@@ -2507,7 +2507,7 @@ namespace Server.Misc
 				return;
 			}
 
-			var un = e.Username;
+			var un = e.Username.Trim();
 			var pw = e.Password;
 
 			e.Accepted = false;
@@ -2515,13 +2515,14 @@ namespace Server.Misc
 
 			if (acct == null)
 			{
-				if (AutoAccountCreation && un.Trim().Length > 0) // To prevent someone from making an account of just '' or a bunch of meaningless spaces
+				if (AutoAccountCreation && un.Length > 0) // To prevent someone from making an account of just '' or a bunch of meaningless spaces
 				{
 					e.State.Account = acct = CreateAccount(e.State, un, pw);
-					e.Accepted = acct == null ? false : acct.CheckAccess(e.State);
+					e.Accepted = acct?.CheckAccess(e.State) == true;
 
 					if (!e.Accepted)
 					{
+						Console.WriteLine("Login: {0}: Access denied for '{1}'", e.State, un);
 						e.RejectReason = ALRReason.BadComm;
 					}
 				}

@@ -63,7 +63,7 @@ namespace Server.Items
 
 				if (mcl.List.Length > 0)
 				{
-					int id = mcl.List[0].m_ItemID;
+					int id = mcl.List[0].ItemID;
 
 					if (id < 0x4000)
 					{

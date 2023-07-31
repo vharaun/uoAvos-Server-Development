@@ -100,9 +100,6 @@ namespace Server.Engines.Facet
 
 		public static void Configure()
 		{
-			TileMatrixPatch.Enabled = false; // OSI Client Patch 6.0.0.0
-			MultiComponentList.PostHSFormat = true; // OSI Client Patch 7.0.9.0
-
 			EventSink.ServerList += EventSink_OnServerList;
 			EventSink.Login += EventSink_Login;
 		}
