@@ -50,7 +50,7 @@ namespace Server.Engines.Harvest
 				Skill = SkillName.Fishing,
 
 				// Set the list of harvestable tiles
-				Tiles = Utility.ConvertToArray(WaterUtility.AllWaterTiles),
+				Tiles = Utility.ConvertToRangedArray(WaterUtility.AllWaterTiles),
 				RangedTiles = true,
 
 				// Players must be within 4 tiles to harvest

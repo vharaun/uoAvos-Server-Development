@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -1994,17 +1995,52 @@ namespace Server
 			return default;
 		}
 
-		public static int[] ConvertToArray(Range[] ranges)
+		public static Range[] ConvertToRangedArray(int[] ranges)
 		{
-			var list = new int[ranges.Length * 2];
+			var output = new Range[ranges.Length / 2];
 
-			for (int i = 0, j = 0; i < ranges.Length; i++)
+			var i = -1;
+			var j = -1;
+
+			while (++i < output.Length)
 			{
-				list[j++] = ranges[i].Start.Value;
-				list[j++] = ranges[i].End.Value;
+				output[i] = ranges[++j]..ranges[++j];
 			}
 
-			return list;
+			return output;
+		}
+
+		public static int[] ConvertToRangedArray(Range[] ranges)
+		{
+			var output = new int[ranges.Length * 2];
+
+			var i = -1;
+			var j = -1;
+
+			while (++i < ranges.Length)
+			{
+				output[++j] = ranges[i].Start.Value;
+				output[++j] = ranges[i].End.Value;
+			}
+
+			return output;
+		}
+
+		public static int[] ConvertToSequentialArray(Range[] ranges)
+		{
+			var output = new SortedSet<int>();
+
+			foreach (var r in ranges)
+			{
+				var id = r.Start.Value;
+
+				while (id <= r.End.Value)
+				{
+					output.Add(id++);
+				}
+			}
+
+			return output.ToArray();
 		}
 	}
 
