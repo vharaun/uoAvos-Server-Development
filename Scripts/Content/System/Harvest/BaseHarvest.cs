@@ -354,7 +354,9 @@ namespace Server.Engines.Harvest
 
 		public virtual Type MutateType(Type type, Mobile from, IHarvestTool tool, HarvestDefinition def, Map map, Point3D loc, HarvestResource resource)
 		{
-			return from.Region.GetResource(from, tool, map, loc, this, type);
+			var region = Region.Find(loc, map) ?? from?.Region;
+
+			return region?.GetResource(from, tool, map, loc, this, type) ?? type;
 		}
 
 		public virtual Type GetResourceType(Mobile from, IHarvestTool tool, HarvestDefinition def, Map map, Point3D loc, HarvestResource resource)
