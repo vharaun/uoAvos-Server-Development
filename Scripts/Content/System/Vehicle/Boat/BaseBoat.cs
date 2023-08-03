@@ -82,10 +82,10 @@ namespace Server.Multis
 					{
 						return Map.Internal.DefaultRegion;
 					}
-					
+
 					return Map.DefaultRegion;
 				}
-				
+
 				return m_Region;
 			}
 		}
@@ -1429,7 +1429,7 @@ namespace Server.Multis
 		private static readonly Range[][] m_WaterTiles =
 		{
 			new[] // land 
-			{ 
+			{
 				168..171,
 				310..311,
 			},
@@ -1465,6 +1465,8 @@ namespace Server.Multis
 			return false;
 		}
 
+		private static readonly bool DebugCanFit = false;
+
 		public virtual int BoatHeight => 100;
 
 		public bool CanFit(Point3D p, Map map, int itemID)
@@ -1485,14 +1487,20 @@ namespace Server.Multis
 
 					if (tx >= 0 && tx < newComponents.Width && ty >= 0 && ty < newComponents.Height && newComponents.Tiles[tx][ty].Length == 0)
 					{
-						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+						}
 
 						continue;
 					}
 
 					if (Contains(tx, ty))
 					{
-						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 85, 0);
+						}
 
 						continue;
 					}
@@ -1523,7 +1531,10 @@ namespace Server.Multis
 						{
 							if (Geometry.Intersects(p.Z, BoatHeight, tile))
 							{
-								Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+								if (DebugCanFit)
+								{
+									Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+								}
 
 								return false;
 							}
@@ -1532,7 +1543,10 @@ namespace Server.Multis
 
 					if (!hasWater)
 					{
-						Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(new Point3D(tx, ty, p.Z), map, 0x42CF, 30, 22, 0);
+						}
 
 						return false;
 					}
@@ -1547,7 +1561,10 @@ namespace Server.Multis
 				{
 					if (item is BaseMulti || item.ItemID > TileData.MaxItemValue || !item.Visible)
 					{
-						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						}
 
 						continue;
 					}
@@ -1557,21 +1574,30 @@ namespace Server.Multis
 
 					if (tx >= 0 && tx < newComponents.Width && ty >= 0 && ty < newComponents.Height && newComponents.Tiles[tx][ty].Length == 0)
 					{
-						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						}
 
 						continue;
 					}
 
 					if (Contains(item))
 					{
-						Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(item, map, 0x42CF, 30, 85, 0);
+						}
 
 						continue;
 					}
 
 					if (Geometry.Intersects(p.Z, BoatHeight, item))
 					{
-						Effects.SendLocationEffect(item, map, 0x42CF, 30, 22, 0);
+						if (DebugCanFit)
+						{
+							Effects.SendLocationEffect(item, map, 0x42CF, 30, 22, 0);
+						}
 
 						return false;
 					}
@@ -1781,7 +1807,7 @@ namespace Server.Multis
 			{
 				return Turn(-2, true);
 			}
-			
+
 			if (dir == Right || dir == BackwardRight)
 			{
 				return Turn(2, true);
@@ -1820,18 +1846,11 @@ namespace Server.Multis
 			{
 				var loc = new Point3D(X + (i * rx), Y + (i * ry), Z);
 
-				if (CanFit(loc, map, ItemID))
+				if (!CanFit(loc, map, ItemID) || !Region.CanVehicleMove(this, Owner, d, loc, Location, map))
 				{
-					continue;
+					speed = i - 1;
+					break;
 				}
-
-				if (Region.CanVehicleMove(this, Owner, d, loc, Location, map))
-				{
-					continue;
-				}
-
-				speed = i - 1;
-				break;
 			}
 
 			if (speed <= 0)
@@ -1878,18 +1897,11 @@ namespace Server.Multis
 					{
 						var loc = new Point3D(newX + (j * rx), newY + (j * ry), newZ);
 
-						if (CanFit(loc, map, ItemID))
+						if (!CanFit(loc, map, ItemID) || !Region.CanVehicleMove(this, Owner, d, loc, Location, map))
 						{
-							continue;
+							speed = j - 1;
+							break;
 						}
-
-						if (Region.CanVehicleMove(this, Owner, d, loc, Location, map))
-						{
-							continue;
-						}
-
-						speed = j - 1;
-						break;
 					}
 
 					if (speed <= 0)
@@ -1909,7 +1921,7 @@ namespace Server.Multis
 			}
 
 			Sail(xOffset, yOffset, zOffset, d, clientSpeed);
-			
+
 			return true;
 		}
 

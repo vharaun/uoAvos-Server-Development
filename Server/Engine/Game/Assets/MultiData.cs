@@ -455,9 +455,9 @@ namespace Server
 				ResolveDimensions(e);
 			}
 
-			m_Center.m_X = -m_Min.X;
-			m_Center.m_Y = -m_Min.Y;
-			m_Center.m_Z = -m_Min.Z;
+			m_Center.m_X = -m_Min.m_X;// + ((Width - 1) / 2);
+			m_Center.m_Y = -m_Min.m_Y;// + ((Height - 1) / 2);
+			m_Center.m_Z = -m_Min.m_Z;// + ((Depth - 1) / 2);
 		}
 
 		private void InvalidateTiles(bool resize)

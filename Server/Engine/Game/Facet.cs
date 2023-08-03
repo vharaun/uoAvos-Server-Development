@@ -364,49 +364,41 @@ namespace Server
 
 		public static IEnumerable<StaticTile[]> SelectMultiTiles(Sector s, Rectangle2D bounds)
 		{
-			foreach (var o in s.Multis.Where(o => o != null && !o.Deleted))
+			foreach (var o in s.Multis.Where(o => o?.Deleted == false))
 			{
 				var c = o.Components;
 
-				int x, y, xo, yo;
-				StaticTile[] t, r;
-
-				for (x = bounds.Start.X; x < bounds.End.X; x++)
+				for (var x = bounds.Start.X; x < bounds.End.X; x++)
 				{
-					xo = x - (o.X + c.Min.X);
+					var xo = x - (o.X + c.Min.X);
 
 					if (xo < 0 || xo >= c.Width)
 					{
 						continue;
 					}
 
-					for (y = bounds.Start.Y; y < bounds.End.Y; y++)
+					for (var y = bounds.Start.Y; y < bounds.End.Y; y++)
 					{
-						yo = y - (o.Y + c.Min.Y);
+						var yo = y - (o.Y + c.Min.Y);
 
 						if (yo < 0 || yo >= c.Height)
 						{
 							continue;
 						}
 
-						t = c.Tiles[xo][yo];
+						var buffer = c.Tiles[xo][yo];
 
-						if (t.Length <= 0)
+						if (buffer.Length > 0)
 						{
-							continue;
+							var tiles = new StaticTile[buffer.Length];
+
+							for (var i = 0; i < tiles.Length; i++)
+							{
+								tiles[i].Set(buffer[i].m_ID, buffer[i].m_X, buffer[i].m_Y, (sbyte)(buffer[i].m_Z + o.Z), buffer[i].m_Hue);
+							}
+
+							yield return tiles;
 						}
-
-						r = new StaticTile[t.Length];
-
-						for (var i = 0; i < t.Length; i++)
-						{
-							r[i] = t[i];
-							r[i].X += o.X;
-							r[i].Y += o.Y;
-							r[i].Z += o.Z;
-						}
-
-						yield return r;
 					}
 				}
 			}
@@ -3749,12 +3741,12 @@ namespace Server
 
 				foreach (var multiTiles in m_Owner.GetMultiTilesAt(x, y))
 				{
-					if (!any)
+					if (multiTiles.Length > 0)
 					{
 						any = true;
-					}
 
-					m_TilesList.AddRange(multiTiles);
+						m_TilesList.AddRange(multiTiles);
+					}
 				}
 
 				if (any)
@@ -3997,22 +3989,22 @@ namespace Server
 	[StructLayout(LayoutKind.Sequential, Pack = 1, Size = 3)]
 	public struct LandTile
 	{
-		internal short m_ID;
+		internal ushort m_ID;
 		internal sbyte m_Z;
 
-		public readonly int ID => m_ID;
+		public readonly ushort ID => m_ID;
 
-		public int Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
+		public sbyte Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
 
 		public readonly bool Ignored => m_ID is 2 or 0x1DB or (>= 0x1AE and <= 0x1B5);
 
-		public LandTile(short id, sbyte z)
+		public LandTile(ushort id, sbyte z)
 		{
 			m_ID = id;
 			m_Z = z;
 		}
 
-		public void Set(short id, sbyte z)
+		public void Set(ushort id, sbyte z)
 		{
 			m_ID = id;
 			m_Z = z;
@@ -4036,14 +4028,14 @@ namespace Server
 		internal byte m_X;
 		internal byte m_Y;
 		internal sbyte m_Z;
-		internal short m_Hue;
+		internal ushort m_Hue;
 
-		public readonly int ID => m_ID;
+		public readonly ushort ID => m_ID;
 
-		public int X { readonly get => m_X; set => m_X = (byte)value; }
-		public int Y { readonly get => m_Y; set => m_Y = (byte)value; }
-		public int Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
-		public int Hue { readonly get => m_Hue; set => m_Hue = (short)value; }
+		public byte X { readonly get => m_X; set => m_X = (byte)value; }
+		public byte Y { readonly get => m_Y; set => m_Y = (byte)value; }
+		public sbyte Z { readonly get => m_Z; set => m_Z = (sbyte)value; }
+		public ushort Hue { readonly get => m_Hue; set => m_Hue = (ushort)value; }
 
 		public readonly ItemData Data => TileData.ItemTable[m_ID & TileData.MaxItemValue];
 
@@ -4063,7 +4055,7 @@ namespace Server
 			m_Hue = 0;
 		}
 
-		public StaticTile(ushort id, byte x, byte y, sbyte z, short hue)
+		public StaticTile(ushort id, byte x, byte y, sbyte z, ushort hue)
 		{
 			m_ID = id;
 			m_X = x;
@@ -4078,7 +4070,7 @@ namespace Server
 			m_Z = z;
 		}
 
-		public void Set(ushort id, byte x, byte y, sbyte z, short hue)
+		public void Set(ushort id, byte x, byte y, sbyte z, ushort hue)
 		{
 			m_ID = id;
 			m_X = x;
