@@ -3,12 +3,22 @@ using System;
 
 using Server.Items;
 using Server.Mobiles;
-using Server.Regions;
 
 namespace Server.Engines.Harvest
 {
 	public class Fishing : HarvestSystem
 	{
+		private static readonly MutateEntry[] m_MutateTable = new MutateEntry[]
+		{
+			new MutateEntry(  true,  false, 80.0,  80.0,  4080.0, typeof( SpecialFishingNet ) ),
+			new MutateEntry(  true,  false, 80.0,  80.0,  4080.0, typeof( BigFish ) ),
+			new MutateEntry(  true,  false, 90.0,  80.0,  4080.0, typeof( TreasureMap ) ),
+			new MutateEntry( true,  false, 100.0,  80.0,  4080.0, typeof( MessageInABottle ) ),
+			new MutateEntry(   false, false, 0.0, 125.0, -2375.0, typeof( PrizedFish ), typeof( WondrousFish ), typeof( TrulyRareFish ), typeof( PeculiarFish ) ),
+			new MutateEntry(   false, false, 0.0,  105.0, -420.0, typeof( Boots ), typeof( Shoes ), typeof( Sandals ), typeof( ThighBoots ) ),
+			new MutateEntry(   false, false, 0.0,  200.0, -200.0, new Type[1]{ null } )
+		};
+
 		private static Fishing m_System;
 
 		public static Fishing System => m_System ??= new();
@@ -40,7 +50,7 @@ namespace Server.Engines.Harvest
 				Skill = SkillName.Fishing,
 
 				// Set the list of harvestable tiles
-				Tiles = m_WaterTiles,
+				Tiles = Utility.ConvertToArray(WaterUtility.AllWaterTiles),
 				RangedTiles = true,
 
 				// Players must be within 4 tiles to harvest
@@ -67,7 +77,7 @@ namespace Server.Engines.Harvest
 
 			res = new[]
 			{
-				new HarvestResource( 00.0, 00.0, 100.0, 1043297, typeof( SaltwaterFish ) )
+				new HarvestResource( 00.0, 00.0, 100.0, 1043297, typeof( Fish ) )
 			};
 
 			veins = new[]
@@ -98,36 +108,11 @@ namespace Server.Engines.Harvest
 			from.SendLocalizedMessage(500972); // You are already fishing.
 		}
 
-		private class MutateEntry
-		{
-			public double m_ReqSkill, m_MinSkill, m_MaxSkill;
-			public bool m_DeepWater;
-			public Type[] m_Types;
-
-			public MutateEntry(double reqSkill, double minSkill, double maxSkill, bool deepWater, params Type[] types)
-			{
-				m_ReqSkill = reqSkill;
-				m_MinSkill = minSkill;
-				m_MaxSkill = maxSkill;
-				m_DeepWater = deepWater;
-				m_Types = types;
-			}
-		}
-
-		private static readonly MutateEntry[] m_MutateTable = new MutateEntry[]
-			{
-				new MutateEntry(  80.0,  80.0,  4080.0,  true, typeof( SpecialFishingNet ) ),
-				new MutateEntry(  80.0,  80.0,  4080.0,  true, typeof( BigFish ) ),
-				new MutateEntry(  90.0,  80.0,  4080.0,  true, typeof( TreasureMap ) ),
-				new MutateEntry( 100.0,  80.0,  4080.0,  true, typeof( MessageInABottle ) ),
-				new MutateEntry(   0.0, 125.0, -2375.0, false, typeof( PrizedFish ), typeof( WondrousFish ), typeof( TrulyRareFish ), typeof( PeculiarFish ) ),
-				new MutateEntry(   0.0, 105.0,  -420.0, false, typeof( Boots ), typeof( Shoes ), typeof( Sandals ), typeof( ThighBoots ) ),
-				new MutateEntry(   0.0, 200.0,  -200.0, false, new Type[1]{ null } )
-			};
-
 		public override Type MutateType(Type type, Mobile from, IHarvestTool tool, HarvestDefinition def, Map map, Point3D loc, HarvestResource resource)
 		{
-			var deepWater = SpecialFishingNet.FullValidation(map, loc.X, loc.Y);
+			var newZ = loc.Z;
+
+			var deepWater = WaterUtility.FullDeepValidation(map, loc, ref newZ, out var freshWater);
 
 			var skillBase = from.Skills[SkillName.Fishing].Base;
 			var skillValue = from.Skills[SkillName.Fishing].Value;
@@ -136,18 +121,23 @@ namespace Server.Engines.Harvest
 			{
 				var entry = m_MutateTable[i];
 
-				if (!deepWater && entry.m_DeepWater)
+				if (!deepWater && entry.DeepWater)
 				{
 					continue;
 				}
 
-				if (skillBase >= entry.m_ReqSkill)
+				if (!freshWater && entry.FreshWater)
 				{
-					var chance = (skillValue - entry.m_MinSkill) / (entry.m_MaxSkill - entry.m_MinSkill);
+					continue;
+				}
+
+				if (skillBase >= entry.ReqSkill)
+				{
+					var chance = (skillValue - entry.MinSkill) / (entry.MaxSkill - entry.MinSkill);
 
 					if (chance > Utility.RandomDouble())
 					{
-						return entry.m_Types[Utility.Random(entry.m_Types.Length)];
+						return entry.Types[Utility.Random(entry.Types.Length)];
 					}
 				}
 			}
@@ -556,14 +546,28 @@ namespace Server.Engines.Harvest
 			return true;
 		}
 
-		private static readonly int[] m_WaterTiles =
+		private class MutateEntry
 		{
-			0x00A8, 0x00AB,
-			0x0136, 0x0137,
-			0x5797, 0x579C,
-			0x746E, 0x7485,
-			0x7490, 0x74AB,
-			0x74B5, 0x75D5
-		};
+			public double ReqSkill { get; set; }
+			public double MinSkill { get; set; }
+			public double MaxSkill { get; set; }
+
+			public bool DeepWater { get; set; }
+			public bool FreshWater { get; set; }
+
+			public Type[] Types { get; set; }
+
+			public MutateEntry(bool deepWater, bool freshWater, double reqSkill, double minSkill, double maxSkill, params Type[] types)
+			{
+				DeepWater = deepWater;
+				FreshWater = freshWater;
+
+				ReqSkill = reqSkill;
+				MinSkill = minSkill;
+				MaxSkill = maxSkill;
+
+				Types = types;
+			}
+		}
 	}
 }

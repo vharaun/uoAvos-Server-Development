@@ -1993,5 +1993,209 @@ namespace Server
 
 			return default;
 		}
+
+		public static int[] ConvertToArray(Range[] ranges)
+		{
+			var list = new int[ranges.Length * 2];
+
+			for (int i = 0, j = 0; i < ranges.Length; i++)
+			{
+				list[j++] = ranges[i].Start.Value;
+				list[j++] = ranges[i].End.Value;
+			}
+
+			return list;
+		}
+	}
+
+	public static class WaterUtility
+	{
+		public static Range[] AllWaterTiles { get; set; } =
+		{
+			0x00A8..0x00AB,
+			0x0136..0x0137,
+
+			// static tiles require the 0x4000 offset
+			// 0x5797 == 0x1798 | 0x4000
+
+			0x5797..0x579C,
+			0x746E..0x7485,
+			0x7490..0x74AB,
+			0x74B5..0x75D5,
+		};
+
+		public static Range[] DeepWaterLandTiles { get; set; } =
+		{
+			0x00A8..0x00AB,
+			0x0136..0x0137,
+		};
+
+		public static Range[] DeepWaterStaticTiles { get; set; } =
+		{
+		};
+
+		public static Range[] ShallowWaterLandTiles { get; set; } =
+		{
+		};
+
+		public static Range[] ShallowWaterStaticTiles { get; set; } =
+		{
+			0x1797..0x179C,
+		};
+
+		public static Range[] FreshWaterLandTiles { get; set; } =
+		{
+		};
+
+		public static Range[] FreshWaterStaticTiles { get; set; } =
+		{
+		};
+
+		public static bool ValidateWater(Range[] waterValidation, Range[] freshValidation, Map map, Point3D target, int tileID, ref int z, out bool fresh)
+		{
+			var water = fresh = false;
+
+			for (var i = 0; !water && i < waterValidation.Length; i++)
+			{
+				water = tileID >= waterValidation[i].Start.Value && tileID <= waterValidation[i].End.Value;
+			}
+
+			for (var i = 0; !fresh && i < freshValidation.Length; i++)
+			{
+				fresh = tileID >= freshValidation[i].Start.Value && tileID <= freshValidation[i].End.Value;
+			}
+
+			if (!water && fresh)
+			{
+				water = true;
+			}
+
+			if (water)
+			{
+				z = target.Z;
+			}
+
+			return water;
+		}
+
+		public static bool ValidateWater(Map map, object target, ref int z, out bool fresh)
+		{
+			return ValidateDeepWater(map, target, ref z, out fresh) || ValidateShallowWater(map, target, ref z, out fresh);
+		}
+
+		public static bool ValidateDeepWater(Map map, object target, ref int z, out bool fresh)
+		{
+			fresh = false;
+
+			if (target is IEntity e)
+			{
+				if (e is Item i)
+				{
+					target = new LandTarget(i.WorldLocation, map);
+				}
+				else
+				{
+					target = new LandTarget(e.Location, map);
+				}
+			}
+
+			if (target is LandTarget lt)
+			{
+				return ValidateDeepWater(map, lt, ref z, out fresh);
+			}
+
+			if (target is StaticTarget st)
+			{
+				return ValidateDeepWater(map, st, ref z, out fresh);
+			}
+
+			return false;
+		}
+
+		public static bool ValidateShallowWater(Map map, object target, ref int z, out bool fresh)
+		{
+			fresh = false;
+
+			if (target is IEntity e)
+			{
+				if (e is Item i)
+				{
+					target = new LandTarget(i.WorldLocation, map);
+				}
+				else
+				{
+					target = new LandTarget(e.Location, map);
+				}
+			}
+
+			if (target is LandTarget lt)
+			{
+				return ValidateShallowWater(map, lt, ref z, out fresh);
+			}
+
+			if (target is StaticTarget st)
+			{
+				return ValidateShallowWater(map, st, ref z, out fresh);
+			}
+
+			return false;
+		}
+
+		public static bool ValidateDeepWater(Map map, LandTarget target, ref int z, out bool fresh)
+		{
+			return ValidateWater(DeepWaterLandTiles, FreshWaterLandTiles, map, target.Location, target.TileID, ref z, out fresh);
+		}
+
+		public static bool ValidateShallowWater(Map map, LandTarget target, ref int z, out bool fresh)
+		{
+			return ValidateWater(ShallowWaterLandTiles, FreshWaterLandTiles, map, target.Location, target.TileID, ref z, out fresh);
+		}
+
+		public static bool ValidateDeepWater(Map map, StaticTarget target, ref int z, out bool fresh)
+		{
+			return ValidateWater(DeepWaterStaticTiles, FreshWaterStaticTiles, map, target.Location, target.ItemID, ref z, out fresh);
+		}
+
+		public static bool ValidateShallowWater(Map map, StaticTarget target, ref int z, out bool fresh)
+		{
+			return ValidateWater(ShallowWaterStaticTiles, FreshWaterStaticTiles, map, target.Location, target.ItemID, ref z, out fresh);
+		}
+
+		public static bool FullDeepValidation(Map map, Point3D loc, ref int z, out bool fresh)
+		{
+			return FullDeepValidation(map, loc, ref z, 5, out fresh);
+		}
+
+		public static bool FullDeepValidation(Map map, Point3D loc, ref int z, int range, out bool fresh)
+		{
+			var land = new LandTarget(loc, map);
+
+			var valid = ValidateDeepWater(map, land, ref z, out fresh);
+
+			loc.X -= range;
+			loc.Y -= range;
+
+			var endX = loc.X + (range * 2);
+			var endY = loc.Y + (range * 2);
+			var endZ = loc.Z;
+
+			while (valid && loc.X <= endX)
+			{
+				while (valid && loc.Y <= endY)
+				{
+					loc.Z = map.GetAverageZ(loc.X, loc.Y);
+
+					land = new LandTarget(loc, map);
+
+					valid = ValidateDeepWater(map, land, ref endZ, out _);
+
+					++loc.Y;
+				}
+
+				++loc.X;
+			}
+
+			return valid;
+		}
 	}
 }

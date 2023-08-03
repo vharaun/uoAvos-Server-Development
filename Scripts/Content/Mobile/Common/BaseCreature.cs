@@ -2807,6 +2807,13 @@ namespace Server.Mobiles
 					//m_AI = new PredatorAI(this);
 					m_AI = new MeleeAI(this);
 					break;
+					
+				#region ActionAI
+				case AIType.AI_ActionAI:
+					m_AI = new ActionAI(this);
+					break;
+				#endregion 
+				
 				case AIType.AI_Thief:
 					m_AI = new ThiefAI(this);
 					break;
