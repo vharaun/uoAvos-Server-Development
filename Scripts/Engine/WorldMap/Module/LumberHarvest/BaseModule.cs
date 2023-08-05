@@ -911,28 +911,30 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 					_ = PhaseResources.TryGetValue(0, out resource);
 				}
 
+				Type type = null;
+
 				if (resource != null)
 				{
 					var skillBase = from.Skills[HarvestSkill].Base;
 
 					if (skillBase >= resource.ReqSkill)
 					{
-						try
-						{
-							var type = Utility.RandomList(resource.Types);
-
-							type = from.Region.GetResource(from, tool, map, loc, system, type);
-
-							if (Activator.CreateInstance(type) is Item item)
-							{
-								item.Amount = amount;
-								resourceItem = item;
-							}
-						}
-						catch
-						{
-						}
+						type = Utility.RandomList(resource.Types);
 					}
+				}
+
+				type ??= from.Region.GetResource(from, tool, map, loc, system, type);
+
+                try
+				{
+					if (Activator.CreateInstance(type) is Item item)
+					{
+						item.Amount = amount;
+						resourceItem = item;
+					}
+				}
+				catch
+				{
 				}
 			}
 

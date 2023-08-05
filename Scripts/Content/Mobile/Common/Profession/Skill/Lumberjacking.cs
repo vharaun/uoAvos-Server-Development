@@ -77,6 +77,9 @@ namespace Server.Engines.Harvest
 				ConsumedPerHarvest = 10,
 				ConsumedPerFeluccaHarvest = 20,
 
+				RaceBonus = Core.ML,
+				RandomizeVeins = false,
+
 				// The chopping effect
 				EffectActions = new int[] { 13 },
 				EffectSounds = new int[] { 0x13E },
@@ -140,9 +143,6 @@ namespace Server.Engines.Harvest
 
 			lumber.Resources = res;
 			lumber.Veins = veins;
-
-			lumber.RaceBonus = Core.ML;
-			lumber.RandomizeVeins = Core.ML;
 
 			Definition = lumber;
 			Definitions.Add(lumber);
