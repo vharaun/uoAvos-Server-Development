@@ -921,20 +921,29 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 					{
 						type = Utility.RandomList(resource.Types);
 					}
-				}
 
-				type ??= from.Region.GetResource(from, tool, map, loc, system, type);
-
-                try
-				{
-					if (Activator.CreateInstance(type) is Item item)
+					if (type == null)
 					{
-						item.Amount = amount;
-						resourceItem = item;
+						var region = Region.Find(loc, map) ?? from?.Region;
+
+						type = region?.GetResource(from, tool, map, loc, system, type);
 					}
 				}
-				catch
+
+				if (type != null)
 				{
+					try
+					{
+						if (Activator.CreateInstance(type) is Item item)
+						{
+							item.Amount = amount;
+
+							resourceItem = item;
+						}
+					}
+					catch
+					{
+					}
 				}
 			}
 
