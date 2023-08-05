@@ -20,7 +20,7 @@
 
 				for (var i = 0; i < points.Length; i++)
 				{
-					points[i] = Angle.GetPoint2D(location.X, location.Y, i * slice, 5);
+					points[i] = Angle2D.GetPoint2D(location.X, location.Y, i * slice, 5);
 				}
 
 				Bounds = new Poly3D(Region.MinZ, Region.MaxZ, points);

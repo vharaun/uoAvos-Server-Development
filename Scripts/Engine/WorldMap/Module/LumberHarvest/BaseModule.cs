@@ -2,7 +2,6 @@
 
 using Server.Engines.Harvest;
 using Server.Items;
-using Server.Targeting;
 
 using System;
 using System.Collections.Generic;
@@ -305,27 +304,32 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				return false;
 			}
 
-			if (from.CheckSkill(def.Skill, 0, 120))
+			if (!from.CheckSkill(def.Skill, 0, 120))
 			{
-				var hTreePhase = BaseHarvestablePhase.LookupPhase(tileID);
+				return false;
+			}
 
-				_ = hTreePhase.Harvest(from, tileID, tool, loc, map);
+			var hTreePhase = BaseHarvestablePhase.LookupPhase(tileID);
 
-				if (tool is IUsesRemaining toolWithUses)
+			if (hTreePhase?.Harvest(from, tileID, tool, loc, map) != true)
+			{
+				return false;
+			}
+
+			if (tool is IUsesRemaining toolWithUses)
+			{
+				toolWithUses.ShowUsesRemaining = true;
+
+				if (toolWithUses.UsesRemaining > 0)
 				{
-					toolWithUses.ShowUsesRemaining = true;
+					--toolWithUses.UsesRemaining;
+				}
 
-					if (toolWithUses.UsesRemaining > 0)
-					{
-						--toolWithUses.UsesRemaining;
-					}
+				if (toolWithUses.UsesRemaining < 1)
+				{
+					tool.Delete();
 
-					if (toolWithUses.UsesRemaining < 1)
-					{
-						tool.Delete();
-
-						def.SendMessageTo(from, def.ToolBrokeMessage);
-					}
+					def.SendMessageTo(from, def.ToolBrokeMessage);
 				}
 			}
 
@@ -899,17 +903,12 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		public virtual Item ReapResource(int hue, Mobile from, int amount, HarvestSystem system, IHarvestTool tool, Point3D loc, Map map)
 		{
 			Item resourceItem = null;
-			HarvestResource resource = null;
 
 			if (amount > 0)
 			{
-				if (PhaseResources.ContainsKey(hue))
+				if (!PhaseResources.TryGetValue(hue, out var resource))
 				{
-					resource = PhaseResources[hue];
-				}
-				else if (PhaseResources.ContainsKey(0))
-				{
-					resource = PhaseResources[0];
+					_ = PhaseResources.TryGetValue(0, out resource);
 				}
 
 				if (resource != null)
@@ -920,7 +919,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 					{
 						try
 						{
-							var type = resource.Types[Utility.Random(resource.Types.Length)];
+							var type = Utility.RandomList(resource.Types);
 
 							type = from.Region.GetResource(from, tool, map, loc, system, type);
 
@@ -933,11 +932,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 						catch
 						{
 						}
-					}
-					else
-					{
-						//TODO: Inform player they don't have enough skill using a cliloc to do it
-						from.SendMessage("you don't have enough skill to harvest that!");
 					}
 				}
 			}

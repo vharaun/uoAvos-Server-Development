@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace Server
 {
@@ -10,11 +9,14 @@ namespace Server
 
 	public interface IPoint2D
 	{
+		[CommandProperty(AccessLevel.Counselor)]
 		int X { get; }
+
+		[CommandProperty(AccessLevel.Counselor)]
 		int Y { get; }
 	}
 
-	[Parsable]
+	[NoSort, Parsable, PropertyObject]
 	public struct Point2D : IPoint2D, IComparable<Point2D>, IEquatable<Point2D>, IComparable<IPoint2D>, IEquatable<IPoint2D>
 	{
 		public static readonly Point2D Zero = new(0, 0);
@@ -876,10 +878,11 @@ namespace Server
 
 	public interface IPoint3D : IPoint2D
 	{
+		[CommandProperty(AccessLevel.Counselor)]
 		int Z { get; }
 	}
 
-	[Parsable]
+	[NoSort, Parsable, PropertyObject]
 	public struct Point3D : IPoint3D, IComparable<Point3D>, IEquatable<Point3D>, IComparable<IPoint3D>, IEquatable<IPoint3D>
 	{
 		public static readonly Point3D Zero = new(0, 0, 0);
@@ -1701,17 +1704,17 @@ namespace Server
 
 	#endregion
 
-	[Parsable, PropertyObject]
-	public struct Angle : IEquatable<Angle>, IEquatable<int>, IEquatable<double>, IComparable<Angle>, IComparable<int>, IComparable<double>
+	[NoSort, Parsable, PropertyObject]
+	public struct Angle2D : IEquatable<Angle2D>, IEquatable<int>, IEquatable<double>, IComparable<Angle2D>, IComparable<int>, IComparable<double>
 	{
 		public const double D2R = Math.PI / 180.0;
 		public const double R2D = 180.0 / Math.PI;
 
 		private const double ROT = 360 * D2R;
 
-		public static readonly Angle Zero = 0;
+		public static readonly Angle2D Zero = 0;
 
-		public static Angle FromDirection(Direction dir)
+		public static Angle2D FromDirection(Direction dir)
 		{
 			int x = 0, y = 0;
 
@@ -1720,49 +1723,49 @@ namespace Server
 			return FromPoints(0, 0, x, y);
 		}
 
-		public static Angle FromPoints(IPoint2D p1, IPoint2D p2)
+		public static Angle2D FromPoints(IPoint2D p1, IPoint2D p2)
 		{
 			return FromPoints(p1.X, p1.Y, p2.X, p2.Y);
 		}
 
-		public static Angle FromPoints(IPoint2D p1, IPoint2D p2, IPoint2D p3)
+		public static Angle2D FromPoints(IPoint2D p1, IPoint2D p2, IPoint2D p3)
 		{
 			return FromPoints(p1.X, p1.Y, p2.X, p2.Y, p3.X, p3.Y);
 		}
 
-		public static Angle FromPoints(int x1, int y1, int x2, int y2)
+		public static Angle2D FromPoints(int x1, int y1, int x2, int y2)
 		{
 			return Math.Atan2(y2, x2) - Math.Atan2(y1, x1);
 		}
 
-		public static Angle FromPoints(int x1, int y1, int x2, int y2, int x3, int y3)
+		public static Angle2D FromPoints(int x1, int y1, int x2, int y2, int x3, int y3)
 		{
 			return FromPoints(x2, y2, x1, y1) - FromPoints(x2, y2, x3, y3);
 		}
 
-		public static Angle FromDegrees(int degrees)
+		public static Angle2D FromDegrees(int degrees)
 		{
 			return degrees;
 		}
 
-		public static Angle FromRadians(double radians)
+		public static Angle2D FromRadians(double radians)
 		{
 			return radians;
 		}
 
-		public static Angle GetPitch(IPoint3D p1, IPoint3D p2)
+		public static Angle2D GetPitch(IPoint3D p1, IPoint3D p2)
 		{
 			int x = p2.X - p1.X, y = p2.Y - p1.Y, z = p2.Z - p1.Z;
 
 			return -Math.Atan2(z, Math.Sqrt((x * x) + (y * y)));
 		}
 
-		public static Angle GetYaw(IPoint2D p, IPoint2D left, IPoint2D right)
+		public static Angle2D GetYaw(IPoint2D p, IPoint2D left, IPoint2D right)
 		{
 			return Math.Abs(FromPoints(p, left) - FromPoints(p, right));
 		}
 
-		public static void Transform(ref Point3D p, Angle angle, double offset)
+		public static void Transform(ref Point3D p, Angle2D angle, double offset)
 		{
 			int x = p.X, y = p.Y, z = p.Z;
 
@@ -1771,7 +1774,7 @@ namespace Server
 			p = new Point3D(x, y, z);
 		}
 
-		public static void Transform(ref Point2D p, Angle angle, double offset)
+		public static void Transform(ref Point2D p, Angle2D angle, double offset)
 		{
 			int x = p.X, y = p.Y;
 
@@ -1780,33 +1783,33 @@ namespace Server
 			p = new Point2D(x, y);
 		}
 
-		public static void Transform(ref int x, ref int y, Angle angle, double offset)
+		public static void Transform(ref int x, ref int y, Angle2D angle, double offset)
 		{
 			x += (int)(offset * Math.Cos(angle.m_Radians));
 			y += (int)(offset * Math.Sin(angle.m_Radians));
 		}
 
-		public static Point2D GetPoint2D(int x, int y, Angle angle, double distance)
+		public static Point2D GetPoint2D(int x, int y, Angle2D angle, double distance)
 		{
 			return new Point2D(x + (int)(distance * Math.Cos(angle.m_Radians)), y + (int)(distance * Math.Sin(angle.m_Radians)));
 		}
 
-		public static Point3D GetPoint3D(int x, int y, int z, Angle angle, double distance)
+		public static Point3D GetPoint3D(int x, int y, int z, Angle2D angle, double distance)
 		{
 			return new Point3D(x + (int)(distance * Math.Cos(angle.m_Radians)), y + (int)(distance * Math.Sin(angle.m_Radians)), z);
 		}
 
-		public static IEnumerable<Point2D> TraceLine2D(int x, int y, Angle angle, double distance)
+		public static IEnumerable<Point2D> TraceLine2D(int x, int y, Angle2D angle, double distance)
 		{
 			return Geometry.TraceLine2D(new Point2D(x, y), GetPoint2D(x, y, angle, distance));
 		}
 
-		public static IEnumerable<Point3D> TraceLine3D(int x, int y, int z, Angle angle, double distance)
+		public static IEnumerable<Point3D> TraceLine3D(int x, int y, int z, Angle2D angle, double distance)
 		{
 			return Geometry.TraceLine3D(new Point3D(x, y, z), GetPoint3D(x, y, z, angle, distance));
 		}
 
-		public static bool TryParse(string value, out Angle angle)
+		public static bool TryParse(string value, out Angle2D angle)
 		{
 			try
 			{
@@ -1820,7 +1823,7 @@ namespace Server
 			}
 		}
 
-		public static Angle Parse(string value)
+		public static Angle2D Parse(string value)
 		{
 			value = value?.Trim() ?? String.Empty;
 
@@ -1873,27 +1876,27 @@ namespace Server
 		[CommandProperty(AccessLevel.Counselor)]
 		public double Rotation { readonly get => m_Radians / ROT; set => Set(value * ROT); }
 
-		public Angle(Angle angle)
+		public Angle2D(Angle2D angle)
 		{
 			m_Degrees = angle.m_Degrees;
 			m_Radians = angle.m_Radians;
 		}
 
-		public Angle(int degrees)
+		public Angle2D(int degrees)
 		{
 			m_Radians = (m_Degrees = degrees) * D2R;
 		}
 
-		public Angle(double radians)
+		public Angle2D(double radians)
 		{
 			m_Degrees = (int)((m_Radians = radians) * R2D);
 		}
 
-		public Angle(int x1, int y1, int x2, int y2)
+		public Angle2D(int x1, int y1, int x2, int y2)
 			: this(Math.Atan2(y2, x2) - Math.Atan2(y1, x1))
 		{ }
 
-		public Angle(IPoint2D p1, IPoint2D p2)
+		public Angle2D(IPoint2D p1, IPoint2D p2)
 			: this(p1.X, p1.Y, p2.X, p2.Y)
 		{ }
 
@@ -1949,10 +1952,10 @@ namespace Server
 
 		public override readonly bool Equals(object obj)
 		{
-			return (obj is Angle a && Equals(a)) || (obj is int i && Equals(i)) || (obj is double d && Equals(d));
+			return (obj is Angle2D a && Equals(a)) || (obj is int i && Equals(i)) || (obj is double d && Equals(d));
 		}
 
-		public readonly bool Equals(Angle angle)
+		public readonly bool Equals(Angle2D angle)
 		{
 			return Equals(angle.m_Degrees) || Equals(angle.m_Radians);
 		}
@@ -1967,7 +1970,7 @@ namespace Server
 			return m_Radians == radians;
 		}
 
-		public readonly int CompareTo(Angle angle)
+		public readonly int CompareTo(Angle2D angle)
 		{
 			return m_Degrees.CompareTo(angle.m_Degrees);
 		}
@@ -1989,331 +1992,331 @@ namespace Server
 
 		#region Operators
 
-		public static implicit operator int(Angle a)
+		public static implicit operator int(Angle2D a)
 		{
 			return a.m_Degrees;
 		}
 
-		public static implicit operator double(Angle a)
+		public static implicit operator double(Angle2D a)
 		{
 			return a.m_Radians;
 		}
 
-		public static implicit operator Angle(int d)
+		public static implicit operator Angle2D(int d)
 		{
-			return new Angle(d);
+			return new Angle2D(d);
 		}
 
-		public static implicit operator Angle(double r)
+		public static implicit operator Angle2D(double r)
 		{
-			return new Angle(r);
+			return new Angle2D(r);
 		}
 
-		public static Angle operator --(Angle a)
+		public static Angle2D operator --(Angle2D a)
 		{
 			a.m_Radians = --a.m_Degrees * D2R;
 
 			return a;
 		}
 
-		public static Angle operator ++(Angle a)
+		public static Angle2D operator ++(Angle2D a)
 		{
 			a.m_Radians = ++a.m_Degrees * D2R;
 
 			return a;
 		}
 
-		public static Angle operator -(Angle a)
+		public static Angle2D operator -(Angle2D a)
 		{
 			return -a.m_Degrees;
 		}
 
-		public static Angle operator +(Angle a)
+		public static Angle2D operator +(Angle2D a)
 		{
 			return a;
 		}
 
 		// Angle, Angle
 
-		public static Angle operator -(Angle a, Angle b)
+		public static Angle2D operator -(Angle2D a, Angle2D b)
 		{
 			return a.m_Radians - b.m_Radians;
 		}
 
-		public static Angle operator +(Angle a, Angle b)
+		public static Angle2D operator +(Angle2D a, Angle2D b)
 		{
 			return a.m_Radians + b.m_Radians;
 		}
 
-		public static Angle operator *(Angle a, Angle b)
+		public static Angle2D operator *(Angle2D a, Angle2D b)
 		{
 			return a.m_Radians * b.m_Radians;
 		}
 
-		public static Angle operator /(Angle a, Angle b)
+		public static Angle2D operator /(Angle2D a, Angle2D b)
 		{
 			return a.m_Radians / b.m_Radians;
 		}
 
-		public static Angle operator %(Angle a, Angle b)
+		public static Angle2D operator %(Angle2D a, Angle2D b)
 		{
 			return a.m_Radians % b.m_Radians;
 		}
 
-		public static bool operator ==(Angle a, Angle b)
+		public static bool operator ==(Angle2D a, Angle2D b)
 		{
 			return a.Equals(b);
 		}
 
-		public static bool operator !=(Angle a, Angle b)
+		public static bool operator !=(Angle2D a, Angle2D b)
 		{
 			return !a.Equals(b);
 		}
 
-		public static bool operator <(Angle a, Angle b)
+		public static bool operator <(Angle2D a, Angle2D b)
 		{
 			return a.CompareTo(b) < 0;
 		}
 
-		public static bool operator <=(Angle a, Angle b)
+		public static bool operator <=(Angle2D a, Angle2D b)
 		{
 			return a.CompareTo(b) <= 0;
 		}
 
-		public static bool operator >(Angle a, Angle b)
+		public static bool operator >(Angle2D a, Angle2D b)
 		{
 			return a.CompareTo(b) > 0;
 		}
 
-		public static bool operator >=(Angle a, Angle b)
+		public static bool operator >=(Angle2D a, Angle2D b)
 		{
 			return a.CompareTo(b) >= 0;
 		}
 
 		// Angle, int
 
-		public static Angle operator -(Angle a, int d)
+		public static Angle2D operator -(Angle2D a, int d)
 		{
 			return a.m_Degrees - d;
 		}
 
-		public static Angle operator +(Angle a, int d)
+		public static Angle2D operator +(Angle2D a, int d)
 		{
 			return a.m_Degrees + d;
 		}
 
-		public static Angle operator *(Angle a, int d)
+		public static Angle2D operator *(Angle2D a, int d)
 		{
 			return a.m_Degrees * d;
 		}
 
-		public static Angle operator /(Angle a, int d)
+		public static Angle2D operator /(Angle2D a, int d)
 		{
 			return a.m_Degrees / d;
 		}
 
-		public static Angle operator %(Angle a, int d)
+		public static Angle2D operator %(Angle2D a, int d)
 		{
 			return a.m_Degrees % d;
 		}
 
-		public static bool operator ==(Angle a, int d)
+		public static bool operator ==(Angle2D a, int d)
 		{
 			return a.Equals(d);
 		}
 
-		public static bool operator !=(Angle a, int d)
+		public static bool operator !=(Angle2D a, int d)
 		{
 			return !a.Equals(d);
 		}
 
-		public static bool operator <(Angle a, int d)
+		public static bool operator <(Angle2D a, int d)
 		{
 			return a.CompareTo(d) < 0;
 		}
 
-		public static bool operator <=(Angle a, int d)
+		public static bool operator <=(Angle2D a, int d)
 		{
 			return a.CompareTo(d) <= 0;
 		}
 
-		public static bool operator >(Angle a, int d)
+		public static bool operator >(Angle2D a, int d)
 		{
 			return a.CompareTo(d) > 0;
 		}
 
-		public static bool operator >=(Angle a, int d)
+		public static bool operator >=(Angle2D a, int d)
 		{
 			return a.CompareTo(d) >= 0;
 		}
 
 		// Angle, double
 
-		public static Angle operator -(Angle a, double r)
+		public static Angle2D operator -(Angle2D a, double r)
 		{
 			return a.m_Radians - r;
 		}
 
-		public static Angle operator +(Angle a, double r)
+		public static Angle2D operator +(Angle2D a, double r)
 		{
 			return a.m_Radians + r;
 		}
 
-		public static Angle operator *(Angle a, double r)
+		public static Angle2D operator *(Angle2D a, double r)
 		{
 			return a.m_Radians * r;
 		}
 
-		public static Angle operator /(Angle a, double r)
+		public static Angle2D operator /(Angle2D a, double r)
 		{
 			return a.m_Radians / r;
 		}
 
-		public static Angle operator %(Angle a, double r)
+		public static Angle2D operator %(Angle2D a, double r)
 		{
 			return a.m_Radians % r;
 		}
 
-		public static bool operator ==(Angle a, double r)
+		public static bool operator ==(Angle2D a, double r)
 		{
 			return a.Equals(r);
 		}
 
-		public static bool operator !=(Angle a, double r)
+		public static bool operator !=(Angle2D a, double r)
 		{
 			return !a.Equals(r);
 		}
 
-		public static bool operator <(Angle a, double r)
+		public static bool operator <(Angle2D a, double r)
 		{
 			return a.CompareTo(r) < 0;
 		}
 
-		public static bool operator <=(Angle a, double r)
+		public static bool operator <=(Angle2D a, double r)
 		{
 			return a.CompareTo(r) <= 0;
 		}
 
-		public static bool operator >(Angle a, double r)
+		public static bool operator >(Angle2D a, double r)
 		{
 			return a.CompareTo(r) > 0;
 		}
 
-		public static bool operator >=(Angle a, double r)
+		public static bool operator >=(Angle2D a, double r)
 		{
 			return a.CompareTo(r) >= 0;
 		}
 
 		// int, Angle
 
-		public static int operator -(int d, Angle a)
+		public static int operator -(int d, Angle2D a)
 		{
 			return d - a.m_Degrees;
 		}
 
-		public static int operator +(int d, Angle a)
+		public static int operator +(int d, Angle2D a)
 		{
 			return d + a.m_Degrees;
 		}
 
-		public static int operator *(int d, Angle a)
+		public static int operator *(int d, Angle2D a)
 		{
 			return d * a.m_Degrees;
 		}
 
-		public static int operator /(int d, Angle a)
+		public static int operator /(int d, Angle2D a)
 		{
 			return d / a.m_Degrees;
 		}
 
-		public static int operator %(int d, Angle a)
+		public static int operator %(int d, Angle2D a)
 		{
 			return d % a.m_Degrees;
 		}
 
-		public static bool operator ==(int d, Angle a)
+		public static bool operator ==(int d, Angle2D a)
 		{
 			return d.Equals(a.m_Degrees);
 		}
 
-		public static bool operator !=(int d, Angle a)
+		public static bool operator !=(int d, Angle2D a)
 		{
 			return !d.Equals(a.m_Degrees);
 		}
 
-		public static bool operator <(int d, Angle a)
+		public static bool operator <(int d, Angle2D a)
 		{
 			return d.CompareTo(a.m_Degrees) < 0;
 		}
 
-		public static bool operator <=(int d, Angle a)
+		public static bool operator <=(int d, Angle2D a)
 		{
 			return d.CompareTo(a.m_Degrees) <= 0;
 		}
 
-		public static bool operator >(int d, Angle a)
+		public static bool operator >(int d, Angle2D a)
 		{
 			return d.CompareTo(a.m_Degrees) > 0;
 		}
 
-		public static bool operator >=(int d, Angle a)
+		public static bool operator >=(int d, Angle2D a)
 		{
 			return d.CompareTo(a.m_Degrees) >= 0;
 		}
 
 		// double, Angle
 
-		public static double operator -(double r, Angle a)
+		public static double operator -(double r, Angle2D a)
 		{
 			return r - a.m_Radians;
 		}
 
-		public static double operator +(double r, Angle a)
+		public static double operator +(double r, Angle2D a)
 		{
 			return r + a.m_Radians;
 		}
 
-		public static double operator *(double r, Angle a)
+		public static double operator *(double r, Angle2D a)
 		{
 			return r * a.m_Radians;
 		}
 
-		public static double operator /(double r, Angle a)
+		public static double operator /(double r, Angle2D a)
 		{
 			return r / a.m_Radians;
 		}
 
-		public static double operator %(double r, Angle a)
+		public static double operator %(double r, Angle2D a)
 		{
 			return r % a.m_Radians;
 		}
 
-		public static bool operator ==(double r, Angle a)
+		public static bool operator ==(double r, Angle2D a)
 		{
 			return r.Equals(a.m_Radians);
 		}
 
-		public static bool operator !=(double r, Angle a)
+		public static bool operator !=(double r, Angle2D a)
 		{
 			return !r.Equals(a.m_Radians);
 		}
 
-		public static bool operator <(double r, Angle a)
+		public static bool operator <(double r, Angle2D a)
 		{
 			return r.CompareTo(a.m_Radians) < 0;
 		}
 
-		public static bool operator <=(double r, Angle a)
+		public static bool operator <=(double r, Angle2D a)
 		{
 			return r.CompareTo(a.m_Radians) <= 0;
 		}
 
-		public static bool operator >(double r, Angle a)
+		public static bool operator >(double r, Angle2D a)
 		{
 			return r.CompareTo(a.m_Radians) > 0;
 		}
 
-		public static bool operator >=(double r, Angle a)
+		public static bool operator >=(double r, Angle2D a)
 		{
 			return r.CompareTo(a.m_Radians) >= 0;
 		}
@@ -2423,12 +2426,12 @@ namespace Server
 
 		public static double RadiansToDegrees(double angle)
 		{
-			return angle * Angle.R2D;
+			return angle * Angle2D.R2D;
 		}
 
 		public static double DegreesToRadians(double angle)
 		{
-			return angle * Angle.D2R;
+			return angle * Angle2D.D2R;
 		}
 
 		public static Point2D ArcPoint(Point3D loc, int radius, int angle)
