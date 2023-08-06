@@ -697,7 +697,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			}
 			else
 			{
-				Console.WriteLine($"NOT Registering {type}");
+				Console.WriteLine($"Lumber Module: NOT Registering {type}");
 			}
 
 			return alreadyRegistered;
@@ -705,11 +705,28 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 		public virtual void RegisterAssetSet(HarvestGraphicAsset[] assetSet)
 		{
+			var tiles = Lumberjacking.System.Definition.Tiles;
+
 			foreach (var treeAsset in assetSet)
 			{
 				MasterHarvestablePhaseLookupByItemIdList[treeAsset.ItemID] = this;
 				MasterHarvestableAssetlookup[treeAsset.ItemID] = treeAsset;
+
+				var staticID = treeAsset.ItemID | 0x4000;
+
+				if (Array.IndexOf(tiles, staticID) >= 0)
+				{
+					continue;
+				}
+
+				Array.Resize(ref tiles, tiles.Length + 1);
+
+				tiles[tiles.Length - 1] = staticID;
 			}
+
+			Array.Sort(tiles);
+
+			Lumberjacking.System.Definition.Tiles = tiles;
 		}
 
 		public virtual void RegisterBasicPhaseTiles()
@@ -1208,7 +1225,10 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				{
 					Teardown(originLocation, map, ref series);
 
-					MasterHarvestablePhaseLookupByItemIdList[originalItemId].Construct(originLocation, map);
+					if (MasterHarvestablePhaseLookupByItemIdList.TryGetValue(originalItemId, out var phase))
+					{
+						phase.Construct(originLocation, map);
+					}
 				}
 			}
 
