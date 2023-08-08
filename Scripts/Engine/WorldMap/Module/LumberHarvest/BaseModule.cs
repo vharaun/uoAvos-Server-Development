@@ -115,11 +115,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 			EventSink.WorldSave += OnSave;
 			EventSink.WorldLoad += OnLoad;
-
-			if (FacetEditingSettings.LumberHarvestModuleEnabled)
-			{
-				ModifyLumberjacking();
-			}
 		}
 
 		public static void OnLoad()
@@ -264,37 +259,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			{
 				LastGrowth = DateTime.UtcNow;
 			}
-		}
-
-		private static void ModifyLumberjacking()
-		{
-			var def = Lumberjacking.System.Definition;
-
-			var tiles = BaseHarvestablePhase.MasterHarvestablePhaseLookupByItemIdList.Keys.ToArray();
-
-			for (var i = 0; i < tiles.Length; ++i)
-			{
-				tiles[i] += 0x4000;
-			}
-
-			Array.Sort(tiles);
-
-			def.Tiles = tiles;
-
-			def.Resources = new[]
-			{
-				new HarvestResource(00.0, 00.0, 100.0, 500498, typeof(Log)),
-			};
-
-			def.BonusResources = new[]
-			{
-				new BonusHarvestResource(0, 83.9, null, null),
-			};
-
-			def.Veins = new[]
-			{
-				new HarvestVein(49.0, 0.0, def.Resources[0], null),
-			};
 		}
 
 		public static bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
@@ -490,7 +454,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				{
 					foreach (var asset in leafSet)
 					{
-						if (asset.ItemID == harvestTargetItemId)
+						if ((asset.ItemID | 0x4000) == harvestTargetItemId)
 						{
 							return new Point3D(harvestTargetLocation.X + asset.XOffset, harvestTargetLocation.Y + asset.YOffset, harvestTargetLocation.Z - TileData.ItemTable[harvestTargetItemId].CalcHeight);
 						}
@@ -669,10 +633,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		{
 		}
 
-		public delegate void UpdateTilesEventHandler(int[] newTiles);
-
-		public static event UpdateTilesEventHandler UpdatedTilesEvent;
-
 		/// Registration and Asset Lookup
 		public static Dictionary<int, HarvestGraphicAsset> MasterHarvestableAssetlookup { get; } = new();
 		public static Dictionary<int, BaseHarvestablePhase> MasterHarvestablePhaseLookupByItemIdList { get; } = new();
@@ -691,9 +651,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				alreadyRegistered = false;
 
 				phase.RegisterBasicPhaseTiles();
-
-				//send out update tiles event
-				UpdatedTilesEvent?.Invoke(MasterHarvestablePhaseLookupByItemIdList.Keys.ToArray());
 			}
 			else
 			{
@@ -709,10 +666,12 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 			foreach (var treeAsset in assetSet)
 			{
-				MasterHarvestablePhaseLookupByItemIdList[treeAsset.ItemID] = this;
-				MasterHarvestableAssetlookup[treeAsset.ItemID] = treeAsset;
+				var staticID = treeAsset.ItemID;
 
-				var staticID = treeAsset.ItemID | 0x4000;
+				MasterHarvestablePhaseLookupByItemIdList[staticID] = this;
+				MasterHarvestableAssetlookup[staticID] = treeAsset;
+
+				staticID |= 0x4000;
 
 				if (Array.IndexOf(tiles, staticID) >= 0)
 				{
@@ -764,7 +723,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 		public static BaseHarvestablePhase LookupPhase(int itemId)
 		{
-			MasterHarvestablePhaseLookupByItemIdList.TryGetValue(itemId, out var phase);
+			MasterHarvestablePhaseLookupByItemIdList.TryGetValue(itemId & 0x3FFF, out var phase);
 
 			return phase;
 		}
@@ -834,8 +793,6 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 								}
 
 								treePartsRemoved.Add(new KeyValuePair<int, HarvestGraphicAsset>(tile.Hue, treeAsset));
-
-								continue;
 							}
 						}
 					}
@@ -1225,7 +1182,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				{
 					Teardown(originLocation, map, ref series);
 
-					if (MasterHarvestablePhaseLookupByItemIdList.TryGetValue(originalItemId, out var phase))
+					if (MasterHarvestablePhaseLookupByItemIdList.TryGetValue(originalItemId & 0x3FFF, out var phase))
 					{
 						phase.Construct(originLocation, map);
 					}

@@ -10,7 +10,7 @@ namespace Server.Engines.Harvest
     {
         #region Tile lists
 
-        private static readonly int[] m_TreeTiles =
+        private static readonly HarvestID[] m_TreeTiles =
         {
             0x4CCA, 0x4CCB, 0x4CCC, 0x4CCD, 0x4CD0, 0x4CD3, 0x4CD6, 0x4CD8,
             0x4CDA, 0x4CDD, 0x4CE0, 0x4CE3, 0x4CE6, 0x4CF8, 0x4CFB, 0x4CFE,
@@ -150,9 +150,9 @@ namespace Server.Engines.Harvest
 			#endregion
 		}
 
-		public override bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
+		public override bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, HarvestID tileID, Map map, Point3D loc)
 		{
-			if (Engine.Facet.Module.LumberHarvest.FacetModule_Lumberjacking.SpecialHarvest(from, tool, def, toHarvest, tileID, map, loc))
+			if (tileID.IsStatic && Engine.Facet.Module.LumberHarvest.FacetModule_Lumberjacking.SpecialHarvest(from, tool, def, toHarvest, tileID.Value, map, loc))
 			{
 				return true;
 			}

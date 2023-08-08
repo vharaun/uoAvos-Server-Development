@@ -23,6 +23,11 @@ namespace Server.Engines.Harvest
 
 		public static Fishing System => m_System ??= new();
 
+		private static HarvestID[] ConvertTiles(Range[] tiles)
+		{
+			return Array.ConvertAll<int, HarvestID>(Utility.ConvertToRangedArray(tiles), id => id);
+		}
+
 		public HarvestDefinition Definition { get; }
 
 		private Fishing()
@@ -50,7 +55,7 @@ namespace Server.Engines.Harvest
 				Skill = SkillName.Fishing,
 
 				// Set the list of harvestable tiles
-				Tiles = Utility.ConvertToRangedArray(WaterUtility.AllWaterTiles),
+				Tiles = ConvertTiles(WaterUtility.AllWaterTiles),
 				RangedTiles = true,
 
 				// Players must be within 4 tiles to harvest
@@ -468,23 +473,18 @@ namespace Server.Engines.Harvest
 		{
 			base.OnHarvestStarted(from, tool, def, toHarvest);
 
-			int tileID;
-			Map map;
-			Point3D loc;
-
-			if (GetHarvestDetails(from, tool, toHarvest, out tileID, out map, out loc))
+			if (GetHarvestDetails(from, tool, toHarvest, out var tileID, out var map, out var loc))
 			{
-				Timer.DelayCall(TimeSpan.FromSeconds(1.5),
-					delegate
+				Timer.DelayCall(TimeSpan.FromSeconds(1.5), () =>
+				{
+					if (Core.ML)
 					{
-						if (Core.ML)
-						{
-							from.RevealingAction();
-						}
+						from.RevealingAction();
+					}
 
-						Effects.SendLocationEffect(loc, map, 0x352D, 16, 4);
-						Effects.PlaySound(loc, map, 0x364);
-					});
+					Effects.SendLocationEffect(loc, map, 0x352D, 16, 4);
+					Effects.PlaySound(loc, map, 0x364);
+				});
 			}
 		}
 
