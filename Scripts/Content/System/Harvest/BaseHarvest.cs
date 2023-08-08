@@ -1091,6 +1091,7 @@ namespace Server.Engines.Harvest
 		}
 	}
 
+	[PropertyObject]
 	public sealed class HarvestNodes : IEnumerable<HarvestNode>
 	{
 		private static readonly Type _FishingSystem = typeof(Fishing);
@@ -1130,6 +1131,11 @@ namespace Server.Engines.Harvest
 		public HarvestNodes(GenericReader reader)
 		{
 			Deserialize(reader);
+		}
+
+		public override string ToString()
+		{
+			return "...";
 		}
 
 		public IEnumerator<HarvestNode> GetEnumerator()
