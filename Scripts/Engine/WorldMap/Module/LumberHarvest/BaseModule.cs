@@ -261,9 +261,9 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 			}
 		}
 
-		public static bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, int tileID, Map map, Point3D loc)
+		public static bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, HarvestID tileID, Map map, Point3D loc)
 		{
-			if (!FacetEditingSettings.LumberHarvestModuleEnabled)
+			if (!tileID.IsStatic || !FacetEditingSettings.LumberHarvestModuleEnabled)
 			{
 				return false;
 			}
@@ -273,9 +273,9 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				return false;
 			}
 
-			var hTreePhase = BaseHarvestablePhase.LookupPhase(tileID);
+			var hTreePhase = BaseHarvestablePhase.LookupPhase(tileID.Value);
 
-			if (hTreePhase?.Harvest(from, tileID, tool, loc, map) != true)
+			if (hTreePhase?.Harvest(from, tileID.Value, tool, loc, map) != true)
 			{
 				return false;
 			}
@@ -383,6 +383,11 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		{
 			var trunkLocation = LookupOriginLocation(harvestTargetLocation, itemId);
 
+			if (trunkLocation == Point3D.Zero)
+			{
+				trunkLocation = new Point3D(harvestTargetLocation.X - 3, harvestTargetLocation.Y, harvestTargetLocation.Z);
+			}
+
 			//search for leaves
 			MapOperationSeries mapActions = null;
 			var leavesRemoved = RemoveAssets(map, trunkLocation, ref mapActions, LeafSets);
@@ -454,7 +459,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 				{
 					foreach (var asset in leafSet)
 					{
-						if ((asset.ItemID | 0x4000) == harvestTargetItemId)
+						if (asset.ItemID == harvestTargetItemId)
 						{
 							return new Point3D(harvestTargetLocation.X + asset.XOffset, harvestTargetLocation.Y + asset.YOffset, harvestTargetLocation.Z - TileData.ItemTable[harvestTargetItemId].CalcHeight);
 						}
@@ -530,6 +535,11 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 		public bool Harvest(Mobile from, int itemId, IHarvestTool tool, Point3D harvestTargetLocation, Map map, ref MapOperationSeries operationSeries)
 		{
 			var trunkLocation = LookupOriginLocation(harvestTargetLocation, itemId);
+
+			if (trunkLocation == Point3D.Zero)
+			{
+				trunkLocation = harvestTargetLocation;
+			}
 
 			List<KeyValuePair<int, HarvestGraphicAsset>> phasePiecesRemoved;
 
@@ -716,7 +726,7 @@ namespace Server.Engine.Facet.Module.LumberHarvest
 
 		public static HarvestGraphicAsset LookupAsset(int itemId)
 		{
-			MasterHarvestableAssetlookup.TryGetValue(itemId, out var asset);
+			MasterHarvestableAssetlookup.TryGetValue(itemId & 0x3FFF, out var asset);
 
 			return asset;
 		}

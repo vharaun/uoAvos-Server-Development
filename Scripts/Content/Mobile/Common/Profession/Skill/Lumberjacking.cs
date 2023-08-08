@@ -152,7 +152,7 @@ namespace Server.Engines.Harvest
 
 		public override bool SpecialHarvest(Mobile from, IHarvestTool tool, HarvestDefinition def, object toHarvest, HarvestID tileID, Map map, Point3D loc)
 		{
-			if (tileID.IsStatic && Engine.Facet.Module.LumberHarvest.FacetModule_Lumberjacking.SpecialHarvest(from, tool, def, toHarvest, tileID.Value, map, loc))
+			if (Engine.Facet.Module.LumberHarvest.FacetModule_Lumberjacking.SpecialHarvest(from, tool, def, toHarvest, tileID, map, loc))
 			{
 				return true;
 			}
