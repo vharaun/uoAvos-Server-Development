@@ -837,14 +837,14 @@ namespace Server.Mobiles
 
 			if (from.Player)
 			{
-				var gump = CurrencyUtility.BeginSelectCurrency(from, CurrenciesUseGold, CurrenciesSupported, (p, t) =>
+				var confirming = CurrencyUtility.BeginSelectCurrency(from, CurrenciesUseGold, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
 					OnVendorBuy(from);
 				});
 
-				if (gump != null)
+				if (confirming)
 				{
 					return;
 				}

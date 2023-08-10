@@ -1122,7 +1122,7 @@ namespace Server.Engines.Harvest
 		public HarvestNode MiningNodes => this[_MiningSystem];
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public HarvestNode LumberjackingNodes => this[_LumberjackingSystem];
+		public HarvestNode LumberNodes => this[_LumberjackingSystem];
 
 		public HarvestNodes()
 		{
