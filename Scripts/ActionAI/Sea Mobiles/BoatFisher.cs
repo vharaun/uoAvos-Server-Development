@@ -551,7 +551,7 @@ namespace Server.Mobiles
             if (m_DeepSeaBoat == null && m_DeepSeaBoat.Deleted)
                 return;
 
-            SelfDeleting_MediumCrate container = null;
+            TransientMediumCrate container = null;
             List<Item> items = Backpack.Items;
             Point3D p = new Point3D(X, Y, Z);
 
@@ -559,13 +559,13 @@ namespace Server.Mobiles
             {
                 foreach (Item item in Map.GetItemsInRange(p, 3))
                 {
-                    if (item is SelfDeleting_MediumCrate)
-                        container = (SelfDeleting_MediumCrate)item;
+                    if (item is TransientMediumCrate)
+                        container = (TransientMediumCrate)item;
                 }
 
                 if (container == null || container.Weight > 300)
                 {
-                    container = new SelfDeleting_MediumCrate();
+                    container = new TransientMediumCrate();
                     Point3D newPoint = new Point3D(m_DeepSeaBoat.X, m_DeepSeaBoat.Y, m_DeepSeaBoat.Z);
                     container.MoveToWorld(newPoint, Map);
                 }
@@ -1343,7 +1343,7 @@ namespace Server.Mobiles
             if (m_DeepSeaBoat == null && m_DeepSeaBoat.Deleted)
                 return;
 
-            SelfDeleting_MediumCrate container = null;
+            TransientMediumCrate container = null;
             List<Item> items = Backpack.Items;
             Point3D p = new Point3D(X, Y, Z);
 
@@ -1351,13 +1351,13 @@ namespace Server.Mobiles
             {
                 foreach (Item item in Map.GetItemsInRange(p, 3))
                 {
-                    if (item is SelfDeleting_MediumCrate)
-                        container = (SelfDeleting_MediumCrate)item;
+                    if (item is TransientMediumCrate)
+                        container = (TransientMediumCrate)item;
                 }
 
                 if (container == null || container.Weight > 300)
                 {
-                    container = new SelfDeleting_MediumCrate();
+                    container = new TransientMediumCrate();
                     Point3D newPoint = new Point3D(m_DeepSeaBoat.X, m_DeepSeaBoat.Y, m_DeepSeaBoat.Z);
                     container.MoveToWorld(newPoint, Map);
                 }

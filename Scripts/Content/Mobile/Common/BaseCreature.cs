@@ -190,7 +190,7 @@ namespace Server.Mobiles
 
 				m_Formation?.Add(this);
 
-				if (!World.Loading)
+				if (World.Loaded)
 				{
 					OnFormationChange(old);
 				}
@@ -437,6 +437,9 @@ namespace Server.Mobiles
 				return TimeSpan.Zero;
 			}
 		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public bool HasDeleteTimer => m_DeleteTimer?.Running == true;
 
 		protected virtual bool OnBeginDeleteTimer(ref TimeSpan delay)
 		{

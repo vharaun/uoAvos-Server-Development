@@ -122,7 +122,7 @@ namespace Server
 	[PropertyObject]
 	public partial class Region : IComparable, IComparable<Region>, ISerializable
 	{
-		public static int NextID { get; } = 1;
+		public static int NextID { get; private set; } = 1;
 
 		public static Type DefaultRegionType { get; set; } = typeof(Region);
 

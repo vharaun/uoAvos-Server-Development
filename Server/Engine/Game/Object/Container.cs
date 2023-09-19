@@ -36,6 +36,7 @@ namespace Server.Items
 
 		internal List<Item> m_Items;
 
+		[CommandProperty(AccessLevel.GameMaster)]
 		public ContainerData ContainerData
 		{
 			get
@@ -1966,7 +1967,8 @@ namespace Server.Items
 		}
 	}
 
-	public class ContainerData
+	[PropertyObject]
+	public readonly record struct ContainerData
 	{
 		// Format: [itemID] = new(gumpID, new(x, y, width, height), dropSoundID)
 		private static readonly Dictionary<int, ContainerData> m_Table = new()
@@ -2106,34 +2108,32 @@ namespace Server.Items
 			#endregion
 		};
 
-		private static ContainerData m_Default;
-
-		public static ContainerData Default
-		{
-			get => m_Default ??= new(0x3C, new(44, 65, 142, 94), 0x48);
-			set => m_Default = value;
-		}
+		public static ContainerData Default { get; set; } = new(0x3C, new(44, 65, 142, 94), 0x48);
 
 		public static ContainerData GetData(int itemID)
 		{
-			m_Table.TryGetValue(itemID, out var data);
+			if (!m_Table.TryGetValue(itemID, out var data))
+			{
+				data = Default;
+			}
 
-			return data ?? Default;
+			return data;
 		}
 
-		private readonly int m_GumpID;
-		private Rectangle2D m_Bounds;
-		private readonly int m_DropSound;
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int GumpID { get; }
 
-		public int GumpID => m_GumpID;
-		public Rectangle2D Bounds => m_Bounds;
-		public int DropSound => m_DropSound;
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public Rectangle2D Bounds { get; }
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int DropSound { get; }
 
 		public ContainerData(int gumpID, Rectangle2D bounds, int dropSound)
 		{
-			m_GumpID = gumpID;
-			m_Bounds = bounds;
-			m_DropSound = dropSound;
+			GumpID = gumpID;
+			Bounds = bounds;
+			DropSound = dropSound;
 		}
 	}
 }

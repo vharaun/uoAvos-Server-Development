@@ -1,31 +1,26 @@
-﻿namespace Server.Items
+﻿using System;
+
+namespace Server.Items
 {
 	public class WorldMap : MapItem
 	{
 		[Constructable]
 		public WorldMap()
 		{
-			SetDisplay(0, 0, 5119, 4095, 400, 400);
+			SetDisplay(Map.Felucca, 400, 400);
 		}
 
 		public override void CraftInit(Mobile from)
 		{
 			// Unlike the others, world map is not based on crafted location
+			var center = from.Map.Bounds.Center;
 
 			var skillValue = from.Skills[SkillName.Cartography].Value;
-			var x20 = (int)(skillValue * 20);
-			var size = 25 + (int)(skillValue * 6.6);
 
-			if (size < 200)
-			{
-				size = 200;
-			}
-			else if (size > 400)
-			{
-				size = 400;
-			}
+			var dist = Math.Clamp(64 + (int)(skillValue * 20), 0, 200);
+			var size = Math.Clamp(25 + (int)(skillValue * 6.6), 200, 400);
 
-			SetDisplay(1344 - x20, 1600 - x20, 1472 + x20, 1728 + x20, size, size);
+			SetDisplay(from.Map, center.X - dist, center.Y - dist, center.X + dist, center.Y + dist, size, size);
 		}
 
 		public override int LabelNumber => 1015233;  // world map

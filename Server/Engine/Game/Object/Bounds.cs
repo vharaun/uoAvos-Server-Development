@@ -7,8 +7,7 @@ namespace Server
 {
 	public class ItemBounds : IEnumerable<Rectangle2D>
 	{
-		private static readonly Rectangle2D m_EmptyBounds = new(0, 0, 0, 0);
-		private static readonly Rectangle2D m_InvalidBounds = new(-1, -1, 0, 0);
+		private static readonly Rectangle2D m_EmptyBounds = Rectangle2D.Empty;
 
 		public static ItemBounds Table { get; } = new();
 
@@ -23,8 +22,6 @@ namespace Server
 		{
 			m_Bounds = new Rectangle2D[TileData.ItemTable.Length];
 			m_Loaded = new bool[m_Bounds.Length];
-
-			Array.Fill(m_Bounds, m_InvalidBounds);
 		}
 
 		private Rectangle2D GetBounds(int index)
@@ -48,10 +45,6 @@ namespace Server
 				Item.Measure(asset, out var xMin, out var yMin, out var xMax, out var yMax);
 
 				m_Bounds[index].Set(xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
-			}
-			else
-			{
-				m_Bounds[index] = m_EmptyBounds;
 			}
 
 			return m_Bounds[index];
