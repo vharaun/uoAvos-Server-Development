@@ -2707,6 +2707,14 @@ namespace Server.Mobiles
 		{
 		}
 
+		public virtual void OnActionHarvest()
+		{
+		}
+
+		public virtual void OnActionOffload()
+		{
+		}
+
 		#endregion
 
 		protected long m_NextFlyingAction;

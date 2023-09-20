@@ -50,27 +50,29 @@ namespace Server.Mobiles
 
 			_ = m_Mobile.BeginAction(_ActionLock);
 		}
-		
+
 		public override bool DoActionWander()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
-			if (m_Mobile.Home != Point3D.Zero && m_Mobile.Backpack != null)
+			if (m_Mobile.Home != Point3D.Zero)
 			{
-				if (Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2))
+				var pack = m_Mobile.Backpack;
+
+				if (pack != null)
 				{
-					if (DoActionOffload())
+					if ((pack.MaxItems <= 0 || pack.TotalItems < pack.MaxItems) && (pack.MaxWeight <= 0 || pack.TotalWeight <= pack.MaxWeight))
 					{
+						Action = ActionType.Harvest;
 						return true;
 					}
-				}
-				else if (m_Mobile.Backpack.TotalWeight <= m_Mobile.Backpack.MaxWeight)
-				{
-					if (DoActionHarvest())
+
+					if (Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2))
 					{
+						Action = ActionType.Offload;
 						return true;
 					}
 				}
@@ -79,30 +81,36 @@ namespace Server.Mobiles
 			return base.DoActionWander();
 		}
 
-		public virtual bool DoActionOffload()
+		public override bool DoActionOffload()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			if (m_Mobile.Combatant != null)
 			{
-				return false;
+				Action = ActionType.Combat;
+
+				return true;
 			}
 
 			var map = m_Mobile.Map;
 
 			if (map == null || map == Map.Internal)
 			{
-				return false;
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
 			var items = m_Mobile.Backpack?.Items;
 
 			if (items == null || items.Count == 0)
 			{
-				return false;
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
 			TransientMediumCrate container = null;
@@ -132,7 +140,9 @@ namespace Server.Mobiles
 
 				if (!SpellHelper.AdjustField(ref loc, map, 10, false))
 				{
-					return false;
+					Action = ActionType.Wander;
+
+					return true;
 				}
 
 				container = new TransientMediumCrate()
@@ -207,31 +217,39 @@ namespace Server.Mobiles
 				}
 			}, new Queue<Item>(items));
 
+			Action = ActionType.Wander;
+
 			return true;
 		}
 
-		public virtual bool DoActionHarvest()
+		public override bool DoActionHarvest()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			if (m_Mobile.Combatant != null)
 			{
-				return false;
+				Action = ActionType.Combat;
+
+				return true;
 			}
 
 			var map = m_Mobile.Map;
 
 			if (map == null || map == Map.Internal)
 			{
-				return false;
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
 			if (m_Mobile.Harvest is not HarvestSystem harvest)
 			{
-				return false;
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
 			IHarvestTool tool = null;
@@ -298,9 +316,11 @@ namespace Server.Mobiles
 				}
 			}
 
-			if (tool == null)
+			if (tool?.Deleted != false)
 			{
-				return false;
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
 			const int range = 1;
@@ -390,20 +410,24 @@ namespace Server.Mobiles
 
 							LockActions(TimeSpan.FromSeconds(1.0 + duration));
 
+							Action = ActionType.Wander;
+
 							return true;
 						}
 					}
 				}
 			}
 
-			return false;
+			Action = ActionType.Wander;
+
+			return base.DoActionHarvest();
 		}
 
 		public override bool DoActionCombat()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			var combatant = m_Mobile.Combatant;
@@ -421,17 +445,17 @@ namespace Server.Mobiles
 			{
 				m_Mobile.Direction = m_Mobile.GetDirectionTo(combatant);
 			}
-			else if (m_Mobile.GetDistanceToSqrt(combatant) > m_Mobile.RangePerception + 1)
+			else if (m_Mobile.GetDistanceToSqrt(combatant) <= m_Mobile.RangePerception + 1)
+			{
+				m_Mobile.DebugSay("I should be closer to {0}", combatant.Name);
+			}
+			else
 			{
 				m_Mobile.DebugSay("I cannot find {0}", combatant.Name);
 
 				Action = ActionType.Wander;
 
 				return true;
-			}
-			else
-			{
-				m_Mobile.DebugSay("I should be closer to {0}", combatant.Name);
 			}
 
 			if (!m_Mobile.Controlled && !m_Mobile.Summoned && m_Mobile.CanFlee)
@@ -443,17 +467,19 @@ namespace Server.Mobiles
 					m_Mobile.DebugSay("I am low on health!");
 
 					Action = ActionType.Flee;
+
+					return true;
 				}
 			}
 
-			return true;
+			return base.DoActionCombat();
 		}
 
 		public override bool DoActionBackoff()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			var hitPercent = m_Mobile.Hits / (double)m_Mobile.HitsMax;
@@ -461,31 +487,36 @@ namespace Server.Mobiles
 			if (!m_Mobile.Summoned && !m_Mobile.Controlled && hitPercent < 0.1 && m_Mobile.CanFlee) // Less than 10% health
 			{
 				Action = ActionType.Flee;
-			}
-			else if (AcquireFocusMob(m_Mobile.RangePerception * 2, FightMode.Closest, true, false, true))
-			{
-				if (WalkMobileRange(m_Mobile.FocusMob, 1, false, m_Mobile.RangePerception, m_Mobile.RangePerception * 2))
-				{
-					m_Mobile.DebugSay("Well, here I am safe");
 
-					Action = ActionType.Wander;
-				}
+				return true;
 			}
-			else
+
+			if (!AcquireFocusMob(m_Mobile.RangePerception * 2, FightMode.Closest, true, false, true))
 			{
 				m_Mobile.DebugSay("I have lost my focus, lets relax");
 
 				Action = ActionType.Wander;
+
+				return true;
+			}
+			
+			if (WalkMobileRange(m_Mobile.FocusMob, 1, false, m_Mobile.RangePerception, m_Mobile.RangePerception * 2))
+			{
+				m_Mobile.DebugSay("Well, here I am safe");
+
+				Action = ActionType.Wander;
+
+				return true;
 			}
 
-			return true;
+			return base.DoActionBackoff();
 		}
 
 		public override bool DoActionFlee()
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			if (AcquireFocusMob(m_Mobile.RangePerception * 2, m_Mobile.FightMode, true, false, true))
@@ -500,7 +531,7 @@ namespace Server.Mobiles
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			return base.DoActionGuard();
@@ -510,7 +541,7 @@ namespace Server.Mobiles
 		{
 			if (IsActionLocked)
 			{
-				return false;
+				return true;
 			}
 
 			return base.DoActionInteract();
