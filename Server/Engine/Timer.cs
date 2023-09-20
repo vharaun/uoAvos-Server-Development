@@ -517,6 +517,8 @@ namespace Server
 				{
 					++prof.Started;
 				}
+
+				OnStart();
 			}
 		}
 
@@ -534,7 +536,17 @@ namespace Server
 				{
 					++prof.Stopped;
 				}
+
+				OnStop();
 			}
+		}
+
+		protected virtual void OnStart()
+		{
+		}
+
+		protected virtual void OnStop()
+		{
 		}
 
 		protected virtual void OnTick()

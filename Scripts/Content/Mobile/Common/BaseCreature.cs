@@ -335,11 +335,14 @@ namespace Server.Mobiles
 			set => m_IsPrisoner = value;
 		}
 
-		protected DateTime SummonEnd
+		[CommandProperty(AccessLevel.GameMaster)]
+		public DateTime SummonEnd
 		{
 			get => m_SummonEnd;
 			set => m_SummonEnd = value;
 		}
+
+		public virtual IHarvestSystem Harvest => null;
 
 		public virtual Faction FactionAllegiance => null;
 		public virtual int FactionSilverWorth => 30;

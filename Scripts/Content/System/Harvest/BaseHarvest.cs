@@ -19,7 +19,7 @@ namespace Server.Engines.Harvest
 
 		public virtual bool CheckTool(Mobile from, IHarvestTool tool)
 		{
-			var wornOut = tool == null || tool.Deleted || (tool is IUsesRemaining && ((IUsesRemaining)tool).UsesRemaining <= 0);
+			var wornOut = tool == null || tool.Deleted || (tool is IUsesRemaining u && u.UsesRemaining <= 0);
 
 			if (wornOut)
 			{
@@ -249,16 +249,14 @@ namespace Server.Engines.Harvest
 							}
 						}
 
-						if (tool is IUsesRemaining toolWithUses)
+						if (from.Player && tool is IUsesRemaining u)
 						{
-							toolWithUses.ShowUsesRemaining = true;
-
-							if (toolWithUses.UsesRemaining > 0)
+							if (u.UsesRemaining > 0)
 							{
-								--toolWithUses.UsesRemaining;
+								--u.UsesRemaining;
 							}
 
-							if (toolWithUses.UsesRemaining < 1)
+							if (u.UsesRemaining < 1)
 							{
 								tool.Delete();
 								def.SendMessageTo(from, def.ToolBrokeMessage);
@@ -470,17 +468,17 @@ namespace Server.Engines.Harvest
 			return def;
 		}
 
-		public virtual void StartHarvesting(Mobile from, IHarvestTool tool, object toHarvest)
+		public virtual bool StartHarvesting(Mobile from, IHarvestTool tool, object toHarvest)
 		{
 			if (!CheckHarvest(from, tool))
 			{
-				return;
+				return false;
 			}
 
 			if (!GetHarvestDetails(from, tool, toHarvest, out var tileID, out var map, out var loc))
 			{
 				OnBadHarvestTarget(from, tool, toHarvest);
-				return;
+				return false;
 			}
 
 			var def = GetDefinition(tileID);
@@ -488,22 +486,22 @@ namespace Server.Engines.Harvest
 			if (def == null)
 			{
 				OnBadHarvestTarget(from, tool, toHarvest);
-				return;
+				return false;
 			}
 
 			if (!CheckRange(from, tool, def, map, loc, false))
 			{
-				return;
+				return false;
 			}
 			
 			if (!CheckResources(from, tool, def, map, loc, false))
 			{
-				return;
+				return false;
 			}
 			
 			if (!CheckHarvest(from, tool, def, toHarvest))
 			{
-				return;
+				return false;
 			}
 
 			var toLock = GetLock(from, tool, def, toHarvest);
@@ -511,11 +509,14 @@ namespace Server.Engines.Harvest
 			if (!from.BeginAction(toLock))
 			{
 				OnConcurrentHarvest(from, tool, def, toHarvest);
-				return;
+				return false;
 			}
 
-			new HarvestTimer(from, tool, this, def, toHarvest, toLock).Start();
+			HarvestTimer.Start(from, tool, this, def, toHarvest, toLock);
+
 			OnHarvestStarted(from, tool, def, toHarvest);
+
+			return true;
 		}
 
 		public virtual bool GetHarvestDetails(Mobile from, IHarvestTool tool, object toHarvest, out HarvestID tileID, out Map map, out Point3D loc)
@@ -638,13 +639,13 @@ namespace Server.Engines.Harvest
 
 		public void SendMessageTo(Mobile from, object message)
 		{
-			if (message is int)
+			if (message is int i)
 			{
-				from.SendLocalizedMessage((int)message);
+				from.SendLocalizedMessage(i);
 			}
-			else if (message is string)
+			else if (message is string s)
 			{
-				from.SendMessage((string)message);
+				from.SendMessage(s);
 			}
 		}
 
@@ -1018,13 +1019,13 @@ namespace Server.Engines.Harvest
 
 		public void SendSuccessTo(Mobile m)
 		{
-			if (SuccessMessage is int)
+			if (SuccessMessage is int i)
 			{
-				m.SendLocalizedMessage((int)SuccessMessage);
+				m.SendLocalizedMessage(i);
 			}
-			else if (SuccessMessage is string)
+			else if (SuccessMessage is string s)
 			{
-				m.SendMessage((string)SuccessMessage);
+				m.SendMessage(s);
 			}
 		}
 
@@ -1063,31 +1064,86 @@ namespace Server.Engines.Harvest
 
 	public class HarvestTimer : Timer
 	{
-		private readonly Mobile m_From;
-		private readonly IHarvestTool m_Tool;
-		private readonly HarvestSystem m_System;
-		private readonly HarvestDefinition m_Definition;
-		private readonly object m_ToHarvest, m_Locked;
-		private int m_Index;
+		public static Dictionary<Mobile, HarvestTimer> Instances { get; } = new();
+
+		public static HarvestTimer Get(Mobile m)
+		{
+			_ = Instances.TryGetValue(m, out var timer);
+
+			return timer;
+		}
+
+		public static void Start(Mobile from, IHarvestTool tool, HarvestSystem system, HarvestDefinition def, object toHarvest, object locked)
+		{
+			if (Instances.TryGetValue(from, out var timer))
+			{
+				timer?.Stop();
+			}
+
+			Instances[from] = new HarvestTimer(from, tool, system, def, toHarvest, locked);
+		}
+
+		private readonly DateTime m_End;
+
+		private readonly object m_Locked;
+
 		private readonly int m_Count;
 
-		public HarvestTimer(Mobile from, IHarvestTool tool, HarvestSystem system, HarvestDefinition def, object toHarvest, object locked) : base(TimeSpan.Zero, def.EffectDelay)
+		private int m_Index;
+
+		public Mobile Harvester { get; }
+
+		public object Harvesting { get; }
+
+		public IHarvestTool Tool { get; }
+		public HarvestSystem Harvest { get; }
+		public HarvestDefinition Definition { get; }
+
+		public TimeSpan TimeRemaining
 		{
-			m_From = from;
-			m_Tool = tool;
-			m_System = system;
-			m_Definition = def;
-			m_ToHarvest = toHarvest;
+			get
+			{
+				var now = DateTime.UtcNow;
+
+				if (m_End > now)
+				{
+					return m_End - now;
+				}
+
+				return TimeSpan.Zero;
+			}
+		}
+
+		private HarvestTimer(Mobile from, IHarvestTool tool, HarvestSystem system, HarvestDefinition def, object toHarvest, object locked)
+			: base(TimeSpan.Zero, def.EffectDelay)
+		{
+			Harvester = from;
+			Tool = tool;
+			Harvest = system;
+			Definition = def;
+			Harvesting = toHarvest;
+
 			m_Locked = locked;
 			m_Count = Utility.RandomList(def.EffectCounts);
+
+			m_End = DateTime.UtcNow.AddSeconds(m_Count * Interval.TotalSeconds);
+
+			Start();
 		}
 
 		protected override void OnTick()
 		{
-			if (!m_System.OnHarvesting(m_From, m_Tool, m_Definition, m_ToHarvest, m_Locked, ++m_Index == m_Count))
+			if (!Harvest.OnHarvesting(Harvester, Tool, Definition, Harvesting, m_Locked, ++m_Index >= m_Count))
 			{
 				Stop();
 			}
+		}
+
+		protected override void OnStop()
+		{
+			base.OnStop();
+
+			Instances.Remove(Harvester);
 		}
 	}
 
