@@ -39,10 +39,7 @@ namespace Server.Mobiles
         private HashSet<Point3D> points;
         private List<Point3D> pointsList;
 
-        /// Active Harvest System Mobile Uses
-        public override HarvestDefinition harvestDefinition { get { return Lumberjacking.System.Definition; } }
-
-        public override HarvestSystem harvestSystem { get { return Lumberjacking.System; } }
+        public override IHarvestSystem Harvest { get { return Lumberjacking.System; } }
 
         public override bool PlayerRangeSensitive { get { return false; } } // Mobile will continue to follow waypoints even if players aren't around
 
@@ -216,15 +213,7 @@ namespace Server.Mobiles
 
 		public override void OnThink()
         {
-            if (!Alive && Deleted)
-            {
-                return;
-            }
-
-            if (pointsList == null || m_waypoint == null)
-            {
-                return;
-            }
+			base.OnThink();
 
             if (Alive && !Deleted)
             {
@@ -233,25 +222,6 @@ namespace Server.Mobiles
                     CurrentSpeed = 2.0;
 
                     Timer.DelayCall(TimeSpan.FromMinutes(5.0), MoveWayPoint);
-                }
-
-                if (Location != Home && m_waypoint != null && (m_waypoint.X == Location.X & m_waypoint.Y == Location.Y))
-                {
-                    CantWalk = true;
-                    CurrentSpeed = 2.0;
-
-                    /*********
-                    TODO: MAKE MOBILE FACE TREE BASED ON CALCULATION OF POINTS
-                    **********/
-                    //Direction = m_MobilePath[m_Index].Item2;
-
-                    Animate(Utility.RandomList(harvestDefinition.EffectActions), 5, 1, true, false, 0);
-                    PlaySound(Utility.RandomList(harvestDefinition.EffectSounds));
-                }
-                else
-                {
-                    CurrentSpeed = 0.2;
-                    CantWalk = false;
                 }
             }
         }
