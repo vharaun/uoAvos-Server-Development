@@ -1,6 +1,6 @@
 ﻿[![N|Solid](http://www.uoavocation.net/portal/site_image/logos/logo_0001a.png)](http://www.uoavocation.net)
 ***
-## uoAvos-Development - `Official Release` <div align="Right">Last Updated: 03/17/2023</div>
+## uoAvox-Server-Development - `Official Release` <div align="Right">Last Updated: 03/17/2023</div>
 
 >**What Is With The New RunUO Emulator?!**
 -   Welcome to uoAvocation, our primary goal is to modify the server emulator ([RunUO](https://github.com/runuo/runuo)) and the custom client ([ClassicUO](http://www.classicuo.eu/)) in an effort to create a [game engine](https://en.wikipedia.org/wiki/Game_engine) that gamers can use to develop new genres of games while maintaining the same isometric graphic aspect ratio (1:1) as  [Ultima Online](http://www.uo.com/)™.
