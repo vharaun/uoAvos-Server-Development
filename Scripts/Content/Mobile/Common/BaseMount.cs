@@ -806,9 +806,6 @@ namespace Server.Mobiles
 
 		private class EtherealSpell : Spell
 		{
-			public override SkillName CastSkill => SkillName.Focus;
-			public override SkillName DamageSkill => SkillName.Focus;
-
 			private static SpellInfo ResolveInfo(EtherealMount mount)
 			{
 				return new(mount.GetType())
@@ -816,18 +813,6 @@ namespace Server.Mobiles
 					Name = Utility.FriendlyName(mount),
 					Action = 230,
 				};
-			}
-
-			private TimeSpan ComputeCastDelay()
-			{
-				var delay = Core.AOS ? 3.0 : 2.0;
-
-				if (m_Mount.IsDonationItem && RewardSystem.GetRewardLevel(m_Rider) < 3)
-				{
-					delay += 7.5;
-				}
-
-				return TimeSpan.FromSeconds(delay);
 			}
 
 			private readonly EtherealMount m_Mount;
@@ -843,6 +828,9 @@ namespace Server.Mobiles
 
 			public override bool RevealOnCast => false;
 
+			public override SkillName CastSkill => SkillName.Focus;
+			public override SkillName DamageSkill => SkillName.Focus;
+
 			public EtherealSpell(EtherealMount mount, Mobile rider)
 				: base(rider, null, ResolveInfo(mount))
 			{
@@ -850,9 +838,26 @@ namespace Server.Mobiles
 				m_Mount = mount;
 			}
 
+			private TimeSpan ComputeCastDelay()
+			{
+				var delay = Core.AOS ? 3.0 : 2.0;
+
+				if (m_Mount.IsDonationItem && RewardSystem.GetRewardLevel(m_Rider) < 3)
+				{
+					delay += 7.5;
+				}
+
+				return TimeSpan.FromSeconds(delay);
+			}
+
 			public override TimeSpan GetCastRecovery()
 			{
 				return TimeSpan.Zero;
+			}
+
+			public override void GetCastSkills(ref double req, out double min, out double max)
+			{
+				req = min = max = 0.0;
 			}
 
 			public override bool ConsumeReagents()

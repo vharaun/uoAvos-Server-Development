@@ -49,7 +49,7 @@ namespace Server.Mobiles
 			{
 				var entry = new RechargeEntry(from, this);
 
-				if (WeaponEngravingTool.Find(from) == null)
+				if (EngravingTool.Find(from) == null)
 				{
 					entry.Enabled = false;
 				}
@@ -78,17 +78,17 @@ namespace Server.Mobiles
 					return;
 				}
 
-				var tool = WeaponEngravingTool.Find(m_From);
+				var tool = EngravingTool.Find(m_From);
 
 				if (tool != null && tool.UsesRemaining <= 0)
 				{
 					if (Banker.GetBalance(m_From) >= 100000)
 					{
-						m_From.SendGump(new WeaponEngravingTool.ConfirmGump(tool, m_Vendor));
+						m_From.SendGump(new EngravingTool.RechargeGump(tool, m_Vendor));
 					}
 					else
 					{
-						m_Vendor.Say(1076167); // You need a 100,000 gold and a blue diamond to recharge the weapon engraver.
+						m_Vendor.Say("You need 100,000 gold and a blue diamond to recharge the engraver.");
 					}
 				}
 				else

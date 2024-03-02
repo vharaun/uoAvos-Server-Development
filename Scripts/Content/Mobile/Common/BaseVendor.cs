@@ -173,8 +173,11 @@ namespace Server.Mobiles
 		private readonly List<IBuyItemInfo> m_ArmorBuyInfo = new();
 		private readonly List<IShopSellInfo> m_ArmorSellInfo = new();
 
+		public IEnumerable<IShopSellInfo> SellInfo => m_ArmorSellInfo.AsEnumerable();
+		public IEnumerable<IBuyItemInfo> BuyInfo => m_ArmorBuyInfo.AsEnumerable();
+
 		#region Holiday Season Events
-				
+
 		public DateTime NextNaughtyOrNice { get; set; } // Christmas		
 		public DateTime NextEggfest { get; set; } // Easter		
 		public DateTime NextTrickOrTreat { get; set; } // Halloween		
@@ -1096,14 +1099,14 @@ namespace Server.Mobiles
 
 			if (from.Player)
 			{
-				var gump = CurrencyUtility.BeginSelectCurrency(from, CurrenciesUseGold, CurrenciesSupported, (p, t) =>
+				var selecting = CurrencyUtility.BeginSelectCurrency(from, CurrenciesUseGold, CurrenciesSupported, (p, t) =>
 				{
 					m_SelectedCurrencies[from] = t;
 
 					OnVendorSell(from);
 				});
 
-				if (gump != null)
+				if (selecting)
 				{
 					return;
 				}

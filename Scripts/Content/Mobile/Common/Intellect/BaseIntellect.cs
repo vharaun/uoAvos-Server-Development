@@ -888,6 +888,11 @@ namespace Server.Mobiles
 			}
 		}
 
+		protected virtual bool OnThink()
+		{
+			return CheckFlee();
+		}
+
 		public virtual bool Think()
 		{
 			if (m_Mobile.Deleted)
@@ -895,7 +900,7 @@ namespace Server.Mobiles
 				return false;
 			}
 
-			if (CheckFlee())
+			if (OnThink())
 			{
 				return true;
 			}

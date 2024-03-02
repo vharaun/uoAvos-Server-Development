@@ -2150,10 +2150,6 @@ namespace Server.Mobiles
 					}
 				}
 			}
-			else
-			{
-				m_iRangeHome = 0;
-			}
 
 			if (version >= 2)
 			{

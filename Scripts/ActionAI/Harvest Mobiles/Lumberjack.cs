@@ -171,7 +171,7 @@ namespace Server.Mobiles
                 for (var yy = this.Y - range; yy <= this.Y + range; yy++)
                 {
                     StaticTile[] tiles = map.Tiles.GetStaticTiles(xx, yy, true);
-
+					
                     if(tiles.Length == 0)
                         continue; 
                     else

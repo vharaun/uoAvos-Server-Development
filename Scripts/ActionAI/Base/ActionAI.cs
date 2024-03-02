@@ -2,6 +2,7 @@
 using Server.Items;
 using Server.Multis;
 using Server.Spells;
+using Server.Spells.Magery;
 
 using System;
 using System.Collections.Generic;
@@ -51,30 +52,181 @@ namespace Server.Mobiles
 			_ = m_Mobile.BeginAction(_ActionLock);
 		}
 
+		public bool TryCastRecall(Point3D loc, Map map)
+		{
+			if (loc == Point3D.Zero || map == null || map == Map.Internal)
+			{
+				return false;
+			}
+
+			var info = SpellRegistry.GetInfo(SpellName.Recall);
+
+			if (info != null && m_Mobile.Skills.Magery.Value >= info.Skill)
+			{
+				var recall = new RecallSpell(m_Mobile, loc, map);
+
+				if (recall.Cast())
+				{
+					LockActions(recall.GetCastDelay());
+
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		protected virtual IHarvestTool FindTool(IHarvestSystem harvest)
+		{
+			if (m_Mobile.Weapon is IHarvestTool wt && wt.HarvestSystem == harvest)
+			{
+				return wt;
+			}
+
+			IHarvestTool tool;
+
+			if ((tool = FindTool(m_Mobile.Items, false, harvest)) != null)
+			{
+				return tool;
+			}
+
+			if ((tool = FindTool(m_Mobile.Backpack?.Items, false, harvest)) != null)
+			{
+				return tool;
+			}
+
+			if (m_Mobile.Map != null && m_Mobile.Map != Map.Internal)
+			{
+				var eable = m_Mobile.Map.GetMobilesInRange(m_Mobile.Location, m_Mobile.RangePerception);
+
+				try
+				{
+					foreach (var m in eable)
+					{
+						if (m is BaseCreature c && c.ControlMaster == m_Mobile && c is IPackAnimal)
+						{
+							if ((tool = FindTool(m.Backpack?.Items, true, harvest)) != null)
+							{
+								return tool;
+							}
+						}
+					}
+				}
+				finally
+				{
+					eable.Free();
+				}
+			}
+
+			return null;
+		}
+
+		protected virtual IHarvestTool FindTool(List<Item> items, bool recursive, IHarvestSystem harvest)
+		{
+			if (items != null)
+			{
+				foreach (var o in items)
+				{
+					if (o is IHarvestTool t)
+					{
+						if (t.HarvestSystem == harvest)
+						{
+							return t;
+						}
+					}
+					else if (recursive)
+					{
+						return FindTool(o.Items, recursive, harvest);
+					}
+				}
+			}
+
+			return null;
+		}
+
+		protected virtual bool CheckHarvest()
+		{
+			var pack = m_Mobile.Backpack;
+
+			if (pack != null && (pack.MaxItems <= 0 || pack.TotalItems < pack.MaxItems) && (pack.MaxWeight <= 0 || pack.TotalWeight <= pack.MaxWeight))
+			{
+				if (Utility.RandomDouble() <= 0.10)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		protected virtual bool CheckOffload()
+		{
+			var pack = m_Mobile.Backpack;
+
+			if (pack != null && ((pack.MaxItems > 0 && pack.TotalItems >= pack.MaxItems) || (pack.MaxWeight > 0 && pack.TotalWeight > pack.MaxWeight)))
+			{
+				if (m_Mobile.Home != Point3D.Zero)
+				{
+					if (Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2))
+					{
+						return true;
+					}
+
+					_ = MoveTo(m_Mobile.Home, false, 2);
+				}
+			}
+
+			return false;
+		}
+
+		protected virtual bool CheckReturnHome()
+		{
+			if (m_Mobile.Formation == null && m_Mobile.ReturnsToHome && m_Mobile.Home != Point3D.Zero)
+			{
+				var dist = m_Mobile.GetHomeDistance();
+
+				if (dist > m_Mobile.RangePerception && dist > m_Mobile.RangeHome)
+				{
+					return true;
+				}
+
+				_ = MoveTo(m_Mobile.Home, false, 2);
+			}
+
+			return false;
+		}
+
+		protected override bool OnThink()
+		{
+			if (base.OnThink())
+			{
+				return true;
+			}
+
+			if (CheckHarvest())
+			{
+				Action = ActionType.Harvest;
+			}
+			else if (CheckOffload())
+			{
+				Action = ActionType.Offload;
+			}
+
+			return false;
+		}
+
 		public override bool DoActionWander()
 		{
 			if (IsActionLocked)
 			{
 				return true;
 			}
-
-			if (m_Mobile.Home != Point3D.Zero)
+			
+			if (CheckReturnHome())
 			{
-				var pack = m_Mobile.Backpack;
-
-				if (pack != null)
+				if (TryCastRecall(m_Mobile.Home, m_Mobile.Map))
 				{
-					if ((pack.MaxItems <= 0 || pack.TotalItems < pack.MaxItems) && (pack.MaxWeight <= 0 || pack.TotalWeight <= pack.MaxWeight))
-					{
-						Action = ActionType.Harvest;
-						return true;
-					}
-
-					if (Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2))
-					{
-						Action = ActionType.Offload;
-						return true;
-					}
+					return true;
 				}
 			}
 
@@ -117,16 +269,21 @@ namespace Server.Mobiles
 
 			var eable = map.GetItemsInRange(m_Mobile.Location, 5);
 
-			foreach (var item in eable)
+			try
 			{
-				if (item is TransientMediumCrate c && (c.MaxItems <= 0 || c.TotalItems < c.MaxItems) && (c.MaxWeight <= 0 || c.TotalWeight < c.MaxWeight))
+				foreach (var item in eable)
 				{
-					container = c;
-					break;
+					if (item is TransientMediumCrate c && (c.MaxItems <= 0 || c.TotalItems < c.MaxItems) && (c.MaxWeight <= 0 || c.TotalWeight < c.MaxWeight))
+					{
+						container = c;
+						break;
+					}
 				}
 			}
-
-			eable.Free();
+			finally
+			{
+				eable.Free();
+			}
 
 			int x = m_Mobile.X, y = m_Mobile.Y, z = m_Mobile.Z;
 
@@ -213,6 +370,8 @@ namespace Server.Mobiles
 
 				if (q.Count % 2 == 0)
 				{
+					SpellHelper.Turn(m_Mobile, e);
+
 					m_Mobile.Animate(32, 5, 0, true, false, 0); // bow
 				}
 			}, new Queue<Item>(items));
@@ -252,75 +411,91 @@ namespace Server.Mobiles
 				return true;
 			}
 
-			IHarvestTool tool = null;
+			var tool = FindTool(harvest);
 
-			if (m_Mobile.Weapon is IHarvestTool wt && wt.HarvestSystem == harvest)
+			if (tool == null)
 			{
-				tool = wt;
+				var eable = m_Mobile.Map.GetMobilesInRange(m_Mobile.Location, m_Mobile.RangePerception);
+
+				try
+				{
+					foreach (var v in eable.OfType<BaseVendor>().OrderBy(m_Mobile.GetDistanceToSqrt))
+					{
+						foreach (var info in v.BuyInfo)
+						{
+							if (info.Amount <= 0)
+							{
+								continue;
+							}
+
+							var disp = info.GetDisplayEntity();
+
+							if (disp is not Item i || i is not IHarvestTool t || t.HarvestSystem != harvest)
+							{
+								continue;
+							}
+
+							if (!m_Mobile.InRange(v, 2))
+							{
+								MoveTo(v, false, 2);
+
+								return true;
+							}
+
+							LockActions(TimeSpan.FromSeconds(3.0));
+
+							SpellHelper.Turn(v, m_Mobile);
+							SpellHelper.Turn(m_Mobile, v);
+
+							var e = info.GetEntity();
+
+							if (e is Item o)
+							{
+								if (m_Mobile.PlaceInBackpack(o))
+								{
+									--info.Amount;
+
+									EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(m_Mobile, v, o, 1));
+
+									return true;
+								}
+
+								Action = ActionType.Offload;
+							}
+
+							e?.Delete();
+
+							return true;
+						}
+					}
+				}
+				finally
+				{
+					eable.Free();
+				}
 			}
 
 			if (tool == null)
 			{
-				foreach (var o in m_Mobile.Items)
-				{
-					if (o is IHarvestTool t)
-					{
-						if (t.HarvestSystem != harvest)
-						{
-							continue;
-						}
-
-						if (t is IUsesRemaining u)
-						{
-							if (u.UsesRemaining > 0)
-							{
-								tool = t;
-							}
-						}
-						else
-						{
-							tool = t;
-						}
-					}
-				}
-			}
-
-			if (tool == null && m_Mobile.Backpack != null)
-			{
-				foreach (var o in m_Mobile.Backpack.Items)
-				{
-					if (o is IHarvestTool t)
-					{
-						if (t.HarvestSystem != harvest)
-						{
-							continue;
-						}
-
-						if (t is IUsesRemaining u)
-						{
-							if (u.UsesRemaining > 0)
-							{
-								tool = t;
-							}
-						}
-						else
-						{
-							tool = t;
-						}
-					}
-				}
-
-				if (tool is Item item && item.Layer != Layer.Invalid && m_Mobile.FindItemOnLayer(item.Layer) == null)
-				{
-					m_Mobile.EquipItem(item);
-				}
-			}
-
-			if (tool?.Deleted != false)
-			{
 				Action = ActionType.Wander;
 
 				return true;
+			}
+
+			if (tool is Item item && item.Parent != m_Mobile && item.Layer != Layer.Invalid)
+			{
+				var conflict = item.Layer switch
+				{
+					Layer.OneHanded => m_Mobile.FindItemOnLayer(Layer.TwoHanded),
+					Layer.TwoHanded => m_Mobile.FindItemOnLayer(Layer.OneHanded),
+
+					_ => m_Mobile.FindItemOnLayer(item.Layer),
+				};
+
+				if (conflict == null)
+				{
+					m_Mobile.EquipItem(item);
+				}
 			}
 
 			const int range = 1;
@@ -343,16 +518,21 @@ namespace Server.Mobiles
 
 					var eable = map.GetMultiTilesAt(loc.X, loc.Y);
 
-					foreach (var mt in eable)
+					try
 					{
-						if (mt.Length > 0)
+						foreach (var mt in eable)
 						{
-							multi = true;
-							break;
+							if (mt.Length > 0)
+							{
+								multi = true;
+								break;
+							}
 						}
 					}
-
-					eable.Free();
+					finally
+					{
+						eable.Free();
+					}
 
 					if (multi)
 					{
