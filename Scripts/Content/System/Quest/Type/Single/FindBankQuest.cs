@@ -42,7 +42,7 @@ namespace Server.Quests
 
 				for (var i = 0; i < points.Length; i++)
 				{
-					points[i] = Angle.GetPoint2D(center.X, center.Y, i * slice, radius);
+					points[i] = Angle2D.GetPoint2D(center.X, center.Y, i * slice, radius);
 				}
 
 				bounds.Add(new QuestArea(banker.Map, center, new Poly3D(Region.MinZ, Region.MaxZ, points)));

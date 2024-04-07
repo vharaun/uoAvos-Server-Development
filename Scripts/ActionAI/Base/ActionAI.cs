@@ -1,422 +1,730 @@
-﻿using Server;
-using Server.Engines.Harvest;
+﻿using Server.Engines.Harvest;
 using Server.Items;
-using Server.Mobiles;
 using Server.Multis;
-using Server.Network;
-using Server.Targeting;
+using Server.Spells;
+using Server.Spells.Magery;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Server.Mobiles
 {
-    public class ActionAI : BaseAI
-    {
-        private Item _axe = null;
-        private int m_Index = 0;
-        private WayPoint waypointFirst = new WayPoint();
+	public class ActionAI : BaseAI
+	{
+		private static readonly Type _ActionLock = typeof(ActionAI);
 
-        private static readonly TimeSpan HarvestInterval = TimeSpan.FromSeconds(5.0); // 5.0
+		private Timer _ActionLockTimer;
 
-        private List<StaticTile> treelist;
+		public bool IsActionLocked => !m_Mobile.CanBeginAction(_ActionLock);
 
-        public ActionAI(BaseCreature m) : base(m)
-        {
-        }
-
-        public override bool DoActionWander()
-        {
-            Map map = m_Mobile.Map;
-            long NextSkillTime = (Core.TickCount + 21600000);
-            Point3D blank = new Point3D(0, 0, 0);
-
-            if (m_Mobile.Home != blank &&  Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2) /* m_Mobile.Location == m_Mobile.Home */)
-            {
-                m_Mobile.CurrentSpeed = 2.0;
-                m_Mobile.CantWalk = true;
-                EmptyPack();
-            }
-
-            //add backpack?
-
-            if (m_Mobile.Backpack != null && m_Mobile.Backpack.TotalWeight <= m_Mobile.Backpack.MaxWeight)
-            {
-                if (m_Mobile.Home != blank && m_Mobile.Location != m_Mobile.Home)
-                {
-                    if (Core.TickCount - 21600000 /* m_Mobile.NextSkillTime */ >= 0 /* && m_TreeTiles.Contains( staticTile.ID ) */ )
-                    {
-                        DoHarvest();
-                        return base.DoActionWander();
-                    }
-                }
-
-                return base.DoActionWander();
-            }
-
-            return base.DoActionWander();
-        }
-
-        private bool EmptyPack()
-        {
-            SelfDeleting_MediumCrate container = null;
-            List<Item> items = m_Mobile.Backpack.Items;
-            Point3D p = new Point3D(m_Mobile.X, m_Mobile.Y, m_Mobile.Z);
-
-            if (items.Count > 0)
-            {
-                foreach (Item item in m_Mobile.Map.GetItemsInRange(p, 5))
-                {
-                    if (item is SelfDeleting_MediumCrate)
-                    {
-                        container = (SelfDeleting_MediumCrate)item;
-                        if( container.Weight > 300 )
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            container = (SelfDeleting_MediumCrate)item;
-                            break;
-                        }
-                    }
-                }
-
-                int randX = 0;
-                int randY = 0;
-
-                int randomX = Utility.RandomMinMax(-2, 1);
-                int randomY = Utility.RandomMinMax(-2, 1);
-
-                if (container == null || container.Weight > 300)
-                {
-                    /* m_Mobile.PlaySound( 0x23D );
-					m_Mobile.Animate( 9, 5, 1, true, false, 0 ); */
-
-                    container = new SelfDeleting_MediumCrate();
-                    Point3D newPoint = new Point3D(p.X + randomX, p.Y + randomY, p.Z);
-                    container.MoveToWorld(newPoint, m_Mobile.Map);
-                }
-
-                for (int i = 0; i < items.Count; i++)
-                {
-                    //randomize placement of items in container so they're not all stacked on stop of eachother
-                    randX = Utility.RandomMinMax(0, 100);
-                    randY = Utility.RandomMinMax(0, 100);
-
-                    //items in Containers do not have a Z coordinate
-                    if (container != null || !container.Deleted)
-                        container.OnDragDropInto(m_Mobile, items[i], new Point3D(randX, randY, 0));
-                }
-
-                items = m_Mobile.Backpack.Items;
-
-                if( items.Count >= 1 )
-                {
-                    for (int i = 0; i < items.Count; i++)
-                    {
-                        items[i].Delete();
-                        /* //randomize placement of items in container so they're not all stacked on stop of eachother
-                        randX = Utility.RandomMinMax(0, 100);
-                        randY = Utility.RandomMinMax(0, 100);
-
-                        //items in Containers do not have a Z coordinate
-                        if (container != null || !container.Deleted)
-                            container.OnDragDropInto(m_Mobile, items[i], new Point3D(randX, randY, 0)); */
-                    }
-                }
-
-
-            }
-
-            m_Mobile.CantWalk = false;
-
-            return true;
-        }
-
-        /* 		private bool CreateCrate()
-				{
-
-				} */
-
-        //Modified version of what's in Server/Mobile so we don't drop items to ground if it can't be placed in backpack while harvesting
-        public bool TryAddToBackpack(Item item)
-        {
-            if (item.Deleted)
-                return false;
-
-            if (!m_Mobile.PlaceInBackpack(item))
-            {
-                item.Delete();
-                return false;
-            }
-
-            return true;
-        }
-
-
-        public bool DoHarvest()
-        {
-            if (m_Mobile.Map == null || m_Mobile.Deleted)
-                return base.DoActionWander();
-
-            if (m_Mobile.harvestDefinition == null)
-                return base.DoActionWander();
-
-            if (m_Mobile.Map == Map.Internal)
-            {
-                return false;
-            }
-
-            if (m_Mobile.Backpack == null)
-                m_Mobile.AddItem(new Backpack());
-
-            Map map = m_Mobile.Map;
-            Point3D loc = m_Mobile.Location;
-            int x = 0, y = 0;
-            loc.X += x;
-            loc.Y += y;
-
-            HarvestBank bank = m_Mobile.harvestDefinition.GetBank(map, loc.X, loc.Y);
-
-            bool available = (bank != null && bank.Current >= m_Mobile.harvestDefinition.ConsumedPerHarvest);
-
-            if (!available)
-            {
-                //m_Mobile.Emote( String.Format("There is no wood here to harvest") );
-                return base.DoActionWander();
-            }
-
-            if (bank == null || bank.Current < m_Mobile.harvestDefinition.ConsumedPerHarvest)
-                return base.DoActionWander();
-
-            HarvestVein vein = bank.Vein;
-
-            if (vein == null)
-                return base.DoActionWander();
-
-            HarvestResource primary = vein.PrimaryResource;
-            HarvestResource fallback = m_Mobile.harvestDefinition.Resources[0];
-
-            HarvestResource resource = m_Mobile.harvestSystem.MutateResource(m_Mobile, null, m_Mobile.harvestDefinition, map, loc, vein, primary, fallback);
-
-            double skillBase = m_Mobile.Skills[m_Mobile.harvestDefinition.Skill].Base;
-
-            Type type = null;
-
-            if (skillBase >= resource.ReqSkill && m_Mobile.CheckSkill(m_Mobile.harvestDefinition.Skill, resource.MinSkill, resource.MaxSkill))
-            {
-                type = m_Mobile.harvestSystem.GetResourceType(m_Mobile, null, m_Mobile.harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                    type = m_Mobile.harvestSystem.MutateType(type, m_Mobile, null, m_Mobile.harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                {
-                    Item itemHarvested = m_Mobile.harvestSystem.Construct(type, m_Mobile);
-
-                    if (itemHarvested == null)
-                    {
-                        type = null;
-                    }
-                    else
-                    {
-                        if (itemHarvested.Stackable)
-                        {
-                            int amount = m_Mobile.harvestDefinition.ConsumedPerHarvest;
-                            int feluccaAmount = m_Mobile.harvestDefinition.ConsumedPerFeluccaHarvest;
-
-                            bool inFelucca = (map == Map.Felucca);
-
-                            if (inFelucca)
-                                itemHarvested.Amount = feluccaAmount;
-                            else
-                                itemHarvested.Amount = amount;
-                        }
-
-                        bank.Consume(itemHarvested.Amount, m_Mobile);
-
-                        Container pack = m_Mobile.Backpack;
-
-                        if (pack == null)
-                        {
-                            return base.DoActionWander();
-                        }
-
-                        pack.TryDropItem(m_Mobile, itemHarvested, false);
-
-                        // Harvest bark fragment, amber, etc
-                        BonusHarvestResource bonus = m_Mobile.harvestDefinition.GetBonusResource();
-
-                        if (bonus != null && bonus.Type != null && skillBase >= bonus.ReqSkill)
-                        {
-                            Item bonusItem = m_Mobile.harvestSystem.Construct(bonus.Type, m_Mobile);
-
-                            pack.TryDropItem(m_Mobile, bonusItem, false);
-                        }
-                    }
-                }
-            }
-
-            return base.DoActionWander();
-        }
-
-        /* 
-		public virtual bool WalkMobileRange(Point3D m, int iSteps, bool bRun, int iWantDistMin, int iWantDistMax)
+		public ActionAI(BaseCreature m)
+			: base(m)
 		{
-			if (m_Mobile.Deleted || m_Mobile.DisallowAllMoves)
-				return false;
+		}
 
-			if (m_Mobile.Location != m)
+		protected void UnlockActions()
+		{
+			_ActionLockTimer?.Stop();
+			_ActionLockTimer = null;
+
+			m_Mobile.CantWalk = false;
+
+			m_Mobile.EndAction(_ActionLock);
+		}
+
+		protected void LockActions(TimeSpan duration)
+		{
+			if (duration <= TimeSpan.Zero)
 			{
-				for (int i = 0; i < iSteps; i++)
+				return;
+			}
+
+			_ActionLockTimer?.Stop();
+
+			if (duration < TimeSpan.MaxValue)
+			{
+				_ActionLockTimer = Timer.DelayCall(duration, UnlockActions);
+			}
+
+			m_Mobile.CantWalk = true;
+
+			_ = m_Mobile.BeginAction(_ActionLock);
+		}
+
+		public bool TryCastRecall(Point3D loc, Map map)
+		{
+			if (loc == Point3D.Zero || map == null || map == Map.Internal)
+			{
+				return false;
+			}
+
+			var info = SpellRegistry.GetInfo(SpellName.Recall);
+
+			if (info != null && m_Mobile.Skills.Magery.Value >= info.Skill)
+			{
+				var recall = new RecallSpell(m_Mobile, loc, map);
+
+				if (recall.Cast())
 				{
-					// Get the curent distance
-					int iCurrDist = (int)m_Mobile.GetDistanceToSqrt(m);
+					LockActions(recall.GetCastDelay());
 
-					if (iCurrDist < iWantDistMin || iCurrDist > iWantDistMax)
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		protected virtual IHarvestTool FindTool(IHarvestSystem harvest)
+		{
+			if (m_Mobile.Weapon is IHarvestTool wt && wt.HarvestSystem == harvest)
+			{
+				return wt;
+			}
+
+			IHarvestTool tool;
+
+			if ((tool = FindTool(m_Mobile.Items, false, harvest)) != null)
+			{
+				return tool;
+			}
+
+			if ((tool = FindTool(m_Mobile.Backpack?.Items, false, harvest)) != null)
+			{
+				return tool;
+			}
+
+			if (m_Mobile.Map != null && m_Mobile.Map != Map.Internal)
+			{
+				var eable = m_Mobile.Map.GetMobilesInRange(m_Mobile.Location, m_Mobile.RangePerception);
+
+				try
+				{
+					foreach (var m in eable)
 					{
-						bool needCloser = (iCurrDist > iWantDistMax);
-						bool needFurther = !needCloser;
-
-						if (needCloser && m_Path != null && m_Mobile.Location == m )
+						if (m is BaseCreature c && c.ControlMaster == m_Mobile && c is IPackAnimal)
 						{
-							if (m_Path.Follow(bRun, 1))
-								m_Path = null;
-						}
-						else
-						{
-							Direction dirTo = (Direction)m_Mobile.GetDirectionTo( m );
-
-						
-
-							// Add the run flag
-							if (bRun)
-								dirTo = dirTo | Direction.Running;
-
-							if (!DoMove(dirTo, true) && needCloser)
+							if ((tool = FindTool(m.Backpack?.Items, true, harvest)) != null)
 							{
-								m_Path = new PathFollower(m_Mobile, m);
-								m_Path.Mover = new MoveMethod(DoMoveImpl);
-
-								if (m_Path.Follow(bRun, 1))
-									m_Path = null;
-							}
-							else
-							{
-								m_Path = null;
+								return tool;
 							}
 						}
 					}
-					else
+				}
+				finally
+				{
+					eable.Free();
+				}
+			}
+
+			return null;
+		}
+
+		protected virtual IHarvestTool FindTool(List<Item> items, bool recursive, IHarvestSystem harvest)
+		{
+			if (items != null)
+			{
+				foreach (var o in items)
+				{
+					if (o is IHarvestTool t)
+					{
+						if (t.HarvestSystem == harvest)
+						{
+							return t;
+						}
+					}
+					else if (recursive)
+					{
+						return FindTool(o.Items, recursive, harvest);
+					}
+				}
+			}
+
+			return null;
+		}
+
+		protected virtual bool CheckHarvest()
+		{
+			var pack = m_Mobile.Backpack;
+
+			if (pack != null && (pack.MaxItems <= 0 || pack.TotalItems < pack.MaxItems) && (pack.MaxWeight <= 0 || pack.TotalWeight <= pack.MaxWeight))
+			{
+				if (Utility.RandomDouble() <= 0.10)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		protected virtual bool CheckOffload()
+		{
+			var pack = m_Mobile.Backpack;
+
+			if (pack != null && ((pack.MaxItems > 0 && pack.TotalItems >= pack.MaxItems) || (pack.MaxWeight > 0 && pack.TotalWeight > pack.MaxWeight)))
+			{
+				if (m_Mobile.Home != Point3D.Zero)
+				{
+					if (Utility.InRange(m_Mobile.Home, m_Mobile.Location, 2))
 					{
 						return true;
 					}
+
+					_ = MoveTo(m_Mobile.Home, false, 2);
 				}
-
-				// Get the curent distance
-				int iNewDist = (int)m_Mobile.GetDistanceToSqrt(m);
-
-				if (iNewDist >= iWantDistMin && iNewDist <= iWantDistMax)
-					return true;
-				else
-					return false;
 			}
-            else
-            {
-                return true;
-            }
 
 			return false;
-		} 
-		*/
+		}
 
-        public override bool DoActionCombat()
-        {
-            Mobile combatant = m_Mobile.Combatant;
+		protected virtual bool CheckReturnHome()
+		{
+			if (m_Mobile.Formation == null && m_Mobile.ReturnsToHome && m_Mobile.Home != Point3D.Zero)
+			{
+				var dist = m_Mobile.GetHomeDistance();
 
-            if (combatant == null || combatant.Deleted || combatant.Map != m_Mobile.Map)
-            {
-                m_Mobile.DebugSay("My combatant is gone..");
+				if (dist > m_Mobile.RangePerception && dist > m_Mobile.RangeHome)
+				{
+					return true;
+				}
 
-                Action = ActionType.Wander;
+				_ = MoveTo(m_Mobile.Home, false, 2);
+			}
 
-                return true;
-            }
+			return false;
+		}
 
-            if (WalkMobileRange(combatant, 1, true, m_Mobile.RangeFight, m_Mobile.RangeFight))
-            {
-                m_Mobile.Direction = m_Mobile.GetDirectionTo(combatant);
-            }
-            else
-            {
-                if (m_Mobile.GetDistanceToSqrt(combatant) > m_Mobile.RangePerception + 1)
-                {
-                    if (m_Mobile.Debug)
-                        m_Mobile.DebugSay("I cannot find {0}", combatant.Name);
+		protected override bool OnThink()
+		{
+			if (base.OnThink())
+			{
+				return true;
+			}
 
-                    Action = ActionType.Wander;
+			if (CheckHarvest())
+			{
+				Action = ActionType.Harvest;
+			}
+			else if (CheckOffload())
+			{
+				Action = ActionType.Offload;
+			}
 
-                    return true;
-                }
-                else
-                {
-                    if (m_Mobile.Debug)
-                        m_Mobile.DebugSay("I should be closer to {0}", combatant.Name);
-                }
-            }
+			return false;
+		}
 
-            if (!m_Mobile.Controlled && !m_Mobile.Summoned && m_Mobile.CanFlee)
-            {
-                double hitPercent = (double)m_Mobile.Hits / m_Mobile.HitsMax;
+		public override bool DoActionWander()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+			
+			if (CheckReturnHome())
+			{
+				if (TryCastRecall(m_Mobile.Home, m_Mobile.Map))
+				{
+					return true;
+				}
+			}
 
-                if (hitPercent < 0.1)
-                {
-                    m_Mobile.DebugSay("I am low on health!");
-                    Action = ActionType.Flee;
-                }
-            }
+			return base.DoActionWander();
+		}
 
-            return true;
-        }
+		public override bool DoActionOffload()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
 
-        public override bool DoActionBackoff()
-        {
-            double hitPercent = (double)m_Mobile.Hits / m_Mobile.HitsMax;
+			if (m_Mobile.Combatant != null)
+			{
+				Action = ActionType.Combat;
 
-            if (!m_Mobile.Summoned && !m_Mobile.Controlled && hitPercent < 0.1 && m_Mobile.CanFlee) // Less than 10% health
-            {
-                Action = ActionType.Flee;
-            }
-            else
-            {
-                if (AcquireFocusMob(m_Mobile.RangePerception * 2, FightMode.Closest, true, false, true))
-                {
-                    if (WalkMobileRange(m_Mobile.FocusMob, 1, false, m_Mobile.RangePerception, m_Mobile.RangePerception * 2))
-                    {
-                        m_Mobile.DebugSay("Well, here I am safe");
-                        Action = ActionType.Wander;
-                    }
-                }
-                else
-                {
-                    m_Mobile.DebugSay("I have lost my focus, lets relax");
-                    Action = ActionType.Wander;
-                }
-            }
+				return true;
+			}
 
-            return true;
-        }
+			var map = m_Mobile.Map;
 
-        public override bool DoActionFlee()
-        {
-            AcquireFocusMob(m_Mobile.RangePerception * 2, m_Mobile.FightMode, true, false, true);
+			if (map == null || map == Map.Internal)
+			{
+				Action = ActionType.Wander;
 
-            if (m_Mobile.FocusMob == null)
-                m_Mobile.FocusMob = m_Mobile.Combatant;
+				return true;
+			}
 
-            return base.DoActionFlee();
-        }
-    }
+			var items = m_Mobile.Backpack?.Items;
+
+			if (items == null || items.Count == 0)
+			{
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			TransientMediumCrate container = null;
+
+			var eable = map.GetItemsInRange(m_Mobile.Location, 5);
+
+			try
+			{
+				foreach (var item in eable)
+				{
+					if (item is TransientMediumCrate c && (c.MaxItems <= 0 || c.TotalItems < c.MaxItems) && (c.MaxWeight <= 0 || c.TotalWeight < c.MaxWeight))
+					{
+						container = c;
+						break;
+					}
+				}
+			}
+			finally
+			{
+				eable.Free();
+			}
+
+			int x = m_Mobile.X, y = m_Mobile.Y, z = m_Mobile.Z;
+
+			Movement.Movement.Offset(m_Mobile.Direction & Direction.Mask, ref x, ref y);
+
+			var loc = new Point3D(x, y, z);
+
+			if (container == null)
+			{
+				loc = map.GetTopSurface(loc.X, loc.Y);
+
+				if (!SpellHelper.AdjustField(ref loc, map, 10, false))
+				{
+					Action = ActionType.Wander;
+
+					return true;
+				}
+
+				container = new TransientMediumCrate()
+				{
+					Movable = false
+				};
+
+				container.MoveToWorld(loc, map);
+
+				Effects.SendMovingEffect(m_Mobile, container, container.ItemID, 5, 10, true, false, 0, 0);
+			}
+			else
+			{
+				loc = container.Location;
+			}
+
+			var dropInterval = TimeSpan.FromMilliseconds(Math.Max(500, Mobile.ActionDelay));
+
+			LockActions(TimeSpan.FromSeconds(1.0 + (items.Count * dropInterval.TotalSeconds)));
+
+			Timer t = null;
+
+			t = Timer.DelayCall(TimeSpan.Zero, dropInterval, items.Count, q =>
+			{
+				if (m_Mobile?.Deleted != false || m_Mobile.Combatant != null || m_Mobile.Map != map || !m_Mobile.InRange(loc, 2))
+				{
+					UnlockActions();
+
+					t?.Stop();
+
+					return;
+				}
+
+				if (!q.TryDequeue(out var o))
+				{
+					t?.Stop();
+
+					return;
+				}
+
+				if (o.Deleted || !o.Movable)
+				{
+					return;
+				}
+
+				IEntity e;
+
+				if (!container.Deleted && container.TryDropItem(m_Mobile, o, false))
+				{
+					e = container;
+				}
+				else if (map.CanFit(loc, o.ItemData.CalcHeight))
+				{
+					e = EffectItem.Create(loc, map, dropInterval);
+
+					o.MoveToWorld(loc, map);
+				}
+				else
+				{
+					UnlockActions();
+
+					t?.Stop();
+
+					return;
+				}
+
+				Effects.SendMovingEffect(m_Mobile, e, o.ItemID, 5, 10, true, false, 0, 0);
+
+				if (q.Count % 2 == 0)
+				{
+					SpellHelper.Turn(m_Mobile, e);
+
+					m_Mobile.Animate(32, 5, 0, true, false, 0); // bow
+				}
+			}, new Queue<Item>(items));
+
+			Action = ActionType.Wander;
+
+			return true;
+		}
+
+		public override bool DoActionHarvest()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			if (m_Mobile.Combatant != null)
+			{
+				Action = ActionType.Combat;
+
+				return true;
+			}
+
+			var map = m_Mobile.Map;
+
+			if (map == null || map == Map.Internal)
+			{
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			if (m_Mobile.Harvest is not HarvestSystem harvest)
+			{
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			var tool = FindTool(harvest);
+
+			if (tool == null)
+			{
+				var eable = m_Mobile.Map.GetMobilesInRange(m_Mobile.Location, m_Mobile.RangePerception);
+
+				try
+				{
+					foreach (var v in eable.OfType<BaseVendor>().OrderBy(m_Mobile.GetDistanceToSqrt))
+					{
+						foreach (var info in v.BuyInfo)
+						{
+							if (info.Amount <= 0)
+							{
+								continue;
+							}
+
+							var disp = info.GetDisplayEntity();
+
+							if (disp is not Item i || i is not IHarvestTool t || t.HarvestSystem != harvest)
+							{
+								continue;
+							}
+
+							if (!m_Mobile.InRange(v, 2))
+							{
+								MoveTo(v, false, 2);
+
+								return true;
+							}
+
+							LockActions(TimeSpan.FromSeconds(3.0));
+
+							SpellHelper.Turn(v, m_Mobile);
+							SpellHelper.Turn(m_Mobile, v);
+
+							var e = info.GetEntity();
+
+							if (e is Item o)
+							{
+								if (m_Mobile.PlaceInBackpack(o))
+								{
+									--info.Amount;
+
+									EventSink.InvokeBuyFromVendor(new BuyFromVendorEventArgs(m_Mobile, v, o, 1));
+
+									return true;
+								}
+
+								Action = ActionType.Offload;
+							}
+
+							e?.Delete();
+
+							return true;
+						}
+					}
+				}
+				finally
+				{
+					eable.Free();
+				}
+			}
+
+			if (tool == null)
+			{
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			if (tool is Item item && item.Parent != m_Mobile && item.Layer != Layer.Invalid)
+			{
+				var conflict = item.Layer switch
+				{
+					Layer.OneHanded => m_Mobile.FindItemOnLayer(Layer.TwoHanded),
+					Layer.TwoHanded => m_Mobile.FindItemOnLayer(Layer.OneHanded),
+
+					_ => m_Mobile.FindItemOnLayer(item.Layer),
+				};
+
+				if (conflict == null)
+				{
+					m_Mobile.EquipItem(item);
+				}
+			}
+
+			const int range = 1;
+
+			for (var xo = -range; xo <= range; xo++)
+			{
+				for (var yo = -range; yo <= range; yo++)
+				{
+					if (xo == 0 && yo == 0)
+					{
+						continue;
+					}
+
+					var loc = m_Mobile.Location;
+
+					loc.X += xo;
+					loc.Y += yo;
+
+					var multi = false;
+
+					var eable = map.GetMultiTilesAt(loc.X, loc.Y);
+
+					try
+					{
+						foreach (var mt in eable)
+						{
+							if (mt.Length > 0)
+							{
+								multi = true;
+								break;
+							}
+						}
+					}
+					finally
+					{
+						eable.Free();
+					}
+
+					if (multi)
+					{
+						continue;
+					}
+
+					IPoint3D harvesting = null;
+
+					var land = map.Tiles.GetLandTile(loc.X, loc.Y);
+
+					if (Math.Abs(land.Z - m_Mobile.Z) > 20)
+					{
+						loc.Z = land.Z;
+
+						var landTarget = new LandTarget(loc, map);
+
+						if (harvest.GetHarvestDetails(m_Mobile, tool, landTarget, out _, out _, out _))
+						{
+							harvesting = landTarget;
+						}
+					}
+
+					if (harvesting == null)
+					{
+						var statics = map.Tiles.GetStaticTiles(loc.X, loc.Y, false);
+
+						foreach (var tile in statics)
+						{
+							if (Math.Abs(tile.Z - m_Mobile.Z) > 20)
+							{
+								continue;
+							}
+
+							loc.Z = tile.Z;
+
+							var staticTarget = new StaticTarget(loc, tile.ID, tile.Hue);
+
+							if (harvest.GetHarvestDetails(m_Mobile, tool, staticTarget, out _, out _, out _))
+							{
+								harvesting = staticTarget;
+								break;
+							}
+						}
+					}
+
+					if (harvesting != null)
+					{
+						m_Mobile.Direction = m_Mobile.GetDirectionTo(harvesting);
+
+						if (harvest.StartHarvesting(m_Mobile, tool, harvesting))
+						{
+							var timer = HarvestTimer.Get(m_Mobile);
+
+							var duration = Math.Max(0, timer?.TimeRemaining.TotalSeconds ?? 0);
+
+							LockActions(TimeSpan.FromSeconds(1.0 + duration));
+
+							Action = ActionType.Wander;
+
+							return true;
+						}
+					}
+				}
+			}
+
+			Action = ActionType.Wander;
+
+			return base.DoActionHarvest();
+		}
+
+		public override bool DoActionCombat()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			var combatant = m_Mobile.Combatant;
+
+			if (combatant == null || combatant.Deleted || combatant.Map != m_Mobile.Map)
+			{
+				m_Mobile.DebugSay("My combatant is gone..");
+
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			if (WalkMobileRange(combatant, 1, true, m_Mobile.RangeFight, m_Mobile.RangeFight))
+			{
+				m_Mobile.Direction = m_Mobile.GetDirectionTo(combatant);
+			}
+			else if (m_Mobile.GetDistanceToSqrt(combatant) <= m_Mobile.RangePerception + 1)
+			{
+				m_Mobile.DebugSay("I should be closer to {0}", combatant.Name);
+			}
+			else
+			{
+				m_Mobile.DebugSay("I cannot find {0}", combatant.Name);
+
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			if (!m_Mobile.Controlled && !m_Mobile.Summoned && m_Mobile.CanFlee)
+			{
+				var hitPercent = m_Mobile.Hits / (double)m_Mobile.HitsMax;
+
+				if (hitPercent < 0.10)
+				{
+					m_Mobile.DebugSay("I am low on health!");
+
+					Action = ActionType.Flee;
+
+					return true;
+				}
+			}
+
+			return base.DoActionCombat();
+		}
+
+		public override bool DoActionBackoff()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			var hitPercent = m_Mobile.Hits / (double)m_Mobile.HitsMax;
+
+			if (!m_Mobile.Summoned && !m_Mobile.Controlled && hitPercent < 0.1 && m_Mobile.CanFlee) // Less than 10% health
+			{
+				Action = ActionType.Flee;
+
+				return true;
+			}
+
+			if (!AcquireFocusMob(m_Mobile.RangePerception * 2, FightMode.Closest, true, false, true))
+			{
+				m_Mobile.DebugSay("I have lost my focus, lets relax");
+
+				Action = ActionType.Wander;
+
+				return true;
+			}
+			
+			if (WalkMobileRange(m_Mobile.FocusMob, 1, false, m_Mobile.RangePerception, m_Mobile.RangePerception * 2))
+			{
+				m_Mobile.DebugSay("Well, here I am safe");
+
+				Action = ActionType.Wander;
+
+				return true;
+			}
+
+			return base.DoActionBackoff();
+		}
+
+		public override bool DoActionFlee()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			if (AcquireFocusMob(m_Mobile.RangePerception * 2, m_Mobile.FightMode, true, false, true))
+			{
+				m_Mobile.FocusMob ??= m_Mobile.Combatant;
+			}
+
+			return base.DoActionFlee();
+		}
+
+		public override bool DoActionGuard()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			return base.DoActionGuard();
+		}
+
+		public override bool DoActionInteract()
+		{
+			if (IsActionLocked)
+			{
+				return true;
+			}
+
+			return base.DoActionInteract();
+		}
+	}
 }

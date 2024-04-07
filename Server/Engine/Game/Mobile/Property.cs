@@ -9625,6 +9625,8 @@ namespace Server
 			}
 		}
 
+		public virtual bool ViewOPL => Player && ObjectPropertyList.Enabled;
+
 		public void ClearProperties()
 		{
 			Packet.Release(ref m_PropertyList);
@@ -10368,7 +10370,7 @@ namespace Server
 
 		public bool PlaceInBackpack(Item item)
 		{
-			if (item.Deleted)
+			if (item?.Deleted != false)
 			{
 				return false;
 			}
@@ -10380,7 +10382,7 @@ namespace Server
 
 		public bool AddToBackpack(Item item)
 		{
-			if (item.Deleted)
+			if (item?.Deleted != false)
 			{
 				return false;
 			}

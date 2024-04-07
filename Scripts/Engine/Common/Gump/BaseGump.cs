@@ -829,18 +829,6 @@ namespace Server.Gumps
 
 		private Dictionary<int, Spoof> _TextTooltips, _ClilocTooltips;
 
-		public void AddTooltip(TextDefinition text)
-		{
-			if (text.Number > 0)
-			{
-				AddTooltip(text.Number);
-			}
-			else if (!String.IsNullOrEmpty(text.String))
-			{
-				AddTooltip(text.String);
-			}
-		}
-
 		public void AddTooltip(string text, Color color)
 		{
 			AddTooltip(String.Empty, text, Color.Empty, color);

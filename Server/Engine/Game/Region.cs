@@ -122,9 +122,7 @@ namespace Server
 	[PropertyObject]
 	public partial class Region : IComparable, IComparable<Region>, ISerializable
 	{
-		private static int m_NextID = 1;
-
-		public static int NextID => m_NextID;
+		public static int NextID { get; private set; } = 1;
 
 		public static Type DefaultRegionType { get; set; } = typeof(Region);
 
@@ -523,7 +521,7 @@ namespace Server
 		{
 			Children = new();
 
-			Id = m_NextID++;
+			Id = NextID++;
 
 			Dynamic = true;
 
@@ -544,9 +542,9 @@ namespace Server
 		{
 			Id = id;
 
-			if (++id > m_NextID)
+			if (++id > NextID)
 			{
-				m_NextID = id;
+				NextID = id;
 			}
 
 			ValidateTypeRef();
@@ -748,7 +746,7 @@ namespace Server
 			Validate();
 
 			Registered = true;
-			
+
 			Map.RegisterRegion(this);
 
 			if (!Registered)
@@ -778,7 +776,7 @@ namespace Server
 						{
 							var sector = Map.GetRealSector(x, y);
 
-							sectors.Add(sector);
+							_ = sectors.Add(sector);
 
 							sector.OnEnter(this, rect);
 						}
@@ -1197,7 +1195,7 @@ namespace Server
 					}
 				}
 			}
-			
+
 			return res;
 		}
 
@@ -1229,7 +1227,7 @@ namespace Server
 
 		public virtual bool OnMoveInto(Mobile m, Direction d, Point3D newLocation, Point3D oldLocation)
 		{
-			return m.WalkRegion == null || AcceptsSpawnsFrom(m, m.WalkRegion);
+			return m?.WalkRegion == null || AcceptsSpawnsFrom(m, m.WalkRegion);
 		}
 
 		public virtual bool CanEnter(Mobile m)
@@ -1249,12 +1247,7 @@ namespace Server
 
 		public virtual bool CanExit(Mobile m)
 		{
-			if (Parent != null)
-			{
-				return Parent.CanExit(m);
-			}
-
-			return true;
+			return Parent?.CanExit(m) ?? true;
 		}
 
 		public virtual void OnEnter(Mobile m)
@@ -1272,22 +1265,12 @@ namespace Server
 
 		public virtual bool CanVehicleEnter(Item vehicle)
 		{
-			if (Parent != null)
-			{
-				return Parent.CanVehicleEnter(vehicle);
-			}
-
-			return true;
+			return Parent?.CanVehicleEnter(vehicle) ?? true;
 		}
 
 		public virtual bool CanVehicleExit(Item vehicle)
 		{
-			if (Parent != null)
-			{
-				return Parent.CanVehicleExit(vehicle);
-			}
-
-			return true;
+			return Parent?.CanVehicleExit(vehicle) ?? true;
 		}
 
 		public virtual void OnVehicleEnter(Item vehicle)
@@ -1300,147 +1283,77 @@ namespace Server
 
 		public virtual Type GetResource(Mobile from, IHarvestTool tool, Map map, Point3D loc, IHarvestSystem harvest, Type resource)
 		{
-			if (Parent != null)
-			{
-				return Parent.GetResource(from, tool, map, loc, harvest, resource);
-			}
-
-			return resource;
+			return Parent?.GetResource(from, tool, map, loc, harvest, resource) ?? resource;
 		}
 
 		public virtual bool CanUseStuckMenu(Mobile m)
 		{
-			if (Parent != null)
-			{
-				return Parent.CanUseStuckMenu(m);
-			}
-
-			return true;
+			return Parent?.CanUseStuckMenu(m) ?? true;
 		}
 
 		public virtual void OnAggressed(Mobile aggressor, Mobile aggressed, bool criminal)
 		{
-			if (Parent != null)
-			{
-				Parent.OnAggressed(aggressor, aggressed, criminal);
-			}
+			Parent?.OnAggressed(aggressor, aggressed, criminal);
 		}
 
 		public virtual void OnDidHarmful(Mobile harmer, Mobile harmed)
 		{
-			if (Parent != null)
-			{
-				Parent.OnDidHarmful(harmer, harmed);
-			}
+			Parent?.OnDidHarmful(harmer, harmed);
 		}
 
 		public virtual void OnGotHarmful(Mobile harmer, Mobile harmed)
 		{
-			if (Parent != null)
-			{
-				Parent.OnGotHarmful(harmer, harmed);
-			}
+			Parent?.OnGotHarmful(harmer, harmed);
 		}
 
 		public virtual void OnLocationChanged(Mobile m, Point3D oldLocation)
 		{
-			if (Parent != null)
-			{
-				Parent.OnLocationChanged(m, oldLocation);
-			}
+			Parent?.OnLocationChanged(m, oldLocation);
 		}
 
 		public virtual void OnVehicleLocationChanged(Item vehicle, Point3D oldLocation)
 		{
-			if (Parent != null)
-			{
-				Parent.OnVehicleLocationChanged(vehicle, oldLocation);
-			}
+			Parent?.OnVehicleLocationChanged(vehicle, oldLocation);
 		}
 
 		public virtual bool OnTarget(Mobile m, Target t, object o)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnTarget(m, t, o);
-			}
-
-			return true;
+			return Parent?.OnTarget(m, t, o) ?? true;
 		}
 
 		public virtual bool OnCombatantChange(Mobile m, Mobile Old, Mobile New)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnCombatantChange(m, Old, New);
-			}
-
-			return true;
+			return Parent?.OnCombatantChange(m, Old, New) ?? true;
 		}
 
 		public virtual bool AllowHousing(Mobile from, Point3D p)
 		{
-			if (Parent != null)
-			{
-				return Parent.AllowHousing(from, p);
-			}
-
-			return true;
+			return Parent?.AllowHousing(from, p) ?? true;
 		}
 
 		public virtual bool AllowVehicles(Mobile from, Point3D p)
 		{
-			if (Parent != null)
-			{
-				return Parent.AllowVehicles(from, p);
-			}
-
-			return true;
+			return Parent?.AllowVehicles(from, p) ?? true;
 		}
 
 		public virtual bool SendInaccessibleMessage(Item item, Mobile from)
 		{
-			if (Parent != null)
-			{
-				return Parent.SendInaccessibleMessage(item, from);
-			}
-
-			return false;
+			return Parent?.SendInaccessibleMessage(item, from) ?? false;
 		}
 
 		public virtual bool CheckAccessibility(Item item, Mobile from)
 		{
-			if (Parent != null)
-			{
-				return Parent.CheckAccessibility(item, from);
-			}
-
-			return true;
+			return Parent?.CheckAccessibility(item, from) ?? true;
 		}
 
 		public virtual bool OnDecay(Item item)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnDecay(item);
-			}
-
-			return true;
+			return Parent?.OnDecay(item) ?? true;
 		}
 
 		public virtual bool AllowHarmful(Mobile from, Mobile target)
 		{
-			if (Parent != null)
-			{
-				return Parent.AllowHarmful(from, target);
-			}
-
-			if (Mobile.AllowHarmfulHandler != null)
-			{
-				return Mobile.AllowHarmfulHandler(from, target);
-			}
-
-			return true;
+			return Parent?.AllowHarmful(from, target) ?? Mobile.AllowHarmfulHandler?.Invoke(from, target) ?? true;
 		}
 
 		public virtual void OnCriminalAction(Mobile m, bool message)
@@ -1457,178 +1370,92 @@ namespace Server
 
 		public virtual bool AllowBeneficial(Mobile from, Mobile target)
 		{
-			if (Parent != null)
-			{
-				return Parent.AllowBeneficial(from, target);
-			}
-
-			if (Mobile.AllowBeneficialHandler != null)
-			{
-				return Mobile.AllowBeneficialHandler(from, target);
-			}
-
-			return true;
+			return Parent?.AllowBeneficial(from, target) ?? Mobile.AllowBeneficialHandler?.Invoke(from, target) ?? true;
 		}
 
 		public virtual void OnBeneficialAction(Mobile helper, Mobile target)
 		{
-			if (Parent != null)
-			{
-				Parent.OnBeneficialAction(helper, target);
-			}
+			Parent?.OnBeneficialAction(helper, target);
 		}
 
 		public virtual void OnGotBeneficialAction(Mobile helper, Mobile target)
 		{
-			if (Parent != null)
-			{
-				Parent.OnGotBeneficialAction(helper, target);
-			}
+			Parent?.OnGotBeneficialAction(helper, target);
 		}
 
 		public virtual void SpellDamageScalar(Mobile caster, Mobile target, ref double damage)
 		{
-			if (Parent != null)
-			{
-				Parent.SpellDamageScalar(caster, target, ref damage);
-			}
+			Parent?.SpellDamageScalar(caster, target, ref damage);
 		}
 
 		public virtual void OnSpeech(SpeechEventArgs args)
 		{
-			if (Parent != null)
-			{
-				Parent.OnSpeech(args);
-			}
+			Parent?.OnSpeech(args);
 		}
 
 		public virtual bool OnSkillUse(Mobile m, int Skill)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnSkillUse(m, Skill);
-			}
-
-			return true;
+			return Parent?.OnSkillUse(m, Skill) ?? true;
 		}
 
 		public virtual bool OnBeginSpellCast(Mobile m, ISpell s)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnBeginSpellCast(m, s);
-			}
-
-			return true;
+			return Parent?.OnBeginSpellCast(m, s) ?? true;
 		}
 
 		public virtual void OnSpellCast(Mobile m, ISpell s)
 		{
-			if (Parent != null)
-			{
-				Parent.OnSpellCast(m, s);
-			}
+			Parent?.OnSpellCast(m, s);
 		}
 
 		public virtual bool OnResurrect(Mobile m)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnResurrect(m);
-			}
-
-			return true;
+			return Parent?.OnResurrect(m) ?? true;
 		}
 
 		public virtual bool OnBeforeDeath(Mobile m)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnBeforeDeath(m);
-			}
-
-			return true;
+			return Parent?.OnBeforeDeath(m) ?? true;
 		}
 
 		public virtual void OnDeath(Mobile m)
 		{
-			if (Parent != null)
-			{
-				Parent.OnDeath(m);
-			}
+			Parent?.OnDeath(m);
 		}
 
 		public virtual bool OnDamage(Mobile m, ref int Damage)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnDamage(m, ref Damage);
-			}
-
-			return true;
+			return Parent?.OnDamage(m, ref Damage) ?? true;
 		}
 
 		public virtual bool OnHeal(Mobile m, ref int Heal)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnHeal(m, ref Heal);
-			}
-
-			return true;
+			return Parent?.OnHeal(m, ref Heal) ?? true;
 		}
 
 		public virtual bool OnDoubleClick(Mobile m, object o)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnDoubleClick(m, o);
-			}
-
-			return true;
+			return Parent?.OnDoubleClick(m, o) ?? true;
 		}
 
 		public virtual bool OnSingleClick(Mobile m, object o)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnSingleClick(m, o);
-			}
-
-			return true;
+			return Parent?.OnSingleClick(m, o) ?? true;
 		}
 
 		public virtual bool AllowSpawn()
 		{
-			if (Parent != null)
-			{
-				return Parent.AllowSpawn();
-			}
-
-			return true;
+			return Parent?.AllowSpawn() ?? true;
 		}
 
 		public virtual void AlterLightLevel(Mobile m, ref int global, ref int personal)
 		{
-			if (Parent != null)
-			{
-				Parent.AlterLightLevel(m, ref global, ref personal);
-			}
+			Parent?.AlterLightLevel(m, ref global, ref personal);
 		}
 
 		public virtual TimeSpan GetLogoutDelay(Mobile m)
 		{
-			if (Parent != null)
-			{
-				return Parent.GetLogoutDelay(m);
-			}
-
-			if (m.AccessLevel >= AccessLevel.Counselor)
-			{
-				return StaffLogoutDelay;
-			}
-
-			return DefaultLogoutDelay;
+			return Parent?.GetLogoutDelay(m) ?? (m.AccessLevel >= AccessLevel.Counselor ? StaffLogoutDelay : DefaultLogoutDelay);
 		}
 
 		public void PlayMusic(Mobile m)
@@ -1639,19 +1466,14 @@ namespace Server
 
 				if (OnPlayMusic(m, ref music))
 				{
-					m.Send(new PlayMusic(music));
+					_ = m.Send(new PlayMusic(music));
 				}
 			}
 		}
 
 		protected virtual bool OnPlayMusic(Mobile m, ref MusicName music)
 		{
-			if (Parent != null)
-			{
-				return Parent.OnPlayMusic(m, ref music);
-			}
-
-			return true;
+			return Parent?.OnPlayMusic(m, ref music) ?? true;
 		}
 
 		public static bool CanTransition(Mobile m, Point3D location, Map map)
@@ -1967,7 +1789,7 @@ namespace Server
 		{
 			Children = new();
 
-			Id = m_NextID++;
+			Id = NextID++;
 
 			Dynamic = false;
 
@@ -2113,7 +1935,7 @@ namespace Server
 			}
 			else if (oldValue != null)
 			{
-				list.Remove(oldValue);
+				_ = list.Remove(oldValue);
 			}
 			else if (newValue != null)
 			{
@@ -2133,7 +1955,7 @@ namespace Server
 
 		public void OnLeave(Item item)
 		{
-			Items.Remove(item);
+			_ = Items.Remove(item);
 		}
 
 		public void OnEnter(Mobile mob)
@@ -2158,16 +1980,16 @@ namespace Server
 
 		public void OnLeave(Mobile mob)
 		{
-			Mobiles.Remove(mob);
+			_ = Mobiles.Remove(mob);
 
 			if (mob.NetState != null)
 			{
-				Clients.Remove(mob.NetState);
+				_ = Clients.Remove(mob.NetState);
 			}
 
 			if (mob.Player && Players != null)
 			{
-				Players.Remove(mob);
+				_ = Players.Remove(mob);
 
 				if (Players.Count == 0)
 				{
@@ -2217,7 +2039,7 @@ namespace Server
 
 		public void OnMultiLeave(BaseMulti multi)
 		{
-			Multis.Remove(multi);
+			_ = Multis.Remove(multi);
 		}
 
 		public void Activate()
@@ -2279,7 +2101,7 @@ namespace Server
 				}
 				else
 				{
-					if (line == "}" || line == "}," || line == "};")
+					if (line is "}" or "}," or "};")
 					{
 						--tabs;
 					}
@@ -2439,10 +2261,13 @@ namespace Server
 							firstMap = false;
 						}
 					}
+
 					write(ref indent, $"}};");
 				}
+
 				write(ref indent, $"}}");
 			}
+
 			write(ref indent, $"}}");
 
 			fw.Flush();
@@ -2465,7 +2290,7 @@ namespace Server
 
 		public void Add(RegionDefinition child)
 		{
-			Children.Add(child);
+			_ = Children.Add(child);
 		}
 
 		public void Add(string prop, object value)
@@ -2475,7 +2300,7 @@ namespace Server
 
 		public void Add(int x, int y, int z, int width, int height, int depth)
 		{
-			Bounds.Add(new Rectangle3D(x, y, z, width, height, depth));
+			_ = Bounds.Add(new Rectangle3D(x, y, z, width, height, depth));
 		}
 
 		public IEnumerator<object> GetEnumerator()

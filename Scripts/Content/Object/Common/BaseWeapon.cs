@@ -1,8 +1,5 @@
-﻿using Server;
-using Server.Commands;
-using Server.Engines.Craft;
+﻿using Server.Engines.Craft;
 using Server.Factions;
-using Server.Items;
 using Server.Mobiles;
 using Server.Network;
 using Server.Spells;
@@ -61,8 +58,8 @@ namespace Server.Items
 		Indestructible
 	}
 
-	public abstract class BaseWeapon : Item, IWeapon, IFactionItem, ICraftable, ISlayer, IDurability, IQuality
-	{
+	public abstract class BaseWeapon : Item, IWeapon, IFactionItem, ICraftable, ISlayer, IDurability, IQuality, IEngraved
+    {
 		private string m_EngravedText;
 
 		[CommandProperty(AccessLevel.GameMaster)]
@@ -3746,25 +3743,10 @@ namespace Server.Items
 				list.Add(Name);
 			}
 
-			/*
-			 * Want to move this to the engraving tool, let the non-harmful 
-			 * formatting show, and remove CLILOCs embedded: more like OSI
-			 * did with the books that had markup, etc.
-			 * 
-			 * This will have a negative effect on a few event things imgame 
-			 * as is.
-			 * 
-			 * If we cant find a more OSI-ish way to clean it up, we can 
-			 * easily put this back, and use it in the deserialize
-			 * method and engraving tool, to make it perm cleaned up.
-			 */
-
-			if (!String.IsNullOrEmpty(m_EngravedText))
+			if (!String.IsNullOrEmpty(EngravedText))
 			{
-				list.Add(1062613, m_EngravedText);
+				list.Add(1062613, EngravedText);
 			}
-
-			/* list.Add( 1062613, Utility.FixHtml( m_EngravedText ) ); */
 		}
 
 		public override bool AllowEquipedCast(Mobile from)

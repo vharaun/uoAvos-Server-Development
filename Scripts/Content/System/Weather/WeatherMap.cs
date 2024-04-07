@@ -9,23 +9,16 @@ namespace Server.Engines.Weather
 		[Constructable]
 		public WeatherMap()
 		{
-			SetDisplay(0, 0, 5119, 4095, 400, 400);
+			SetDisplay(Map.Felucca, 400, 400);
 		}
 
-		public override void OnDoubleClick(Mobile from)
+		public override void DisplayTo(Mobile from)
 		{
-			var facet = from.Map;
-
-			if (facet == null)
-			{
-				return;
-			}
-
-			var list = Weather.GetWeatherList(facet);
+			SetDisplay(from.Map, 400, 400);
 
 			ClearPins();
 
-			foreach (var w in list)
+			foreach (var w in Weather.GetWeatherList(from.Map))
 			{
 				foreach (var a in w.Area)
 				{
@@ -36,7 +29,7 @@ namespace Server.Engines.Weather
 				}
 			}
 
-			base.OnDoubleClick(from);
+			base.DisplayTo(from);
 		}
 
 		public WeatherMap(Serial serial) : base(serial)

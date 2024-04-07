@@ -1,5 +1,6 @@
 ﻿#define AVOS_MAPS
 
+using System;
 using System.Collections.Generic;
 
 namespace Server.Engines.Facet
@@ -98,7 +99,8 @@ namespace Server.Engines.Facet
 			RegisterMap(0x7F, internalBounds, internalBounds, new(internalBounds), 1, "Internal", MapRules.Internal);
 		}
 
-		public static void Configure()
+		[CallPriority(Int64.MinValue)]
+		public static void Prepare()
 		{
 			EventSink.ServerList += EventSink_OnServerList;
 			EventSink.Login += EventSink_Login;

@@ -11,6 +11,7 @@ namespace Server
 
 		SpellName ID => Info.ID;
 		SpellSchool School => Info.School;
+		SpellCircle Circle => Info.Circle;
 
 		string Name => Info.Name;
 		string Mantra => Info.Mantra;
@@ -970,21 +971,21 @@ namespace Server
 		public IEnumerable<Type> ReagentTypes => Reagents.Types;
 		public IEnumerable<int> ReagentAmounts => Reagents.Amounts;
 
-		private bool? m_IsValid;
+		public bool IsDynamic => !SpellRegistry.IsRegistered(this);
 
-		public bool IsValid => m_IsValid ??= Type != null && ID != SpellName.Invalid && School != SpellSchool.Invalid;
+		public bool IsSpecial => Type?.IsAssignableTo(typeof(ISpecialMove)) == true;
 
-		private bool? m_IsSpecial;
-
-		public bool IsSpecial => m_IsSpecial ??= Type != null && !Type.IsAssignableTo(typeof(ISpell));
+		public bool IsValid => IsDynamic || IsSpecial || (Type != null && ID != SpellName.Invalid && School != SpellSchool.Invalid);
 
 		public SpellInfo(Type type)
 			: this(type, SpellName.Invalid, SpellSchool.Invalid)
-		{ }
+		{
+		}
 
         public SpellInfo(Type type, SpellName id, SpellSchool school)
 			: this(type, id, school, SpellCircle.Invalid)
-		{ }
+		{
+		}
 
 		public SpellInfo(Type type, SpellName id, SpellSchool school, SpellCircle circle)
 		{
@@ -1245,6 +1246,21 @@ namespace Server
 
 		public static IReadOnlyCollection<SpellName> SpecialIds => m_Specials.Keys;
 		public static IReadOnlyCollection<ISpecialMove> SpecialMoves => m_Specials.Values;
+
+		public static bool IsRegistered(SpellInfo info)
+		{
+			if (info.Type == null)
+			{
+				return false;
+			}
+
+			if (info.ID == SpellName.Invalid)
+			{
+				return m_Types.ContainsKey(info.Type);
+			}
+
+			return m_Info.ContainsKey(info.ID);
+		}
 
 		public static void Register(SpellInfo info)
 		{

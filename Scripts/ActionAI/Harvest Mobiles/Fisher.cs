@@ -191,8 +191,7 @@ namespace Server.Mobiles
         private WayPoint m_waypointFirst;
         private List<Tuple<Point3D, Direction>> m_MobilePath;
 
-        public override HarvestDefinition harvestDefinition { get { return Fishing.System.Definition; } }
-        public override HarvestSystem harvestSystem { get { return Fishing.System; } }
+        public override IHarvestSystem Harvest { get { return Fishing.System; } }
 
         public override bool PlayerRangeSensitive { get { return false; } }
 
@@ -446,85 +445,16 @@ namespace Server.Mobiles
         }
 
         public override void OnThink()
-        {
-            if (!Alive && Deleted)
-            {
-                return;
-            }
+		{
+			base.OnThink();
 
-            if (m_MobilePath == null || m_waypointFirst == null)
-            {
-                return;
-            }
-
-
-
-            if (Alive && !Deleted)
+			if (Alive && !Deleted)
             {
                 if (m_waypointFirst.Location == Home)
                 {
                     CurrentSpeed = 2.0;
 
                     Timer.DelayCall(TimeSpan.FromMinutes(5.0), MoveWayPoint);
-                }
-
-                if (m_waypointFirst != null && m_waypointFirst.Location != Home && (m_waypointFirst.X == Location.X & m_waypointFirst.Y == Location.Y))
-                {
-                    CantWalk = true;
-                    CurrentSpeed = 2.0;
-
-                    Direction = m_MobilePath[m_Index].Item2;
-
-                    if (harvestDefinition != Fishing.System.Definition)
-                    {
-                        PlaySound(Utility.RandomList(harvestDefinition.EffectSounds));
-                    }
-
-
-                    Point3D loc = new Point3D(this.X, this.Y, this.Z);
-
-                    switch (Direction)
-                    {
-                        case Direction.North:
-                            loc = new Point3D(this.X, this.Y - 2, this.Z - 2);
-                            break;
-                        case Direction.East:
-                            loc = new Point3D(this.X + 2, this.Y, this.Z - 2);
-                            break;
-                        case Direction.South:
-                            loc = new Point3D(this.X, this.Y + 2, this.Z - 2);
-                            break;
-                        case Direction.West:
-                            loc = new Point3D(this.X - 2, this.Y, this.Z - 2);
-                            break;
-                        case Direction.Right: // NorthEast = Right
-                            loc = new Point3D(this.X - 2, this.Y + 2, this.Z - 2);
-                            break;
-                        case Direction.Down: // SouthEast = Down
-                            loc = new Point3D(this.X - 2, this.Y - 2, this.Z - 2);
-                            break;
-                        case Direction.Left: // SouthWest = Left
-                            loc = new Point3D(this.X + 2, this.Y - 2, this.Z - 2);
-                            break;
-                        case Direction.Up: // NorthWest = Up
-                            loc = new Point3D(this.X + 2, this.Y + 2, this.Z - 2);
-                            break;
-                    }
-
-                    Animate(11, 5, 1, true, false, 0);
-
-                    Timer.DelayCall(TimeSpan.FromSeconds(0.7),
-                        delegate
-                        {
-                            Effects.SendLocationEffect(loc, this.Map, 0x352D, 16, 4); //water splash
-                            Effects.PlaySound(loc, this.Map, 0x364);
-                        });
-
-                }
-                else
-                {
-                    CurrentSpeed = 0.2;
-                    CantWalk = false;
                 }
             }
         }

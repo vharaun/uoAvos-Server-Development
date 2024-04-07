@@ -1,89 +1,29 @@
-These are the only edits needed to make ActionAI work. The rest is drag-and-drop.
+﻿
+    ____              __  ______       ____________    _________________________________________________
+   / __ \__  ______  / / / / __ \     / ____/ ____/    Server Acknowledgement: © The RunUO Software Team
+  / /_/ / / / / __ \/ / / / / / /    / /   / __/         RunUO Initialized On: 05/01/2002 (mm/dd/yyyy)
+ / _, _/ /_/ / / / / /_/ / /_/ /    / /___/ /___       *************************************************
+/_/ |_|\__,_/_/ /_/\____/\____/_____\____/_____/        This file is maintained by: www.uoavocation.net
+                                                 
+________________________________________________________________________________________________________
 
+Original Author
 
-////////////////
-/*** FIRST ***/
-//////////////
+███████╗███████╗██████╗░░█████╗░██████╗░░█████╗░░██╗░░░░░░░██╗███╗░░██╗███████╗██████╗░
+╚════██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔══██╗░██║░░██╗░░██║████╗░██║██╔════╝██╔══██╗
+░░███╔═╝█████╗░░██████╔╝██║░░██║██║░░██║██║░░██║░╚██╗████╗██╔╝██╔██╗██║█████╗░░██║░░██║
+██╔══╝░░██╔══╝░░██╔══██╗██║░░██║██║░░██║██║░░██║░░████╔═████║░██║╚████║██╔══╝░░██║░░██║
+███████╗███████╗██║░░██║╚█████╔╝██████╔╝╚█████╔╝░░╚██╔╝░╚██╔╝░██║░╚███║███████╗██████╔╝
+╚══════╝╚══════╝╚═╝░░╚═╝░╚════╝░╚═════╝░░╚════╝░░░░╚═╝░░░╚═╝░░╚═╝░░╚══╝╚══════╝╚═════╝░
+2020
 
-In BaseCreature.cs, find the method ChangeAIType
+Author Comments
 
-Between case AIType.AI_Predator & case AIType.AI_Thief:
-add this new case
+[i] "AI_ActionAI" should never be assigned to any mobile that wasn't designed for the ActionAI mobile system; 
+    doing so could cause your server to crash unexpectedly (*you have been warned*)
 
-                #region ActionAI
-				case AIType.AI_ActionAI:
-					m_AI = new ActionAI(this);
-					break;
-				#endregion 
-
-resulting code in ChangeAIType should look like this now
-
-            switch ( NewAI )
-			{
-				case AIType.AI_Melee:
-					m_AI = new MeleeAI(this);
-					break;
-				case AIType.AI_Animal:
-					m_AI = new AnimalAI(this);
-					break;
-				case AIType.AI_Berserk:
-					m_AI = new BerserkAI(this);
-					break;
-				case AIType.AI_Archer:
-					m_AI = new ArcherAI(this);
-					break;
-				case AIType.AI_Healer:
-					m_AI = new HealerAI(this);
-					break;
-				case AIType.AI_Vendor:
-					m_AI = new VendorAI(this);
-					break;
-				case AIType.AI_Mage:
-					m_AI = new MageAI(this);
-					break;
-				case AIType.AI_Predator:
-					//m_AI = new PredatorAI(this);
-					m_AI = new MeleeAI(this);
-					break;
-				
-				#region ActionAI
-				case AIType.AI_ActionAI:
-					m_AI = new ActionAI(this);
-					break;
-				#endregion 
-				
-				case AIType.AI_Thief:
-					m_AI = new ThiefAI(this);
-					break;
-			}
-///////////////
-/*** NEXT ***/
-/////////////
-
-In BaseAI.cs find the enum AIType and add the section below, again between AI.Predator and AI_Thief
-
-        #region ActionAI
-		AI_ActionAI,
-		#endregion
-
-Resulting code should look like this
-
-	public enum AIType
-	{
-		AI_Use_Default,
-		AI_Melee,
-		AI_Animal,
-		AI_Archer,
-		AI_Healer,
-		AI_Vendor,
-		AI_Mage,
-		AI_Berserk,
-		AI_Predator,
-
-		#region ActionAI
-		AI_ActionAI,
-		#endregion
-		
-		AI_Thief
-		
-	}
+>>> [✔] Added ActionAI.cs
+         • this new AIType brings NPCs to life by making them do the jobs they chose for their 
+           profession; that means fishers (fish), lumberjacks (chop trees), miners (dig and excavate).
+         • in addition this new AI brings a new Pirate system and introduces wandering Caravans;
+           these caravans are vendors who walk from city to city and sell goods to players

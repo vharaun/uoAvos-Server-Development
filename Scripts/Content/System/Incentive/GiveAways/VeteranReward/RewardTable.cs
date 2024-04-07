@@ -194,7 +194,7 @@ namespace Server.Engines.VeteranRewards
 
                 new RewardList( RewardInterval, 8, new RewardEntry[]
 					{
-						new RewardEntry( miscellaneous, 1076158, typeof( WeaponEngravingTool ), Expansion.ML )
+						new RewardEntry( miscellaneous, 1076158, typeof( EngravingTool ), Expansion.ML )
 					} ),
 
                 #endregion

@@ -379,7 +379,7 @@ namespace Server.Engines.Harvest
 
 		#region Tile lists
 
-		private static readonly int[] m_MountainAndCaveTiles =
+		private static readonly HarvestID[] m_MountainAndCaveTiles =
 		{
 			220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
 			230, 231, 236, 237, 238, 239, 240, 241, 242, 243,
@@ -418,7 +418,7 @@ namespace Server.Engines.Harvest
 			0x4549, 0x454A, 0x454B, 0x454C, 0x454D, 0x454E, 0x454F
 		};
 
-		private static readonly int[] m_SandTiles =
+		private static readonly HarvestID[] m_SandTiles =
 		{
 			22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 			32, 33, 34, 35, 36, 37, 38, 39, 40, 41,

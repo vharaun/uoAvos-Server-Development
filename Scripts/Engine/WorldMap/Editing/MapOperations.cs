@@ -312,7 +312,10 @@ namespace Server.Engine.Facet
 
 			Array.Resize(ref block, block.Length + 1);
 
-			block[block.Length - 1].Set((ushort)m_NewID, 0, 0, (sbyte)m_NewAltitude, (ushort)m_Hue);
+			var x = block[block.Length - 1].X;
+			var y = block[block.Length - 1].Y;
+
+			block[block.Length - 1].Set((ushort)m_NewID, x, y, (sbyte)m_NewAltitude, (ushort)m_Hue);
 
 			m_Block[Location.X & 0x7][Location.Y & 0x7] = block;
 
