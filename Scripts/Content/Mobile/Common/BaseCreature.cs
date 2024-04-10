@@ -190,7 +190,7 @@ namespace Server.Mobiles
 
 				m_Formation?.Add(this);
 
-				if (!World.Loading)
+				if (World.Loaded)
 				{
 					OnFormationChange(old);
 				}
@@ -335,11 +335,14 @@ namespace Server.Mobiles
 			set => m_IsPrisoner = value;
 		}
 
-		protected DateTime SummonEnd
+		[CommandProperty(AccessLevel.GameMaster)]
+		public DateTime SummonEnd
 		{
 			get => m_SummonEnd;
 			set => m_SummonEnd = value;
 		}
+
+		public virtual IHarvestSystem Harvest => null;
 
 		public virtual Faction FactionAllegiance => null;
 		public virtual int FactionSilverWorth => 30;
@@ -437,6 +440,9 @@ namespace Server.Mobiles
 				return TimeSpan.Zero;
 			}
 		}
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public bool HasDeleteTimer => m_DeleteTimer?.Running == true;
 
 		protected virtual bool OnBeginDeleteTimer(ref TimeSpan delay)
 		{
@@ -2144,10 +2150,6 @@ namespace Server.Mobiles
 					}
 				}
 			}
-			else
-			{
-				m_iRangeHome = 0;
-			}
 
 			if (version >= 2)
 			{
@@ -2698,6 +2700,14 @@ namespace Server.Mobiles
 		}
 
 		public virtual void OnActionBackoff()
+		{
+		}
+
+		public virtual void OnActionHarvest()
+		{
+		}
+
+		public virtual void OnActionOffload()
 		{
 		}
 

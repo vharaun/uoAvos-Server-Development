@@ -221,6 +221,8 @@ namespace Server
 
 		public readonly ushort X, Y, Width, Height;
 
+		public readonly Point2D Center => _Bounds.Center;
+
 		private MapBounds(Rectangle2D bounds)
 		{
 			X = (ushort)Math.Clamp(bounds.X, UInt16.MinValue, UInt16.MaxValue);

@@ -1,13 +1,8 @@
-﻿using Server.Engine.Facet.Module.LumberHarvest;
-using Server.Engines.Harvest;
-
-namespace Server.Items
+﻿namespace Server.Items
 {
-	[FlipableAttribute(0xF43, 0xF44)]
+	[Flipable(0xF43, 0xF44)]
 	public class Hatchet : BaseAxe
 	{
-		// public override HarvestSystem HarvestSystem => FacetModule_Lumberjacking.System;
-		// public override HarvestSystem HarvestSystem => Lumberjacking.System;
 		public override WeaponAbility PrimaryAbility => WeaponAbility.ArmorIgnore;
 		public override WeaponAbility SecondaryAbility => WeaponAbility.Disarm;
 

@@ -11,11 +11,11 @@ namespace Server.Items
 {
 	public static class CurrencyUtility
 	{
-		public static SelectCurrencyGump BeginSelectCurrency(Mobile player, bool insertGold, IEnumerable<TypeAmount> currencies, SelectCurrencyCallback callback)
+		public static bool BeginSelectCurrency(Mobile player, bool insertGold, IEnumerable<TypeAmount> currencies, SelectCurrencyCallback callback)
 		{
-			if (player?.Deleted != false || !player.Player)
+			if (player?.Deleted != false || !player.Player || currencies == null || callback == null)
 			{
-				return null;
+				return false;
 			}
 
 			var gump = new SelectCurrencyGump(player, insertGold, currencies, callback);
@@ -24,15 +24,22 @@ namespace Server.Items
 			{
 				if (gump.EntryCount == 1)
 				{
-					callback?.Invoke(player, gump.EntryAmounts.First());
+					var entry = gump.EntryAmounts.FirstOrDefault();
+
+					if (entry.IsValid && entry.IsActive)
+					{
+						callback.Invoke(player, entry);
+
+						return true;
+					}
 				}
 				else if (player.SendGump(gump))
 				{
-					return gump;
+					return true;
 				}
 			}
 
-			return null;
+			return false;
 		}
 
 		public static bool ConvertCurrencyToGold(TypeAmount sourceCurrency, int sourceAmount, out int goldAmount)
@@ -398,7 +405,21 @@ namespace Server.Items
 
 		private readonly HashSet<TypeAmount> m_Currencies;
 
-		public IEnumerable<TypeAmount> EntryAmounts => m_Currencies.AsEnumerable();
+		public IEnumerable<TypeAmount> EntryAmounts 
+		{
+			get 
+			{
+				if (m_InsertGold)
+				{
+					yield return Currencies.GoldEntry;
+				}
+
+				foreach (var entry in m_Currencies)
+				{
+					yield return entry;
+				}
+			} 
+		}
 
 		public int EntryCount => m_Currencies.Count + (m_InsertGold ? 1 : 0);
 

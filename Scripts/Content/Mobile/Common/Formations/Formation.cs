@@ -79,12 +79,7 @@ namespace Server.Mobiles
 
 			if (Array.IndexOf(Types, type) >= 0)
 			{
-				try
-				{
-					formation = (Formation)Activator.CreateInstance(type);
-				}
-				catch
-				{ }
+				formation = Utility.CreateInstance<Formation>(type);
 
 				if (formation != null && troops != null)
 				{
@@ -145,37 +140,16 @@ namespace Server.Mobiles
 		{
 			writer.WriteEncodedInt(0);
 
-			using var stream = new MemoryStream();
-			using var subwriter = new BinaryFileWriter(stream, true);
-
 			writer.WriteEncodedInt(Instances.Count);
 
 			foreach (var formation in Instances)
 			{
-				byte[] data;
-
-				try
+				Persistence.SerializeBlock(writer, w =>
 				{
-					_ = subwriter.Seek(0, SeekOrigin.Begin);
+					w.WriteObjectType(formation);
 
-					subwriter.WriteObjectType(formation);
-
-					formation.Serialize(subwriter);
-
-					subwriter.Flush();
-
-					stream.SetLength(stream.Position);
-
-					_ = stream.Seek(0, SeekOrigin.Begin);
-
-					data = stream.ToArray();
-				}
-				catch
-				{
-					data = null;
-				}
-
-				writer.Write(data);
+					formation.Serialize(w);
+				});
 			}
 		}
 
@@ -188,34 +162,18 @@ namespace Server.Mobiles
 		{
 			_ = reader.ReadEncodedInt();
 
-			using var stream = new MemoryStream();
-			using var subreader = new BinaryFileReader(new BinaryReader(stream));
-
 			var count = reader.ReadEncodedInt();
 
 			while (--count >= 0)
 			{
-				var data = reader.ReadBytes();
-
-				if (data != null)
+				Persistence.DeserializeBlock(reader, r =>
 				{
-					try
-					{
-						_ = stream.Seek(0, SeekOrigin.Begin);
+					var type = r.ReadObjectType();
 
-						stream.Write(data);
+					var formation = CreateInstance(type);
 
-						_ = subreader.Seek(0, SeekOrigin.Begin);
-
-						var type = subreader.ReadObjectType();
-
-						var formation = (Formation)Activator.CreateInstance(type);
-
-						formation.Deserialize(subreader);
-					}
-					catch
-					{ }
-				}
+					formation?.Deserialize(r);
+				});
 			}
 		}
 
@@ -259,6 +217,15 @@ namespace Server.Mobiles
 		public Point3D Location => Commander?.Deleted == false ? Commander.Location : Point3D.Zero;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
+		public int X => Commander?.Deleted == false ? Commander.X : 0;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Y => Commander?.Deleted == false ? Commander.Y : 0;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
+		public int Z => Commander?.Deleted == false ? Commander.Z : 0;
+
+		[CommandProperty(AccessLevel.Counselor, true)]
 		public Map Map => Commander?.Deleted == false ? Commander.Map : Map.Internal;
 
 		[CommandProperty(AccessLevel.Counselor, true)]
@@ -271,7 +238,7 @@ namespace Server.Mobiles
 		public int Range { get; private set; }
 
 		[CommandProperty(AccessLevel.Counselor, AccessLevel.GameMaster)]
-		public int Separation { get; set; }
+		public int Separation { get; set; } = 1;
 
 		private int m_CommanderHue = 0x22;
 
@@ -309,7 +276,6 @@ namespace Server.Mobiles
 
 		public Formation()
 		{
-			Separation = 1;
 		}
 
 		public override string ToString()
@@ -341,12 +307,12 @@ namespace Server.Mobiles
 				_ = Instances.Add(this);
 			}
 
-			if (c.Formation != this)
-			{
-				c.Formation = this;
-			}
+			c.Formation = this;
 
-			Commander = GetStrongest(Commander, c);
+			if (IsEligibleCommander(c))
+			{
+				Commander = GetStrongest(Commander, c);
+			}
 		}
 
 		public void Remove(BaseCreature c)
@@ -477,7 +443,7 @@ namespace Server.Mobiles
 		{
 			Disbanding = true;
 
-			foreach (var troop in Troops)
+			foreach (var troop in Troops.ToArray())
 			{
 				Remove(troop);
 			}

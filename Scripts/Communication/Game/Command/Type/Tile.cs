@@ -386,10 +386,24 @@ namespace Server.Commands
 							var pack = packs[i];
 							pack.DropItem((Item)built);
 						}
-						else if (built is Mobile)
+						else if (built is ISpawnable spawn)
 						{
-							var m = (Mobile)built;
-							m.MoveToWorld(new Point3D(start.X, start.Y, start.Z), map);
+							spawn.OnBeforeSpawn(start, map);
+
+							if (!spawn.Deleted)
+							{
+								spawn.MoveToWorld(start, map);
+
+								if (!spawn.Deleted)
+								{
+									spawn.OnAfterSpawn();
+								}
+							}
+						}
+						else
+						{
+							built.Map = map;
+							built.Location = start;
 						}
 					}
 				}
@@ -415,15 +429,26 @@ namespace Server.Commands
 
 							sb.AppendFormat("0x{0:X}; ", built.Serial.Value);
 
-							if (built is Item)
+							if (built is ISpawnable spawn)
 							{
-								var item = (Item)built;
-								item.MoveToWorld(new Point3D(x, y, z), map);
+								var p = new Point3D(x, y, z);
+
+								spawn.OnBeforeSpawn(p, map);
+
+								if (!spawn.Deleted)
+								{
+									spawn.MoveToWorld(p, map);
+
+									if (!spawn.Deleted)
+									{
+										spawn.OnAfterSpawn();
+									}
+								}
 							}
-							else if (built is Mobile)
+							else
 							{
-								var m = (Mobile)built;
-								m.MoveToWorld(new Point3D(x, y, z), map);
+								built.Map = map;
+								built.Location = new Point3D(x, y, z);
 							}
 						}
 					}

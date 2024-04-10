@@ -26,11 +26,11 @@ namespace Server.Mobiles
 				++range;
 			}
 			
-			var a = Angle.FromDirection((Direction)(((int)Facing + 4) % 8));
+			var a = Angle2D.FromDirection((Direction)(((int)Facing + 4) % 8));
 
 			var p1 = new Point2D(Location);
-			var p2 = Angle.GetPoint2D(p1.X, p1.Y, a - 120, range);
-			var p3 = Angle.GetPoint2D(p1.X, p1.Y, a + 120, range);
+			var p2 = Angle2D.GetPoint2D(p1.X, p1.Y, a - 120, range);
+			var p3 = Angle2D.GetPoint2D(p1.X, p1.Y, a + 120, range);
 
 			var triangle = new Poly2D(p1, p2, p3);
 

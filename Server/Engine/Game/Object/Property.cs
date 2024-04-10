@@ -1710,7 +1710,7 @@ namespace Server
 		public Rectangle2D GetGraphicBounds()
 		{
 			var itemID = m_ItemID;
-			var doubled = m_Amount > 1;
+			var stacked = Stackable && m_Amount > 1;
 
 			if (itemID >= 0xEEA && itemID <= 0xEF2) // Are we coins?
 			{
@@ -1718,7 +1718,7 @@ namespace Server
 				coinBase *= 3;
 				coinBase += 0xEEA;
 
-				doubled = false;
+				stacked = false;
 
 				if (m_Amount <= 1)
 				{
@@ -1737,9 +1737,9 @@ namespace Server
 				}
 			}
 
-			var bounds = ItemBounds.Table[itemID & 0x3FFF];
+			var bounds = ItemBounds.Table[itemID & TileData.MaxItemValue];
 
-			if (doubled)
+			if (stacked)
 			{
 				bounds.Set(bounds.X, bounds.Y, bounds.Width + 5, bounds.Height + 5);
 			}

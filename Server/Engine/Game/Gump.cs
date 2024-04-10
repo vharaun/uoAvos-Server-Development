@@ -176,6 +176,25 @@ namespace Server.Gumps
 			Add(new GumpGroup(group));
 		}
 
+		public void AddTooltip(TextDefinition text)
+		{
+			if (text.Number > 0)
+			{
+				if (!String.IsNullOrWhiteSpace(text.String))
+				{
+					AddTooltip(text.Number, text.String);
+				}
+				else
+				{
+					AddTooltip(text.Number);
+				}
+			}
+			else if (!String.IsNullOrEmpty(text.String))
+			{
+				AddTooltip(text.String);
+			}
+		}
+
 		public void AddTooltip(int number)
 		{
 			Add(new GumpTooltip(number));

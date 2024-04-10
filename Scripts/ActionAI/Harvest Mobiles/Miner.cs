@@ -38,8 +38,7 @@ namespace Server.Mobiles
         private HashSet<Point3D> points;
         private List<Point3D> pointsList;
 
-        public override HarvestDefinition harvestDefinition { get { return Mining.System.OreAndStone; } }
-        public override HarvestSystem harvestSystem { get { return Mining.System; } }
+        public override IHarvestSystem Harvest { get { return Mining.System; } }
 
         public override bool PlayerRangeSensitive { get { return false; } }
 
@@ -362,26 +361,12 @@ namespace Server.Mobiles
 
 
 		public override void OnThink()
-        {
-            if (!Alive && Deleted)
-            {
-                return;
-            }
+		{
+			base.OnThink();
 
-            //if (m_MobilePath == null || m_waypointFirst == null)
-            if (pointsList == null || m_waypointFirst == null)
+			if (Alive && !Deleted && m_waypointFirst != null)
             {
-                return;
-            }
-
-            if (pointsList == null || m_waypointFirst == null)
-            {
-                return;
-            }
-
-            if (Alive && !Deleted /* && m_waypointFirst != null && m_MobilePath != null */)
-            {
-				if (!this.InLOS(new Point3D(m_waypointFirst.X, m_waypointFirst.Y, m_waypointFirst.Z)))
+				if (!InLOS(new Point3D(m_waypointFirst.X, m_waypointFirst.Y, m_waypointFirst.Z)))
 				{
 					NextWayPoint();
 				}
@@ -391,40 +376,6 @@ namespace Server.Mobiles
                     CurrentSpeed = 2.0;
 
                     Timer.DelayCall(TimeSpan.FromMinutes(5.0), MoveWayPoint);
-                }
-
-				if (Location != Home && m_waypointFirst != null && (m_waypointFirst.X != Location.X & m_waypointFirst.Y != Location.Y))
-				{
-					Timer.DelayCall(TimeSpan.FromSeconds(5.0), delegate
-						{
-							if (m_waypointFirst != null && (m_waypointFirst.X != Location.X & m_waypointFirst.Y != Location.Y) && (m_Index + 1) < pointsList.Count)
-								MoveWayPoint();
-							else
-							{
-								m_Index = 0;
-								waypointFirst.Location = Home;
-								CurrentWayPoint = waypointFirst;
-							}
-						});
-				}
-
-                if (Location != Home && m_waypointFirst != null && (m_waypointFirst.X == Location.X & m_waypointFirst.Y == Location.Y))
-                {
-                    CantWalk = true;
-                    CurrentSpeed = 2.0;
-
-                     /*********
-                    TODO: MAKE MOBILE FACE TREE BASED ON CALCULATION OF POINTS
-                    **********/
-                    //Direction = m_MobilePath[m_Index].Item2;
-                    
-                    Animate(11, 5, 1, true, false, 0);
-                    PlaySound(Utility.RandomList(harvestDefinition.EffectSounds));
-                }
-                else
-                {
-                    CurrentSpeed = 0.2;
-                    CantWalk = false;
                 }
             }
         }

@@ -39,8 +39,7 @@ namespace Server.Mobiles
 
         public override bool InitialInnocent { get { return true; } }
 
-        public override HarvestDefinition harvestDefinition { get { return Fishing.System.Definition; } }
-        public override HarvestSystem harvestSystem { get { return Fishing.System; } }
+        public override IHarvestSystem Harvest { get { return Fishing.System; } }
 
         [Constructable]
         public ActionAI_DeepSeaFishermen() : base(AIType.AI_Archer, FightMode.Closest, 15, 1, 0.2, 2.0)
@@ -298,8 +297,6 @@ namespace Server.Mobiles
 
                 Animate(11, 5, 1, true, false, 0); //  Animate( int action, int frameCount, int repeatCount, bool forward, bool repeat, int delay )    
 
-                DoHarvest();
-
                 Timer.DelayCall(TimeSpan.FromSeconds(0.7),
                     delegate
                     {
@@ -551,7 +548,7 @@ namespace Server.Mobiles
             if (m_DeepSeaBoat == null && m_DeepSeaBoat.Deleted)
                 return;
 
-            SelfDeleting_MediumCrate container = null;
+            TransientMediumCrate container = null;
             List<Item> items = Backpack.Items;
             Point3D p = new Point3D(X, Y, Z);
 
@@ -559,13 +556,13 @@ namespace Server.Mobiles
             {
                 foreach (Item item in Map.GetItemsInRange(p, 3))
                 {
-                    if (item is SelfDeleting_MediumCrate)
-                        container = (SelfDeleting_MediumCrate)item;
+                    if (item is TransientMediumCrate)
+                        container = (TransientMediumCrate)item;
                 }
 
                 if (container == null || container.Weight > 300)
                 {
-                    container = new SelfDeleting_MediumCrate();
+                    container = new TransientMediumCrate();
                     Point3D newPoint = new Point3D(m_DeepSeaBoat.X, m_DeepSeaBoat.Y, m_DeepSeaBoat.Z);
                     container.MoveToWorld(newPoint, Map);
                 }
@@ -582,104 +579,6 @@ namespace Server.Mobiles
                     //items in Containers do not have a Z coordinate
                     if (container != null || !container.Deleted)
                         container.OnDragDropInto(this, items[i], new Point3D(randX, randY, 0));
-                }
-            }
-        }
-
-        public void DoHarvest()
-        {
-            if (Map == Map.Internal)
-            {
-                return;
-            }
-
-            if (Backpack == null)
-                AddItem(new Backpack());
-
-            Map map = Map;
-            Point3D loc = Location;
-            int x = 0, y = 0;
-            loc.X += x;
-            loc.Y += y;
-
-            HarvestBank bank = harvestDefinition.GetBank(map, loc.X, loc.Y);
-
-            bool available = (bank != null && bank.Current >= harvestDefinition.ConsumedPerHarvest);
-
-            if (!available)
-            {
-                //Emote( String.Format("There is no wood here to harvest") );
-                return;
-            }
-
-            if (bank == null || bank.Current < harvestDefinition.ConsumedPerHarvest)
-                return;
-
-            HarvestVein vein = bank.Vein;
-
-            if (vein == null)
-                return;
-
-            HarvestResource primary = vein.PrimaryResource;
-            HarvestResource fallback = harvestDefinition.Resources[0];
-
-            HarvestResource resource = harvestSystem.MutateResource(this, null, harvestDefinition, map, loc, vein, primary, fallback);
-
-            double skillBase = Skills[harvestDefinition.Skill].Base;
-
-            Type type = null;
-
-            if (skillBase >= resource.ReqSkill && CheckSkill(harvestDefinition.Skill, resource.MinSkill, resource.MaxSkill))
-            {
-                type = harvestSystem.GetResourceType(this, null, harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                    type = harvestSystem.MutateType(type, this, null, harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                {
-                    Item itemHarvested = harvestSystem.Construct(type, this);
-
-                    if (itemHarvested == null)
-                    {
-                        type = null;
-                    }
-                    else
-                    {
-                        if (itemHarvested.Stackable)
-                        {
-                            int amount = harvestDefinition.ConsumedPerHarvest;
-                            int feluccaAmount = harvestDefinition.ConsumedPerFeluccaHarvest;
-
-                            bool inFelucca = (map == Map.Felucca);
-
-                            if (inFelucca)
-                                itemHarvested.Amount = feluccaAmount;
-                            else
-                                itemHarvested.Amount = amount;
-                        }
-
-                        bank.Consume(itemHarvested.Amount, this);
-
-                        Container pack = Backpack;
-
-                        if (pack == null)
-                        {
-                            return;
-                        }
-
-                        pack.TryDropItem(this, itemHarvested, false);
-
-                        // Harvest bark fragment, amber, etc
-                        BonusHarvestResource bonus = harvestDefinition.GetBonusResource();
-
-                        if (bonus != null && bonus.Type != null && skillBase >= bonus.ReqSkill)
-                        {
-                            Item bonusItem = harvestSystem.Construct(bonus.Type, this);
-
-                            pack.TryDropItem(this, bonusItem, false);
-                        }
-                    }
                 }
             }
         }
@@ -1018,8 +917,7 @@ namespace Server.Mobiles
 
         public override bool InitialInnocent { get { return true; } }
 
-        public override HarvestDefinition harvestDefinition { get { return Fishing.System.Definition; } }
-        public override HarvestSystem harvestSystem { get { return Fishing.System; } }
+        public override IHarvestSystem Harvest { get { return Fishing.System; } }
 
         [Constructable]
         public ActionAI_DockedFishermen() : base(AIType.AI_Archer, FightMode.Closest, 15, 1, 0.2, 2.0)
@@ -1219,8 +1117,6 @@ namespace Server.Mobiles
 
             FishingCount += 1;
 
-            DoHarvest();
-
             Container pack = Backpack;
 
             if (pack == null)
@@ -1240,110 +1136,12 @@ namespace Server.Mobiles
             }
         }
 
-        public void DoHarvest()
-        {
-            if (Map == Map.Internal)
-            {
-                return;
-            }
-
-            if (Backpack == null)
-                AddItem(new Backpack());
-
-            Map map = Map;
-            Point3D loc = Location;
-            int x = 0, y = 0;
-            loc.X += x;
-            loc.Y += y;
-
-            HarvestBank bank = harvestDefinition.GetBank(map, loc.X, loc.Y);
-
-            bool available = (bank != null && bank.Current >= harvestDefinition.ConsumedPerHarvest);
-
-            if (!available)
-            {
-                //Emote( String.Format("There is no wood here to harvest") );
-                return;
-            }
-
-            if (bank == null || bank.Current < harvestDefinition.ConsumedPerHarvest)
-                return;
-
-            HarvestVein vein = bank.Vein;
-
-            if (vein == null)
-                return;
-
-            HarvestResource primary = vein.PrimaryResource;
-            HarvestResource fallback = harvestDefinition.Resources[0];
-
-            HarvestResource resource = harvestSystem.MutateResource(this, null, harvestDefinition, map, loc, vein, primary, fallback);
-
-            double skillBase = Skills[harvestDefinition.Skill].Base;
-
-            Type type = null;
-
-            if (skillBase >= resource.ReqSkill && CheckSkill(harvestDefinition.Skill, resource.MinSkill, resource.MaxSkill))
-            {
-                type = harvestSystem.GetResourceType(this, null, harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                    type = harvestSystem.MutateType(type, this, null, harvestDefinition, map, loc, resource);
-
-                if (type != null)
-                {
-                    Item itemHarvested = harvestSystem.Construct(type, this);
-
-                    if (itemHarvested == null)
-                    {
-                        type = null;
-                    }
-                    else
-                    {
-                        if (itemHarvested.Stackable)
-                        {
-                            int amount = harvestDefinition.ConsumedPerHarvest;
-                            int feluccaAmount = harvestDefinition.ConsumedPerFeluccaHarvest;
-
-                            bool inFelucca = (map == Map.Felucca);
-
-                            if (inFelucca)
-                                itemHarvested.Amount = feluccaAmount;
-                            else
-                                itemHarvested.Amount = amount;
-                        }
-
-                        bank.Consume(itemHarvested.Amount, this);
-
-                        Container pack = Backpack;
-
-                        if (pack == null)
-                        {
-                            return;
-                        }
-
-                        pack.TryDropItem(this, itemHarvested, false);
-
-                        // Harvest bark fragment, amber, etc
-                        BonusHarvestResource bonus = harvestDefinition.GetBonusResource();
-
-                        if (bonus != null && bonus.Type != null && skillBase >= bonus.ReqSkill)
-                        {
-                            Item bonusItem = harvestSystem.Construct(bonus.Type, this);
-
-                            pack.TryDropItem(this, bonusItem, false);
-                        }
-                    }
-                }
-            }
-        }
-
         private void EmptyPack()
         {
             if (m_DeepSeaBoat == null && m_DeepSeaBoat.Deleted)
                 return;
 
-            SelfDeleting_MediumCrate container = null;
+            TransientMediumCrate container = null;
             List<Item> items = Backpack.Items;
             Point3D p = new Point3D(X, Y, Z);
 
@@ -1351,13 +1149,13 @@ namespace Server.Mobiles
             {
                 foreach (Item item in Map.GetItemsInRange(p, 3))
                 {
-                    if (item is SelfDeleting_MediumCrate)
-                        container = (SelfDeleting_MediumCrate)item;
+                    if (item is TransientMediumCrate)
+                        container = (TransientMediumCrate)item;
                 }
 
                 if (container == null || container.Weight > 300)
                 {
-                    container = new SelfDeleting_MediumCrate();
+                    container = new TransientMediumCrate();
                     Point3D newPoint = new Point3D(m_DeepSeaBoat.X, m_DeepSeaBoat.Y, m_DeepSeaBoat.Z);
                     container.MoveToWorld(newPoint, Map);
                 }

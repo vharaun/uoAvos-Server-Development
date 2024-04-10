@@ -1117,6 +1117,11 @@ namespace Server.Spells.Magery
 		{
 		}
 
+		public RecallSpell(Mobile caster, Point3D loc, Map map)
+			: this(caster, null, new RunebookEntry(loc, map, "Unknown", null), null)
+		{
+		}
+
 		public RecallSpell(Mobile caster, Item scroll, RunebookEntry entry, Runebook book)
 			: base(caster, scroll, MagerySpellName.Recall)
 		{
@@ -1172,78 +1177,121 @@ namespace Server.Spells.Magery
 				return false;
 			}
 
-			if (WeightOverloading.IsOverloaded(Caster))
+			if (Caster is PlayerMobile player)
 			{
-				Caster.SendLocalizedMessage(502359, "", 0x22); // Thou art too encumbered to move.
-				return false;
+				if (WeightOverloading.IsOverloaded(player))
+				{
+					player.SendLocalizedMessage(502359, "", 0x22); // Thou art too encumbered to move.
+					return false;
+				}
+
+				return SpellHelper.CheckTravel(player, TravelCheckType.RecallFrom);
 			}
 
-			return SpellHelper.CheckTravel(Caster, TravelCheckType.RecallFrom);
+			return true;
 		}
 
 		public void Effect(Point3D loc, Map map, bool checkMulti)
 		{
-			if (Factions.Sigil.ExistsOn(Caster))
+			try
 			{
-				Caster.SendLocalizedMessage(1061632); // You can't do that while carrying the sigil.
-			}
-			else if (map == null || (!Core.AOS && Caster.Map != map))
-			{
-				Caster.SendLocalizedMessage(1005569); // You can not recall to another facet.
-			}
-			else if (!SpellHelper.CheckTravel(Caster, TravelCheckType.RecallFrom))
-			{
-			}
-			else if (!SpellHelper.CheckTravel(Caster, map, loc, TravelCheckType.RecallTo))
-			{
-			}
-			else if (map == Map.Felucca && Caster is PlayerMobile && ((PlayerMobile)Caster).Young)
-			{
-				Caster.SendLocalizedMessage(1049543); // You decide against traveling to Felucca while you are still young.
-			}
-			else if (Caster.Murderer && map != Map.Felucca)
-			{
-				Caster.SendLocalizedMessage(1019004); // You are not allowed to travel there.
-			}
-			else if (Caster.Criminal)
-			{
-				Caster.SendLocalizedMessage(1005561, "", 0x22); // Thou'rt a criminal and cannot escape so easily.
-			}
-			else if (SpellHelper.CheckCombat(Caster))
-			{
-				Caster.SendLocalizedMessage(1005564, "", 0x22); // Wouldst thou flee during the heat of battle??
-			}
-			else if (WeightOverloading.IsOverloaded(Caster))
-			{
-				Caster.SendLocalizedMessage(502359, "", 0x22); // Thou art too encumbered to move.
-			}
-			else if (!map.CanSpawnMobile(loc.X, loc.Y, loc.Z))
-			{
-				Caster.SendLocalizedMessage(501942); // That location is blocked.
-			}
-			else if (checkMulti && SpellHelper.CheckMulti(loc, map))
-			{
-				Caster.SendLocalizedMessage(501942); // That location is blocked.
-			}
-			else if (m_Book != null && m_Book.CurCharges <= 0)
-			{
-				Caster.SendLocalizedMessage(502412); // There are no charges left on that item.
-			}
-			else if (CheckSequence())
-			{
-				BaseCreature.TeleportPets(Caster, loc, map, true);
-
-				if (m_Book != null)
+				if (map == null)
 				{
-					--m_Book.CurCharges;
+					Caster.SendLocalizedMessage(1005569); // You can not recall to another facet.
+					return;
 				}
 
-				Caster.PlaySound(0x1FC);
-				Caster.MoveToWorld(loc, map);
-				Caster.PlaySound(0x1FC);
-			}
+				if (Factions.Sigil.ExistsOn(Caster))
+				{
+					Caster.SendLocalizedMessage(1061632); // You can't do that while carrying the sigil.
+					return;
+				}
 
-			FinishSequence();
+				if (Caster.Criminal)
+				{
+					Caster.SendLocalizedMessage(1005561, "", 0x22); // Thou'rt a criminal and cannot escape so easily.
+					return;
+				}
+
+				if (SpellHelper.CheckCombat(Caster))
+				{
+					Caster.SendLocalizedMessage(1005564, "", 0x22); // Wouldst thou flee during the heat of battle??
+					return;
+				}
+
+				if (Caster is PlayerMobile player)
+				{
+					if (!Core.AOS && player.Map != map)
+					{
+						player.SendLocalizedMessage(1005569); // You can not recall to another facet.
+						return;
+					}
+
+					if (map == Map.Felucca && player.Young)
+					{
+						player.SendLocalizedMessage(1049543); // You decide against traveling to Felucca while you are still young.
+						return;
+					}
+
+					if (map != Map.Felucca && player.Murderer)
+					{
+						player.SendLocalizedMessage(1019004); // You are not allowed to travel there.
+						return;
+					}
+
+					if (!SpellHelper.CheckTravel(player, TravelCheckType.RecallFrom))
+					{
+						return;
+					}
+
+					if (!SpellHelper.CheckTravel(player, map, loc, TravelCheckType.RecallTo))
+					{
+						return;
+					}
+
+					if (WeightOverloading.IsOverloaded(player))
+					{
+						player.SendLocalizedMessage(502359, "", 0x22); // Thou art too encumbered to move.
+						return;
+					}
+				}
+
+				if (!map.CanSpawnMobile(loc.X, loc.Y, loc.Z))
+				{
+					Caster.SendLocalizedMessage(501942); // That location is blocked.
+					return;
+				}
+
+				if (checkMulti && SpellHelper.CheckMulti(loc, map))
+				{
+					Caster.SendLocalizedMessage(501942); // That location is blocked.
+					return;
+				}
+
+				if (m_Book != null && m_Book.CurCharges <= 0)
+				{
+					Caster.SendLocalizedMessage(502412); // There are no charges left on that item.
+					return;
+				}
+
+				if (CheckSequence())
+				{
+					BaseCreature.TeleportPets(Caster, loc, map, true);
+
+					if (m_Book != null)
+					{
+						--m_Book.CurCharges;
+					}
+
+					Caster.PlaySound(0x1FC);
+					Caster.MoveToWorld(loc, map);
+					Caster.PlaySound(0x1FC);
+				}
+			}
+			finally
+			{
+				FinishSequence();
+			}
 		}
 
 		private class InternalTarget : Target

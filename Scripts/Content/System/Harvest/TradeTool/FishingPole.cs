@@ -2,21 +2,52 @@
 using Server.Engines.Harvest;
 using Server.Network;
 
+using System;
 using System.Collections.Generic;
 
 namespace Server.Items
 {
-	public class FishingPole : Item, IHarvestTool
+	public class FishingPole : Item, IHarvestTool, IEngraved
 	{
 		public virtual HarvestSystem HarvestSystem => Fishing.System;
 
 		IHarvestSystem IHarvestTool.HarvestSystem => HarvestSystem;
 
+		private string m_EngravedText;
+
+		[CommandProperty(AccessLevel.GameMaster)]
+		public string EngravedText
+		{
+			get => m_EngravedText;
+			set
+			{
+				m_EngravedText = value;
+
+				InvalidateProperties();
+			}
+		}
+
 		[Constructable]
-		public FishingPole() : base(0x0DC0)
+		public FishingPole() 
+			: base(0x0DC0)
 		{
 			Layer = Layer.TwoHanded;
 			Weight = 8.0;
+		}
+
+		public FishingPole(Serial serial)
+			: base(serial)
+		{
+		}
+
+		public override void AddNameProperty(ObjectPropertyList list)
+		{
+			base.AddNameProperty(list);
+
+			if (!String.IsNullOrEmpty(EngravedText))
+			{
+				list.Add(1062613, EngravedText);
+			}
 		}
 
 		public override void OnDoubleClick(Mobile from)
@@ -56,15 +87,13 @@ namespace Server.Items
 			return false;
 		}
 
-		public FishingPole(Serial serial) : base(serial)
-		{
-		}
-
 		public override void Serialize(GenericWriter writer)
 		{
 			base.Serialize(writer);
 
 			writer.Write(1); // version
+
+			writer.Write(m_EngravedText);
 		}
 
 		public override void Deserialize(GenericReader reader)
@@ -72,6 +101,8 @@ namespace Server.Items
 			base.Deserialize(reader);
 
 			var version = reader.ReadInt();
+
+			m_EngravedText = reader.ReadString();
 
 			if (version < 1 && Layer == Layer.OneHanded)
 			{
