@@ -975,7 +975,7 @@ namespace Server
 
 		public bool IsSpecial => Type?.IsAssignableTo(typeof(ISpecialMove)) == true;
 
-		public bool IsValid => IsDynamic || IsSpecial || (Type != null && ID != SpellName.Invalid && School != SpellSchool.Invalid);
+		public bool IsValid => Type != null && (IsDynamic || IsSpecial || ID != SpellName.Invalid);
 
 		public SpellInfo(Type type)
 			: this(type, SpellName.Invalid, SpellSchool.Invalid)
@@ -1264,20 +1264,27 @@ namespace Server
 
 		public static void Register(SpellInfo info)
 		{
-			if (info?.IsValid != true)
+			if (info == null || info.ID == SpellName.Invalid)
 			{
 				return;
 			}
 
 			m_Info[info.ID] = info;
-			m_Types[info.Type] = info.ID;
 
-			if (!m_Schools.TryGetValue(info.School, out var ids))
+			if (info.Type != null)
 			{
-				m_Schools[info.School] = ids = new();
+				m_Types[info.Type] = info.ID;
 			}
 
-			ids.Add(info.ID);
+			if (info.School != SpellSchool.Invalid)
+			{
+				if (!m_Schools.TryGetValue(info.School, out var ids))
+				{
+					m_Schools[info.School] = ids = new();
+				}
+
+				ids.Add(info.ID);
+			}
 
 			if (info.IsSpecial && !m_Specials.TryGetValue(info.ID, out var spm))
 			{
